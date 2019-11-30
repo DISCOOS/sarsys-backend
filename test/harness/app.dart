@@ -19,14 +19,10 @@ export 'package:aqueduct/aqueduct.dart';
 ///           });
 ///         }
 ///
-class Harness extends TestHarness<SarsysAppServerChannel> {
+class Harness extends TestHarness<SarSysAppServerChannel> {
   @override
-  Future onSetUp() async {
-
-  }
+  Future onSetUp() async {}
 
   @override
-  Future onTearDown() async {
-
-  }
+  Future onTearDown() async {}
 }

@@ -1,10 +1,16 @@
+import 'package:sarsys_app_server/controllers/access_validator.dart';
+import 'package:sarsys_app_server/controllers/app_config_controller.dart';
+
 import 'sarsys_app_server.dart';
 
 /// This type initializes an application.
 ///
 /// Override methods in this class to set up routes and initialize services like
 /// database connections. See http://aqueduct.io/docs/http/channel/.
-class SarsysAppServerChannel extends ApplicationChannel {
+class SarSysAppServerChannel extends ApplicationChannel {
+  /// Authorization validator
+  final AccessValidator validator = AccessValidator();
+
   /// Initialize services in this method.
   ///
   /// Implement this method to initialize services, read values from [options]
@@ -13,7 +19,9 @@ class SarsysAppServerChannel extends ApplicationChannel {
   /// This method is invoked prior to [entryPoint] being accessed.
   @override
   Future prepare() async {
-    logger.onRecord.listen((rec) => print("$rec ${rec.error ?? ""} ${rec.stackTrace ?? ""}"));
+    logger.onRecord.listen(
+      (rec) => print("$rec ${rec.error ?? ""} ${rec.stackTrace ?? ""}"),
+    );
   }
 
   /// Construct the request channel.
@@ -25,14 +33,10 @@ class SarsysAppServerChannel extends ApplicationChannel {
   @override
   Controller get entryPoint {
     final router = Router();
+    final authorizer = Authorizer.bearer(validator);
 
-    // Prefer to use `link` instead of `linkFunction`.
-    // See: https://aqueduct.io/docs/http/request_controller/
-    router
-      .route("/example")
-      .linkFunction((request) async {
-        return Response.ok({"key": "value"});
-      });
+    router.route('/').link(() => authorizer);
+    router.route('/app-config/:id').link(() => AppConfigController());
 
     return router;
   }
