@@ -1,9 +1,9 @@
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 
 Future main() async {
-  final app = Application<SarsysAppServerChannel>()
-      ..options.configurationFilePath = "config.yaml"
-      ..options.port = 8888;
+  final app = Application<SarSysAppServerChannel>()
+    ..options.configurationFilePath = "config.yaml"
+    ..options.port = 8888;
 
   final count = Platform.numberOfProcessors ~/ 2;
   await app.start(numberOfInstances: count > 0 ? count : 1);
