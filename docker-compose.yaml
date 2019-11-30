@@ -2,5 +2,6 @@ version: '3'
 services:
   sarsys-app-server:
     build: .
+    image: discoos/sarsys_app_server:latest
     ports:
       - "80:80"
