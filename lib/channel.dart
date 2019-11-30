@@ -35,8 +35,10 @@ class SarSysAppServerChannel extends ApplicationChannel {
     final router = Router();
     final authorizer = Authorizer.bearer(validator);
 
-    router.route('/').link(() => authorizer);
-    router.route('/app-config/:id').link(() => AppConfigController());
+    router
+      ..route('/').link(() => authorizer)
+      ..route('/app-config/:id').link(() => AppConfigController())
+      ..route('/api/*').link(() => FileController("web"));
 
     return router;
   }

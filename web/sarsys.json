@@ -1,0 +1,110 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "sarsys_app_server",
+    "description": "An empty Aqueduct application.",
+    "version": "0.0.1"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8888"
+    }
+  ],
+  "paths": {
+    "/": {
+      "parameters": []
+    },
+    "/app-config/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "AppConfig"
+        ],
+        "operationId": "get",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {},
+    "responses": {
+      "InsufficientScope": {
+        "description": "The provided credentials or bearer token have insufficient permission to access this route.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "scope": {
+                  "type": "string",
+                  "description": "The required scope for this operation."
+                }
+              }
+            }
+          }
+        }
+      },
+      "InsufficientAccess": {
+        "description": "The provided credentials or bearer token are not authorized for this request.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "MalformedAuthorizationHeader": {
+        "description": "The provided Authorization header was malformed.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "parameters": {},
+    "requestBodies": {},
+    "headers": {},
+    "securitySchemes": {},
+    "callbacks": {}
+  }
+}
