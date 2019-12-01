@@ -3,7 +3,9 @@ SarSys Application Server
 
 ## Running the Application Locally
 
-Run `aqueduct serve` from this directory to run the application. For running within an IDE, run `bin/main.dart`. By default, a configuration file named `config.yaml` will be used.
+Run `pub run aqueduct:aqueduct serve --port 80 --isolates 2` from this directory to run the application. 
+For running within an IDE, run `bin/main.dart`. By default, a configuration file named `config.yaml` 
+will be used. This file SHOULD NOT be added to version control.
 
 To generate a SwaggerUI client, run `aqueduct document client`.
 
@@ -29,6 +31,10 @@ docker build -t discoos/sarsys_app_server:latest .
 docker push discoos/sarsys_app_server:latest
 ```
 
-## Deploying an Application
+## Deploying to Kubernetes
+
+```
+kubectl apply -f k8s.yaml
+```
 
 See the documentation for [Deployment](https://aqueduct.io/docs/deploy/).
