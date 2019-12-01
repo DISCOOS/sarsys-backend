@@ -4,9 +4,15 @@ metadata:
   name: sarsys
 ---
 apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sarsys-user
+  namespace: sarsys
+---
+apiVersion: v1
 kind: Service
 metadata:
-  name: sarsys-app-server-service
+  name: sarsys-app-server
   namespace: sarsys
 spec:
   selector:
@@ -16,6 +22,27 @@ spec:
   ports:
     - port: 80
       targetPort: 8080
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: sarsys-app-server
+  namespace: sarsys
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.frontend.rule.type: PathPrefix
+    traefik.ingress.kubernetes.io/frontend-entry-points: http,https
+    traefik.ingress.kubernetes.io/redirect-entry-point: https
+spec:
+  rules:
+    - host: sarsys.app
+      http:
+        paths:
+          - path: /api/
+            backend:
+              serviceName: sarsys-app-server
+              servicePort: 80
+
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -42,6 +69,7 @@ spec:
           # In development, setting `imagePullPolicy: Always` and using :latest tag is useful.
           imagePullPolicy: Always
           ports:
-            - containerPort: 80
+            - containerPort: 8080
       securityContext:
         runAsNonRoot: true
+      serviceAccountName: sarsys-user
