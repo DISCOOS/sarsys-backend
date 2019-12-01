@@ -1,7 +1,7 @@
 name: sarsys_app_server
-description: An empty Aqueduct application.
+description: API consumed by SarSys apps
 version: 0.0.1
-author: stable|kernel <jobs@stablekernel.com>
+author: DISCO Open Source <support@discoos.org>
 
 environment:
   sdk: ">=2.0.0 <3.0.0"
