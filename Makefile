@@ -33,9 +33,6 @@ build: test document
 	docker build -t discoos/sarsys_app_server:latest .
 	echo "[✓] Build docker image"
 
-commit:
-	echo "Push changes to github..."
-
 push:
 	echo "Push changes to github..."
 	git push
