@@ -25,9 +25,7 @@ serve:
 document:
 	echo "Generate OpenAPI document..."
 	aqueduct document --title "SarSys App Server" --host https://sarsys.app > web/sarsys.json
-	if [[ `git status --porcelain` ]]; then
-	  git commit -am "Generated OpenAPI document"
-	fi
+	if [[ `git status --porcelain` ]]; then git commit -am "Generated OpenAPI document"; fi
 	echo "[✓] Generate OpenAPI document"
 
 build: test document
