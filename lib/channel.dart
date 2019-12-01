@@ -1,4 +1,4 @@
-import 'package:sarsys_app_server/controllers/access_validator.dart';
+import 'package:sarsys_app_server/auth/access_validator.dart';
 import 'package:sarsys_app_server/controllers/app_config_controller.dart';
 
 import 'sarsys_app_server.dart';
