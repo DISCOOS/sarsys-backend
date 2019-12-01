@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sarsys
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sarsys-app-server-service
+  namespace: sarsys
+spec:
+  selector:
+    app: sarsys-app-server
+    role: backend
+    type: api
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sarsys-app-server
+  namespace: sarsys
+  labels:
+    app: sarsys-app-server
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sarsys-app-server
+  template:
+    metadata:
+      labels:
+        app: sarsys-app-server
+        role: backend
+        type: api
+    spec:
+      containers:
+        - name: sarsys-app-server
+          image: discoos/sarsys_app_server:latest
+          # In development, setting `imagePullPolicy: Always` and using :latest tag is useful.
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+      securityContext:
+        runAsNonRoot: true
