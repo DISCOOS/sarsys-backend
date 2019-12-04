@@ -8,6 +8,7 @@ kind: ServiceAccount
 metadata:
   name: sarsys-user
   namespace: sarsys
+automountServiceAccountToken: false
 ---
 apiVersion: v1
 kind: Service
@@ -52,10 +53,16 @@ metadata:
   labels:
     app: sarsys-app-server
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: sarsys-app-server
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  progressDeadlineSeconds: 5
   template:
     metadata:
       labels:
@@ -70,6 +77,16 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port:  8080
+            initialDelaySeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port:  8080
+            initialDelaySeconds: 10
       securityContext:
         runAsNonRoot: true
       serviceAccountName: sarsys-user
