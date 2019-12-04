@@ -87,6 +87,6 @@ spec:
               path: /health
               port:  8080
             initialDelaySeconds: 180
-      securityContext:
-        runAsNonRoot: true
+#      securityContext:
+#        runAsNonRoot: true
       serviceAccountName: sarsys-user
