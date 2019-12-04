@@ -32,7 +32,7 @@ document:
 build: test document
 	echo "Build docker image..."
 	docker build -t discoos/sarsys_app_server:latest .
-	echo "[✓] Build docker image"
+	echo "[✓] Build docker image finished"
 
 push:
 	echo "Push changes to github..."
@@ -41,10 +41,15 @@ push:
 	echo "[✓] Push changes to github"
 	echo "Push docker image..."
 	docker push discoos/sarsys_app_server:latest
-	echo "[✓] Deploy docker image"
+	echo "[✓] Deploy docker image finished"
 
 publish: build push
 	echo "Publish to kubernetes..."
 	kubectl apply -f k8s.yaml
-	kubectl -n sarsys get pods
-	echo "[✓] Publish to kubernetes"
+	if ! kubectl -n sarsys rollout status deployment sarsys-app-server; then \
+        kubectl -n sarsys rollout undo deployment sarsys-app-server; \
+        kubectl -n sarsys rollout status deployment sarsys-app-server; \
+		echo "[!] Publish to kubernetes failed"; \
+	    exit 1; \
+    fi
+	echo "[✓] Publish to kubernetes finished"
