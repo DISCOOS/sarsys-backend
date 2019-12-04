@@ -1,4 +1,5 @@
 import 'package:sarsys_app_server/auth/access_validator.dart';
+import 'package:sarsys_app_server/controllers/health_controller.dart';
 import 'package:sarsys_app_server/controllers/app_config_controller.dart';
 
 import 'sarsys_app_server.dart';
@@ -37,7 +38,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
 
     router
       ..route('/').link(() => authorizer)
-      ..route('/healthz').linkFunction((req) async => Response.noContent())
+      ..route('/health').link(() => HealthController())
       ..route('/app-config/:id').link(() => AppConfigController())
       ..route('/api/*').link(() => FileController("web"));
 
