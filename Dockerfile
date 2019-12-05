@@ -4,8 +4,7 @@ WORKDIR /app
 ADD pubspec.* /app/
 RUN pub get --no-precompile
 ADD . /app/
-RUN pub get --offline --no-precompile
-RUN pub webdev build
+RUN pub get --offline
 
 WORKDIR /app
 EXPOSE 80
