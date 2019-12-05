@@ -22,7 +22,7 @@ spec:
     type: api
   ports:
     - port: 80
-      targetPort: 8080
+      targetPort: 80
 ---
 apiVersion: extensions/v1beta1
 kind: Ingress
@@ -53,16 +53,10 @@ metadata:
   labels:
     app: sarsys-app-server
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: sarsys-app-server
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 0
-      maxSurge: 1
-  progressDeadlineSeconds: 360
   template:
     metadata:
       labels:
@@ -76,17 +70,27 @@ spec:
           # In development, setting `imagePullPolicy: Always` and using :latest tag is useful.
           imagePullPolicy: Always
           ports:
-            - containerPort: 8080
-          readinessProbe:
-            httpGet:
-              path: /health
-              port:  8080
-            initialDelaySeconds: 5
-          livenessProbe:
-            httpGet:
-              path: /health
-              port:  8080
-            initialDelaySeconds: 180
+            - containerPort: 80
+#              hostPort: 80
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "400Mi"
+            limits:
+              cpu: "500m"
+              memory: "800Mi"
+#          readinessProbe:
+#            httpGet:
+#              path: /health
+#              port:  80
+#              scheme: HTTP
+#            initialDelaySeconds: 5
+#          livenessProbe:
+#            httpGet:
+#              path: /health
+#              port:  80
+#              scheme: HTTP
+#            initialDelaySeconds: 180
 #      securityContext:
 #        runAsNonRoot: true
       serviceAccountName: sarsys-user
