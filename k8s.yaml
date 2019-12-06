@@ -22,7 +22,7 @@ spec:
     type: api
   ports:
     - port: 80
-      targetPort: 80
+      targetPort: 8082
 ---
 apiVersion: extensions/v1beta1
 kind: Ingress
@@ -70,7 +70,7 @@ spec:
           # In development, setting `imagePullPolicy: Always` and using :latest tag is useful.
           imagePullPolicy: Always
           ports:
-            - containerPort: 80
+            - containerPort: 8082
 #              hostPort: 80
           resources:
             requests:
