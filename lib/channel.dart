@@ -38,9 +38,9 @@ class SarSysAppServerChannel extends ApplicationChannel {
 
     router
       ..route('/').link(() => authorizer)
-      ..route('/health').link(() => HealthController())
-      ..route('/app-config/:id').link(() => AppConfigController())
-      ..route('/api/*').link(() => FileController("web"));
+      ..route('/api/*').link(() => FileController("web"))
+      ..route('/api/healthz').link(() => HealthController())
+      ..route('/api/app-config/:id').link(() => AppConfigController());
 
     return router;
   }
