@@ -53,7 +53,7 @@ metadata:
   labels:
     app: sarsys-app-server
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: sarsys-app-server
@@ -71,7 +71,6 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 8082
-#              hostPort: 80
           resources:
             requests:
               cpu: "250m"
@@ -79,18 +78,18 @@ spec:
             limits:
               cpu: "500m"
               memory: "800Mi"
-#          readinessProbe:
-#            httpGet:
-#              path: /health
-#              port:  80
-#              scheme: HTTP
-#            initialDelaySeconds: 5
-#          livenessProbe:
-#            httpGet:
-#              path: /health
-#              port:  80
-#              scheme: HTTP
-#            initialDelaySeconds: 180
-#      securityContext:
-#        runAsNonRoot: true
+          readinessProbe:
+            httpGet:
+              path: /health
+              port:  8082
+              scheme: HTTP
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port:  8082
+              scheme: HTTP
+            initialDelaySeconds: 30
+      securityContext:
+        runAsNonRoot: true
       serviceAccountName: sarsys-user
