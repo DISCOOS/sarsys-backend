@@ -5,7 +5,7 @@ import 'package:sarsys_app_server/sarsys_app_server.dart';
 
 Future main(List<String> args) async {
   final parser = ArgParser()
-    ..addOption("port", defaultsTo: "8888", abbr: "p")
+    ..addOption("port", defaultsTo: "80", abbr: "p")
     ..addOption("config", defaultsTo: "config.yaml", abbr: "c")
     ..addOption("instances", defaultsTo: "1", abbr: "i");
   final results = parser.parse(args);
