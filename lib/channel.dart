@@ -1,6 +1,7 @@
 import 'package:sarsys_app_server/auth/access_validator.dart';
 import 'package:sarsys_app_server/controllers/health_controller.dart';
 import 'package:sarsys_app_server/controllers/app_config_controller.dart';
+import 'package:sarsys_app_server/eventstore/core.dart';
 
 import 'sarsys_app_server.dart';
 
@@ -9,6 +10,9 @@ import 'sarsys_app_server.dart';
 /// Override methods in this class to set up routes and initialize services like
 /// database connections. See http://aqueduct.io/docs/http/channel/.
 class SarSysAppServerChannel extends ApplicationChannel {
+  /// EvenSource connection
+  final EsConnection connection = EsConnection();
+
   /// Authorization validator
   final AccessValidator validator = AccessValidator();
 
@@ -40,8 +44,14 @@ class SarSysAppServerChannel extends ApplicationChannel {
       ..route('/').link(() => authorizer)
       ..route('/api/*').link(() => FileController("web"))
       ..route('/api/healthz').link(() => HealthController())
-      ..route('/api/app-config/:id').link(() => AppConfigController());
+      ..route('/api/app-config/[:id]').link(() => AppConfigController(connection));
 
     return router;
+  }
+
+  @override
+  Future close() {
+    connection.close();
+    return super.close();
   }
 }
