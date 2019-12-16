@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart';
 import 'package:meta/meta.dart';
+import 'package:logging/logging.dart';
 import 'package:sarsys_app_server/eventstore/eventstore.dart';
 
 import 'core.dart';
@@ -56,6 +57,21 @@ class EventStoreManager {
   Repository<T> get<T extends AggregateRoot>() => _stores.keys.whereType<Repository<T>>()?.first;
 }
 
+/// Base class for source events
+class SourceEvent extends Event {
+  const SourceEvent({
+    @required String uuid,
+    @required String type,
+    @required this.number,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: type,
+          data: data,
+        );
+  final EventNumber number;
+}
+
 /// Storage class managing events locally in memory received from event store server
 @sealed
 class EventStore {
@@ -63,29 +79,33 @@ class EventStore {
     @required this.stream,
     @required this.bus,
     @required this.connection,
-  });
+    String logger = 'eventstore',
+  }) : _logger = Logger(logger);
+
   final String stream;
   final MessageBus bus;
+  final Logger _logger;
   final EventStoreConnection connection;
   final _store = <String, List<Event>>{};
   final _pending = <String, List<Event>>{};
 
-  /// Replay events from events for given repository
-  Future replay(Repository repository) async {
+  /// Replay events from stream to given repository
+  Future<Iterable<Event>> replay(Repository repository) async {
     try {
+      Iterable<Event> events = [];
+
       bus.replayStarted();
-      // Fetch atom feed for stream and fetch all events in it
-      final feed = await connection.getFeed(
+
+      // Fetch all events
+      final result = await connection.readAllEvents(
         stream: stream,
-        direction: Direction.backward,
+        direction: Direction.forward,
       );
-      if (feed.isOK) {
-        final result = await connection.readAllEvents(
-          stream: stream,
-          atomFeed: feed.atomFeed,
-        );
-        // Rebuild local event store
+
+      if (result.isOK) {
         _store.clear();
+
+        // Hydrate event store with events
         result.events
             .where(
               (event) => repository.toAggregateUuid(event) is String,
@@ -97,7 +117,8 @@ class EventStore {
                 ifAbsent: () => [event],
               ),
             );
-        // This will recreate aggregates stored in repository and republish events
+
+        // This will recreate aggregates and republish events
         _store.keys
           ..forEach(
             (uuid) => repository.get(uuid),
@@ -105,9 +126,13 @@ class EventStore {
           ..forEach(
             (uuid) => _publish(_store[uuid]),
           );
-        // Flush changes accumulated during replay
-        repository.commitAll();
+
+        // Flush events accumulated during replay
+        events = repository.commitAll();
+
+        _logger.info("Replayed ${result.events.length} events from stream '${result.stream}'");
       }
+      return events;
     } finally {
       bus.replayEnded();
     }
@@ -179,24 +204,29 @@ class EventStoreConnection {
   EventStoreConnection({
     this.host = 'http://127.0.0.1',
     this.port = 2113,
-  });
+    this.credentials = UserCredentials.defaultCredentials,
+    String logger = 'eventstore',
+  }) : _logger = Logger(logger);
 
   final String host;
   final int port;
   final Client client = Client();
+  final UserCredentials credentials;
 
+  final Logger _logger;
+
+  /// Get atom feed from stream
   Future<FeedResult> getFeed({
     @required String stream,
     EventNumber number = EventNumber.first,
-    Direction direction = Direction.backward,
-    UserCredentials credentials = UserCredentials.defaultCredentials,
+    Direction direction = Direction.forward,
   }) async =>
       FeedResult.from(
         stream: stream,
         number: number,
         direction: direction,
         response: await client.get(
-          "$host:$port/streams/$stream${_toPageUri(number, direction)}",
+          "$host:$port/streams/$stream${_toFeedUri(number, direction)}",
           headers: {
             'Authorization': credentials.header,
             'Accept': 'application/vnd.eventstore.atom+json',
@@ -204,59 +234,154 @@ class EventStoreConnection {
         ),
       );
 
-  String _toPageUri(
+  String _toFeedUri(
     EventNumber number,
     Direction direction,
   ) {
     String uri;
     if (number.isFirst)
-      uri = '';
+      uri = '/0/${direction == Direction.forward ? 'forward' : 'backward'}/20';
     else if (number.isLast)
       uri = '/head/backward/20';
     else
       uri = '/${number.value}/${direction == Direction.forward ? 'forward' : 'backward'}/20';
+    _logger.fine(uri);
     return uri;
   }
 
-  Future<ReadResult> readAllEvents({
+  /// Read events in [AtomFeed.entries] and return all in one result
+  Future<ReadResult> readEvents({
     @required String stream,
-    @required AtomFeed atomFeed,
-    UserCredentials credentials = UserCredentials.defaultCredentials,
+    EventNumber number = EventNumber.first,
+    Direction direction = Direction.forward,
   }) async {
-    final requests = _toRequests(atomFeed, Direction.forward, credentials);
-    final responses = await Future.wait(requests);
+    final result = await getFeed(
+      stream: stream,
+      number: number,
+      direction: direction,
+    );
+    if (result.isOK == false) {
+      return ReadResult(
+        stream: stream,
+        atomFeed: result.atomFeed,
+        statusCode: result.statusCode,
+        reasonPhrase: result.reasonPhrase,
+        direction: direction,
+        number: number,
+      );
+    }
+    return readEventsInFeed(result);
+  }
+
+  /// Read events in [AtomFeed.entries] in given [FeedResult.direction] and return all in one result
+  Future<ReadResult> readEventsInFeed(FeedResult result) async {
+    // Fail immediately using eagerError: true
+    final responses = await Future.wait(
+      _getEvents(
+        result.atomFeed,
+        result.direction,
+        result.number,
+        credentials,
+      ),
+      eagerError: true,
+    );
     final events = responses
         .where((test) => 200 == test.statusCode)
         .map((test) => json.decode(test.body))
-        .map((data) => Event(
+        .map((data) => SourceEvent(
               uuid: data['content']['eventId'] as String,
               type: data['content']['eventType'] as String,
               data: data['content']['data'] as Map<String, dynamic>,
+              number: EventNumber(data['content']['eventNumber'] as int),
             ))
         .toList();
 
     return ReadResult(
-      stream: stream,
-      statusCode: 200,
-      reasonPhrase: 'OK',
+      stream: result.stream,
+      statusCode: events.isEmpty ? 404 : 200,
+      reasonPhrase: events.isEmpty ? 'Not found' : 'OK',
       events: events,
+      atomFeed: result.atomFeed,
+      number: events.isEmpty ? result.number : events.last.number,
+      direction: result.direction,
     );
   }
 
-  String _toUri(Direction direction, AtomFeed atomFeed) {
-    return direction == Direction.backward
-        ? atomFeed.getUri(AtomFeed.last) ?? atomFeed.getUri(AtomFeed.next)
-        : atomFeed.getUri(AtomFeed.first) ?? atomFeed.getUri(AtomFeed.previous);
+  /// Read events in [AtomFeed.entries] and return all in one result
+  Future<ReadResult> readAllEvents({
+    @required String stream,
+    EventNumber number = EventNumber.first,
+    Direction direction = Direction.forward,
+  }) async {
+    // Get Initial atom feed
+    var feed = await getFeed(
+      stream: stream,
+      number: number,
+      direction: direction,
+    )
+      ..assertResult();
+
+    // Loop until all events are fetched from stream
+    ReadResult result, next;
+    do {
+      next = await readEventsInFeed(feed);
+      if (next.isOK) {
+        result = result == null ? next : result + next;
+        if (hasNextFeed(result))
+          feed = await getNextFeed(feed)
+            ..assertResult();
+      }
+    } while (next?.isOK == true && hasNextFeed(result));
+
+    return result;
   }
 
-  Iterable<Future<Response>> _toRequests(
+  /// Check if pagination is reached its end
+  bool hasNextFeed(FeedResult result) => !(result.direction == Direction.forward ? result.isHead : result.isTail);
+
+  /// Get next [AtomFeed] from previous [FeedResult.atomFeed] in given [FeedResult.direction].
+  Future<FeedResult> getNextFeed(FeedResult result) async => FeedResult.from(
+        stream: result.stream,
+        number: result.number,
+        direction: result.direction,
+        response: await client.get(
+          _toUri(
+            result.direction,
+            result.atomFeed,
+          ),
+          headers: {
+            'Authorization': credentials.header,
+            'Accept': 'application/vnd.eventstore.atom+json',
+          },
+        ),
+      );
+
+  String _toUri(Direction direction, AtomFeed atomFeed) {
+    final uri = direction == Direction.forward
+        ? atomFeed.getUri(AtomFeed.previous) ?? atomFeed.getUri(AtomFeed.first)
+        : atomFeed.getUri(AtomFeed.next) ?? atomFeed.getUri(AtomFeed.last);
+    _logger.fine(uri);
+    return uri;
+  }
+
+  Iterable<Future<Response>> _getEvents(
     AtomFeed atomFeed,
     Direction direction,
+    EventNumber number,
     UserCredentials credentials,
   ) {
-    return (direction == Direction.forward ? atomFeed.entries.reversed : atomFeed.entries).map(
+    var entries = direction == Direction.forward ? atomFeed.entries.reversed : atomFeed.entries;
+    // We do not know the EventNumber of the last event in each stream other than '/streams/{name}/head'.
+    // When paginating forwards and requested number is [EventNumber.last] we will get last page of events,
+    // and not only the last event which is requested. We can work around this by only returning
+    // the last entry in [AtomFeed.entries] and current page is [AtomFeed.headOfStream]. This will only
+    // fetch the last event from remote log.
+    if (atomFeed.headOfStream && number.isLast && direction == Direction.forward) {
+      entries = [entries.last];
+    }
+    return entries.map(
       (item) async => client.get(
-        item.getUri(AtomItem.alternate),
+        _getUri(item),
         headers: {
           'Authorization': credentials.header,
           'Accept': 'application/vnd.eventstore.atom+json',
@@ -265,10 +390,14 @@ class EventStoreConnection {
     );
   }
 
+  String _getUri(AtomItem item) {
+    _logger.fine(item.getUri(AtomItem.alternate));
+    return item.getUri(AtomItem.alternate);
+  }
+
   Future<WriteResult> writeEvents({
     @required String stream,
     @required Iterable<Event> events,
-    UserCredentials credentials = UserCredentials.defaultCredentials,
   }) async {
     final eventIds = <String>[];
     final body = events.map(
@@ -384,6 +513,22 @@ class FeedResult extends Result {
 
   /// Check if 304 Not modified
   bool get isNotModified => statusCode == 304;
+
+  /// Check if 404 Not found
+  bool get isNotFound => statusCode == 404;
+
+  /// Check if head (last page) of stream is reached
+  bool get isHead => atomFeed.headOfStream;
+
+  /// Check if tail (first page) of stream is reached
+  bool get isTail => !atomFeed.has(AtomFeed.next);
+
+  FeedResult assertResult() {
+    if (isOK == false) {
+      throw FeedFailed("Failed to get atom feed with: ${statusCode} ${reasonPhrase}");
+    }
+    return this;
+  }
 }
 
 /// Query result class
@@ -442,6 +587,16 @@ class ReadResult extends FeedResult {
     }
   }
 
+  /// Append results together
+  ReadResult operator +(ReadResult result) => ReadResult(
+        stream: result.stream,
+        atomFeed: result.atomFeed,
+        direction: result.direction,
+        statusCode: result.statusCode,
+        reasonPhrase: result.reasonPhrase,
+        events: events..addAll(result.events),
+      );
+
   /// Events read from stream
   final List<Event> events;
 }
@@ -455,7 +610,7 @@ class WriteResult extends Result {
     this.eventIds = const [],
     this.location,
     int number,
-  })  : number = EventNumber(value: number),
+  })  : number = EventNumber(number),
         super(
           stream: stream,
           statusCode: statusCode,

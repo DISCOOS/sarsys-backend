@@ -47,7 +47,12 @@ class AtomFeed extends Equatable {
 
   bool has(String relation) => links.any((test) => test.relation == relation);
 
-  String getUri(String relation) => links.firstWhere((test) => test.relation == relation)?.uri;
+  String getUri(String relation) => links
+      .firstWhere(
+        (test) => test.relation == relation,
+        orElse: () => null,
+      )
+      ?.uri;
 
   @override
   List<Object> get props => [

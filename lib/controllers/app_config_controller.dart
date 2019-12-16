@@ -6,6 +6,9 @@ class AppConfigController extends ResourceController {
   AppConfigController(this.repository);
   final Repository<AppConfig> repository;
 
+  // TODO: Implement pagination
+  // TODO: Implement optimistic locking (with rollback and reload of last state)
+
   // GET /app-config
   @Operation.get()
   Future<Response> getAll({

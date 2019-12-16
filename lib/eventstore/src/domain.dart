@@ -61,7 +61,7 @@ abstract class Repository<T extends AggregateRoot> {
 
   /// Push aggregate changes to remote storage
   ///
-  /// Returns true if changes was saved, false otherwise
+  /// Returns pushed events is saved, empty list otherwise
   Future<Iterable<Event>> push() => store.push(_aggregates.values);
 
   /// Validate data

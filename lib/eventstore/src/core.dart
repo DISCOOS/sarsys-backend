@@ -62,14 +62,21 @@ abstract class MessageHandler<T extends Message> {
 
 /// Event number in stream
 class EventNumber extends Equatable {
-  const EventNumber({this.value});
+  const EventNumber(this.value);
 
-  static const first = EventNumber(value: 0);
-  static const last = EventNumber(value: -1);
+  // First event in stream
+  static const first = EventNumber(0);
 
+  // Last event in stream
+  static const last = EventNumber(-1);
+
+  /// Test if first event number in stream
   bool get isFirst => this == first;
+
+  /// Test if last event number in stream
   bool get isLast => this == last;
 
+  /// Event number value
   final int value;
 
   @override
@@ -79,6 +86,8 @@ class EventNumber extends Equatable {
   String toString() {
     return 'EventNumber{current: $value}';
   }
+
+  EventNumber operator +(int number) => EventNumber(value + number);
 }
 
 /// Event traversal direction
@@ -125,6 +134,11 @@ class InvalidOperation extends Failure {
 /// Thrown when an push to remote event store failed
 class PushFailed extends Failure {
   const PushFailed(String message) : super(message);
+}
+
+/// Thrown when an stream [AtomFeed] operation failed
+class FeedFailed extends Failure {
+  const FeedFailed(String message) : super(message);
 }
 
 /// Type helper class
