@@ -1,32 +1,49 @@
-import 'package:sarsys_app_server/eventstore/core.dart';
-import 'package:sarsys_app_server/eventstore/events.dart';
+import 'package:sarsys_app_server/domain/app_config.dart';
+import 'package:sarsys_app_server/eventstore/eventstore.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 
 class AppConfigController extends ResourceController {
-  AppConfigController(this.connection);
-  final EsConnection connection;
+  AppConfigController(this.repository);
+  final Repository<AppConfig> repository;
+
+  // GET /app-config
+  @Operation.get()
+  Future<Response> getAll({
+    @Bind.query('limit') int limit = 20,
+    @Bind.query('offset') int offset = 0,
+  }) async =>
+      Response.ok(repository.getAll().map((aggregate) => aggregate.data)?.toList() ?? []);
 
   // GET /app-config/:id
   @Operation.get('id')
-  Future<Response> get(@Bind.path('id') String id) async {
-    return Response.ok("GET /${request.path.segments.join('/')}");
+  Future<Response> getById(@Bind.path('id') String uuid) async {
+    if (!repository.contains(uuid)) {
+      return Response.notFound();
+    }
+    final aggregate = repository.get(uuid);
+    return Response.ok(aggregate.data);
+  }
+
+  // PATCH /app-config/:id
+  @Operation('PATCH', 'id')
+  Future<Response> patch(@Bind.path('id') String uuid, @Bind.body() Map<String, dynamic> body) async {
+    if (!repository.contains(uuid)) {
+      return Response.notFound();
+    }
+    repository.commit(repository.get(uuid).patch(repository.validate(body)));
+    await repository.push();
+    return Response.noContent();
   }
 
   // POST /app-config
   @Operation.post()
   Future<Response> create(@Bind.body() Map<String, dynamic> body) async {
-    final result = await connection.writeEvents(
-      stream: 'app-config',
-      events: [
-        WriteEvent(type: 'AppConfigCreated', data: body),
-      ],
-    );
-    return result.isOK ? _toLocation(result) : _toFailure(result);
+    final uuid = body['id'] as String;
+    if (repository.contains(uuid)) {
+      return Response.conflict();
+    }
+    repository.commit(repository.get(uuid, data: body));
+    await repository.push();
+    return Response.noContent();
   }
-
-  Response _toFailure(WriteResult result) => Response(result.statusCode, {}, null);
-
-  Response _toLocation(WriteResult result) => Response.created(
-        "/${request.path.segments.join('/')}/${result.eventIds.last}",
-      );
 }

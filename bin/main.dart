@@ -10,6 +10,7 @@ Future main(List<String> args) async {
     ..addOption("instances", defaultsTo: "1", abbr: "i");
   final results = parser.parse(args);
   final app = Application<SarSysAppServerChannel>()
+    ..isolateStartupTimeout = const Duration(seconds: 120)
     ..options.configurationFilePath = results['config'] as String
     ..options.port = int.tryParse(results['port'] as String) ?? 8888;
 

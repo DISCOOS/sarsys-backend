@@ -12,15 +12,15 @@ else
 endif
 
 .PHONY: \
-	test serve document build push publish
+	test serve document models build push publish
 .SILENT: \
-	test serve document build push publish
+	test serve document models build push publish
 
 test:
 	pub run test
 
 serve:
-	pub run aqueduct:aqueduct serve --port 80 --isolates 2
+	pub run aqueduct:aqueduct serve --port 80 --isolates 1
 
 document:
 	echo "Generate OpenAPI document..."
@@ -28,6 +28,11 @@ document:
 	aqueduct document --title "SarSys App Server" --host https://sarsys.app --machine > web/sarsys.json
 	if [[ `git status --porcelain` ]]; then git commit -am "Generated OpenAPI document"; fi
 	echo "[✓] Generate OpenAPI document"
+
+models:
+	echo "Generating models..."; \
+	pub run build_runner build --delete-conflicting-outputs; \
+	echo "[✓] Generating models complete."
 
 build: test document
 	echo "Build docker image..."
