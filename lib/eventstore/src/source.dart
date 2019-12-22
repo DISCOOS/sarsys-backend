@@ -99,7 +99,6 @@ class EventStore {
       // Fetch all events
       final result = await connection.readAllEvents(
         stream: stream,
-        direction: Direction.forward,
       );
 
       if (result.isOK) {
@@ -204,12 +203,14 @@ class EventStoreConnection {
   EventStoreConnection({
     this.host = 'http://127.0.0.1',
     this.port = 2113,
+    this.pageSize = 20,
     this.credentials = UserCredentials.defaultCredentials,
     String logger = 'eventstore',
   }) : _logger = Logger(logger);
 
   final String host;
   final int port;
+  final int pageSize;
   final Client client = Client();
   final UserCredentials credentials;
 
@@ -240,11 +241,11 @@ class EventStoreConnection {
   ) {
     String uri;
     if (number.isFirst)
-      uri = '/0/${direction == Direction.forward ? 'forward' : 'backward'}/20';
+      uri = '/0/${direction == Direction.forward ? 'forward' : 'backward'}/$pageSize';
     else if (number.isLast)
-      uri = '/head/backward/20';
+      uri = '/head/backward/$pageSize';
     else
-      uri = '/${number.value}/${direction == Direction.forward ? 'forward' : 'backward'}/20';
+      uri = '/${number.value}/${direction == Direction.forward ? 'forward' : 'backward'}/$pageSize';
     _logger.fine(uri);
     return uri;
   }
