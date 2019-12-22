@@ -32,7 +32,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     manager.register<AppConfig>((store) => AppConfigRepository(store));
     await manager.build();
     logger.info("Built repositories in ${stopwatch.elapsedMilliseconds}ms");
-    if (stopwatch.elapsed.inMilliseconds > 25) {
+    if (stopwatch.elapsed.inSeconds > 25) {
       logger.severe("Approaching maximum duration to wait for each isolate to complete startup");
     }
   }

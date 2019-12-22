@@ -221,6 +221,7 @@ class EventStoreConnection {
     @required String stream,
     EventNumber number = EventNumber.first,
     Direction direction = Direction.forward,
+    Duration waitFor = const Duration(milliseconds: 0),
   }) async =>
       FeedResult.from(
         stream: stream,
@@ -231,6 +232,7 @@ class EventStoreConnection {
           headers: {
             'Authorization': credentials.header,
             'Accept': 'application/vnd.eventstore.atom+json',
+            if (waitFor.inSeconds > 0) 'ES-LongPoll': '${waitFor.inSeconds}'
           },
         ),
       );
@@ -282,19 +284,15 @@ class EventStoreConnection {
         result.atomFeed,
         result.direction,
         result.number,
-        credentials,
       ),
       eagerError: true,
     );
     final events = responses
-        .where((test) => 200 == test.statusCode)
+        .where(
+          (test) => 200 == test.statusCode,
+        )
         .map((test) => json.decode(test.body))
-        .map((data) => SourceEvent(
-              uuid: data['content']['eventId'] as String,
-              type: data['content']['eventType'] as String,
-              data: data['content']['data'] as Map<String, dynamic>,
-              number: EventNumber(data['content']['eventNumber'] as int),
-            ))
+        .map(_toEvent)
         .toList();
 
     return ReadResult(
@@ -307,6 +305,13 @@ class EventStoreConnection {
       direction: result.direction,
     );
   }
+
+  SourceEvent _toEvent(data) => SourceEvent(
+        uuid: data['content']['eventId'] as String,
+        type: data['content']['eventType'] as String,
+        data: data['content']['data'] as Map<String, dynamic>,
+        number: EventNumber(data['content']['eventNumber'] as int),
+      );
 
   /// Read events in [AtomFeed.entries] and return all in one result
   Future<ReadResult> readAllEvents({
@@ -369,7 +374,6 @@ class EventStoreConnection {
     AtomFeed atomFeed,
     Direction direction,
     EventNumber number,
-    UserCredentials credentials,
   ) {
     var entries = direction == Direction.forward ? atomFeed.entries.reversed : atomFeed.entries;
     // We do not know the EventNumber of the last event in each stream other than '/streams/{name}/head'.
@@ -381,15 +385,18 @@ class EventStoreConnection {
       entries = [entries.last];
     }
     return entries.map(
-      (item) async => client.get(
-        _getUri(item),
+      (item) async => _getEvent(_getUri(item)),
+    );
+  }
+
+  /// Get event from stream
+  Future<Response> _getEvent(String url) => client.get(
+        url,
         headers: {
           'Authorization': credentials.header,
           'Accept': 'application/vnd.eventstore.atom+json',
         },
-      ),
-    );
-  }
+      );
 
   String _getUri(AtomItem item) {
     _logger.fine(item.getUri(AtomItem.alternate));
@@ -409,7 +416,7 @@ class EventStoreConnection {
       },
     );
     final response = await client.post(
-      "$host:$port/streams/$stream",
+      _toStreamUri(stream),
       headers: {
         'Authorization': credentials.header,
         'Content-type': 'application/vnd.eventstore.events+json',
@@ -419,9 +426,74 @@ class EventStoreConnection {
     return WriteResult.from(stream, eventIds, response);
   }
 
+  String _toStreamUri(String stream) => "$host:$port/streams/$stream";
+
   String _uuid(List<String> eventIds, Event event) {
     eventIds.add(event.uuid);
     return event.uuid;
+  }
+
+  /// Subscribe to [SourceEvent]s from given [stream]
+  Stream<SourceEvent> subscribe({
+    @required String stream,
+    EventNumber number = EventNumber.last,
+    Duration waitFor = const Duration(milliseconds: 1500),
+    Duration pullEvery = const Duration(milliseconds: 500),
+  }) async* {
+    var current = number;
+
+    // Catch-up subscription?
+    if (!current.isLast) {
+      FeedResult feed;
+      do {
+        feed = await getFeed(
+          stream: stream,
+          number: current,
+          direction: Direction.forward,
+        );
+        if (feed.isOK) {
+          final result = await readEventsInFeed(feed);
+          if (!result.isOK) {
+            throw SubscriptionFailed(
+              "Failed to read events: ${result.statusCode} ${result.assertResult()}",
+            );
+          }
+          for (var e in result.events) {
+            yield e;
+          }
+          current = result.number;
+        }
+      } while (feed.isOK && !feed.atomFeed.headOfStream);
+
+      // Move one more event forward
+      current = current + 1;
+    }
+
+    // Continues until StreamSubscription.cancel() is invoked
+    await for (var request in Stream.periodic(
+      pullEvery,
+      (_) => getFeed(
+        stream: stream,
+        number: current,
+        direction: Direction.forward,
+        waitFor: waitFor,
+      ),
+    )) {
+      final feed = await request;
+      if (feed.statusCode == 200) {
+        final result = await readEventsInFeed(feed);
+        if (result.isOK) {
+          for (var e in result.events) {
+            yield e;
+          }
+          current = result.number + 1;
+        } else if (!result.isNotFound) {
+          throw SubscriptionFailed(
+            "Failed to read head of stream $stream: ${result.statusCode} ${result.assertResult()}",
+          );
+        }
+      }
+    }
   }
 
   void close() {
@@ -542,7 +614,7 @@ class ReadResult extends FeedResult {
     AtomFeed atomFeed,
     EventNumber number,
     Direction direction = Direction.backward,
-    this.events = const <Event>[],
+    this.events = const <SourceEvent>[],
   }) : super(
           stream: stream,
           statusCode: statusCode,
@@ -572,10 +644,11 @@ class ReadResult extends FeedResult {
             number: number,
             direction: direction,
             events: (events['entries'] as List)
-                .map((event) => Event(
+                .map((event) => SourceEvent(
                       uuid: event['eventid'] as String,
                       type: event['eventtype'] as String,
                       data: event['data'] as Map<String, dynamic>,
+                      number: EventNumber(event['eventNumber'] as int),
                     ))
                 .toList());
       default:
@@ -599,7 +672,7 @@ class ReadResult extends FeedResult {
       );
 
   /// Events read from stream
-  final List<Event> events;
+  final List<SourceEvent> events;
 }
 
 /// Command result class

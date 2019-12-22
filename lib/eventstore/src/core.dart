@@ -84,7 +84,7 @@ class EventNumber extends Equatable {
 
   @override
   String toString() {
-    return 'EventNumber{current: $value}';
+    return (isLast ? 'HEAD' : value).toString();
   }
 
   EventNumber operator +(int number) => EventNumber(value + number);
@@ -139,6 +139,11 @@ class PushFailed extends Failure {
 /// Thrown when an stream [AtomFeed] operation failed
 class FeedFailed extends Failure {
   const FeedFailed(String message) : super(message);
+}
+
+/// Thrown when an stream [Event] subscription failed
+class SubscriptionFailed extends Failure {
+  const SubscriptionFailed(String message) : super(message);
 }
 
 /// Type helper class
