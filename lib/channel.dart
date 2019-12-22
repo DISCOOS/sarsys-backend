@@ -25,11 +25,16 @@ class SarSysAppServerChannel extends ApplicationChannel {
   /// This method is invoked prior to [entryPoint] being accessed.
   @override
   Future prepare() async {
+    final stopwatch = Stopwatch()..start();
     logger.onRecord.listen(
       (rec) => print("$rec ${rec.error ?? ""} ${rec.stackTrace ?? ""}"),
     );
     manager.register<AppConfig>((store) => AppConfigRepository(store));
     await manager.build();
+    logger.info("Built repositories in ${stopwatch.elapsedMilliseconds}ms");
+    if (stopwatch.elapsed.inMilliseconds > 25) {
+      logger.severe("Approaching maximum duration to wait for each isolate to complete startup");
+    }
   }
 
   /// Construct the request channel.
