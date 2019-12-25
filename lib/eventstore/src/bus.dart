@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
@@ -109,14 +111,42 @@ class ReplayEnded extends Message {}
 
 /// Manages messages over WebSocket connections
 class MessageChannel extends MessageHandler<Event> {
-  MessageChannel();
+  MessageChannel({
+    this.ping = const Duration(seconds: 60),
+    this.idle = const Duration(days: 2),
+  });
+
+  /// Time between each ping to a client. If no pong is received
+  /// from client within next ping, the connection will be closed
+  /// with [WebSocketStatus.goingAway].
+  final Duration ping;
+
+  /// Maximum idle time before connection is closed
+  final Duration idle;
+
+  /// Named logger used by instances of this class
   final Logger logger = Logger("MessageChannel");
 
   /// Websocket connections
-  final _sockets = <String, WebSocket>{};
+  final _states = <String, _SocketState>{};
 
   /// Handled message types
   final _types = <Type>{};
+
+  /// Timer for checking socket states
+  Timer _heartbeat;
+
+  /// Will start heartbeat checking all socket connections.
+  void build() {
+    final period = Duration(
+      milliseconds: min(
+        ping.inMilliseconds,
+        idle.inMilliseconds,
+      ),
+    );
+    _heartbeat ??= Timer.periodic(period, _check);
+    _info("Checking liveliness with period ${period.inMilliseconds} ms");
+  }
 
   /// Register message type [T] as managed
   void register<T extends Message>(MessageBus bus) {
@@ -124,56 +154,102 @@ class MessageChannel extends MessageHandler<Event> {
     bus.register<T>(this);
   }
 
-  /// Subscribe [appId] to receive messages with [socket]
-  void subscribe(String appId, WebSocket socket) {
-    _sockets.update(appId, (current) {
-      if (current.readyState == WebSocket.open) {
-        current.close(
-          WebSocketStatus.protocolError,
-          _info("Only one connection per application, connection from $appId rejected"),
-        );
-      }
-      socket.listen(
-        // TODO: Listen for data from clients
-        (_) {},
-        onDone: () => _remove(appId, socket),
-        onError: () => _remove(appId, socket),
-      );
-      return socket;
-    }, ifAbsent: () => socket);
+  /// Subscribe client with [appId] to receive messages on [socket].
+  ///
+  /// [MessageChannel] supports heartbeat using opcodes specified in
+  /// [RFC6455](https://tools.ietf.org/html/rfc6455).
+  ///
+  /// If [withHeartbeat] is true, a message with opcode [0x9] (ping)
+  /// will be sent, which the client is expected to respond to with a
+  /// message with opcode [0xA] (pong) within [MessageChannel.ping].
+  ///
+  /// If [withHeartbeat] is false, the connection will be closed
+  /// automatically after duration given by [MessageChannel.idle].
+  ///
+  /// Each time the client sends data over the channel an internal
+  /// timestamp is updated. This timestamp is used to determine if the
+  /// connection is alive or not each liveliness check cycle.
+  void subscribe(String appId, WebSocket socket, {bool withHeartbeat = false}) {
+    if (socket.readyState != WebSocket.open) {
+      throw InvalidOperation("WebSocket is not open, was in ready state ${socket.readyState}");
+    }
+    // ignore: cancel_subscriptions, is cancelled in _remove(appId)
+    final subscription = socket.listen(
+      (event) => _onReceived(appId, event),
+      onDone: () => _remove(appId),
+      onError: (_) => _remove(appId),
+    );
+    final state = _SocketState.init(
+      socket,
+      subscription,
+      withHeartbeat: withHeartbeat,
+    );
+    _states.update(
+      appId,
+      (current) {
+        if (current.socket.readyState == WebSocket.open) {
+          _close(
+            current,
+            WebSocketStatus.protocolError,
+            "Only one connection per application, closing current connection from $appId",
+          );
+        }
+        return state;
+      },
+      ifAbsent: () => state,
+    );
+    if (withHeartbeat) {
+      socket.pingInterval = ping;
+    }
     _info("Websocket connection from $appId established");
   }
 
-  void _remove(String appId, WebSocket socket) {
-    _sockets.remove(socket);
-    _info("Removed socket for $appId");
+  void _remove(String appId) {
+    final state = _states.remove(appId);
+    if (state != null) {
+      state.subscription.cancel();
+      if (state.socket.readyState != WebSocket.closed) {
+        state.socket.close(WebSocketStatus.abnormalClosure);
+      }
+      _info("Removed socket for $appId");
+    }
   }
 
-  void unsubscribe(String appId) => _sockets[appId]?.close(
+  void unsubscribe(String appId) => _close(
+        _states[appId],
         WebSocketStatus.normalClosure,
-        _info("Unsubscribe $appId"),
+        "Unsubscribe $appId",
       );
 
   /// Dispose all WebSocket connection
   void dispose() {
-    _sockets.forEach(
-      (appId, socket) => socket.close(
+    _states.forEach(
+      (appId, state) => _close(
+        state,
         WebSocketStatus.normalClosure,
-        _info("Closed connection to $appId"),
+        "Closed connection to $appId",
       ),
     );
-    _sockets.clear();
+    _states.clear();
+    _heartbeat?.cancel();
   }
+
+  Future _close(_SocketState state, int code, String reason) => state.socket.close(
+        code,
+        _info(reason),
+      );
 
   @override
   void handle(Message message) {
     if (_types.contains(message.runtimeType)) {
-      _sockets.values.forEach(
-        (socket) {
+      _states.forEach(
+        (appId, state) {
           try {
             final data = _toData(message);
             if (data != null) {
-              socket.add(data);
+              state.socket.add(data);
+              logger.fine("Published $message to client $appId");
+              logger.finer(">> $data");
             }
           } catch (e) {
             logger.warning("Failed to publish message $message: $e");
@@ -191,8 +267,116 @@ class MessageChannel extends MessageHandler<Event> {
     }
   }
 
+  void _onReceived(String appId, event) {
+    final state = _states[appId];
+    if (state == null) {
+      logger.warning("Client $appId not found in states");
+    } else {
+      _states[appId] = state.alive();
+    }
+  }
+
+  void _check(Timer timer) {
+    try {
+      _cleanup();
+      final now = DateTime.now();
+      final idle = _states.entries
+          .where(
+            (test) => test.value.evaluate(now, this).isIdle,
+          )
+          .toList();
+
+      logger.info("Checked liveliness, found ${idle.length} of ${_states.length} idle ");
+
+      idle.forEach(
+        (entry) => _close(
+          entry.value,
+          WebSocketStatus.goingAway,
+          "Closed connection to ${entry.key} because idle timeout",
+        ),
+      );
+      _removeAll(idle);
+    } catch (e) {
+      logger.severe("Failed to check liveliness with: $e");
+    }
+  }
+
+  void _cleanup() {
+    final closed = _states.entries
+        .where(
+          (test) => test.value.socket.readyState == WebSocket.closed || test.value.socket.closeCode != null,
+        )
+        .toList();
+    if (closed.isNotEmpty) {
+      logger.info("Checked ready state, found ${closed.length} of ${_states.length} closed");
+      _removeAll(closed);
+    }
+  }
+
+  void _removeAll(Iterable<MapEntry<String, _SocketState>> entries) => entries.forEach(
+        (entry) => _remove(entry.key),
+      );
+
   String _info(String message) {
     logger.info(message);
     return message;
   }
+}
+
+enum _Liveliness { alive, idle }
+
+class _SocketState {
+  _SocketState({
+    @required this.socket,
+    @required this.status,
+    @required this.lastTime,
+    @required this.withHeartbeat,
+    @required this.subscription,
+  });
+
+  factory _SocketState.init(
+    WebSocket socket,
+    StreamSubscription subscription, {
+    bool withHeartbeat = false,
+  }) =>
+      _SocketState(
+        socket: socket,
+        status: _Liveliness.alive,
+        lastTime: DateTime.now(),
+        withHeartbeat: withHeartbeat,
+        subscription: subscription,
+      );
+
+  final WebSocket socket;
+  final DateTime lastTime;
+  final _Liveliness status;
+  final bool withHeartbeat;
+  final StreamSubscription subscription;
+
+  bool get isAlive => _Liveliness.alive == status;
+  bool get isIdle => _Liveliness.idle == status;
+
+  _SocketState evaluate(DateTime timestamp, MessageChannel channel) {
+    final delta = timestamp.difference(lastTime);
+    if (delta > channel.idle) {
+      return idle();
+    }
+    return this;
+  }
+
+  _SocketState alive() => _SocketState(
+        socket: socket,
+        status: _Liveliness.alive,
+        lastTime: DateTime.now(),
+        withHeartbeat: withHeartbeat,
+        subscription: subscription,
+      );
+
+  _SocketState idle() => _SocketState(
+        socket: socket,
+        status: _Liveliness.idle,
+        lastTime: lastTime,
+        withHeartbeat: withHeartbeat,
+        subscription: subscription,
+      );
 }

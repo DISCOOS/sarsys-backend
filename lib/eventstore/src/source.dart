@@ -39,7 +39,7 @@ class EventStoreManager {
   }
 
   /// Build all repositories from event stores
-  Future build() async {
+  Future<void> build() async {
     await Future.wait(_stores.keys.map(
       (repository) => repository.build(),
     ));
