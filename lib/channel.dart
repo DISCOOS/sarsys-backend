@@ -37,6 +37,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     // Register event handled by message broker
     messages.register<AppConfigCreated>(manager.bus);
     messages.register<AppConfigUpdated>(manager.bus);
+    messages.build();
 
     // Register repositories
     manager.register<AppConfig>((store) => AppConfigRepository(store));
