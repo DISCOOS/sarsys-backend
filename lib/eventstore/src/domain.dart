@@ -117,7 +117,7 @@ abstract class Repository<T extends AggregateRoot> {
     try {
       if (event.number > store.current) {
         // Get and commit changes
-        final aggregate = get(event.uuid, data: event.data).patch(event.data);
+        final aggregate = get(event.uuid, data: event.data);
         if (aggregate.isChanged == false) {
           aggregate.patch(event.data);
         }
