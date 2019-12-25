@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:meta/meta.dart';
 import 'package:sarsys_app_server/eventstore/eventstore.dart';
+import 'package:sarsys_app_server/sarsys_app_server.dart';
 
 import 'core.dart';
 
@@ -23,16 +24,27 @@ abstract class Repository<T extends AggregateRoot> {
   Repository({
     @required this.store,
     this.uuidFieldName = 'id',
-  });
+  }) : logger = Logger("${typeOf<T>()}");
+
   final EventStore store;
+  final Logger logger;
   final String uuidFieldName;
 
   /// Map of aggregate roots
   final Map<String, T> _aggregates = {};
 
+  /// Cancelled when repository is disposed
+  StreamSubscription<SourceEvent> _subscription;
+
   /// Build repository from local events
   Future build() async {
-    return store.replay(this);
+    await store.replay(this);
+    _subscribe();
+  }
+
+  /// Must be called to prevent memory leaks
+  void dispose() {
+    _subscription?.cancel();
   }
 
   /// Get aggregate with given id.
@@ -86,6 +98,43 @@ abstract class Repository<T extends AggregateRoot> {
 
   /// Check if repository contains given aggregate root
   bool contains(String uuid) => _aggregates.containsKey(uuid);
+
+  /// Subscribe to changes in stream
+  void _subscribe() {
+    _subscription = store.connection
+        .subscribe(
+          stream: store.stream,
+          number: store.current,
+        )
+        .listen(
+          _onEvent,
+          onDone: _onDone,
+          onError: _onError,
+        );
+  }
+
+  void _onEvent(SourceEvent event) {
+    try {
+      if (event.number > store.current) {
+        // Get and commit changes
+        final aggregate = get(event.uuid, data: event.data).patch(event.data);
+        if (aggregate.isChanged == false) {
+          aggregate.patch(event.data);
+        }
+        store.commit(aggregate);
+      }
+    } catch (e) {
+      logger.severe("Failed to process ${event.type}{uuid: ${event.uuid}}, got $e");
+    }
+  }
+
+  void _onDone() {
+    logger.info("Subscription on '${store.stream}' closed");
+  }
+
+  void _onError(error) {
+    logger.severe("Subscription on '${store.stream}' failed with: $error");
+  }
 }
 
 /// Base class for [aggregate roots](https://martinfowler.com/bliki/DDD_Aggregate.html).
@@ -115,6 +164,9 @@ abstract class AggregateRoot {
   @protected
   Iterable<Event> getUncommittedChanges() => _changes;
 
+  /// Check if uncommitted changes exists
+  bool get isChanged => _changes.isNotEmpty;
+
   /// Load events from history
   @protected
   void loadFromHistory(Iterable<DomainEvent> events) {
@@ -129,7 +181,7 @@ abstract class AggregateRoot {
   AggregateRoot patch(Map<String, dynamic> data);
 
   /// Get uncommitted changes and clear internal cache
-  Iterable<Event> commit() {
+  Iterable<DomainEvent> commit() {
     final changes = _changes.toSet();
     _changes.clear();
     return changes;
@@ -137,7 +189,7 @@ abstract class AggregateRoot {
 
   /// Process domain event
   ///
-  /// Throws [InvalidOperation] if [Event.uuid] is not equal to [AggregateRoot.uuid]
+  /// Throws [InvalidOperation] if value [uuidFieldName] in [Event.data] is not equal to [AggregateRoot.uuid]
   @protected
   DomainEvent process(DomainEvent event) {
     if (event.data[uuidFieldName] != uuid) {

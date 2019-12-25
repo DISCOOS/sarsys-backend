@@ -67,6 +67,9 @@ class EventNumber extends Equatable {
   // First event in stream
   static const first = EventNumber(0);
 
+  // Empty stream
+  static const none = EventNumber(-1);
+
   // Last event in stream
   static const last = EventNumber(-1);
 
@@ -88,6 +91,10 @@ class EventNumber extends Equatable {
   }
 
   EventNumber operator +(int number) => EventNumber(value + number);
+  bool operator >(EventNumber number) => value > number.value;
+  bool operator <(EventNumber number) => value < number.value;
+  bool operator >=(EventNumber number) => value >= number.value;
+  bool operator <=(EventNumber number) => value <= number.value;
 }
 
 /// Event traversal direction

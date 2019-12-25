@@ -45,11 +45,12 @@ class EventStoreManager {
     ));
   }
 
-  /// Dispose all event stores
+  /// Dispose all repositories and stores
   void dispose() {
-    _stores.values.forEach(
-      (store) => store.dispose(),
-    );
+    _stores.forEach((repository, store) {
+      store.dispose();
+      repository.dispose();
+    });
     _stores.clear();
   }
 
@@ -79,15 +80,17 @@ class EventStore {
     @required this.stream,
     @required this.bus,
     @required this.connection,
-    String logger = 'eventstore',
-  }) : _logger = Logger(logger);
+  }) : logger = Logger("EventStore:$stream");
 
   final String stream;
+  final Logger logger;
   final MessageBus bus;
-  final Logger _logger;
   final EventStoreConnection connection;
   final _store = <String, List<Event>>{};
   final _pending = <String, List<Event>>{};
+
+  EventNumber current = EventNumber.first;
+  StreamSubscription<Event> _subscription;
 
   /// Replay events from stream to given repository
   Future<Iterable<Event>> replay(Repository repository) async {
@@ -103,6 +106,9 @@ class EventStore {
 
       if (result.isOK) {
         _store.clear();
+
+        // Get current event number, TODO: move to unit test?
+        current = result.events.fold(EventNumber.none, _assertMonotone);
 
         // Hydrate event store with events
         result.events
@@ -129,7 +135,7 @@ class EventStore {
         // Flush events accumulated during replay
         events = repository.commitAll();
 
-        _logger.info("Replayed ${result.events.length} events from stream '${result.stream}'");
+        logger.info("Replayed ${result.events.length} events from stream '${result.stream}'");
       }
       return events;
     } finally {
@@ -146,7 +152,7 @@ class EventStore {
   /// Commit events to local storage.
   ///
   /// Returns true if changes was saved, false otherwise
-  Iterable<Event> commit(AggregateRoot aggregate) {
+  Iterable<DomainEvent> commit(AggregateRoot aggregate) {
     final events = aggregate.commit();
     // Do not save during replay
     if (bus.replaying == false && events.isNotEmpty) {
@@ -195,6 +201,15 @@ class EventStore {
   /// Clear events in store and close connection
   void dispose() {
     _store.clear();
+    _subscription?.cancel();
+  }
+
+  EventNumber _assertMonotone(EventNumber previous, SourceEvent next) {
+    if (previous.value >= next.number.value) {
+      throw InvalidOperation("EventNumber not monotone increasing, current: $previous, "
+          "next: ${next.number} in event ${next.type} with uuid: ${next.uuid}");
+    }
+    return next.number;
   }
 }
 
@@ -598,7 +613,7 @@ class FeedResult extends Result {
 
   FeedResult assertResult() {
     if (isOK == false) {
-      throw FeedFailed("Failed to get atom feed with: ${statusCode} ${reasonPhrase}");
+      throw FeedFailed("Failed to get atom feed because: ${statusCode} ${reasonPhrase}");
     }
     return this;
   }

@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 
 import 'core.dart';
@@ -14,8 +18,8 @@ class MessageBus implements MessageNotifier, CommandSender, EventPublisher {
   bool _replaying = false;
 
   /// Register message handler
-  void register<T extends Message>(MessageHandler<T> handler) => _routes.update(
-        T.runtimeType,
+  void register<T extends Message>(MessageHandler handler) => _routes.update(
+        typeOf<T>(),
         (handlers) => handlers..add(handler),
         ifAbsent: () => [handler],
       );
@@ -43,7 +47,7 @@ class MessageBus implements MessageNotifier, CommandSender, EventPublisher {
   }
 
   @override
-  void publish(Event event) => toHandlers(event).forEach((handler) => handler.handle);
+  void publish(Event event) => toHandlers(event).forEach((handler) => handler.handle(event));
 
   @override
   void send(Command command) {
@@ -102,3 +106,93 @@ class ReplayStarted extends Message {}
 /// Message handlers can resume sending commands after replay has ended.
 @sealed
 class ReplayEnded extends Message {}
+
+/// Manages messages over WebSocket connections
+class MessageChannel extends MessageHandler<Event> {
+  MessageChannel();
+  final Logger logger = Logger("MessageChannel");
+
+  /// Websocket connections
+  final _sockets = <String, WebSocket>{};
+
+  /// Handled message types
+  final _types = <Type>{};
+
+  /// Register message type [T] as managed
+  void register<T extends Message>(MessageBus bus) {
+    _types.add(typeOf<T>());
+    bus.register<T>(this);
+  }
+
+  /// Subscribe [appId] to receive messages with [socket]
+  void subscribe(String appId, WebSocket socket) {
+    _sockets.update(appId, (current) {
+      if (current.readyState == WebSocket.open) {
+        current.close(
+          WebSocketStatus.protocolError,
+          _info("Only one connection per application, connection from $appId rejected"),
+        );
+      }
+      socket.listen(
+        // TODO: Listen for data from clients
+        (_) {},
+        onDone: () => _remove(appId, socket),
+        onError: () => _remove(appId, socket),
+      );
+      return socket;
+    }, ifAbsent: () => socket);
+    _info("Websocket connection from $appId established");
+  }
+
+  void _remove(String appId, WebSocket socket) {
+    _sockets.remove(socket);
+    _info("Removed socket for $appId");
+  }
+
+  void unsubscribe(String appId) => _sockets[appId]?.close(
+        WebSocketStatus.normalClosure,
+        _info("Unsubscribe $appId"),
+      );
+
+  /// Dispose all WebSocket connection
+  void dispose() {
+    _sockets.forEach(
+      (appId, socket) => socket.close(
+        WebSocketStatus.normalClosure,
+        _info("Closed connection to $appId"),
+      ),
+    );
+    _sockets.clear();
+  }
+
+  @override
+  void handle(Message message) {
+    if (_types.contains(message.runtimeType)) {
+      _sockets.values.forEach(
+        (socket) {
+          try {
+            final data = _toData(message);
+            if (data != null) {
+              socket.add(data);
+            }
+          } catch (e) {
+            logger.warning("Failed to publish message $message: $e");
+          }
+        },
+      );
+    }
+  }
+
+  String _toData(Message message) {
+    if (message is Event) {
+      return json.encode({message.type: message.data});
+    } else {
+      return json.encode({'type': "${message.runtimeType}"});
+    }
+  }
+
+  String _info(String message) {
+    logger.info(message);
+    return message;
+  }
+}
