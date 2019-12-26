@@ -51,9 +51,9 @@ metadata:
   name: sarsys-app-server-config
   namespace: sarsys
 data:
-  PREFIX: test
-  EVENTSTORE_HOST: http://eventstore.sarsys.svc.cluster.local
-  EVENTSTORE_PORT: 2113
+  PREFIX: "test"
+  EVENTSTORE_HOST: "http://eventstore.sarsys.svc.cluster.local"
+  EVENTSTORE_PORT: "2113"
 ---
 apiVersion: v1
 kind: Secret
@@ -61,8 +61,10 @@ metadata:
   name: sarsys-app-server-secrets
   namespace: sarsys
 data:
-  EVENTSTORE_LOGIN: admin
-  EVENTSTORE_PASSWORD: changeit
+  # echo -n 'admin' | openssl base64
+  EVENTSTORE_LOGIN: YWRtaW4=
+  # echo -n 'changeit' | openssl base64
+  EVENTSTORE_PASSWORD: Y2hhbmdlaXQ=
 type: Opaque
 ---
 apiVersion: apps/v1
