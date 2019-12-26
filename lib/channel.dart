@@ -7,6 +7,9 @@ import 'controllers/websocket_controller.dart';
 import 'domain/app_config.dart';
 import 'sarsys_app_server.dart';
 
+/// MUST BE used when bootstrapping Aqueduct
+const int isolateStartupTimeout = 120;
+
 /// This type initializes an application.
 ///
 /// Override methods in this class to set up routes and initialize services like
@@ -53,18 +56,18 @@ class SarSysAppServerChannel extends ApplicationChannel {
       ),
     );
 
-    // Register event handled by message broker
+    // Register events handled by message broker
     messages.register<AppConfigCreated>(manager.bus);
     messages.register<AppConfigUpdated>(manager.bus);
     messages.build();
 
-    // Register repositories
+    // Register aggregate-root repositories
     manager.register<AppConfig>((store) => AppConfigRepository(store));
     await manager.build();
     logger.info("Built repositories in ${stopwatch.elapsedMilliseconds}ms");
 
     // Sanity check
-    if (stopwatch.elapsed.inSeconds > 25) {
+    if (stopwatch.elapsed.inSeconds > isolateStartupTimeout * 0.8) {
       logger.severe("Approaching maximum duration to wait for each isolate to complete startup");
     }
   }
