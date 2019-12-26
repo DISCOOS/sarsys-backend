@@ -54,6 +54,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
           password: config.eventstore.password,
         ),
       ),
+      prefix: config.prefix,
     );
 
     // Register events handled by message broker
@@ -108,6 +109,11 @@ class SarSysAppServerChannel extends ApplicationChannel {
 
 class SarSysConfig extends Configuration {
   SarSysConfig(String path) : super.fromFile(File(path));
+
+  /// Stream prefix
+  String prefix;
+
+  /// [EventStore](www.eventstore.org) config values
   EvenStoreConfig eventstore;
 }
 

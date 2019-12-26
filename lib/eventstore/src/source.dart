@@ -13,25 +13,37 @@ import 'core.dart';
 class EventStoreManager {
   EventStoreManager(
     this.bus,
-    this.connection,
-  );
+    this.connection, {
+    this.prefix,
+  });
 
+  /// Prefix all streams with this prefix
+  final String prefix;
+
+  /// [MessageBus] instance
   final MessageBus bus;
+
+  /// [EventStoreConnection] instance
   final EventStoreConnection connection;
 
+  /// [Map] of aggregate root repositories and the [EventStore] storing events from it.
   final Map<Repository, EventStore> _stores = {};
 
   /// Register [Repository] with given [AggregateRoot].
   void register<T extends AggregateRoot>(Repository create(EventStore store)) {
-    final repository = create(EventStore(
-      bus: bus,
-      connection: connection,
-      stream: typeOf<T>().toKebabCase(),
-    ));
+    final repository = create(
+      EventStore(
+        bus: bus,
+        prefix: prefix,
+        connection: connection,
+        stream: typeOf<T>().toKebabCase(),
+      ),
+    );
     _stores.putIfAbsent(
       repository,
       () => EventStore(
         bus: bus,
+        prefix: prefix,
         connection: connection,
         stream: T.toKebabCase(),
       ),
@@ -80,28 +92,52 @@ class EventStore {
     @required this.stream,
     @required this.bus,
     @required this.connection,
-  }) : logger = Logger("EventStore[$stream]");
+    this.prefix,
+  }) : logger = Logger("EventStore[${_toCanonical(prefix, stream)}]");
 
+  /// Get canonical stream name
+  static String _toCanonical(String prefix, String stream) => [prefix, stream]
+      .where(
+        (test) => test?.trim()?.isNotEmpty == true,
+      )
+      .join('-');
+
+  String get canonicalStream => _toCanonical(prefix, stream);
+
+  /// Stream prefix
+  final String prefix;
+
+  /// Stream name
   final String stream;
-  final Logger logger;
+
+  /// [MessageBus] instance
   final MessageBus bus;
+
+  /// [Logger] instance
+  final Logger logger;
+
+  /// [EventStoreConnection] instance
   final EventStoreConnection connection;
+
+  /// [Map] of events for each aggregate root sourced from stream
   final _store = <String, List<Event>>{};
+
+  /// [Map] of events from aggregate roots pending push to stream
   final _pending = <String, List<Event>>{};
 
+  /// Current event number in store
   EventNumber current = EventNumber.first;
-  StreamSubscription<Event> _subscription;
+
+  Future<bool> exists() {}
 
   /// Replay events from stream to given repository
-  Future<Iterable<Event>> replay(Repository repository) async {
+  Future<int> replay(Repository repository) async {
     try {
-      Iterable<Event> events = [];
-
       bus.replayStarted();
 
       // Fetch all events
       final result = await connection.readAllEvents(
-        stream: stream,
+        stream: canonicalStream,
       );
 
       if (result.isOK) {
@@ -133,11 +169,11 @@ class EventStore {
           );
 
         // Flush events accumulated during replay
-        events = repository.commitAll();
+        repository.commitAll();
 
         logger.info("Replayed ${result.events.length} events from stream '${result.stream}'");
       }
-      return events;
+      return result.events.length;
     } finally {
       bus.replayEnded();
     }
@@ -174,7 +210,7 @@ class EventStore {
       (events, aggregate) => <Event>[...events, ..._pending[aggregate.uuid] ?? []],
     );
     final result = await connection.writeEvents(
-      stream: stream,
+      stream: canonicalStream,
       events: events,
     );
     if (result.isCreated) {
@@ -201,7 +237,6 @@ class EventStore {
   /// Clear events in store and close connection
   void dispose() {
     _store.clear();
-    _subscription?.cancel();
   }
 
   EventNumber _assertMonotone(EventNumber previous, SourceEvent next) {
@@ -285,6 +320,7 @@ class EventStoreConnection {
         reasonPhrase: result.reasonPhrase,
         direction: direction,
         number: number,
+        events: [],
       );
     }
     return readEventsInFeed(result);
@@ -338,8 +374,19 @@ class EventStoreConnection {
       stream: stream,
       number: number,
       direction: direction,
-    )
-      ..assertResult();
+    );
+
+    if (feed.isOK == false) {
+      return ReadResult(
+        stream: stream,
+        atomFeed: feed.atomFeed,
+        statusCode: feed.statusCode,
+        reasonPhrase: feed.reasonPhrase,
+        direction: direction,
+        number: number,
+        events: [],
+      );
+    }
 
     // Loop until all events are fetched from stream
     ReadResult result, next;
@@ -469,7 +516,7 @@ class EventStoreConnection {
           final result = await readEventsInFeed(feed);
           if (!result.isOK) {
             throw SubscriptionFailed(
-              "Failed to read events: ${result.statusCode} ${result.assertResult()}",
+              "Failed to read events: ${result.statusCode} ${result.reasonPhrase}",
             );
           }
           for (var e in result.events) {
@@ -503,7 +550,7 @@ class EventStoreConnection {
           current = result.number + 1;
         } else if (!result.isNotFound) {
           throw SubscriptionFailed(
-            "Failed to read head of stream $stream: ${result.statusCode} ${result.assertResult()}",
+            "Failed to read head of stream $stream: ${result.statusCode} ${result.reasonPhrase}",
           );
         }
       }
@@ -612,7 +659,7 @@ class FeedResult extends Result {
 
   FeedResult assertResult() {
     if (isOK == false) {
-      throw FeedFailed("Failed to get atom feed because: ${statusCode} ${reasonPhrase}");
+      throw FeedFailed("Failed to get atom feed for $stream because: $statusCode $reasonPhrase");
     }
     return this;
   }

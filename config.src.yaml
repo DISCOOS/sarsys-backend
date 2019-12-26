@@ -1,3 +1,4 @@
+prefix: test
 eventstore:
   host: http://127.0.0.1
   port: 2113

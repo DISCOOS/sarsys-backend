@@ -51,6 +51,7 @@ metadata:
   name: sarsys-app-server-config
   namespace: sarsys
 data:
+  PREFIX: test
   EVENTSTORE_HOST: http://eventstore.sarsys.svc.cluster.local
   EVENTSTORE_PORT: 2113
 ---

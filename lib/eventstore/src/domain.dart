@@ -38,7 +38,11 @@ abstract class Repository<T extends AggregateRoot> {
 
   /// Build repository from local events
   Future build() async {
-    await store.replay(this);
+//    await store.ensure(this);
+    final events = await store.replay(this);
+    if (events == 0) {
+      logger.info("Stream '${store.canonicalStream}' is empty");
+    }
     _subscribe();
   }
 
