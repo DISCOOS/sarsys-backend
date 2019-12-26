@@ -21,6 +21,12 @@ class SarSysAppServerChannel extends ApplicationChannel {
   /// Channel responsible for distributing messages to client applications
   final MessageChannel messages = MessageChannel();
 
+  @override
+  final Logger logger = Logger("SarSysAppServerChannel")
+    ..onRecord.listen(
+      printRecord,
+    );
+
   /// Initialize services in this method.
   ///
   /// Implement this method to initialize services, read values from [options]
@@ -30,9 +36,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
   @override
   Future prepare() async {
     final stopwatch = Stopwatch()..start();
-    logger.onRecord.listen(
-      (rec) => print("$rec ${rec.error ?? ""} ${rec.stackTrace ?? ""}"),
-    );
 
     // Register event handled by message broker
     messages.register<AppConfigCreated>(manager.bus);
@@ -48,6 +51,14 @@ class SarSysAppServerChannel extends ApplicationChannel {
     if (stopwatch.elapsed.inSeconds > 25) {
       logger.severe("Approaching maximum duration to wait for each isolate to complete startup");
     }
+  }
+
+  /// Print [LogRecord] formatted
+  static void printRecord(LogRecord rec) {
+    print(
+      "${rec.time}: ${rec.level.name}: ${rec.loggerName}: "
+      "${rec.message} ${rec.error ?? ""} ${rec.stackTrace ?? ""}",
+    );
   }
 
   /// Construct the request channel.
