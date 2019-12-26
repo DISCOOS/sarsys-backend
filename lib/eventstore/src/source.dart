@@ -220,8 +220,7 @@ class EventStoreConnection {
     this.port = 2113,
     this.pageSize = 20,
     this.credentials = UserCredentials.defaultCredentials,
-    String logger = 'eventstore',
-  }) : _logger = Logger(logger);
+  });
 
   final String host;
   final int port;
@@ -229,7 +228,7 @@ class EventStoreConnection {
   final Client client = Client();
   final UserCredentials credentials;
 
-  final Logger _logger;
+  final Logger _logger = Logger("EventStoreConnection");
 
   /// Get atom feed from stream
   Future<FeedResult> getFeed({
