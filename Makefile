@@ -36,6 +36,7 @@ models:
 
 build: test document
 	echo "Build docker image..."
+	docker pull google/dart
 	docker build --no-cache -t discoos/sarsys_app_server:latest .
 	echo "[✓] Build docker image finished"
 
