@@ -178,6 +178,7 @@ class MessageChannel extends MessageHandler<Event> {
       (event) => _onReceived(appId, event),
       onDone: () => _remove(appId),
       onError: (_) => _remove(appId),
+      cancelOnError: true,
     );
     final state = _SocketState.init(
       socket,
