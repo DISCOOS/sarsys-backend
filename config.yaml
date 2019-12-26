@@ -1,0 +1,5 @@
+eventstore:
+  host: $EVENTSTORE_HOST
+  port: $EVENTSTORE_PORT
+  login: $EVENTSTORE_LOGIN
+  password: $EVENTSTORE_PASSWORD

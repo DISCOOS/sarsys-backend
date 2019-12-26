@@ -25,4 +25,3 @@ workspace.xml
 Dart_Packages.xml
 .DS_Store
 *.aqueduct.pid
-config.yaml

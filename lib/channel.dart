@@ -15,12 +15,13 @@ class SarSysAppServerChannel extends ApplicationChannel {
   /// Validates oidc tokens against scopes
   final AccessValidator validator = AccessValidator();
 
-  /// Manages an [EventStore] for each registered event stream
-  final EventStoreManager manager = EventStoreManager(MessageBus(), EventStoreConnection());
-
   /// Channel responsible for distributing messages to client applications
   final MessageChannel messages = MessageChannel();
 
+  /// Manages an [EventStore] for each registered event stream
+  EventStoreManager manager;
+
+  /// Logger instance
   @override
   final Logger logger = Logger("SarSysAppServerChannel")
     ..onRecord.listen(
@@ -36,6 +37,21 @@ class SarSysAppServerChannel extends ApplicationChannel {
   @override
   Future prepare() async {
     final stopwatch = Stopwatch()..start();
+
+    final config = SarSysConfig(options.configurationFilePath);
+
+    // Construct manager from configurations
+    manager = EventStoreManager(
+      MessageBus(),
+      EventStoreConnection(
+        host: config.eventstore.host,
+        port: config.eventstore.port,
+        credentials: UserCredentials(
+          login: config.eventstore.login,
+          password: config.eventstore.password,
+        ),
+      ),
+    );
 
     // Register event handled by message broker
     messages.register<AppConfigCreated>(manager.bus);
@@ -76,16 +92,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
       ..route('/api/healthz').link(() => HealthController())
       ..route('/api/app-config[/:id]').link(() => AppConfigController(manager.get<AppConfig>()))
       ..route('/api/connect').link(() => WebSocketController(messages));
-//      ..route('/api/connect').linkFunction((request) async {
-//        final socket = await WebSocketTransformer.upgrade(request.raw);
-//        final data = await request.raw.headers;
-//        if (data != null && data['appId'] is String) {
-//          messages.subscribe(data['appId'] as String, socket);
-//        } else {
-//          await socket.close(WebSocketStatus.protocolError, "Expected 'appId', none found");
-//        }
-//        return null;
-//      });
   }
 
   @override
@@ -95,4 +101,33 @@ class SarSysAppServerChannel extends ApplicationChannel {
     manager?.connection?.close();
     return super.close();
   }
+}
+
+class SarSysConfig extends Configuration {
+  SarSysConfig(String path) : super.fromFile(File(path));
+  EvenStoreConfig eventstore;
+}
+
+class EvenStoreConfig extends Configuration {
+  EvenStoreConfig();
+
+  /// The host of the database to connect to.
+  ///
+  /// This property is required.
+  String host;
+
+  /// The port of the database to connect to.
+  ///
+  /// This property is required.
+  int port;
+
+  /// A username for authenticating to the database.
+  ///
+  /// This property is required.
+  String login;
+
+  /// A password for authenticating to the database.
+  ///
+  /// This property is required.
+  String password;
 }

@@ -10,3 +10,8 @@ services:
     image: discoos/sarsys_app_server:latest
     ports:
       - "80:8082"
+    environment:
+      - EVENTSTORE_HOST=http://127.0.0.1
+      - EVENTSTORE_PORT=2113
+      - EVENTSTORE_LOGIN=admin
+      - EVENTSTORE_PASSWORD=changeit
