@@ -48,7 +48,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: sarsys-app-server
+  name: sarsys-app-server-1
   namespace: sarsys
   labels:
     app: sarsys-app-server
