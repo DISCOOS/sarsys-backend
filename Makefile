@@ -12,9 +12,9 @@ else
 endif
 
 .PHONY: \
-	test serve document models build push publish
+	test serve document models build push publish rollback status
 .SILENT: \
-	test serve document models build push publish
+	test serve document models build push publish rollback status
 
 test:
 	pub run test
@@ -65,3 +65,16 @@ publish: build push
 	    exit 1; \
     fi
 	echo "[✓] Publish to kubernetes finished"
+
+rollback:
+	echo "Rolling back last publish to kubernetes..."
+	kubectl -n sarsys rollout undo deployment sarsys-app-server
+	kubectl -n sarsys rollout status deployment sarsys-app-server
+	echo "[✓] Rollback finished"
+
+status:
+	echo "Fetching rollout status from kubernetes..."
+	kubectl -n sarsys rollout status deployment sarsys-app-server
+	echo "Fetching rollout history from kubernetes..."
+	kubectl -n sarsys rollout history deployment sarsys-app-server
+	echo "[✓] Status finished"
