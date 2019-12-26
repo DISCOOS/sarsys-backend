@@ -36,7 +36,7 @@ models:
 
 build: test document
 	echo "Build docker image..."
-	docker build -t discoos/sarsys_app_server:latest .
+	docker build --no-cache -t discoos/sarsys_app_server:latest .
 	echo "[✓] Build docker image finished"
 
 push:
