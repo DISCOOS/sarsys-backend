@@ -80,7 +80,7 @@ class EventStore {
     @required this.stream,
     @required this.bus,
     @required this.connection,
-  }) : logger = Logger("EventStore:$stream");
+  }) : logger = Logger("EventStore[$stream]");
 
   final String stream;
   final Logger logger;
