@@ -12,9 +12,15 @@ else
 endif
 
 .PHONY: \
-	test serve document models build push publish rollback status
+	check commit test serve document models build push publish rollback status
 .SILENT: \
-	test serve document models build push publish rollback status
+	check commit test serve document models build push publish rollback status
+
+check:
+	if [[ `git status --porcelain` ]]; then echo 'You have changes, aborting.'; exit 1; else echo "No changes"; fi
+
+commit:
+	if [[ `git status --porcelain` ]]; then git commit -am "Generated OpenAPI document"; fi
 
 test:
 	pub run test
@@ -24,9 +30,7 @@ serve:
 
 document:
 	echo "Generate OpenAPI document..."
-	if [[ `git status --porcelain` ]]; then echo 'You have changes, aborting.'; exit 1; fi
 	aqueduct document --title "SarSys App Server" --host https://sarsys.app --machine | tail -1 > web/sarsys.json
-	if [[ `git status --porcelain` ]]; then git commit -am "Generated OpenAPI document"; fi
 	echo "[✓] Generate OpenAPI document"
 
 models:
@@ -49,7 +53,7 @@ push:
 	docker push discoos/sarsys_app_server:latest
 	echo "[✓] Deploy docker image finished"
 
-publish: build push
+publish: check build commit push
 	echo "Publish to kubernetes..."
 	if cat k8s.yaml | kubectl diff -f - > /dev/null 2>&1; then \
 	    echo "Deployment unchanged, restart using rollout (k8s version 1.15 or higher)"; \
