@@ -5,6 +5,7 @@ import 'dart:math';
 
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
+import 'package:uuid/uuid.dart';
 
 import 'core.dart';
 
@@ -114,7 +115,8 @@ class MessageChannel extends MessageHandler<Event> {
   MessageChannel({
     this.ping = const Duration(seconds: 60),
     this.idle = const Duration(days: 2),
-  });
+    MessageHandler<WebSocketMessage> handler,
+  }) : _handler = handler;
 
   /// Time between each ping to a client. If no pong is received
   /// from client within next ping, the connection will be closed
@@ -132,6 +134,9 @@ class MessageChannel extends MessageHandler<Event> {
 
   /// Handled message types
   final _types = <Type>{};
+
+  /// Event handler invoked on with messages from clients
+  final MessageHandler<WebSocketMessage> _handler;
 
   /// Timer for checking socket states
   Timer _heartbeat;
@@ -154,10 +159,14 @@ class MessageChannel extends MessageHandler<Event> {
     bus.register<T>(this);
   }
 
-  /// Subscribe client with [appId] to receive messages on [socket].
+  /// Listen to stream of from messages from [socket] connected to client with [appId].
   ///
   /// [MessageChannel] supports heartbeat using opcodes specified in
   /// [RFC6455](https://tools.ietf.org/html/rfc6455).
+  ///
+  /// If [messages] is empty, client will receive all messages.
+  ///
+  /// If [messages] is not empty, client will only receive messages of given types.
   ///
   /// If [withHeartbeat] is true, a message with opcode [0x9] (ping)
   /// will be sent, which the client is expected to respond to with a
@@ -169,7 +178,12 @@ class MessageChannel extends MessageHandler<Event> {
   /// Each time the client sends data over the channel an internal
   /// timestamp is updated. This timestamp is used to determine if the
   /// connection is alive or not each liveliness check cycle.
-  void subscribe(String appId, WebSocket socket, {bool withHeartbeat = false}) {
+  void listen(
+    String appId,
+    WebSocket socket, {
+    Set<String> messages = const {},
+    bool withHeartbeat = false,
+  }) {
     if (socket.readyState != WebSocket.open) {
       throw InvalidOperation("WebSocket is not open, was in ready state ${socket.readyState}");
     }
@@ -184,6 +198,7 @@ class MessageChannel extends MessageHandler<Event> {
       socket,
       subscription,
       withHeartbeat: withHeartbeat,
+      messages: messages,
     );
     _states.update(
       appId,
@@ -202,7 +217,10 @@ class MessageChannel extends MessageHandler<Event> {
     if (withHeartbeat) {
       socket.pingInterval = ping;
     }
-    _info("Websocket connection from $appId established");
+    _info(
+      "Websocket connection from client $appId established: Subscribes to "
+      "${messages.isEmpty ? 'all messages' : "messages: {${messages.join(',')}}"}",
+    );
   }
 
   void _remove(String appId) {
@@ -212,14 +230,14 @@ class MessageChannel extends MessageHandler<Event> {
       if (state.socket.readyState != WebSocket.closed) {
         state.socket.close(WebSocketStatus.abnormalClosure);
       }
-      _info("Removed socket for $appId");
+      _info("Removed socket for client $appId");
     }
   }
 
-  void unsubscribe(String appId) => _close(
+  void close(String appId) => _close(
         _states[appId],
         WebSocketStatus.normalClosure,
-        "Unsubscribe $appId",
+        "Server closed connection to client $appId",
       );
 
   /// Dispose all WebSocket connection
@@ -228,7 +246,7 @@ class MessageChannel extends MessageHandler<Event> {
       (appId, state) => _close(
         state,
         WebSocketStatus.normalClosure,
-        "Closed connection to $appId",
+        "Server closed connection to $appId",
       ),
     );
     _states.clear();
@@ -243,28 +261,37 @@ class MessageChannel extends MessageHandler<Event> {
   @override
   void handle(Message message) {
     if (_types.contains(message.runtimeType)) {
+      final data = _toData(message);
       _states.forEach(
         (appId, state) {
-          try {
-            final data = _toData(message);
-            if (data != null) {
-              state.socket.add(data);
-              logger.fine("Published $message to client $appId");
-              logger.finer(">> $data");
-            }
-          } catch (e) {
-            logger.warning("Failed to publish message $message: $e");
+          if (state.messages.isEmpty || state.messages.contains(data['type'])) {
+            _send(appId, state, data);
           }
         },
       );
     }
   }
 
-  String _toData(Message message) {
+  void _send(String appId, _SocketState state, Map<String, dynamic> data) {
+    try {
+      state.socket.add(json.encode(data));
+      final type = data['type'];
+      if (type != 'Error') {
+        logger.fine("Sent ${data['type']} to client $appId");
+        logger.finer(">> $data");
+      } else {
+        logger.warning("Sent ${data['type']} to client $appId >> $data");
+      }
+    } catch (e) {
+      logger.warning("Failed to send message ${data['type']} to client $appId: $e");
+    }
+  }
+
+  Map<String, dynamic> _toData(Message message) {
     if (message is Event) {
-      return json.encode({message.type: message.data});
+      return {'uuid': message.uuid, 'type': message.type, 'data': message.data};
     } else {
-      return json.encode({'type': "${message.runtimeType}"});
+      return {'type': "${message.runtimeType}"};
     }
   }
 
@@ -274,7 +301,44 @@ class MessageChannel extends MessageHandler<Event> {
       logger.warning("Client $appId not found in states");
     } else {
       _states[appId] = state.alive();
+      final message = _toMessage(appId, event);
+      if (message is WebSocketError) {
+        _send(appId, state, _toData(message));
+      } else {
+        _handler?.handle(message);
+      }
     }
+  }
+
+  WebSocketMessage _toMessage(String appId, event) {
+    WebSocketMessage message;
+    try {
+      if (event is String) {
+        final data = json.decode(event);
+        if (_isWebSocketMessage(data)) {
+          message = WebSocketMessage(
+            appId: appId,
+            uuid: data['uuid'] as String,
+            type: data['type'] as String,
+            data: data['data'] as Map<String, dynamic>,
+          );
+        }
+      }
+      message ??= WebSocketError(
+        appId: appId,
+        uuid: Uuid().v4(),
+        code: WebSocketError.invalidFormat,
+        reason: "Invalid WebSocketMessage: $event",
+      );
+    } on FormatException catch (e) {
+      message = WebSocketError(
+        appId: appId,
+        uuid: Uuid().v4(),
+        code: WebSocketError.invalidFormat,
+        reason: "Invalid json format in $event: $e",
+      );
+    }
+    return message;
   }
 
   void _check(Timer timer) {
@@ -287,7 +351,7 @@ class MessageChannel extends MessageHandler<Event> {
           )
           .toList();
 
-      logger.info("Checked liveliness, found ${idle.length} of ${_states.length} idle ");
+      logger.fine("Checked liveliness, found ${idle.length} of ${_states.length} idle ");
 
       idle.forEach(
         (entry) => _close(
@@ -309,7 +373,7 @@ class MessageChannel extends MessageHandler<Event> {
         )
         .toList();
     if (closed.isNotEmpty) {
-      logger.info("Checked ready state, found ${closed.length} of ${_states.length} closed");
+      logger.warning("Checked ready state and close code, found ${closed.length} of ${_states.length} closed");
       _removeAll(closed);
     }
   }
@@ -322,6 +386,58 @@ class MessageChannel extends MessageHandler<Event> {
     logger.info(message);
     return message;
   }
+
+  bool _isWebSocketMessage(event) {
+    if (event is Map<String, dynamic>) {
+      final required = event['uuid'] is String && event['type'] is String;
+      final optional = event['data'] == null || event['data'] is Map<String, dynamic>;
+      return required && optional;
+    }
+    return false;
+  }
+}
+
+class WebSocketMessage extends Event {
+  WebSocketMessage({
+    @required this.appId,
+    @required String uuid,
+    @required String type,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: type,
+          data: data,
+        );
+  final String appId;
+
+  @override
+  String toString() {
+    return 'WebSocketMessage{appId: $appId, uuid: $uuid, type: $type, data: $data}';
+  }
+}
+
+class WebSocketError extends WebSocketMessage {
+  WebSocketError({
+    @required String appId,
+    @required String uuid,
+    @required int code,
+    @required String reason,
+  }) : super(
+          appId: appId,
+          uuid: uuid,
+          type: 'Error',
+          data: {
+            "code": code,
+            "reason": reason,
+          },
+        );
+
+  static const invalidFormat = 4001;
+
+  @override
+  String toString() {
+    return 'WebSocketError{uuid: $uuid, type: $type, data: $data}';
+  }
 }
 
 enum _Liveliness { alive, idle }
@@ -333,12 +449,14 @@ class _SocketState {
     @required this.lastTime,
     @required this.withHeartbeat,
     @required this.subscription,
+    this.messages = const {},
   });
 
   factory _SocketState.init(
     WebSocket socket,
     StreamSubscription subscription, {
     bool withHeartbeat = false,
+    Set<String> messages = const {},
   }) =>
       _SocketState(
         socket: socket,
@@ -346,12 +464,14 @@ class _SocketState {
         lastTime: DateTime.now(),
         withHeartbeat: withHeartbeat,
         subscription: subscription,
+        messages: messages,
       );
 
   final WebSocket socket;
   final DateTime lastTime;
   final _Liveliness status;
   final bool withHeartbeat;
+  final Set<String> messages;
   final StreamSubscription subscription;
 
   bool get isAlive => _Liveliness.alive == status;
@@ -365,12 +485,22 @@ class _SocketState {
     return this;
   }
 
+  _SocketState subscribe(Set<String> messages) => _SocketState(
+        socket: socket,
+        status: _Liveliness.alive,
+        lastTime: DateTime.now(),
+        withHeartbeat: withHeartbeat,
+        subscription: subscription,
+        messages: messages ?? const {},
+      );
+
   _SocketState alive() => _SocketState(
         socket: socket,
         status: _Liveliness.alive,
         lastTime: DateTime.now(),
         withHeartbeat: withHeartbeat,
         subscription: subscription,
+        messages: messages,
       );
 
   _SocketState idle() => _SocketState(
@@ -379,5 +509,6 @@ class _SocketState {
         lastTime: lastTime,
         withHeartbeat: withHeartbeat,
         subscription: subscription,
+        messages: messages,
       );
 }

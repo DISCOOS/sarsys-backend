@@ -15,11 +15,16 @@ class WebSocketController extends Controller {
     final socket = await WebSocketTransformer.upgrade(request.raw);
     final appId = request.raw.headers.value('x-app-id') ?? Uuid().v4();
     final heartbeat = request.raw.headers.value('x-with-heartbeat') ?? 'true';
-    if (appId != null) {
-      channel.subscribe("$appId", socket, withHeartbeat: heartbeat?.toLowerCase() == "true");
-    } else {
-      await socket.close(WebSocketStatus.protocolError, "Header 'x-app-id' not found");
-    }
-    return null;
+    final data = await request.body.decode();
+    final messages = data is Map<String, dynamic> && data['message'] is List<String>
+        ? (data['message'] as List<String>).toSet()
+        : const <String>{};
+    channel.listen(
+      "$appId",
+      socket,
+      messages: messages,
+      withHeartbeat: heartbeat?.toLowerCase() == "true",
+    );
+    return null /* Required by Aqueduct, see https://aqueduct.io/docs/snippets/http/ */;
   }
 }

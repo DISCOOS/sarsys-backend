@@ -133,7 +133,7 @@ abstract class Repository<T extends AggregateRoot> {
   }
 
   void _onDone() {
-    logger.info("Subscription on '${store.stream}' closed");
+    logger.fine("Subscription on '${store.stream}' closed");
   }
 
   void _onError(error) {

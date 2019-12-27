@@ -1,6 +1,7 @@
 import 'package:sarsys_app_server/auth/access_validator.dart';
 import 'package:sarsys_app_server/controllers/health_controller.dart';
 import 'package:sarsys_app_server/controllers/app_config_controller.dart';
+import 'package:sarsys_app_server/domain/messages.dart';
 import 'package:sarsys_app_server/eventstore/eventstore.dart';
 
 import 'controllers/websocket_controller.dart';
@@ -19,7 +20,9 @@ class SarSysAppServerChannel extends ApplicationChannel {
   final AccessValidator validator = AccessValidator();
 
   /// Channel responsible for distributing messages to client applications
-  final MessageChannel messages = MessageChannel();
+  final MessageChannel messages = MessageChannel(
+    handler: WebSocketMessageProcessor(),
+  );
 
   /// Manages an [EventStore] for each registered event stream
   EventStoreManager manager;
@@ -41,6 +44,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
   Future prepare() async {
     final stopwatch = Stopwatch()..start();
 
+    // Parse from config file, given by --config to main.dart or default config.yaml
     final config = SarSysConfig(options.configurationFilePath);
 
     // Construct manager from configurations

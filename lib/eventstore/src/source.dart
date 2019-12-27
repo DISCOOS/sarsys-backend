@@ -128,8 +128,6 @@ class EventStore {
   /// Current event number in store
   EventNumber current = EventNumber.first;
 
-  Future<bool> exists() {}
-
   /// Replay events from stream to given repository
   Future<int> replay(Repository repository) async {
     try {
@@ -297,7 +295,7 @@ class EventStoreConnection {
       uri = '/head/backward/$pageSize';
     else
       uri = '/${number.value}/${direction == Direction.forward ? 'forward' : 'backward'}/$pageSize';
-    _logger.fine(uri);
+    _logger.finest(uri);
     return uri;
   }
 
@@ -427,7 +425,7 @@ class EventStoreConnection {
     final uri = direction == Direction.forward
         ? atomFeed.getUri(AtomFeed.previous) ?? atomFeed.getUri(AtomFeed.first)
         : atomFeed.getUri(AtomFeed.next) ?? atomFeed.getUri(AtomFeed.last);
-    _logger.fine(uri);
+    _logger.finest(uri);
     return uri;
   }
 
@@ -460,7 +458,7 @@ class EventStoreConnection {
       );
 
   String _getUri(AtomItem item) {
-    _logger.fine(item.getUri(AtomItem.alternate));
+    _logger.finest(item.getUri(AtomItem.alternate));
     return item.getUri(AtomItem.alternate);
   }
 
