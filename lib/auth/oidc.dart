@@ -4,7 +4,13 @@ import 'package:aqueduct/aqueduct.dart';
 import 'package:jaguar_jwt/jaguar_jwt.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 
-class AccessValidator extends AuthValidator {
+/// Validates identity tokens issued by an
+/// [OpenID Connect Identify Provider](https://connect2id.com/learn/openid-connect).
+///
+/// This validator only supports validation of identity tokens passed as a
+/// [Bearer token](https://swagger.io/docs/specification/authentication/bearer-authentication/) in an
+/// [Authorization header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Authorization).
+class OIDCValidator extends AuthValidator {
   /// Returns an [Authorization] if [authorizationData] is valid.
   @override
   FutureOr<Authorization> validate<T>(
@@ -51,7 +57,30 @@ class AccessValidator extends AuthValidator {
       ..issueDate = jwt.issuedAt
       ..accessToken = accessToken
       ..expirationDate = jwt.expiry
-      ..scopes = (jwt['roles'] as List<String>)?.map((scope) => AuthScope(scope))?.toList();
+      ..scopes = _toScopes(_toClaims(jwt), []);
+  }
+
+  Map<String, dynamic> _toClaims(JwtClaim jwt) => Map.fromEntries(jwt
+      .claimNames(
+        includeRegisteredClaims: false,
+      )
+      .map(
+        (name) => MapEntry<String, dynamic>(name, jwt[name]),
+      ));
+
+  List<AuthScope> _toScopes(Map<String, dynamic> claims, List<AuthScope> scopes) {
+    claims.forEach((name, value) => _toScope(name, value, scopes));
+    return scopes;
+  }
+
+  void _toScope(String claim, value, List<AuthScope> scopes) {
+    if (value is String) {
+      scopes.add(AuthScope("$claim:$value"));
+    } else if (value is List<String>) {
+      scopes.addAll(value.map((value) => AuthScope("$claim:$value")));
+    } else if (value == null) {
+      scopes.add(AuthScope(claim));
+    }
   }
 
   Map<String, dynamic> _fromJWT(String token) {

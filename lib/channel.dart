@@ -1,4 +1,4 @@
-import 'package:sarsys_app_server/auth/access_validator.dart';
+import 'package:sarsys_app_server/auth/oidc.dart';
 import 'package:sarsys_app_server/controllers/health_controller.dart';
 import 'package:sarsys_app_server/controllers/app_config_controller.dart';
 import 'package:sarsys_app_server/domain/messages.dart';
@@ -17,7 +17,7 @@ const int isolateStartupTimeout = 120;
 /// database connections. See http://aqueduct.io/docs/http/channel/.
 class SarSysAppServerChannel extends ApplicationChannel {
   /// Validates oidc tokens against scopes
-  final AccessValidator validator = AccessValidator();
+  final OIDCValidator validator = OIDCValidator();
 
   /// Channel responsible for distributing messages to client applications
   final MessageChannel messages = MessageChannel(
@@ -100,7 +100,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
   /// This method is invoked after [prepare].
   @override
   Controller get entryPoint {
-    final authorizer = Authorizer.bearer(validator);
+    final authorizer = Authorizer.bearer(validator, scopes: ['roles']);
     return Router()
       ..route('/').link(() => authorizer)
       ..route('/api/*').link(
