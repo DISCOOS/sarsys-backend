@@ -47,6 +47,13 @@ class SarSysAppServerChannel extends ApplicationChannel {
     // Parse from config file, given by --config to main.dart or default config.yaml
     final config = SarSysConfig(options.configurationFilePath);
 
+    // Set log level
+    Logger.root.level = Level.LEVELS.firstWhere(
+      (level) => level.name == config.level,
+      orElse: () => Level.INFO,
+    );
+    logger.info("Log level set to ${Logger.root.level.name}");
+
     // Construct manager from configurations
     manager = EventStoreManager(
       MessageBus(),
@@ -116,6 +123,10 @@ class SarSysConfig extends Configuration {
 
   /// Stream prefix
   String prefix;
+
+  /// Log level
+  @optionalConfiguration
+  String level = Level.INFO.name;
 
   /// [EventStore](www.eventstore.org) config values
   EvenStoreConfig eventstore;

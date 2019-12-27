@@ -1,3 +1,4 @@
+level: INFO
 prefix: $PREFIX
 eventstore:
   host: $EVENTSTORE_HOST
