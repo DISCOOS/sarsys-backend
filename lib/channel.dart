@@ -103,9 +103,15 @@ class SarSysAppServerChannel extends ApplicationChannel {
     final authorizer = Authorizer.bearer(validator);
     return Router()
       ..route('/').link(() => authorizer)
-      ..route('/api/*').link(() => FileController("web"))
+      ..route('/api/*').link(
+        () => FileController("web")
+          ..addCachePolicy(
+            const CachePolicy(preventCaching: true),
+            (p) => p.endsWith("client.html"),
+          ),
+      )
       ..route('/api/healthz').link(() => HealthController())
-      ..route('/api/app-config[/:id]').link(() => AppConfigController(manager.get<AppConfig>()))
+      ..route('/api/app-config[/:uuid]').link(() => AppConfigController(manager.get<AppConfig>()))
       ..route('/api/connect').link(() => WebSocketController(messages));
   }
 
@@ -115,6 +121,50 @@ class SarSysAppServerChannel extends ApplicationChannel {
     messages?.dispose();
     manager?.connection?.close();
     return super.close();
+  }
+
+  @override
+  void documentComponents(APIDocumentContext registry) {
+    registry.securitySchemes.register(
+      "id.discoos.io",
+      APISecurityScheme.openID(Uri.parse("https://id.discoos.io")),
+    );
+    registry.responses
+      ..register(
+          "201",
+          APIResponse(
+            "Created. The POST-ed resource was created.",
+          ))
+      ..register(
+          "204",
+          APIResponse(
+            "No Content. The resource was updated.",
+          ))
+      ..register(
+          "401",
+          APIResponse(
+            "Unauthorized. The client must authenticate itself to get the requested response.",
+          ))
+      ..register(
+          "403",
+          APIResponse(
+            "Forbidden. The client does not have access rights to the content.",
+          ))
+      ..register(
+        "404",
+        APIResponse("Not found. The requested resource does not exist in server."),
+      )
+      ..register(
+          "405",
+          APIResponse(
+            "Method Not Allowed. The request method is known by the server but has been disabled and cannot be used.",
+          ))
+      ..register(
+          "409",
+          APIResponse(
+            "Conflict. This response is sent when a request conflicts with the current state of the server.",
+          ));
+    super.documentComponents(registry);
   }
 }
 
