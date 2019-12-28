@@ -107,7 +107,7 @@ abstract class Repository<T extends AggregateRoot> {
   void _subscribe() {
     _subscription = store.connection
         .subscribe(
-          stream: store.stream,
+          stream: store.canonicalStream,
           number: store.current,
         )
         .listen(
@@ -133,11 +133,11 @@ abstract class Repository<T extends AggregateRoot> {
   }
 
   void _onDone() {
-    logger.fine("Subscription on '${store.stream}' closed");
+    logger.fine("Subscription on '${store.canonicalStream}' closed");
   }
 
   void _onError(error) {
-    logger.severe("Subscription on '${store.stream}' failed with: $error");
+    logger.severe("Subscription on '${store.canonicalStream}' failed with: $error");
   }
 }
 
