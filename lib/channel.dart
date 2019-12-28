@@ -116,7 +116,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
           ),
       )
       ..route('/api/healthz').link(() => HealthController())
-      ..route('/api/connect').link(() => WebSocketController(messages))
+      ..route('/api/messages/connect').link(() => WebSocketController(messages))
       ..route('/api/app-config[/:uuid]').link(() => AppConfigController(manager.get<AppConfig>()));
   }
 
