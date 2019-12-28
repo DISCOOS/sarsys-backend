@@ -10,7 +10,7 @@ import 'package:sarsys_app_server/sarsys_app_server.dart';
 /// This validator only supports validation of identity tokens passed as a
 /// [Bearer token](https://swagger.io/docs/specification/authentication/bearer-authentication/) in an
 /// [Authorization header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Authorization).
-class OIDCValidator extends AuthValidator {
+class OIDCValidator extends AuthValidator implements APIComponentDocumenter {
   /// Returns an [Authorization] if [authorizationData] is valid.
   @override
   FutureOr<Authorization> validate<T>(
@@ -111,5 +111,30 @@ class OIDCValidator extends AuthValidator {
         throw Exception('Illegal base64url string!"');
     }
     return utf8.decode(base64Url.decode(output));
+  }
+
+  @override
+  List<APISecurityRequirement> documentRequirementsForAuthorizer(
+    APIDocumentContext context,
+    Authorizer authorizer, {
+    List<AuthScope> scopes,
+  }) {
+    if (authorizer.parser is AuthorizationBearerParser) {
+      return [
+        APISecurityRequirement({"id.discoos.io": scopes?.map((s) => s.toString())?.toList() ?? []})
+      ];
+    }
+    return [];
+  }
+
+  @override
+  void documentComponents(APIDocumentContext context) {
+    context.securitySchemes.register(
+      "id.discoos.io",
+      APISecurityScheme.openID(Uri.parse("https://id.discoos.io"))
+        ..description = "This endpoint requires an identity token passed issed from https://id.discoos.io as a "
+            "[Bearer token](https://swagger.io/docs/specification/authentication/bearer-authentication/) issued by "
+            "in an [Authorization header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Authorization).",
+    );
   }
 }

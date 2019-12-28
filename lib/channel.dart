@@ -100,7 +100,12 @@ class SarSysAppServerChannel extends ApplicationChannel {
   /// This method is invoked after [prepare].
   @override
   Controller get entryPoint {
-    final authorizer = Authorizer.bearer(validator, scopes: ['roles']);
+    final authorizer = Authorizer.bearer(validator, scopes: [
+      'roles:admin',
+      'roles:commander',
+      'roles:unit_leader',
+      'roles:personnel',
+    ]);
     return Router()
       ..route('/').link(() => authorizer)
       ..route('/api/*').link(
@@ -111,8 +116,8 @@ class SarSysAppServerChannel extends ApplicationChannel {
           ),
       )
       ..route('/api/healthz').link(() => HealthController())
-      ..route('/api/app-config[/:uuid]').link(() => AppConfigController(manager.get<AppConfig>()))
-      ..route('/api/connect').link(() => WebSocketController(messages));
+      ..route('/api/connect').link(() => WebSocketController(messages))
+      ..route('/api/app-config[/:uuid]').link(() => AppConfigController(manager.get<AppConfig>()));
   }
 
   @override
@@ -125,10 +130,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
 
   @override
   void documentComponents(APIDocumentContext registry) {
-    registry.securitySchemes.register(
-      "id.discoos.io",
-      APISecurityScheme.openID(Uri.parse("https://id.discoos.io")),
-    );
     registry.responses
       ..register(
           "201",
