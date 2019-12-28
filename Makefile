@@ -70,6 +70,12 @@ publish: check build commit push
     fi
 	echo "[✓] Publish to kubernetes finished"
 
+restart:
+	echo "Restarting using rollout (k8s version 1.15 or higher)"
+	kubectl -n sarsys rollout restart deployment sarsys-app-server
+	kubectl -n sarsys rollout status deployment sarsys-app-server
+	echo "[✓] Restart finished"
+
 rollback:
 	echo "Rolling back last publish to kubernetes..."
 	kubectl -n sarsys rollout undo deployment sarsys-app-server
