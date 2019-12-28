@@ -1,0 +1,11 @@
+clusterSize: 1
+persistence:
+  enabled: false
+resources:
+  limits:
+    cpu: 800m
+    memory: 512Mi
+  requests:
+    cpu: 400m
+    memory: 256Mi
+

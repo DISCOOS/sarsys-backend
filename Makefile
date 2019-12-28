@@ -55,12 +55,12 @@ push:
 
 publish: check build commit push
 	echo "Publish to kubernetes..."
-	if cat k8s.yaml | kubectl diff -f - > /dev/null 2>&1; then \
+	if cat k8s/sarsys.yaml | kubectl diff -f - > /dev/null 2>&1; then \
 	    echo "Deployment unchanged, restart using rollout (k8s version 1.15 or higher)"; \
 	    kubectl -n sarsys rollout restart deployment sarsys-app-server; \
 	else \
 	    echo "Deployment changed"; \
-	    kubectl apply -f k8s.yaml; \
+	    kubectl apply -f k8s/sarsys.yaml; \
 	fi
 	if ! kubectl -n sarsys rollout status deployment sarsys-app-server; then \
         kubectl -n sarsys rollout undo deployment sarsys-app-server; \
