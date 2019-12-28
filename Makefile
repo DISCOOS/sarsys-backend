@@ -12,9 +12,9 @@ else
 endif
 
 .PHONY: \
-	check commit test serve document models build push publish rollback status
+	check commit test serve document models build push publish restart rollback status
 .SILENT: \
-	check commit test serve document models build push publish rollback status
+	check commit test serve document models build push publish restart rollback status
 
 check:
 	if [[ `git status --porcelain` ]]; then echo 'You have changes, aborting.'; exit 1; else echo "No changes"; fi
