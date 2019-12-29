@@ -24,6 +24,9 @@ class SarSysAppServerChannel extends ApplicationChannel {
     handler: WebSocketMessageProcessor(),
   );
 
+  /// Loaded in [prepare]
+  SarSysConfig config;
+
   /// Manages an [EventStore] for each registered event stream
   EventSourceManager manager;
 
@@ -45,7 +48,16 @@ class SarSysAppServerChannel extends ApplicationChannel {
     final stopwatch = Stopwatch()..start();
 
     // Parse from config file, given by --config to main.dart or default config.yaml
-    final config = SarSysConfig(options.configurationFilePath);
+    config = SarSysConfig(options.configurationFilePath);
+    if (config.debug == true) {
+      logger.info("Debug mode enabled");
+      if (Platform.environment.containsKey("NODE_NAME")) {
+        logger.info("NODE_NAME is '${Platform.environment["NODE_NAME"]}'");
+      }
+      if (Platform.environment.containsKey("POD_NAME")) {
+        logger.info("POD_NAME is '${Platform.environment["POD_NAME"]}'");
+      }
+    }
 
     // Set log level
     Logger.root.level = Level.LEVELS.firstWhere(
@@ -121,6 +133,25 @@ class SarSysAppServerChannel extends ApplicationChannel {
   }
 
   @override
+  void willStartReceivingRequests() {
+    // Set k8s information for debugging purposes
+    if (config.debug == true) {
+      if (Platform.environment.containsKey("NODE_NAME")) {
+        server.server.defaultResponseHeaders.add(
+          "X-Node-Name",
+          Platform.environment["NODE_NAME"],
+        );
+      }
+      if (Platform.environment.containsKey("POD_NAME")) {
+        server.server.defaultResponseHeaders.add(
+          "X-Pod-Name",
+          Platform.environment["POD_NAME"],
+        );
+      }
+    }
+  }
+
+  @override
   Future close() {
     manager?.dispose();
     messages?.dispose();
@@ -181,7 +212,16 @@ class SarSysConfig extends Configuration {
   SarSysConfig(String path) : super.fromFile(File(path));
 
   /// Stream prefix
+  @optionalConfiguration
   String prefix;
+
+  /// Debug flag.
+  ///
+  /// Adds headers 'x-node-name' and 'x-pod-name' to
+  /// responses from environment variables 'NODE_NAME'
+  /// and 'POD_NAME', see k8s/sarsys.yaml
+  @optionalConfiguration
+  bool debug = false;
 
   /// Log level
   @optionalConfiguration

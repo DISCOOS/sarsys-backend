@@ -1,4 +1,5 @@
-level: INFO
+level: $LEVEL
+debug: $DEBUG
 prefix: $PREFIX
 eventstore:
   host: $EVENTSTORE_HOST

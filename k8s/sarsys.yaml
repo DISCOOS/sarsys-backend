@@ -52,6 +52,7 @@ metadata:
   namespace: sarsys
 data:
   LEVEL: "INFO"
+  DEBUG: "true"
   PREFIX: "test"
   EVENTSTORE_HOST: "http://eventstore.sarsys.svc.cluster.local"
   EVENTSTORE_PORT: "2113"
@@ -94,11 +95,22 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 8082
+          # Load configuration
           envFrom:
             - configMapRef:
                 name: sarsys-app-server-config
             - secretRef:
                 name: sarsys-app-server-secrets
+          # Setup 'Downward API' - passed to
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
           resources:
             requests:
               cpu: "250m"
