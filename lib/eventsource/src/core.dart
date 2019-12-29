@@ -1,11 +1,19 @@
+import 'dart:async';
+
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
-import 'package:sarsys_app_server/eventstore/eventstore.dart';
 import 'package:uuid/uuid.dart';
+
+import 'domain.dart';
+import 'models/AtomFeed.dart';
 
 /// Message interface
 abstract class Message {
   const Message();
+  @override
+  String toString() {
+    return '$runtimeType{}';
+  }
 }
 
 /// Event class
@@ -30,14 +38,50 @@ class Event implements Message {
   final String uuid;
   final String type;
   final Map<String, dynamic> data;
+
+  @override
+  String toString() {
+    return '$runtimeType{uuid: $uuid, type: $type}';
+  }
+}
+
+/// Command action types
+enum Action {
+  create,
+  update,
+  delete,
+  custom,
 }
 
 /// Command interface
-abstract class Command extends Message {}
+abstract class Command extends Message {
+  Command(
+    this.action, {
+    this.uuidFieldName = 'uuid',
+    this.data = const {},
+  });
+
+  /// Command action
+  final Action action;
+
+  /// [AggregateRoot.uuid] field name in [data]
+  final String uuidFieldName;
+
+  /// Command data
+  final Map<String, dynamic> data;
+
+  /// Get [AggregateRoot.uuid] value
+  String get uuid => data[uuidFieldName] as String;
+
+  @override
+  String toString() {
+    return '$runtimeType{uuid: $uuid, action: $action}';
+  }
+}
 
 /// Command handler interface
-abstract class CommandHandler {
-  WriteResult execute(Command command);
+abstract class CommandHandler<T extends Command> {
+  FutureOr<Iterable<Event>> execute(T command);
 }
 
 /// Message notifier interface
@@ -46,8 +90,8 @@ abstract class MessageNotifier {
 }
 
 /// Event publisher interface
-abstract class EventPublisher {
-  void publish(Event event);
+abstract class EventPublisher<T extends Event> {
+  void publish(T event);
 }
 
 /// Command sender interface
@@ -136,6 +180,21 @@ abstract class Failure {
 /// Thrown when an invalid operation is attempted
 class InvalidOperation extends Failure {
   const InvalidOperation(String message) : super(message);
+}
+
+/// Thrown when an invalid operation is attempted
+class UUIDIsNull extends Failure {
+  const UUIDIsNull(String message) : super(message);
+}
+
+/// Thrown when an [Command] is attempted on an [AggregateRoot] not found
+class AggregateNotFound extends InvalidOperation {
+  const AggregateNotFound(String message) : super(message);
+}
+
+/// Thrown when an [Command.action] with [Action.create] is attempted on an existing [AggregateRoot]
+class AggregateExists extends InvalidOperation {
+  const AggregateExists(String message) : super(message);
 }
 
 /// Thrown when an push to remote event store failed

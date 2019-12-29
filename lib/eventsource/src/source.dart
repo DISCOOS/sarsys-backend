@@ -1,17 +1,23 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart';
 import 'package:meta/meta.dart';
 import 'package:logging/logging.dart';
-import 'package:sarsys_app_server/eventstore/eventstore.dart';
 
+import 'bus.dart';
 import 'core.dart';
+import 'domain.dart';
+import 'models/AtomFeed.dart';
+import 'models/AtomItem.dart';
 
-/// [EventStore] manager class. Use this to manage sourcing of multiple event streams
+// TODO: Implement optimistic locking (with rollback and reload of last state?)
+
+/// Event Source manager class. Use this to manage sourcing of multiple event streams
 @sealed
-class EventStoreManager {
-  EventStoreManager(
+class EventSourceManager {
+  EventSourceManager(
     this.bus,
     this.connection, {
     this.prefix,
@@ -52,9 +58,13 @@ class EventStoreManager {
 
   /// Build all repositories from event stores
   Future<void> build() async {
-    await Future.wait(_stores.keys.map(
-      (repository) => repository.build(),
-    ));
+    try {
+      await Future.wait(_stores.keys.map(
+        (repository) => repository.build(),
+      ));
+    } on SocketException catch (e) {
+      throw Exception("Unable to connect to eventstore using $connection, got: $e");
+    }
   }
 
   /// Dispose all repositories and stores
@@ -67,7 +77,7 @@ class EventStoreManager {
   }
 
   /// Get repository from [Type]
-  Repository<T> get<T extends AggregateRoot>() => _stores.keys.whereType<Repository<T>>()?.first;
+  T get<T extends Repository>() => _stores.keys.whereType<T>()?.first;
 }
 
 /// Base class for source events
@@ -128,6 +138,12 @@ class EventStore {
   /// Current event number in store
   EventNumber current = EventNumber.first;
 
+  /// Check if store is empty
+  bool get isEmpty => _store.isEmpty;
+
+  /// Check if store is not empty
+  bool get isNotEmpty => _store.isNotEmpty;
+
   /// Replay events from stream to given repository
   Future<int> replay(Repository repository) async {
     try {
@@ -141,7 +157,7 @@ class EventStore {
       if (result.isOK) {
         _store.clear();
 
-        // Get current event number, TODO: move to unit test?
+        // Get current event number
         current = result.events.fold(EventNumber.none, _assertMonotone);
 
         // Hydrate event store with events
@@ -184,8 +200,6 @@ class EventStore {
   Iterable<String> uuids() => _store.keys.toList();
 
   /// Commit events to local storage.
-  ///
-  /// Returns true if changes was saved, false otherwise
   Iterable<DomainEvent> commit(AggregateRoot aggregate) {
     final events = aggregate.commit();
     // Do not save during replay
@@ -207,6 +221,9 @@ class EventStore {
       <Event>[],
       (events, aggregate) => <Event>[...events, ..._pending[aggregate.uuid] ?? []],
     );
+    if (events.isEmpty) {
+      return events;
+    }
     final result = await connection.writeEvents(
       stream: canonicalStream,
       events: events,
@@ -524,8 +541,10 @@ class EventStoreConnection {
         }
       } while (feed.isOK && !feed.atomFeed.headOfStream);
 
-      // Move one more event forward
-      current = current + 1;
+      // Move one more event forward?
+      if (current.value > 0) {
+        current = current + 1;
+      }
     }
 
     // Continues until StreamSubscription.cancel() is invoked
@@ -557,6 +576,11 @@ class EventStoreConnection {
 
   void close() {
     client.close();
+  }
+
+  @override
+  String toString() {
+    return 'EventStoreConnection{host: $host, port: $port, pageSize: $pageSize}';
   }
 }
 
