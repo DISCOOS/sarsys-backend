@@ -30,7 +30,7 @@ serve:
 
 document:
 	echo "Generate OpenAPI document..."
-	aqueduct document --title "SarSys App Server" --host https://sarsys.app --machine | tail -1 > web/sarsys.json
+	aqueduct document --title "SarSys App Server" --host https://sarsys.app --host http://localhost --machine | tail -1 > web/sarsys.json
 	echo "[✓] Generate OpenAPI document"
 
 models:

@@ -260,6 +260,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "2.3.0"
+  json_patch:
+    dependency: "direct main"
+    description:
+      name: json_patch
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "2.0.0"
   json_rpc_2:
     dependency: transitive
     description:

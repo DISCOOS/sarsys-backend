@@ -1,22 +1,31 @@
 import 'package:sarsys_app_server/domain/app_config.dart';
-import 'package:sarsys_app_server/eventstore/eventstore.dart';
+import 'package:sarsys_app_server/eventsource/eventsource.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 
 class AppConfigController extends ResourceController {
   AppConfigController(this.repository);
-  final Repository<AppConfig> repository;
-
-  // TODO: Implement pagination
-  // TODO: Implement optimistic locking (with rollback and reload of last state)
+  final AppConfigRepository repository;
 
   // GET /app-config
   @Operation.get()
-  Future<Response> getAll(/*{
-    @Bind.query('limit') int limit = 20,
+  Future<Response> getAll({
     @Bind.query('offset') int offset = 0,
-  }*/
-          ) async =>
-      Response.ok(repository.getAll().map((aggregate) => aggregate.data)?.toList() ?? []);
+    @Bind.query('limit') int limit = 20,
+  }) async {
+    try {
+      return Response.ok(repository
+              .getAll(offset: offset, limit: limit)
+              .map(
+                (aggregate) => aggregate.data,
+              )
+              ?.toList() ??
+          []);
+    } on InvalidOperation catch (e) {
+      return Response.badRequest(body: e.message);
+    } on Failure catch (e) {
+      return Response.serverError(body: e.message);
+    }
+  }
 
   // GET /app-config/:id
   @Operation.get('uuid')
@@ -24,32 +33,54 @@ class AppConfigController extends ResourceController {
     if (!repository.contains(uuid)) {
       return Response.notFound();
     }
-    final aggregate = repository.get(uuid);
-    return Response.ok(aggregate.data);
-  }
-
-  // PATCH /app-config/:id
-  @Operation('PATCH', 'uuid')
-  Future<Response> patch(@Bind.path('uuid') String uuid, @Bind.body() Map<String, dynamic> body) async {
-    if (!repository.contains(uuid)) {
-      return Response.notFound();
+    try {
+      final aggregate = repository.get(uuid);
+      return Response.ok(aggregate.data);
+    } on InvalidOperation catch (e) {
+      return Response.badRequest(body: e.message);
+    } on Failure catch (e) {
+      return Response.serverError(body: e.message);
     }
-    repository.commit(repository.get(uuid).patch(repository.validate(body)));
-    await repository.push();
-    return Response.noContent();
   }
 
   // POST /app-config
   @Operation.post()
-  Future<Response> create(@Bind.body() Map<String, dynamic> body) async {
-    final uuid = body['id'] as String;
-    if (repository.contains(uuid)) {
-      return Response.conflict();
+  Future<Response> create(@Bind.body() Map<String, dynamic> data) async {
+    try {
+      await repository.execute(CreateAppConfig(data));
+      return Response.created("${toLocation(request)}/${data['uuid']}");
+    } on AggregateExists catch (e) {
+      return Response.conflict(body: e.message);
+    } on UUIDIsNull {
+      return Response.badRequest(body: "Field [uuid] in AppConfig is required");
+    } on InvalidOperation catch (e) {
+      return Response.badRequest(body: e.message);
+    } on Failure catch (e) {
+      return Response.serverError(body: e.message);
     }
-    repository.commit(repository.get(uuid, data: body));
-    await repository.push();
-    return Response.created("${request.path.remainingPath}/$uuid");
   }
+
+  // PATCH /app-config/:id
+  @Operation('PATCH', 'uuid')
+  Future<Response> patch(@Bind.path('uuid') String uuid, @Bind.body() Map<String, dynamic> data) async {
+    try {
+      data['uuid'] = uuid;
+      final events = await repository.execute(UpdateAppConfig(data));
+      return events.isEmpty ? Response.noContent() : Response.noContent();
+    } on AggregateNotFound catch (e) {
+      return Response.notFound(body: e.message);
+    } on UUIDIsNull {
+      return Response.badRequest(body: "Field [uuid] in AppConfig is required");
+    } on InvalidOperation catch (e) {
+      return Response.badRequest(body: e.message);
+    } on Failure catch (e) {
+      return Response.serverError(body: e.message);
+    }
+  }
+
+  //////////////////////////////////
+  // Documentation
+  //////////////////////////////////
 
   @override
   String documentOperationSummary(APIDocumentContext context, Operation operation) {
@@ -135,11 +166,14 @@ class AppConfigController extends ResourceController {
       case "POST":
         responses.addAll({
           "201": context.responses.getObject("201"),
+          "400": context.responses.getObject("400"),
+          "409": context.responses.getObject("409"),
         });
         break;
       case "PATCH":
         responses.addAll({
           "204": context.responses.getObject("204"),
+          "400": context.responses.getObject("400"),
           "409": context.responses.getObject("409"),
         });
         break;

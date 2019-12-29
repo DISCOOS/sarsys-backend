@@ -2,7 +2,7 @@ import 'package:sarsys_app_server/auth/oidc.dart';
 import 'package:sarsys_app_server/controllers/health_controller.dart';
 import 'package:sarsys_app_server/controllers/app_config_controller.dart';
 import 'package:sarsys_app_server/domain/messages.dart';
-import 'package:sarsys_app_server/eventstore/eventstore.dart';
+import 'package:sarsys_app_server/eventsource/eventsource.dart';
 
 import 'controllers/websocket_controller.dart';
 import 'domain/app_config.dart';
@@ -25,7 +25,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
   );
 
   /// Manages an [EventStore] for each registered event stream
-  EventStoreManager manager;
+  EventSourceManager manager;
 
   /// Logger instance
   @override
@@ -55,7 +55,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     logger.info("Log level set to ${Logger.root.level.name}");
 
     // Construct manager from configurations
-    manager = EventStoreManager(
+    manager = EventSourceManager(
       MessageBus(),
       EventStoreConnection(
         host: config.eventstore.host,
@@ -117,7 +117,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
       )
       ..route('/api/healthz').link(() => HealthController())
       ..route('/api/messages/connect').link(() => WebSocketController(messages))
-      ..route('/api/app-config[/:uuid]').link(() => AppConfigController(manager.get<AppConfig>()));
+      ..route('/api/app-config[/:uuid]').link(() => AppConfigController(manager.get<AppConfigRepository>()));
   }
 
   @override
@@ -140,6 +140,11 @@ class SarSysAppServerChannel extends ApplicationChannel {
           "204",
           APIResponse(
             "No Content. The resource was updated.",
+          ))
+      ..register(
+          "400",
+          APIResponse(
+            "Bad request. Request contains wrong or is missing required data",
           ))
       ..register(
           "401",
@@ -168,6 +173,9 @@ class SarSysAppServerChannel extends ApplicationChannel {
     super.documentComponents(registry);
   }
 }
+
+String toLocation(Request request) => "http://${request.raw.connectionInfo.remoteAddress.host}"
+    ":${request.raw.connectionInfo.localPort}${request.raw.uri}";
 
 class SarSysConfig extends Configuration {
   SarSysConfig(String path) : super.fromFile(File(path));
