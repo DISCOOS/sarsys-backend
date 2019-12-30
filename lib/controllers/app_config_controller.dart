@@ -55,6 +55,8 @@ class AppConfigController extends ResourceController {
       return Response.badRequest(body: "Field [uuid] in AppConfig is required");
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
+    } on SocketException catch (e) {
+      return serviceUnavailable(body: "Eventstore unavailable: $e");
     } on Failure catch (e) {
       return Response.serverError(body: e.message);
     }
@@ -73,6 +75,8 @@ class AppConfigController extends ResourceController {
       return Response.badRequest(body: "Field [uuid] in AppConfig is required");
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
+    } on SocketException catch (e) {
+      return serviceUnavailable(body: "Eventstore unavailable: $e");
     } on Failure catch (e) {
       return Response.serverError(body: e.message);
     }
@@ -168,6 +172,8 @@ class AppConfigController extends ResourceController {
           "201": context.responses.getObject("201"),
           "400": context.responses.getObject("400"),
           "409": context.responses.getObject("409"),
+          "409": context.responses.getObject("409"),
+          "503": context.responses.getObject("503"),
         });
         break;
       case "PATCH":
@@ -175,6 +181,7 @@ class AppConfigController extends ResourceController {
           "204": context.responses.getObject("204"),
           "400": context.responses.getObject("400"),
           "409": context.responses.getObject("409"),
+          "503": context.responses.getObject("503"),
         });
         break;
     }

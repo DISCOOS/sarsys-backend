@@ -200,6 +200,12 @@ class SarSysAppServerChannel extends ApplicationChannel {
           "409",
           APIResponse(
             "Conflict. This response is sent when a request conflicts with the current state of the server.",
+          ))
+      ..register(
+          "503",
+          APIResponse(
+            "Service unavailable. The server is not ready to handle the request. "
+            "Common causes are a server that is down for maintenance or that is overloaded.",
           ));
     super.documentComponents(registry);
   }
@@ -207,6 +213,13 @@ class SarSysAppServerChannel extends ApplicationChannel {
 
 String toLocation(Request request) => "http://${request.raw.connectionInfo.remoteAddress.host}"
     ":${request.raw.connectionInfo.localPort}${request.raw.uri}";
+
+/// Represents a 503 response.
+Response serviceUnavailable({Map<String, dynamic> headers, dynamic body}) => Response(
+      HttpStatus.serviceUnavailable,
+      headers,
+      body,
+    );
 
 class SarSysConfig extends Configuration {
   SarSysConfig(String path) : super.fromFile(File(path));
