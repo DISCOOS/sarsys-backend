@@ -18,8 +18,8 @@ class SarSysConfig extends Configuration {
   /// Debug flag.
   ///
   /// Adds headers 'x-node-name' and 'x-pod-name' to
-  /// responses from environment variables 'NODE_NAME'
-  /// and 'POD_NAME', see k8s/sarsys.yaml
+  /// responses from environment variables 'NODE_NAME',
+  /// 'POD_NAME', and 'POD_NAMESPACE', see k8s/sarsys.yaml
   @optionalConfiguration
   bool debug = false;
 

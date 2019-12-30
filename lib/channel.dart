@@ -98,6 +98,9 @@ class SarSysAppServerChannel extends ApplicationChannel {
       if (Platform.environment.containsKey("POD_NAME")) {
         logger.info("POD_NAME is '${Platform.environment["POD_NAME"]}'");
       }
+      if (Platform.environment.containsKey("POD_NAMESPACE")) {
+        logger.info("POD_NAMESPACE is '${Platform.environment["POD_NAMESPACE"]}'");
+      }
     }
   }
 
@@ -141,24 +144,18 @@ class SarSysAppServerChannel extends ApplicationChannel {
   void willStartReceivingRequests() {
     // Set k8s information for debugging purposes
     if (config.debug == true) {
-      if (Platform.environment.containsKey("NODE_NAME")) {
-        server.server.defaultResponseHeaders.add(
-          "X-Node-Name",
-          Platform.environment["NODE_NAME"],
-        );
-      }
-      if (Platform.environment.containsKey("POD_NAME")) {
-        server.server.defaultResponseHeaders.add(
-          "X-Pod-Name",
-          Platform.environment["POD_NAME"],
-        );
-      }
-      if (Platform.environment.containsKey("POD_NAME")) {
-        server.server.defaultResponseHeaders.add(
-          "X-Pod-Name",
-          Platform.environment["POD_NAME"],
-        );
-      }
+      _setResponseFromEnv("NODE_NAME", "X-Node-Name");
+      _setResponseFromEnv("POD_NAME", "X-Pod-Name");
+      _setResponseFromEnv("POD_NAMESPACE", "X-Pod-Namespace");
+    }
+  }
+
+  void _setResponseFromEnv(String name, String header) {
+    if (Platform.environment.containsKey(name)) {
+      server.server.defaultResponseHeaders.add(
+        header,
+        Platform.environment[name],
+      );
     }
   }
 
