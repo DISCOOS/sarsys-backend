@@ -13,13 +13,19 @@ class AppConfigController extends ResourceController {
     @Bind.query('limit') int limit = 20,
   }) async {
     try {
-      return Response.ok(repository
-              .getAll(offset: offset, limit: limit)
-              .map(
-                (aggregate) => aggregate.data,
-              )
-              ?.toList() ??
-          []);
+      final data = repository
+          .getAll(offset: offset, limit: limit)
+          .map(
+            (aggregate) => aggregate.data,
+          )
+          .toList();
+      return Response.ok({
+        "total": repository.count,
+        "offset": offset,
+        "limit": limit,
+        if (offset + data.length < repository.count) "next": offset + data.length,
+        "data": data ?? [],
+      });
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } on Failure catch (e) {
@@ -186,6 +192,21 @@ class AppConfigController extends ResourceController {
         break;
     }
     return responses;
+  }
+
+  @override
+  List<APIParameter> documentOperationParameters(APIDocumentContext context, Operation operation) {
+    switch (operation.method) {
+      case "GET":
+        if (operation.pathVariables.isEmpty) {
+          return [
+            APIParameter.query('offset')..description = 'Start with [AppConfig] number equal to offset. Default is 0.',
+            APIParameter.query('limit')..description = 'Maximum number of [AppConfig] to fetch. Default is 20.',
+          ];
+        }
+        break;
+    }
+    return super.documentOperationParameters(context, operation);
   }
 
   @override
