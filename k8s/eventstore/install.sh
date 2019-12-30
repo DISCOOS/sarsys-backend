@@ -7,4 +7,5 @@ echo "[✓] Helm updated"
 
 echo "2) Install EventStore"
 helm install --namespace sarsys -n eventstore eventstore/eventstore -f eventstore.yaml
+kubectl -n sarsys rollout status statefulset eventstore
 echo "[✓] EventStore installed"
