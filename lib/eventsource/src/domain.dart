@@ -82,6 +82,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
     _reconnectTimer = null;
   }
 
+  /// Get number of aggregates
+  int get count => _aggregates.length;
+
   /// Execute command on given aggregate root.
   ///
   /// SHALL NOT be overridden by subclasses. For custom commands override the [custom] method instead.
