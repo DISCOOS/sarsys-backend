@@ -9,6 +9,7 @@ will be used. This file is read using the [safe_config](https://pub.dev/packages
 during bootstrap. The following environment variables are required to exist before bootstrap begins. 
 
 ```
+TENANT=discoos
 EVENTSTORE_HOST=http://127.0.0.1
 EVENTSTORE_PORT=2113
 EVENTSTORE_LOGIN=admin
@@ -19,7 +20,7 @@ Most IDEs support run configurations that allow environment variables to be set 
 Not setting these will output the following error to the server log.
 
 ```
-Invalid configuration data for 'EvenStoreConfig'. Missing required values: 'host','port','login','password'
+Invalid configuration data for 'EvenStoreConfig'. Missing required values: 'tenant', ...
 ``` 
 
 ## Generate Swagger client

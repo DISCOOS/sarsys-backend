@@ -54,6 +54,7 @@ data:
   LEVEL: "INFO"
   DEBUG: "true"
   PREFIX: "test"
+  TENANT: "discoos"
   EVENTSTORE_HOST: "http://eventstore.sarsys.svc.cluster.local"
   EVENTSTORE_PORT: "2113"
 ---

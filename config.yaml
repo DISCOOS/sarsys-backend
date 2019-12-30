@@ -1,6 +1,7 @@
 level: $LEVEL
 debug: $DEBUG
 prefix: $PREFIX
+tenant: $TENANT
 eventstore:
   host: $EVENTSTORE_HOST
   port: $EVENTSTORE_PORT

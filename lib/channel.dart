@@ -48,16 +48,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     final stopwatch = Stopwatch()..start();
 
     // Parse from config file, given by --config to main.dart or default config.yaml
-    config = SarSysConfig(options.configurationFilePath);
-    if (config.debug == true) {
-      logger.info("Debug mode enabled");
-      if (Platform.environment.containsKey("NODE_NAME")) {
-        logger.info("NODE_NAME is '${Platform.environment["NODE_NAME"]}'");
-      }
-      if (Platform.environment.containsKey("POD_NAME")) {
-        logger.info("POD_NAME is '${Platform.environment["POD_NAME"]}'");
-      }
-    }
+    _loadConfig();
 
     // Set log level
     Logger.root.level = Level.LEVELS.firstWhere(
@@ -93,6 +84,20 @@ class SarSysAppServerChannel extends ApplicationChannel {
     // Sanity check
     if (stopwatch.elapsed.inSeconds > isolateStartupTimeout * 0.8) {
       logger.severe("Approaching maximum duration to wait for each isolate to complete startup");
+    }
+  }
+
+  void _loadConfig() {
+    config = SarSysConfig(options.configurationFilePath);
+    logger.info("Tenant is '${config.tenant == null ? 'not set' : '${config.tenant}'}'");
+    if (config.debug == true) {
+      logger.info("Debug mode enabled");
+      if (Platform.environment.containsKey("NODE_NAME")) {
+        logger.info("NODE_NAME is '${Platform.environment["NODE_NAME"]}'");
+      }
+      if (Platform.environment.containsKey("POD_NAME")) {
+        logger.info("POD_NAME is '${Platform.environment["POD_NAME"]}'");
+      }
     }
   }
 
@@ -140,6 +145,12 @@ class SarSysAppServerChannel extends ApplicationChannel {
         server.server.defaultResponseHeaders.add(
           "X-Node-Name",
           Platform.environment["NODE_NAME"],
+        );
+      }
+      if (Platform.environment.containsKey("POD_NAME")) {
+        server.server.defaultResponseHeaders.add(
+          "X-Pod-Name",
+          Platform.environment["POD_NAME"],
         );
       }
       if (Platform.environment.containsKey("POD_NAME")) {
@@ -209,51 +220,4 @@ class SarSysAppServerChannel extends ApplicationChannel {
           ));
     super.documentComponents(registry);
   }
-}
-
-class SarSysConfig extends Configuration {
-  SarSysConfig(String path) : super.fromFile(File(path));
-
-  /// Stream prefix
-  @optionalConfiguration
-  String prefix;
-
-  /// Debug flag.
-  ///
-  /// Adds headers 'x-node-name' and 'x-pod-name' to
-  /// responses from environment variables 'NODE_NAME'
-  /// and 'POD_NAME', see k8s/sarsys.yaml
-  @optionalConfiguration
-  bool debug = false;
-
-  /// Log level
-  @optionalConfiguration
-  String level = Level.INFO.name;
-
-  /// [EventStore](www.eventstore.org) config values
-  EvenStoreConfig eventstore;
-}
-
-class EvenStoreConfig extends Configuration {
-  EvenStoreConfig();
-
-  /// The host of the database to connect to.
-  ///
-  /// This property is required.
-  String host;
-
-  /// The port of the database to connect to.
-  ///
-  /// This property is required.
-  int port;
-
-  /// A username for authenticating to the database.
-  ///
-  /// This property is required.
-  String login;
-
-  /// A password for authenticating to the database.
-  ///
-  /// This property is required.
-  String password;
 }

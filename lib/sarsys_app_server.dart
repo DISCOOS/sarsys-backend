@@ -9,4 +9,5 @@ export 'dart:io';
 export 'package:aqueduct/aqueduct.dart';
 
 export 'channel.dart';
+export 'config.dart';
 export 'responses.dart';
