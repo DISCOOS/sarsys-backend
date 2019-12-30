@@ -144,8 +144,10 @@ class EventNumber extends Equatable {
 /// Event traversal direction
 enum Direction { forward, backward }
 
-/// When you write to a stream you often want to use Expected Version to allow for
-/// optimistic concurrency with a stream. You commonly use this for a domain object projection.
+/// When you write to a stream you often want to use
+/// [ExpectedVersion] to allow for optimistic concurrency
+/// with a stream. You commonly use this for a domain
+/// object projection.
 class ExpectedVersion {
   const ExpectedVersion(this.number);
 

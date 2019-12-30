@@ -103,16 +103,16 @@ class EventStore {
     @required this.bus,
     @required this.connection,
     this.prefix,
-  }) : logger = Logger("EventStore[${_toCanonical(prefix, stream)}]");
+  }) : logger = Logger("EventStore[${toCanonical([prefix, stream])}]");
 
   /// Get canonical stream name
-  static String _toCanonical(String prefix, String stream) => [prefix, stream]
+  static String toCanonical(List<String> segments) => segments
       .where(
         (test) => test?.trim()?.isNotEmpty == true,
       )
-      .join('-');
+      .join(':');
 
-  String get canonicalStream => _toCanonical(prefix, stream);
+  String get canonicalStream => toCanonical([prefix, stream]);
 
   /// Stream prefix
   final String prefix;
@@ -262,6 +262,8 @@ class EventStore {
     return next.number;
   }
 }
+
+// TODO: Add delete operation to EventStoreConnection
 
 /// EventStore HTTP connection class
 class EventStoreConnection {

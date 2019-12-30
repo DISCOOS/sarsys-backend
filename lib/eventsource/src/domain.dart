@@ -348,7 +348,6 @@ abstract class AggregateRoot {
   DomainEvent patch(Map<String, dynamic> data) {
     final diffs = JsonPatch.diff(this.data, data);
     // TODO: Add support for strict validation of data (fields and values)
-    // TODO: Add support put (replace all data)
     // Replace and add is supported by patch (put will introduce remove)
     final willChange = diffs.where((diff) => const ['add', 'replace'].contains(diff['op'])).isNotEmpty;
     // Remove read-only fields
