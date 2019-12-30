@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:json_patch/json_patch.dart';
 import 'package:logging/logging.dart';
@@ -25,7 +26,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   Repository({
     @required this.store,
     this.uuidFieldName = 'uuid',
-  }) : logger = Logger("${typeOf<T>()}");
+    int maxBackoffTimeSeconds = 10,
+  })  : logger = Logger("${typeOf<T>()}"),
+        _maxBackoffTime = Duration(seconds: maxBackoffTimeSeconds);
 
   final EventStore store;
   final Logger logger;
@@ -34,21 +37,48 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   /// Map of aggregate roots
   final Map<String, T> _aggregates = {};
 
+  /// Maximum backoff duration between reconnect attempts
+  final Duration _maxBackoffTime;
+
   /// Cancelled when repository is disposed
   StreamSubscription<SourceEvent> _subscription;
 
+  /// When true, this repository should not be used any more
+  bool get disposed => _disposed;
+  bool _disposed = false;
+  T _assertState([T forward]) {
+    if (_disposed) {
+      throw InvalidOperation("$this is disposed");
+    }
+    return forward;
+  }
+
+  /// Reconnect count. Uses in exponential backoff calculation
+  int _reconnects = 0;
+
+  /// Reference for cancelling in [dispose]
+  Timer _reconnectTimer;
+
   /// Build repository from local events
   Future build() async {
+    _assertState();
     final events = await store.replay(this);
     if (events == 0) {
       logger.info("Stream '${store.canonicalStream}' is empty");
+    } else {
+      logger.info("Repository loaded with ${_aggregates.length} aggregates");
     }
     _subscribe();
   }
 
   /// Must be called to prevent memory leaks
   void dispose() {
+    _assertState();
+    _disposed = true;
     _subscription?.cancel();
+    _reconnectTimer?.cancel();
+    _subscription = null;
+    _reconnectTimer = null;
   }
 
   /// Execute command on given aggregate root.
@@ -58,6 +88,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   /// Throws an [InvalidOperation] exception if [validate] on [command] fails.
   @override
   FutureOr<Iterable<Event>> execute(S command) async {
+    _assertState();
+
     T aggregate;
     final data = validate(command);
     switch (command.action) {
@@ -85,18 +117,18 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   /// Get aggregate with given id.
   ///
   /// Will create a new aggregate if not found.
-  T get(String uuid, {Map<String, dynamic> data = const {}}) =>
-      _aggregates[uuid] ??
+  T get(String uuid, {Map<String, dynamic> data = const {}}) => _assertState(_aggregates[uuid] ??
       _aggregates.putIfAbsent(
         uuid,
         () => create(uuid, data)..loadFromHistory(store.get(uuid).map(toDomainEvent)),
-      );
+      ));
 
   /// Get all aggregate roots.
   Iterable<T> getAll({
     int offset = 0,
     int limit = 20,
   }) {
+    _assertState();
     if (offset < 0 || limit < 0) {
       throw const InvalidOperation("Offset and limit can not be negative");
     } else if (offset > _aggregates.length) {
@@ -177,14 +209,35 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
         )
         .listen(
           _onEvent,
-          // TODO: Automatic reconnect when connection is lost (es is restarted) and repository is not disposed.
           onDone: _onDone,
           onError: _onError,
         );
   }
 
+  void _reconnect() {
+    _subscription?.cancel();
+    _reconnectTimer ??= Timer(Duration(milliseconds: toNextReconnectMillis()), () {
+      _reconnectTimer?.cancel();
+      _reconnectTimer = null;
+      _subscribe();
+    });
+  }
+
+  int toNextReconnectMillis() {
+    _reconnects++;
+    final millis = min(pow(2, _reconnects).toInt() + Random().nextInt(1000), _maxBackoffTime.inMilliseconds);
+    return millis;
+  }
+
   void _onEvent(SourceEvent event) {
     try {
+      if (_reconnects > 0) {
+        logger.info(
+          "Reconnected to event store at "
+          "'${store.connection.host}:${store.connection.port}' after $_reconnects attempts",
+        );
+        _reconnects = 0;
+      }
       if (store.isEmpty || event.number > store.current) {
         // Get and commit changes
         final aggregate = get(toAggregateUuid(event), data: event.data);
@@ -204,10 +257,16 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
 
   void _onDone() {
     logger.fine("Subscription on '${store.canonicalStream}' closed");
+    if (!_disposed) {
+      _reconnect();
+    }
   }
 
   void _onError(error) {
     logger.severe("Subscription on '${store.canonicalStream}' failed with: $error");
+    if (!_disposed) {
+      _reconnect();
+    }
   }
 }
 
