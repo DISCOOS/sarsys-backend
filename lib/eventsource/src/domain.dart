@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:json_patch/json_patch.dart';
@@ -86,27 +87,33 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   /// SHALL NOT be overridden by subclasses. For custom commands override the [custom] method instead.
   ///
   /// Throws an [InvalidOperation] exception if [validate] on [command] fails.
+  /// Throws an [SocketException] exception if calls on [store] fails.
   @override
   FutureOr<Iterable<Event>> execute(S command) async {
     _assertState();
 
-    T aggregate;
-    final data = validate(command);
-    switch (command.action) {
-      case Action.create:
-        aggregate = get(command.uuid, data: data);
-        break;
-      case Action.update:
-        aggregate = get(command.uuid)..patch(data);
-        break;
-      case Action.delete:
-        aggregate = get(command.uuid)..delete();
-        break;
-      case Action.custom:
-        aggregate = custom(command);
+    try {
+      T aggregate;
+      final data = validate(command);
+      switch (command.action) {
+        case Action.create:
+          aggregate = get(command.uuid, data: data);
+          break;
+        case Action.update:
+          aggregate = get(command.uuid)..patch(data);
+          break;
+        case Action.delete:
+          aggregate = get(command.uuid)..delete();
+          break;
+        case Action.custom:
+          aggregate = custom(command);
+      }
+      commit(aggregate);
+      return await store.push([aggregate]);
+    } on SocketException catch (e) {
+      logger.severe("Failed to execute $command: $e");
+      rethrow;
     }
-    commit(aggregate);
-    return await store.push([aggregate]);
   }
 
   /// Handler for custom commands.
