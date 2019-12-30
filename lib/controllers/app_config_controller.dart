@@ -2,6 +2,8 @@ import 'package:sarsys_app_server/domain/app_config.dart';
 import 'package:sarsys_app_server/eventsource/eventsource.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 
+/// A ResourceController that handles
+/// [/api/app-config](http://localhost/api/client.html#/AppConfig) [Request]s
 class AppConfigController extends ResourceController {
   AppConfigController(this.repository);
   final AppConfigRepository repository;
@@ -19,13 +21,7 @@ class AppConfigController extends ResourceController {
             (aggregate) => aggregate.data,
           )
           .toList();
-      return Response.ok({
-        "total": repository.count,
-        "offset": offset,
-        "limit": limit,
-        if (offset + data.length < repository.count) "next": offset + data.length,
-        "data": data ?? [],
-      });
+      return okPaged(repository.count, offset, limit, data);
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } on Failure catch (e) {

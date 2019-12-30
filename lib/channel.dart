@@ -211,16 +211,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
   }
 }
 
-String toLocation(Request request) => "http://${request.raw.connectionInfo.remoteAddress.host}"
-    ":${request.raw.connectionInfo.localPort}${request.raw.uri}";
-
-/// Represents a 503 response.
-Response serviceUnavailable({Map<String, dynamic> headers, dynamic body}) => Response(
-      HttpStatus.serviceUnavailable,
-      headers,
-      body,
-    );
-
 class SarSysConfig extends Configuration {
   SarSysConfig(String path) : super.fromFile(File(path));
 
