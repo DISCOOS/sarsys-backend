@@ -68,7 +68,10 @@ class SarSysAppServerChannel extends ApplicationChannel {
           password: config.eventstore.password,
         ),
       ),
-      prefix: config.prefix,
+      prefix: EventStore.toCanonical([
+        config.tenant,
+        config.prefix,
+      ]),
     );
 
     // Register events handled by message broker
@@ -89,9 +92,11 @@ class SarSysAppServerChannel extends ApplicationChannel {
 
   void _loadConfig() {
     config = SarSysConfig(options.configurationFilePath);
-    logger.info("Tenant is '${config.tenant == null ? 'not set' : '${config.tenant}'}'");
     if (config.debug == true) {
       logger.info("Debug mode enabled");
+      if (Platform.environment.containsKey("PREFIX")) {
+        logger.info("PREFIX is '${Platform.environment["PREFIX"]}'");
+      }
       if (Platform.environment.containsKey("NODE_NAME")) {
         logger.info("NODE_NAME is '${Platform.environment["NODE_NAME"]}'");
       }
@@ -102,6 +107,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
         logger.info("POD_NAMESPACE is '${Platform.environment["POD_NAMESPACE"]}'");
       }
     }
+    logger.info("TENANT is '${config.tenant == null ? 'not set' : '${config.tenant}'}'");
   }
 
   /// Print [LogRecord] formatted
@@ -145,6 +151,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     // Set k8s information for debugging purposes
     if (config.debug == true) {
       _setResponseFromEnv("TENANT", "X-Tenant");
+      _setResponseFromEnv("PREFIX", "X-Prefix");
       _setResponseFromEnv("NODE_NAME", "X-Node-Name");
       _setResponseFromEnv("POD_NAME", "X-Pod-Name");
       _setResponseFromEnv("POD_NAMESPACE", "X-Pod-Namespace");
