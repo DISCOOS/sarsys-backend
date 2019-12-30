@@ -144,6 +144,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
   void willStartReceivingRequests() {
     // Set k8s information for debugging purposes
     if (config.debug == true) {
+      _setResponseFromEnv("TENANT", "X-Tenant");
       _setResponseFromEnv("NODE_NAME", "X-Node-Name");
       _setResponseFromEnv("POD_NAME", "X-Pod-Name");
       _setResponseFromEnv("POD_NAMESPACE", "X-Pod-Namespace");
