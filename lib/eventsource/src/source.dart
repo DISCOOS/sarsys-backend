@@ -156,6 +156,7 @@ class EventStore {
     try {
       bus.replayStarted();
 
+      // TODO: Read events in pages during replay
       // Fetch all events
       final result = await connection.readAllEvents(
         stream: canonicalStream,
@@ -164,7 +165,7 @@ class EventStore {
       if (result.isOK) {
         _store.clear();
 
-        // Get current event number
+        // Catch-up with last event number in stream
         _current = result.events.fold(EventNumber.none, _assertMonotone);
 
         // Hydrate event store with events
@@ -207,6 +208,7 @@ class EventStore {
   Iterable<DomainEvent> commit(AggregateRoot aggregate) {
     _assertState();
     final events = aggregate.commit();
+
     // Do not save during replay
     if (bus.replaying == false && events.isNotEmpty) {
       _store.update(
@@ -214,6 +216,7 @@ class EventStore {
         (stored) => stored..addAll(events),
         ifAbsent: events.toList,
       );
+      _current += events.length;
       _publish(events);
     }
     return events;
@@ -302,16 +305,26 @@ class EventStore {
         repository,
         connection,
       );
-      if (isEmpty || event.number > current) {
+      if (isEmpty || event.number > _current) {
         // Get and commit changes
-        final aggregate = repository.get(repository.toAggregateUuid(event), data: event.data);
+        final aggregate = repository.get(
+          repository.toAggregateUuid(event),
+          data: event.data,
+        );
         if (aggregate.isChanged == false) {
           if (aggregate.isApplied(event) == false) {
             aggregate.patch(event.data);
           }
         }
         if (aggregate.isChanged) {
-          commit(aggregate);
+          // This will catch up with stream
+          final events = commit(aggregate);
+          if (events.length > 1) {
+            throw InvalidOperation("One source event produced ${events.length} domain events");
+          }
+        } else {
+          // Catch up with stream
+          _current = event.number;
         }
       }
     } catch (e) {
