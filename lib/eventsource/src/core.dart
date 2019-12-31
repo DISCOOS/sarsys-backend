@@ -211,6 +211,11 @@ class AggregateExists extends InvalidOperation {
   const AggregateExists(String message) : super(message);
 }
 
+/// Thrown if an [Exception] is thrown during a build of a resource
+class BuildFailure extends InvalidOperation {
+  const BuildFailure(String message) : super(message);
+}
+
 /// Thrown when writing events and 'ES-ExpectedVersion' differs from 'ES-CurrentVersion'
 class WrongExpectedEventVersion extends InvalidOperation {
   const WrongExpectedEventVersion(String message, this.current) : super(message);

@@ -13,10 +13,12 @@ import 'domain.dart';
 import 'models/AtomFeed.dart';
 import 'models/AtomItem.dart';
 
-/// Event Source manager class. Use this to manage sourcing of multiple event streams
+/// [EventStore] manager class.
+///
+/// Use this to manage sourcing of multiple event streams
 @sealed
-class EventSourceManager {
-  EventSourceManager(
+class EventStoreManager {
+  EventStoreManager(
     this.bus,
     this.connection, {
     this.prefix,
@@ -31,53 +33,62 @@ class EventSourceManager {
   /// [EventStoreConnection] instance
   final EventStoreConnection connection;
 
-  /// [Map] of aggregate root repositories and the [EventStore] storing events from it.
-  final Map<Repository, EventStore> _stores = {};
+  /// Managed [EventStore] instance
+  final Map<String, EventStore> _stores = {};
+
+  /// Check if given [store] is managed by this [EventStoreManager]
+  bool manages(EventStore store) => _stores.containsValue(store);
+
+  /// Get unmodifiable list of managed [EventStore] instances
+  Iterable<EventStore> get stores => List.unmodifiable(_stores.values);
 
   /// Register [Repository] with given [AggregateRoot].
-  void register<T extends AggregateRoot>(
-    Repository create(EventStore store), {
+  ///
+  void register<T extends AggregateRoot>({
+    String uuid,
     String prefix,
     String stream,
   }) {
-    final repository = create(
-      EventStore(
-        bus: bus,
-        connection: connection,
-        prefix: EventStore.toCanonical([
-          this.prefix,
-          prefix,
-        ]),
-        stream: stream ?? typeOf<T>().toKebabCase(),
-      ),
+    final store = EventStore(
+      uuid: uuid,
+      prefix: EventStore.toCanonical([
+        this.prefix,
+        prefix,
+      ]),
+      stream: stream ?? typeOf<T>().toKebabCase(),
+      bus: bus,
+      connection: connection,
     );
     _stores.putIfAbsent(
-      repository,
-      () => repository.store,
+      store.canonicalStream,
+      () => store,
     );
   }
 
-  /// Build all repositories from event stores
-  Future<void> build() async {
-    try {
-      await Future.wait(_stores.keys.map(
-        (repository) => repository.build(),
-      ));
-    } on SocketException catch (e) {
-      throw Exception("Unable to connect to eventstore using $connection, got: $e");
-    }
+  /// Get [EventStore] instance
+  EventStore get<T extends Repository>({
+    String uuid,
+    String prefix,
+    String stream,
+  }) {
+    final canonicalStream = EventStore.toCanonical([
+      this.prefix,
+      prefix,
+      stream ?? typeOf<T>().toKebabCase(),
+    ]);
+    return _stores.values.firstWhere(
+      (store) => store.canonicalStream == canonicalStream,
+      orElse: () => null,
+    );
   }
 
-  /// Dispose all repositories and stores
+  /// Dispose all [EventStore] instances
   void dispose() {
     _stores.forEach((repository, store) {
       store.dispose();
     });
     _stores.clear();
   }
-
-  /// Get repository from [Type]
-  T get<T extends Repository>() => _stores.keys.whereType<T>()?.first;
 }
 
 /// Base class for events sourced from an event stream.
@@ -101,11 +112,12 @@ class SourceEvent extends Event {
 @sealed
 class EventStore {
   EventStore({
-    @required this.stream,
     @required this.bus,
+    @required this.stream,
     @required this.connection,
+    this.uuid,
     this.prefix,
-  }) : logger = Logger("EventStore[${toCanonical([prefix, stream])}]");
+  }) : logger = Logger("EventStore[${toCanonical([prefix, stream, uuid])}]");
 
   /// Get canonical stream name
   static String toCanonical(List<String> segments) => segments
@@ -114,7 +126,10 @@ class EventStore {
       )
       .join(':');
 
-  String get canonicalStream => toCanonical([prefix, stream]);
+  String get canonicalStream => toCanonical([prefix, stream, uuid]);
+
+  /// [AggregateRoot.uuid] is added as suffix
+  final String uuid;
 
   /// Stream prefix
   final String prefix;
@@ -388,10 +403,10 @@ class EventStore {
     }
   }
 
-  /// Assert that [Repository.store] match this [EventStore]
+  /// Assert that this this [EventStore] is managed by [repository]
   void _assertRepository(Repository<Command, AggregateRoot> repository) {
-    if (this != repository.store) {
-      throw const InvalidOperation("EventStore in Repository does not match this EventStore");
+    if (repository.store != this) {
+      throw InvalidOperation("This $this is not managed by ${repository}");
     }
   }
 

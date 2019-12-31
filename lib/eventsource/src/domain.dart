@@ -5,8 +5,82 @@ import 'package:json_patch/json_patch.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 
+import 'bus.dart';
 import 'core.dart';
 import 'source.dart';
+
+/// [Repository] manager class.
+///
+/// Use this to manage sourcing of multiple event streams
+class RepositoryManager {
+  RepositoryManager(
+    this.bus,
+    this.connection, {
+    this.prefix,
+  });
+
+  /// Prefix all streams with this prefix
+  final String prefix;
+
+  /// [MessageBus] instance
+  final MessageBus bus;
+
+  /// [EventStoreConnection] instance
+  final EventStoreConnection connection;
+
+  /// [Map] of aggregate root repositories and the [EventStore] storing events from it.
+  final Map<Repository, EventStore> _stores = {};
+
+  /// Register [Repository] with given [AggregateRoot].
+  ///
+  /// Throws [InvalidOperation] if type of [Repository] returned from [create] is already registered
+  void register<T extends AggregateRoot>(
+    Repository<Command, T> create(EventStore store), {
+    String prefix,
+    String stream,
+  }) {
+    final store = EventStore(
+      bus: bus,
+      connection: connection,
+      prefix: EventStore.toCanonical([
+        this.prefix,
+        prefix,
+      ]),
+      stream: stream ?? typeOf<T>().toKebabCase(),
+    );
+    final repository = create(store);
+    if (get<Repository<Command, T>>() != null) {
+      throw InvalidOperation("Repository [${typeOf<T>()} already registered");
+    }
+    _stores.putIfAbsent(
+      repository,
+      () => store,
+    );
+  }
+
+  /// Build all repositories from event stores
+  ///
+  /// Throws an [BuildFailure] if a store was unable to connect to it's stream
+  Future<void> build() async {
+    await Future.wait(_stores.keys.map(
+      (repository) => repository.build(),
+    ));
+  }
+
+  /// Get [Repository] from [Type]
+  T get<T extends Repository>() {
+    final items = _stores.keys.whereType<T>();
+    return items.isEmpty ? null : items.first;
+  }
+
+  /// Dispose all [RepositoryManager] instances
+  void dispose() {
+    _stores.values.forEach(
+      (manager) => manager.dispose(),
+    );
+    _stores.clear();
+  }
+}
 
 /// Base class for domain events
 class DomainEvent extends Event {
@@ -31,6 +105,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
         maxBackoffTime = Duration(seconds: maxBackoffTimeSeconds);
 
   final EventStore store;
+
   final Logger logger;
   final String uuidFieldName;
 
