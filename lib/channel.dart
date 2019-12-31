@@ -27,8 +27,8 @@ class SarSysAppServerChannel extends ApplicationChannel {
   /// Loaded in [prepare]
   SarSysConfig config;
 
-  /// Manages an [EventStore] for each registered event stream
-  EventSourceManager manager;
+  /// Manages an [Repository] for each registered [AggregateRoot]
+  RepositoryManager manager;
 
   /// Logger instance
   @override
@@ -61,7 +61,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     ]);
 
     // Construct manager from configurations
-    manager = EventSourceManager(
+    manager = RepositoryManager(
       MessageBus(),
       EventStoreConnection(
         host: config.eventstore.host,
@@ -74,15 +74,17 @@ class SarSysAppServerChannel extends ApplicationChannel {
       prefix: namespace,
     );
 
+    // Register repositories
+    manager.register<AppConfig>((manager) => AppConfigRepository(manager));
+
+    /// Build resources
+    await manager.build();
+    logger.info("Built repositories in ${stopwatch.elapsedMilliseconds}ms");
+
     // Register events handled by message broker
     messages.register<AppConfigCreated>(manager.bus);
     messages.register<AppConfigUpdated>(manager.bus);
     messages.build();
-
-    // Register aggregate-root repositories
-    manager.register<AppConfig>((store) => AppConfigRepository(store));
-    await manager.build();
-    logger.info("Built repositories in ${stopwatch.elapsedMilliseconds}ms");
 
     // Sanity check
     if (stopwatch.elapsed.inSeconds > isolateStartupTimeout * 0.8) {
