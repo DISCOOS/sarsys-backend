@@ -78,7 +78,9 @@ class EventSourceManager {
   T get<T extends Repository>() => _stores.keys.whereType<T>()?.first;
 }
 
-/// Base class for source events
+/// Base class for events sourced from an event stream.
+///
+/// A [Repository] folds [SourceEvent]s into [DomainEvent]s
 class SourceEvent extends Event {
   const SourceEvent({
     @required String uuid,
@@ -264,10 +266,8 @@ class EventStore {
     if (result.isCreated) {
       // Commit all changes after successful write
       aggregates.forEach(commit);
-      // Check commit did its job
-      if (_current != EventNumber.from(result.version)) {
-        throw WriteFailed("Catch up failed, current ${_current.value} not equal to version ${result.version.value}");
-      }
+      // Safeguard: Check if commits caught up with last known event in stream
+      _assertCurrentVersion(result);
       return events;
     } else if (result.isWrongESNumber) {
       throw WrongExpectedEventVersion(result.reasonPhrase, result.version);
@@ -378,15 +378,25 @@ class EventStore {
   /// When true, this store should not be used any more
   bool get disposed => _disposed;
   bool _disposed = false;
+
+  /// Assert that this [EventStore] is not [disposed]
   void _assertState() {
     if (_disposed) {
       throw InvalidOperation("$this is disposed");
     }
   }
 
+  /// Assert that [Repository.store] match this [EventStore]
   void _assertRepository(Repository<Command, AggregateRoot> repository) {
     if (this != repository.store) {
       throw const InvalidOperation("EventStore in Repository does not match this EventStore");
+    }
+  }
+
+  /// Assert that [current] event number is caught up with last known event in stream
+  void _assertCurrentVersion(WriteResult result) {
+    if (_current != EventNumber.from(result.version)) {
+      throw WriteFailed("Catch up failed, current ${_current.value} not equal to version ${result.version.value}");
     }
   }
 
