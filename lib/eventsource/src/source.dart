@@ -135,7 +135,7 @@ class EventStore {
 
   /// Current event number in store
   EventNumber get current => _current;
-  EventNumber _current = EventNumber.first;
+  EventNumber _current = EventNumber.none;
 
   /// Check if store is empty
   bool get isEmpty => _store.isEmpty;
@@ -259,7 +259,7 @@ class EventStore {
     final result = await connection.writeEvents(
       stream: canonicalStream,
       events: events,
-      version: ExpectedVersion.from(_current),
+      version: _current == EventNumber.none ? ExpectedVersion.any : ExpectedVersion.from(_current),
     );
     if (result.isCreated) {
       // Commit all changes after successful write
@@ -1033,7 +1033,7 @@ class WriteResult extends Result {
           eventIds: eventIds,
           number: _toNumber(response),
           location: response.headers['location'],
-          version: version.value < 0 ? version : version + eventIds.length,
+          version: ExpectedVersion(_toNumber(response)),
         );
       case 400:
         return WriteResult(
