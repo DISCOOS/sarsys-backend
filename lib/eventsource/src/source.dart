@@ -228,7 +228,7 @@ class EventStore {
       // Flush events accumulated during replay
       repository.commitAll();
 
-      logger.info("Replayed ${result.events.length} events from stream");
+      logger.info("Replayed ${result.events.length} events from stream '${canonicalStream}'");
     }
     return result.events.length;
   }
