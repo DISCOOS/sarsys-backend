@@ -87,7 +87,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
       // TODO: Detect and reconcile merge conflicts
       // Try again?
       if (attempt < max) {
-        return _executeWithRetry(command, max, count + 1);
+        return _executeWithRetry(command, max, attempt + 1);
       }
       logger.warning("Aborted execution of $command after $max retries: $e");
       rethrow;
