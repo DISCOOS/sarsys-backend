@@ -465,14 +465,19 @@ class _SubscriptionController {
 
   void reconnect(Repository repository, EventStore store) {
     _subscription.cancel();
-    _timer ??= Timer(Duration(milliseconds: toNextReconnectMillis()), () {
-      _timer.cancel();
-      _timer = null;
-      store.subscribe(
-        repository,
-        maxBackoffTime: maxBackoffTime,
+    if (!store.connection.disposed) {
+      _timer ??= Timer(
+        Duration(milliseconds: toNextReconnectMillis()),
+        () {
+          _timer.cancel();
+          _timer = null;
+          store.subscribe(
+            repository,
+            maxBackoffTime: maxBackoffTime,
+          );
+        },
       );
-    });
+    }
   }
 
   void connected(Repository repository, EventStoreConnection connection) {
@@ -517,6 +522,7 @@ class EventStoreConnection {
     Direction direction = Direction.forward,
     Duration waitFor = const Duration(milliseconds: 0),
   }) async {
+    _assertState();
     final response = await client.get(
       "$host:$port/streams/$stream${_toFeedUri(number, direction)}",
       headers: {
@@ -575,6 +581,8 @@ class EventStoreConnection {
 
   /// Read events in [AtomFeed.entries] in given [FeedResult.direction] and return all in one result
   Future<ReadResult> readEventsInFeed(FeedResult result) async {
+    _assertState();
+
     // Fail immediately using eagerError: true
     final responses = await Future.wait(
       _getEvents(
@@ -663,21 +671,25 @@ class EventStoreConnection {
   bool hasNextFeed(FeedResult result) => !(result.direction == Direction.forward ? result.isHead : result.isTail);
 
   /// Get next [AtomFeed] from previous [FeedResult.atomFeed] in given [FeedResult.direction].
-  Future<FeedResult> getNextFeed(FeedResult result) async => FeedResult.from(
-        stream: result.stream,
-        number: result.number,
-        direction: result.direction,
-        response: await client.get(
-          _toUri(
-            result.direction,
-            result.atomFeed,
-          ),
-          headers: {
-            'Authorization': credentials.header,
-            'Accept': 'application/vnd.eventstore.atom+json',
-          },
+  Future<FeedResult> getNextFeed(FeedResult result) async {
+    _assertState();
+
+    return FeedResult.from(
+      stream: result.stream,
+      number: result.number,
+      direction: result.direction,
+      response: await client.get(
+        _toUri(
+          result.direction,
+          result.atomFeed,
         ),
-      );
+        headers: {
+          'Authorization': credentials.header,
+          'Accept': 'application/vnd.eventstore.atom+json',
+        },
+      ),
+    );
+  }
 
   String _toUri(Direction direction, AtomFeed atomFeed) {
     final uri = direction == Direction.forward
@@ -725,6 +737,7 @@ class EventStoreConnection {
     @required Iterable<Event> events,
     ExpectedVersion version = ExpectedVersion.any,
   }) async {
+    _assertState();
     final eventIds = <String>[];
     final body = events.map(
       (event) => {
@@ -759,6 +772,7 @@ class EventStoreConnection {
     Duration waitFor = const Duration(milliseconds: 1500),
     Duration pullEvery = const Duration(milliseconds: 500),
   }) async* {
+    _assertState();
     var current = number;
 
     // Catch-up subscription?
@@ -817,7 +831,17 @@ class EventStoreConnection {
     }
   }
 
+  /// When true, this store should not be used any more
+  bool get disposed => _disposed;
+  bool _disposed = false;
+  void _assertState() {
+    if (_disposed) {
+      throw InvalidOperation("$this is disposed");
+    }
+  }
+
   void close() {
+    _disposed = true;
     client.close();
   }
 
