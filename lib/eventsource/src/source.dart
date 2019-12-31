@@ -266,8 +266,8 @@ class EventStore {
     if (result.isCreated) {
       // Commit all changes after successful write
       aggregates.forEach(commit);
-      // Safeguard: Check if commits caught up with last known event in stream
-      _assertCurrentVersion(result);
+      // Check if commits caught up with last known event in stream
+      _assertCurrentVersion(result.version);
       return events;
     } else if (result.isWrongESNumber) {
       throw WrongExpectedEventVersion(result.reasonPhrase, result.version);
@@ -394,9 +394,9 @@ class EventStore {
   }
 
   /// Assert that [current] event number is caught up with last known event in stream
-  void _assertCurrentVersion(WriteResult result) {
-    if (_current != EventNumber.from(result.version)) {
-      throw WriteFailed("Catch up failed, current ${_current.value} not equal to version ${result.version.value}");
+  void _assertCurrentVersion(ExpectedVersion version) {
+    if (_current != EventNumber.from(version)) {
+      throw WriteFailed("Catch up failed, current ${_current.value} not equal to version ${version.value}");
     }
   }
 
