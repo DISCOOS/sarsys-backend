@@ -1,4 +1,4 @@
-import 'package:sarsys_app_server/domain/app_config.dart';
+import 'package:sarsys_app_server/domain/tenant/app_config.dart';
 import 'package:sarsys_app_server/eventsource/eventsource.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 

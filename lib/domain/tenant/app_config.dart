@@ -2,30 +2,8 @@ import 'package:meta/meta.dart';
 import 'package:sarsys_app_server/eventsource/eventsource.dart';
 import 'package:uuid/uuid.dart';
 
-abstract class AppConfigCommand extends Command {
-  AppConfigCommand(
-    Action action, {
-    Map<String, dynamic> data = const {},
-  }) : super(action, data: data);
-}
-
-class CreateAppConfig extends AppConfigCommand {
-  CreateAppConfig(
-    Map<String, dynamic> data,
-  ) : super(Action.create, data: data);
-}
-
-class UpdateAppConfig extends AppConfigCommand {
-  UpdateAppConfig(
-    Map<String, dynamic> data,
-  ) : super(Action.update, data: data);
-}
-
 class AppConfigRepository extends Repository<AppConfigCommand, AppConfig> {
-  AppConfigRepository(EventStore store)
-      : super(
-          store: store,
-        );
+  AppConfigRepository(EventStore store) : super(store: store);
 
   @override
   DomainEvent toDomainEvent(Event event) {
@@ -66,6 +44,33 @@ class AppConfig extends AggregateRoot {
         data: data,
       );
 }
+
+//////////////////////////////////////
+// AppConfig Commands
+//////////////////////////////////////
+
+abstract class AppConfigCommand extends Command {
+  AppConfigCommand(
+    Action action, {
+    Map<String, dynamic> data = const {},
+  }) : super(action, data: data);
+}
+
+class CreateAppConfig extends AppConfigCommand {
+  CreateAppConfig(
+    Map<String, dynamic> data,
+  ) : super(Action.create, data: data);
+}
+
+class UpdateAppConfig extends AppConfigCommand {
+  UpdateAppConfig(
+    Map<String, dynamic> data,
+  ) : super(Action.update, data: data);
+}
+
+//////////////////////////////////////
+// AppConfig Domain Events
+//////////////////////////////////////
 
 class AppConfigCreated extends DomainEvent {
   AppConfigCreated({

@@ -5,7 +5,7 @@ import 'package:sarsys_app_server/domain/messages.dart';
 import 'package:sarsys_app_server/eventsource/eventsource.dart';
 
 import 'controllers/websocket_controller.dart';
-import 'domain/app_config.dart';
+import 'domain/tenant/app_config.dart';
 import 'sarsys_app_server.dart';
 
 /// MUST BE used when bootstrapping Aqueduct
@@ -32,10 +32,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
 
   /// Logger instance
   @override
-  final Logger logger = Logger("SarSysAppServerChannel")
-    ..onRecord.listen(
-      printRecord,
-    );
+  final Logger logger = Logger("SarSysAppServerChannel");
 
   /// Initialize services in this method.
   ///
@@ -57,6 +54,12 @@ class SarSysAppServerChannel extends ApplicationChannel {
     );
     logger.info("Log level set to ${Logger.root.level.name}");
 
+    // Set namespace as canonical stream prefix for given tenant
+    final namespace = EventStore.toCanonical([
+      config.tenant,
+      config.prefix,
+    ]);
+
     // Construct manager from configurations
     manager = EventSourceManager(
       MessageBus(),
@@ -68,10 +71,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
           password: config.eventstore.password,
         ),
       ),
-      prefix: EventStore.toCanonical([
-        config.tenant,
-        config.prefix,
-      ]),
+      prefix: namespace,
     );
 
     // Register events handled by message broker
@@ -92,6 +92,10 @@ class SarSysAppServerChannel extends ApplicationChannel {
 
   void _loadConfig() {
     config = SarSysConfig(options.configurationFilePath);
+    logger.onRecord.listen(
+      (record) => printRecord(record, debug: config.debug),
+    );
+
     if (config.debug == true) {
       logger.info("Debug mode enabled");
       if (Platform.environment.containsKey("PREFIX")) {
@@ -111,9 +115,9 @@ class SarSysAppServerChannel extends ApplicationChannel {
   }
 
   /// Print [LogRecord] formatted
-  static void printRecord(LogRecord rec) {
+  static void printRecord(LogRecord rec, {bool debug = false}) {
     print(
-      "${rec.time}: ${rec.level.name}: ${rec.loggerName}: "
+      "${rec.time}: ${rec.level.name}: ${debug ? '${rec.loggerName}: ' : ''}"
       "${rec.message} ${rec.error ?? ""} ${rec.stackTrace ?? ""}",
     );
   }
