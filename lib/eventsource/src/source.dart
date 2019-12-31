@@ -35,23 +35,25 @@ class EventSourceManager {
   final Map<Repository, EventStore> _stores = {};
 
   /// Register [Repository] with given [AggregateRoot].
-  void register<T extends AggregateRoot>(Repository create(EventStore store)) {
+  void register<T extends AggregateRoot>(
+    Repository create(EventStore store), {
+    String prefix,
+    String stream,
+  }) {
     final repository = create(
       EventStore(
         bus: bus,
-        prefix: prefix,
         connection: connection,
-        stream: typeOf<T>().toKebabCase(),
+        prefix: EventStore.toCanonical([
+          this.prefix,
+          prefix,
+        ]),
+        stream: stream ?? typeOf<T>().toKebabCase(),
       ),
     );
     _stores.putIfAbsent(
       repository,
-      () => EventStore(
-        bus: bus,
-        prefix: prefix,
-        connection: connection,
-        stream: T.toKebabCase(),
-      ),
+      () => repository.store,
     );
   }
 
@@ -211,7 +213,7 @@ class EventStore {
       // Flush events accumulated during replay
       repository.commitAll();
 
-      logger.info("Replayed ${result.events.length} events from stream '${result.stream}'");
+      logger.info("Replayed ${result.events.length} events from stream");
     }
     return result.events.length;
   }
