@@ -61,7 +61,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   /// Throws an [InvalidOperation] exception if [validate] on [command] fails.
   /// Throws an [SocketException] exception if calls on [store] fails.
   @override
-  FutureOr<Iterable<Event>> execute(S command) async {
+  FutureOr<Iterable<Event>> execute(S command) async => _executeWithRetry(command, 10, 0);
+
+  /// Execute command on given aggregate given times before giving up
+  ///
+  FutureOr<Iterable<Event>> _executeWithRetry(S command, int max, int attempt) async {
     try {
       T aggregate;
       final data = validate(command);
@@ -79,6 +83,14 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
           aggregate = custom(command);
       }
       return await push(aggregate);
+    } on WrongExpectedEventVersion catch (e) {
+      // TODO: Detect and reconcile merge conflicts
+      // Try again?
+      if (attempt < max) {
+        return _executeWithRetry(command, max, count + 1);
+      }
+      logger.warning("Aborted execution of $command after $max retries: $e");
+      rethrow;
     } on SocketException catch (e) {
       logger.severe("Failed to execute $command: $e");
       rethrow;
@@ -129,12 +141,26 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   /// Push aggregate changes to remote storage
   ///
   /// Returns pushed events is saved, empty list otherwise
-  Future<Iterable<Event>> push(T aggregate) {
+  Future<Iterable<Event>> push(T aggregate) async {
     try {
-      return store.push([aggregate]);
-    } on WrongExpectedEventVersion catch (e) {
-      // TODO: Read events from stream, merge changes, reconcile merge conflicts, recalculate events
-      print(e);
+      return await store.push([aggregate]);
+    } on WrongExpectedEventVersion {
+      // Are the other aggregates with uncommitted changes?
+      final other = _aggregates.values.firstWhere(
+        (test) => test != aggregate && test.isChanged,
+        orElse: () => null,
+      );
+      if (other != null) {
+        throw WriteFailed("Found uncommitted changes that will be lost in $other");
+      }
+      // Rollback all changes, catch up with stream and rethrow error
+      if (aggregate.isNew) {
+        _aggregates.remove(aggregate.uuid);
+      } else {
+        aggregate.loadFromHistory(store.get(aggregate.uuid).map(toDomainEvent));
+      }
+      final count = await store.catchUp(this);
+      logger.info("Caught up with $count events from ${store.canonicalStream}");
       rethrow;
     }
   }
@@ -202,6 +228,7 @@ abstract class AggregateRoot {
           ),
       ),
       true,
+      true,
     );
   }
 
@@ -229,6 +256,9 @@ abstract class AggregateRoot {
   Iterable<Event> getUncommittedChanges() => _pending;
 
   /// Check if uncommitted changes exists
+  bool get isNew => _applied.isEmpty;
+
+  /// Check if uncommitted changes exists
   bool get isChanged => _pending.isNotEmpty;
 
   /// Get aggregate uuid from event
@@ -237,12 +267,12 @@ abstract class AggregateRoot {
   /// Load events from history
   @protected
   AggregateRoot loadFromHistory(Iterable<DomainEvent> events) {
-    // Only load history if exist, this the event created during construction
+    // Only clear if history exist, otherwise keep the event from construction
     if (events.isNotEmpty) {
       _pending.clear();
       _applied.clear();
     }
-    events?.forEach((event) => _apply(event, false));
+    events?.forEach((event) => _apply(event, false, false));
     return this;
   }
 
@@ -255,13 +285,13 @@ abstract class AggregateRoot {
     // Replace and add is supported by patch (put will introduce remove)
     final willChange = diffs.where((diff) => const ['add', 'replace'].contains(diff['op'])).isNotEmpty;
     // Remove read-only fields
-    return willChange ? _apply(updated(data), true) : null;
+    return willChange ? _apply(updated(data), true, false) : null;
   }
 
   /// Delete aggregate root
   DomainEvent delete() {
     data.clear();
-    return _apply(deleted(), true);
+    return _apply(deleted(), true, false);
   }
 
   /// Get uncommitted changes and clear internal cache
@@ -286,7 +316,7 @@ abstract class AggregateRoot {
   /// Applies changed to [data].
   ///
   /// If [isChanged] is true, the event is added as [_pending] commit to store
-  DomainEvent _apply(DomainEvent event, bool isChanged) {
+  DomainEvent _apply(DomainEvent event, bool isChanged, bool isNew) {
     if (toAggregateUuid(event) != uuid) {
       throw InvalidOperation("Aggregate has $uuid, event $event contains ${toAggregateUuid(event)}");
     }
@@ -294,7 +324,9 @@ abstract class AggregateRoot {
     if (isChanged) {
       _pending.add(event);
     }
-    _applied.add(event.uuid);
+    if (!isNew) {
+      _applied.add(event.uuid);
+    }
     return event;
   }
 }

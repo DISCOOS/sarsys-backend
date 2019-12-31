@@ -131,16 +131,16 @@ class EventNumber extends Equatable {
   @override
   List<Object> get props => [value];
 
-  @override
-  String toString() {
-    return (isLast ? 'HEAD' : value).toString();
-  }
-
   EventNumber operator +(int number) => EventNumber(value + number);
   bool operator >(EventNumber number) => value > number.value;
   bool operator <(EventNumber number) => value < number.value;
   bool operator >=(EventNumber number) => value >= number.value;
   bool operator <=(EventNumber number) => value <= number.value;
+
+  @override
+  String toString() {
+    return (isLast ? 'HEAD' : value).toString();
+  }
 }
 
 /// Event traversal direction
@@ -173,6 +173,11 @@ class ExpectedVersion {
 
   /// Adds [other] to [value] and returns new Expected version
   ExpectedVersion operator +(int other) => ExpectedVersion(value + other);
+
+  @override
+  String toString() {
+    return 'ExpectedVersion{value: $value}';
+  }
 }
 
 /// Base class for failures

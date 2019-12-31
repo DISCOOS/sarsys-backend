@@ -13,8 +13,6 @@ import 'domain.dart';
 import 'models/AtomFeed.dart';
 import 'models/AtomItem.dart';
 
-// TODO: Implement optimistic locking with ExpectedVersion
-
 /// Event Source manager class. Use this to manage sourcing of multiple event streams
 @sealed
 class EventSourceManager {
@@ -156,49 +154,64 @@ class EventStore {
     try {
       bus.replayStarted();
 
-      // TODO: Read events in pages during replay
       // Fetch all events
-      final result = await connection.readAllEvents(
-        stream: canonicalStream,
+      return _catchUp(
+        repository,
+        EventNumber.first,
       );
-
-      if (result.isOK) {
-        _store.clear();
-
-        // Catch-up with last event number in stream
-        _current = result.events.fold(EventNumber.none, _assertMonotone);
-
-        // Hydrate event store with events
-        result.events
-            .where(
-              (event) => repository.toAggregateUuid(event) is String,
-            )
-            .forEach(
-              (event) => _store.update(
-                repository.toAggregateUuid(event),
-                (events) => events..add(event),
-                ifAbsent: () => [event],
-              ),
-            );
-
-        // This will recreate aggregates and republish events
-        _store.keys
-          ..forEach(
-            (uuid) => repository.get(uuid),
-          )
-          ..forEach(
-            (uuid) => _publish(_store[uuid]),
-          );
-
-        // Flush events accumulated during replay
-        repository.commitAll();
-
-        logger.info("Replayed ${result.events.length} events from stream '${result.stream}'");
-      }
-      return result.events.length;
     } finally {
       bus.replayEnded();
     }
+  }
+
+  /// Catch up with stream
+  Future<int> catchUp(Repository repository) async => _catchUp(repository, _current + 1);
+
+  /// Catch up with stream from given number
+  Future<int> _catchUp(Repository repository, EventNumber number) async {
+    // TODO: Read events in pages during replay
+    final result = await connection.readAllEvents(
+      stream: canonicalStream,
+      number: number,
+    );
+
+    if (result.isOK) {
+      _store.clear();
+
+      // Catch-up with last event number in stream
+      _current = result.events.fold(
+        EventNumber.none,
+        _assertMonotone,
+      );
+
+      // Hydrate event store with events
+      result.events
+          .where(
+            (event) => repository.toAggregateUuid(event) is String,
+          )
+          .forEach(
+            (event) => _store.update(
+              repository.toAggregateUuid(event),
+              (events) => events..add(event),
+              ifAbsent: () => [event],
+            ),
+          );
+
+      // This will recreate aggregates and republish events
+      _store.keys
+        ..forEach(
+          (uuid) => repository.get(uuid),
+        )
+        ..forEach(
+          (uuid) => _publish(_store[uuid]),
+        );
+
+      // Flush events accumulated during replay
+      repository.commitAll();
+
+      logger.info("Replayed ${result.events.length} events from stream '${result.stream}'");
+    }
+    return result.events.length;
   }
 
   /// Get events for given [AggregateRoot.uuid]
@@ -246,12 +259,15 @@ class EventStore {
     final result = await connection.writeEvents(
       stream: canonicalStream,
       events: events,
-      version: ExpectedVersion.from(_current /* DEBUG 400 wrong number->  + 1*/),
+      version: ExpectedVersion.from(_current),
     );
     if (result.isCreated) {
       // Commit all changes after successful write
       aggregates.forEach(commit);
-      _current = EventNumber.from(result.version);
+      // Check commit did its job
+      if (_current != EventNumber.from(result.version)) {
+        throw WriteFailed("Catch up failed, current ${_current.value} not equal to version ${result.version.value}");
+      }
       return events;
     } else if (result.isWrongESNumber) {
       throw WrongExpectedEventVersion(result.reasonPhrase, result.version);
@@ -500,20 +516,22 @@ class EventStoreConnection {
     EventNumber number = EventNumber.first,
     Direction direction = Direction.forward,
     Duration waitFor = const Duration(milliseconds: 0),
-  }) async =>
-      FeedResult.from(
-        stream: stream,
-        number: number,
-        direction: direction,
-        response: await client.get(
-          "$host:$port/streams/$stream${_toFeedUri(number, direction)}",
-          headers: {
-            'Authorization': credentials.header,
-            'Accept': 'application/vnd.eventstore.atom+json',
-            if (waitFor.inSeconds > 0) 'ES-LongPoll': '${waitFor.inSeconds}'
-          },
-        ),
-      );
+  }) async {
+    final response = await client.get(
+      "$host:$port/streams/$stream${_toFeedUri(number, direction)}",
+      headers: {
+        'Authorization': credentials.header,
+        'Accept': 'application/vnd.eventstore.atom+json',
+        if (waitFor.inSeconds > 0) 'ES-LongPoll': '${waitFor.inSeconds}'
+      },
+    );
+    return FeedResult.from(
+      stream: stream,
+      number: number,
+      direction: direction,
+      response: response,
+    );
+  }
 
   String _toFeedUri(
     EventNumber number,
@@ -617,8 +635,17 @@ class EventStoreConnection {
       );
     }
 
+    ReadResult next,
+        result = ReadResult(
+      stream: stream,
+      number: number,
+      direction: direction,
+      statusCode: 404,
+      reasonPhrase: "Not found",
+      events: [],
+    );
+
     // Loop until all events are fetched from stream
-    ReadResult result, next;
     do {
       next = await readEventsInFeed(feed);
       if (next.isOK) {
