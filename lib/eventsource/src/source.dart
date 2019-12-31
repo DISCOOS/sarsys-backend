@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:http/http.dart';
 import 'package:meta/meta.dart';
@@ -12,7 +13,7 @@ import 'domain.dart';
 import 'models/AtomFeed.dart';
 import 'models/AtomItem.dart';
 
-// TODO: Implement optimistic locking (with rollback and reload of last state?)
+// TODO: Implement optimistic locking with ExpectedVersion
 
 /// Event Source manager class. Use this to manage sourcing of multiple event streams
 @sealed
@@ -71,7 +72,6 @@ class EventSourceManager {
   void dispose() {
     _stores.forEach((repository, store) {
       store.dispose();
-      repository.dispose();
     });
     _stores.clear();
   }
@@ -133,10 +133,11 @@ class EventStore {
   final _store = <String, List<Event>>{};
 
   /// [Map] of events from aggregate roots pending push to stream
-  final _pending = <String, List<Event>>{};
+  //final _pending = <String, List<Event>>{};
 
   /// Current event number in store
-  EventNumber current = EventNumber.first;
+  EventNumber get current => _current;
+  EventNumber _current = EventNumber.first;
 
   /// Check if store is empty
   bool get isEmpty => _store.isEmpty;
@@ -145,7 +146,13 @@ class EventStore {
   bool get isNotEmpty => _store.isNotEmpty;
 
   /// Replay events from stream to given repository
+  ///
+  /// Throws an [InvalidOperation] if [Repository.store] is not this [EventStore]
   Future<int> replay(Repository repository) async {
+    // Sanity checks
+    _assertState();
+    _assertRepository(repository);
+
     try {
       bus.replayStarted();
 
@@ -158,7 +165,7 @@ class EventStore {
         _store.clear();
 
         // Get current event number
-        current = result.events.fold(EventNumber.none, _assertMonotone);
+        _current = result.events.fold(EventNumber.none, _assertMonotone);
 
         // Hydrate event store with events
         result.events
@@ -196,30 +203,39 @@ class EventStore {
   /// Get events for given [AggregateRoot.uuid]
   Iterable<Event> get(String uuid) => _store[uuid] ?? [];
 
-  /// Get all uuids
-  Iterable<String> uuids() => _store.keys.toList();
-
   /// Commit events to local storage.
   Iterable<DomainEvent> commit(AggregateRoot aggregate) {
+    _assertState();
     final events = aggregate.commit();
     // Do not save during replay
     if (bus.replaying == false && events.isNotEmpty) {
-      // Update local event store
-      _update(aggregate, events, _store);
-      // Append to events pending push to remote event store
-      _update(aggregate, events, _pending);
-      // Notify event handlers
+      _store.update(
+        aggregate.uuid,
+        (stored) => stored..addAll(events),
+        ifAbsent: events.toList,
+      );
       _publish(events);
     }
     return events;
   }
 
-  /// Push changes to remote event store for given aggregate
+  /// Publish events to [bus]
+  void _publish(Iterable<Event> events) => events.forEach(bus.publish);
+
+  /// Push changes in [aggregates] to [canonicalStream]
+  ///
+  /// Throws [WrongExpectedEventVersion] if [current] event number is not
+  /// equal to the last event number in  [canonicalStream]. This failure is
+  /// recoverable when the store has caught up with [canonicalStream].
+  ///
+  /// Throws [WriteFailed] for all other failures. This failure is not
+  /// recoverable.
   Future<Iterable<Event>> push(Iterable<AggregateRoot> aggregates) async {
-    // Collect pending events for given aggregates
+    _assertState();
+    // Collect events pending commit for given aggregates
     final events = aggregates.fold(
       <Event>[],
-      (events, aggregate) => <Event>[...events, ..._pending[aggregate.uuid] ?? []],
+      (events, aggregate) => <Event>[...events, ...aggregate.getUncommittedChanges() ?? []],
     );
     if (events.isEmpty) {
       return events;
@@ -227,31 +243,130 @@ class EventStore {
     final result = await connection.writeEvents(
       stream: canonicalStream,
       events: events,
+      version: ExpectedVersion.from(_current /* DEBUG 400 wrong number->  + 1*/),
     );
     if (result.isCreated) {
-      // Remove changes
-      aggregates.forEach((aggregate) => _pending.remove(aggregate.uuid));
+      // Commit all changes after successful write
+      aggregates.forEach(commit);
+      _current = EventNumber.from(result.version);
       return events;
+    } else if (result.isWrongESNumber) {
+      throw WrongExpectedEventVersion(result.reasonPhrase, result.version);
     }
-    throw PushFailed("Failed to push changes: ${result.statusCode} ${result.reasonPhrase}");
+    throw WriteFailed("Failed to push changes: ${result.statusCode} ${result.reasonPhrase}");
   }
 
-  void _publish(Iterable<Event> events) => events.forEach(bus.publish);
+  /// Subscription controller for each repository
+  /// subscribing to events from [canonicalStream]
+  final _subscriptions = <Type, _SubscriptionController>{};
 
-  void _update(
-    AggregateRoot aggregate,
-    Iterable<Event> events,
-    Map<String, List<Event>> store,
-  ) =>
-      store.update(
-        aggregate.uuid,
-        (stored) => stored..addAll(events),
-        ifAbsent: events.toList,
+  /// Subscribe given [repository] to receive changes from [canonicalStream]
+  ///
+  /// Throws an [InvalidOperation] if [Repository.store] is not this [EventStore]
+  /// Throws an [InvalidOperation] if [Repository] is already subscribing to events
+  void subscribe(
+    Repository repository, {
+    Duration maxBackoffTime = const Duration(seconds: 10),
+  }) async {
+    // Sanity checks
+    _assertState();
+    _assertRepository(repository);
+
+    _subscriptions.update(
+      repository.runtimeType,
+      (controller) => controller.subscribe(
+        repository,
+        current,
+        connection,
+        canonicalStream,
+      ),
+      ifAbsent: () => _SubscriptionController(
+        logger: logger,
+        onDone: _onSubscriptionDone,
+        onEvent: _onSubscriptionEvent,
+        onError: _onSubscriptionError,
+        maxBackoffTime: maxBackoffTime,
+      )..subscribe(
+          repository,
+          current,
+          connection,
+          canonicalStream,
+        ),
+    );
+  }
+
+  /// Handle event from subscriptions
+  void _onSubscriptionEvent(Repository repository, SourceEvent event) {
+    try {
+      _subscriptions[repository.runtimeType]?.connected(
+        repository,
+        connection,
       );
+      if (isEmpty || event.number > current) {
+        // Get and commit changes
+        final aggregate = repository.get(repository.toAggregateUuid(event), data: event.data);
+        if (aggregate.isChanged == false) {
+          if (aggregate.isApplied(event) == false) {
+            aggregate.patch(event.data);
+          }
+        }
+        if (aggregate.isChanged) {
+          commit(aggregate);
+        }
+      }
+    } catch (e) {
+      logger.severe("Failed to process ${event.type}{uuid: ${event.uuid}}, got $e");
+    }
+  }
+
+  /// Handle subscription completed
+  void _onSubscriptionDone(Repository repository) {
+    logger.fine("${repository.runtimeType} subscription closed");
+    if (!_disposed) {
+      _subscriptions[repository.runtimeType].reconnect(
+        repository,
+        this,
+      );
+    }
+  }
+
+  /// Handle subscription errors
+  void _onSubscriptionError(Repository repository, error) {
+    logger.severe("${repository.runtimeType} subscription failed with: $error");
+
+    if (!(error is SocketException)) {
+      print(error);
+    }
+
+    if (!_disposed) {
+      _subscriptions[repository.runtimeType].reconnect(
+        repository,
+        this,
+      );
+    }
+  }
+
+  /// When true, this store should not be used any more
+  bool get disposed => _disposed;
+  bool _disposed = false;
+  void _assertState() {
+    if (_disposed) {
+      throw InvalidOperation("$this is disposed");
+    }
+  }
+
+  void _assertRepository(Repository<Command, AggregateRoot> repository) {
+    if (this != repository.store) {
+      throw const InvalidOperation("EventStore in Repository does not match this EventStore");
+    }
+  }
 
   /// Clear events in store and close connection
   void dispose() {
     _store.clear();
+    _subscriptions.values.forEach((state) => state.dispose());
+    _subscriptions.clear();
+    _disposed = true;
   }
 
   EventNumber _assertMonotone(EventNumber previous, SourceEvent next) {
@@ -260,6 +375,90 @@ class EventStore {
           "next: ${next.number} in event ${next.type} with uuid: ${next.uuid}");
     }
     return next.number;
+  }
+}
+
+class _SubscriptionController {
+  _SubscriptionController({
+    this.logger,
+    this.onEvent,
+    this.onDone,
+    this.onError,
+    this.maxBackoffTime,
+  });
+
+  /// [Logger] instance
+  final Logger logger;
+
+  final void Function(Repository repository) onDone;
+  final void Function(Repository repository, SourceEvent event) onEvent;
+  final void Function(Repository repository, dynamic error) onError;
+
+  /// Maximum backoff duration between reconnect attempts
+  final Duration maxBackoffTime;
+
+  /// Cancelled when store is disposed
+  StreamSubscription<SourceEvent> _subscription;
+
+  /// Reconnect count. Uses in exponential backoff calculation
+  int reconnects = 0;
+
+  /// Reference for cancelling in [dispose]
+  Timer _timer;
+
+  /// Subscribe to events from given stream.
+  ///
+  /// Cancels previous subscriptions if exists
+  _SubscriptionController subscribe(
+    Repository repository,
+    EventNumber current,
+    EventStoreConnection connection,
+    String stream,
+  ) {
+    _subscription?.cancel();
+    _subscription = connection
+        .subscribe(
+          stream: stream,
+          number: current,
+        )
+        .listen(
+          (event) => onEvent(repository, event),
+          onDone: () => onDone(repository),
+          onError: (error) => onError(repository, error),
+        );
+    return this;
+  }
+
+  int toNextReconnectMillis() => min(
+        pow(2, reconnects++).toInt() + Random().nextInt(1000),
+        maxBackoffTime.inMilliseconds,
+      );
+
+  void reconnect(Repository repository, EventStore store) {
+    _subscription.cancel();
+    _timer ??= Timer(Duration(milliseconds: toNextReconnectMillis()), () {
+      _timer.cancel();
+      _timer = null;
+      store.subscribe(
+        repository,
+        maxBackoffTime: maxBackoffTime,
+      );
+    });
+  }
+
+  void connected(Repository repository, EventStoreConnection connection) {
+    if (reconnects > 0) {
+      logger.info(
+        "${repository.runtimeType} reconnected at "
+        "'${connection.host}:${connection.port}' after ${reconnects} attempts",
+      );
+      reconnects = 0;
+    }
+  }
+
+  void dispose() {
+    _timer?.cancel();
+    _subscription?.cancel();
   }
 }
 
@@ -484,6 +683,7 @@ class EventStoreConnection {
   Future<WriteResult> writeEvents({
     @required String stream,
     @required Iterable<Event> events,
+    ExpectedVersion version = ExpectedVersion.any,
   }) async {
     final eventIds = <String>[];
     final body = events.map(
@@ -498,10 +698,11 @@ class EventStoreConnection {
       headers: {
         'Authorization': credentials.header,
         'Content-type': 'application/vnd.eventstore.events+json',
+        'ES-ExpectedVersion': '${version.value}'
       },
       body: json.encode(body.toList()),
     );
-    return WriteResult.from(stream, eventIds, response);
+    return WriteResult.from(stream, version, eventIds, response);
   }
 
   String _toStreamUri(String stream) => "$host:$port/streams/$stream";
@@ -768,6 +969,7 @@ class WriteResult extends Result {
     @required String reasonPhrase,
     this.eventIds = const [],
     this.location,
+    this.version,
     int number,
   })  : number = EventNumber(number),
         super(
@@ -776,22 +978,36 @@ class WriteResult extends Result {
           reasonPhrase: reasonPhrase,
         );
 
-  factory WriteResult.from(String stream, List<String> eventIds, Response response) {
+  factory WriteResult.from(
+    String stream,
+    ExpectedVersion version,
+    List<String> eventIds,
+    Response response,
+  ) {
     switch (response.statusCode) {
       case 201:
         return WriteResult(
           stream: stream,
           statusCode: response.statusCode,
           reasonPhrase: response.reasonPhrase,
-          location: response.headers['location'],
           eventIds: eventIds,
           number: _toNumber(response),
+          location: response.headers['location'],
+          version: version.value < 0 ? version : version + eventIds.length,
+        );
+      case 400:
+        return WriteResult(
+          stream: stream,
+          statusCode: response.statusCode,
+          reasonPhrase: response.reasonPhrase,
+          version: ExpectedVersion(int.parse(response.headers['es-currentversion'])),
         );
       default:
         return WriteResult(
           stream: stream,
           statusCode: response.statusCode,
           reasonPhrase: response.reasonPhrase,
+          version: version,
         );
     }
   }
@@ -802,11 +1018,17 @@ class WriteResult extends Result {
   /// Last event number on stream
   final EventNumber number;
 
+  /// Version of last event written to [stream]
+  final ExpectedVersion version;
+
   /// Url to written event
   final String location;
 
   /// Check if 201 Created
   bool get isCreated => statusCode == 201;
+
+  /// Check if 400 Wrong expected EventNumber
+  bool get isWrongESNumber => statusCode == 400;
 
   static int _toNumber(Response response) => int.parse(response.headers['location'].split('/')?.last);
 

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math';
 
 import 'package:json_patch/json_patch.dart';
 import 'package:logging/logging.dart';
@@ -29,57 +28,27 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
     this.uuidFieldName = 'uuid',
     int maxBackoffTimeSeconds = 10,
   })  : logger = Logger("${typeOf<T>()}"),
-        _maxBackoffTime = Duration(seconds: maxBackoffTimeSeconds);
+        maxBackoffTime = Duration(seconds: maxBackoffTimeSeconds);
 
   final EventStore store;
   final Logger logger;
   final String uuidFieldName;
 
+  /// Maximum backoff duration between reconnect attempts
+  final Duration maxBackoffTime;
+
   /// Map of aggregate roots
   final Map<String, T> _aggregates = {};
 
-  /// Maximum backoff duration between reconnect attempts
-  final Duration _maxBackoffTime;
-
-  /// Cancelled when repository is disposed
-  StreamSubscription<SourceEvent> _subscription;
-
-  /// When true, this repository should not be used any more
-  bool get disposed => _disposed;
-  bool _disposed = false;
-  T _assertState([T forward]) {
-    if (_disposed) {
-      throw InvalidOperation("$this is disposed");
-    }
-    return forward;
-  }
-
-  /// Reconnect count. Uses in exponential backoff calculation
-  int _reconnects = 0;
-
-  /// Reference for cancelling in [dispose]
-  Timer _reconnectTimer;
-
   /// Build repository from local events
   Future build() async {
-    _assertState();
     final events = await store.replay(this);
     if (events == 0) {
       logger.info("Stream '${store.canonicalStream}' is empty");
     } else {
       logger.info("Repository loaded with ${_aggregates.length} aggregates");
     }
-    _subscribe();
-  }
-
-  /// Must be called to prevent memory leaks
-  void dispose() {
-    _assertState();
-    _disposed = true;
-    _subscription?.cancel();
-    _reconnectTimer?.cancel();
-    _subscription = null;
-    _reconnectTimer = null;
+    store.subscribe(this);
   }
 
   /// Get number of aggregates
@@ -93,8 +62,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   /// Throws an [SocketException] exception if calls on [store] fails.
   @override
   FutureOr<Iterable<Event>> execute(S command) async {
-    _assertState();
-
     try {
       T aggregate;
       final data = validate(command);
@@ -111,8 +78,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
         case Action.custom:
           aggregate = custom(command);
       }
-      commit(aggregate);
-      return await store.push([aggregate]);
+      return await push(aggregate);
     } on SocketException catch (e) {
       logger.severe("Failed to execute $command: $e");
       rethrow;
@@ -127,18 +93,18 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   /// Get aggregate with given id.
   ///
   /// Will create a new aggregate if not found.
-  T get(String uuid, {Map<String, dynamic> data = const {}}) => _assertState(_aggregates[uuid] ??
+  T get(String uuid, {Map<String, dynamic> data = const {}}) =>
+      _aggregates[uuid] ??
       _aggregates.putIfAbsent(
         uuid,
         () => create(uuid, data)..loadFromHistory(store.get(uuid).map(toDomainEvent)),
-      ));
+      );
 
   /// Get all aggregate roots.
   Iterable<T> getAll({
     int offset = 0,
     int limit = 20,
   }) {
-    _assertState();
     if (offset < 0 || limit < 0) {
       throw const InvalidOperation("Offset and limit can not be negative");
     } else if (offset > _aggregates.length) {
@@ -163,7 +129,15 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   /// Push aggregate changes to remote storage
   ///
   /// Returns pushed events is saved, empty list otherwise
-  Future<Iterable<Event>> push(T aggregate) => store.push([aggregate]);
+  Future<Iterable<Event>> push(T aggregate) {
+    try {
+      return store.push([aggregate]);
+    } on WrongExpectedEventVersion catch (e) {
+      // TODO: Read events from stream, merge changes, reconcile merge conflicts, recalculate events
+      print(e);
+      rethrow;
+    }
+  }
 
   /// Push all aggregate changes to remote storage
   ///
@@ -209,75 +183,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
 
   /// Check if repository contains given aggregate root
   bool contains(String uuid) => _aggregates.containsKey(uuid);
-
-  /// Subscribe to changes in stream
-  void _subscribe() {
-    _subscription = store.connection
-        .subscribe(
-          stream: store.canonicalStream,
-          number: store.current,
-        )
-        .listen(
-          _onEvent,
-          onDone: _onDone,
-          onError: _onError,
-        );
-  }
-
-  void _reconnect() {
-    _subscription?.cancel();
-    _reconnectTimer ??= Timer(Duration(milliseconds: toNextReconnectMillis()), () {
-      _reconnectTimer?.cancel();
-      _reconnectTimer = null;
-      _subscribe();
-    });
-  }
-
-  int toNextReconnectMillis() {
-    _reconnects++;
-    final millis = min(pow(2, _reconnects).toInt() + Random().nextInt(1000), _maxBackoffTime.inMilliseconds);
-    return millis;
-  }
-
-  void _onEvent(SourceEvent event) {
-    try {
-      if (_reconnects > 0) {
-        logger.info(
-          "Reconnected to event store at "
-          "'${store.connection.host}:${store.connection.port}' after $_reconnects attempts",
-        );
-        _reconnects = 0;
-      }
-      if (store.isEmpty || event.number > store.current) {
-        // Get and commit changes
-        final aggregate = get(toAggregateUuid(event), data: event.data);
-        if (aggregate.isChanged == false) {
-          if (aggregate.isApplied(event) == false) {
-            aggregate.patch(event.data);
-          }
-        }
-        if (aggregate.isChanged) {
-          store.commit(aggregate);
-        }
-      }
-    } catch (e) {
-      logger.severe("Failed to process ${event.type}{uuid: ${event.uuid}}, got $e");
-    }
-  }
-
-  void _onDone() {
-    logger.fine("Subscription on '${store.canonicalStream}' closed");
-    if (!_disposed) {
-      _reconnect();
-    }
-  }
-
-  void _onError(error) {
-    logger.severe("Subscription on '${store.canonicalStream}' failed with: $error");
-    if (!_disposed) {
-      _reconnect();
-    }
-  }
 }
 
 /// Base class for [aggregate roots](https://martinfowler.com/bliki/DDD_Aggregate.html).
@@ -321,7 +226,6 @@ abstract class AggregateRoot {
   bool isApplied(Event event) => _applied.contains(event.uuid);
 
   /// Get changed not committed to store
-  @protected
   Iterable<Event> getUncommittedChanges() => _pending;
 
   /// Check if uncommitted changes exists

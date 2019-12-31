@@ -108,6 +108,8 @@ abstract class MessageHandler<T extends Message> {
 class EventNumber extends Equatable {
   const EventNumber(this.value);
 
+  factory EventNumber.from(ExpectedVersion current) => EventNumber(current.value);
+
   // First event in stream
   static const first = EventNumber(0);
 
@@ -149,23 +151,28 @@ enum Direction { forward, backward }
 /// with a stream. You commonly use this for a domain
 /// object projection.
 class ExpectedVersion {
-  const ExpectedVersion(this.number);
+  const ExpectedVersion(this.value);
+
+  factory ExpectedVersion.from(EventNumber number) => ExpectedVersion(number.value);
 
   /// Stream should exist but be empty when writing.
-  static const int empty = 0;
+  static const empty = ExpectedVersion(0);
 
   /// Stream should not exist when writing.
-  static const int none = -1;
+  static const none = ExpectedVersion(-1);
 
   /// Write should not conflict with anything and should always succeed.
   /// This disables the optimistic concurrency check.
-  static const int any = -2;
+  static const any = ExpectedVersion(-2);
 
   /// Stream should exist, but does not expect the stream to be at a specific event version number.
-  static const int exists = -4;
+  static const exists = ExpectedVersion(-4);
 
   /// The event version number that you expect the stream to currently be at.
-  final int number;
+  final int value;
+
+  /// Adds [other] to [value] and returns new Expected version
+  ExpectedVersion operator +(int other) => ExpectedVersion(value + other);
 }
 
 /// Base class for failures
@@ -175,7 +182,7 @@ abstract class Failure {
 
   @override
   String toString() {
-    return 'Failure{message: $message}';
+    return '$runtimeType{message: $message}';
   }
 }
 
@@ -199,9 +206,20 @@ class AggregateExists extends InvalidOperation {
   const AggregateExists(String message) : super(message);
 }
 
-/// Thrown when an push to remote event store failed
-class PushFailed extends Failure {
-  const PushFailed(String message) : super(message);
+/// Thrown when writing events and 'ES-ExpectedVersion' differs from 'ES-CurrentVersion'
+class WrongExpectedEventVersion extends InvalidOperation {
+  const WrongExpectedEventVersion(String message, this.current) : super(message);
+  final ExpectedVersion current;
+
+  @override
+  String toString() {
+    return 'WrongExpectedEventVersion{current: $current, message: $message}';
+  }
+}
+
+/// Thrown when an write failed
+class WriteFailed extends Failure {
+  const WriteFailed(String message) : super(message);
 }
 
 /// Thrown when an stream [AtomFeed] operation failed
