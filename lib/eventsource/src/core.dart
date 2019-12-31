@@ -227,6 +227,11 @@ class WriteFailed extends Failure {
   const WriteFailed(String message) : super(message);
 }
 
+/// Thrown when more then one [AggregateRoot] has changes concurrently
+class MultipleAggregatesWithChanges extends WriteFailed {
+  const MultipleAggregatesWithChanges(String message) : super(message);
+}
+
 /// Thrown when an stream [AtomFeed] operation failed
 class FeedFailed extends Failure {
   const FeedFailed(String message) : super(message);

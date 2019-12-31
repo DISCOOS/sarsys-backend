@@ -80,7 +80,7 @@ class EventSourceManager {
 
 /// Base class for events sourced from an event stream.
 ///
-/// A [Repository] folds [SourceEvent]s into [DomainEvent]s
+/// A [Repository] folds [SourceEvent]s into [DomainEvent]s with [Repository.get].
 class SourceEvent extends Event {
   const SourceEvent({
     @required String uuid,
@@ -242,18 +242,18 @@ class EventStore {
 
   /// Push changes in [aggregates] to [canonicalStream]
   ///
-  /// Throws [WrongExpectedEventVersion] if [current] event number is not
+  /// Throws an [WrongExpectedEventVersion] if [current] event number is not
   /// equal to the last event number in  [canonicalStream]. This failure is
   /// recoverable when the store has caught up with [canonicalStream].
   ///
-  /// Throws [WriteFailed] for all other failures. This failure is not
+  /// Throws an [WriteFailed] for all other failures. This failure is not
   /// recoverable.
   Future<Iterable<Event>> push(Iterable<AggregateRoot> aggregates) async {
     _assertState();
     // Collect events pending commit for given aggregates
     final events = aggregates.fold(
       <Event>[],
-      (events, aggregate) => <Event>[...events, ...aggregate.getUncommittedChanges() ?? []],
+      (events, aggregate) => <DomainEvent>[...events, ...aggregate.getUncommittedChanges() ?? []],
     );
     if (events.isEmpty) {
       return events;

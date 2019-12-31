@@ -59,7 +59,18 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   /// SHALL NOT be overridden by subclasses. For custom commands override the [custom] method instead.
   ///
   /// Throws an [InvalidOperation] exception if [validate] on [command] fails.
-  /// Throws an [SocketException] exception if calls on [store] fails.
+  ///
+  /// Throws an [WrongExpectedEventVersion] if [EventStore.current] event number is not
+  /// equal to the last event number in  [EventStore.canonicalStream]. This failure is
+  /// recoverable when the store has caught up with [EventStore.canonicalStream].
+  ///
+  /// Throws an [SocketException] failure if calls on [EventStore.connection] fails.
+  /// This failure is not recoverable.
+  ///
+  /// Throws an [MultipleAggregatesWithChanges] if other aggregates have changes.
+  /// This failure is recoverable, but with side effect of losing data.
+  ///
+  /// Throws [WriteFailed] for all other failures. This failure is not recoverable.
   @override
   FutureOr<Iterable<Event>> execute(S command) async => _executeWithRetry(command, 10, 0);
 
@@ -68,6 +79,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   FutureOr<Iterable<Event>> _executeWithRetry(S command, int max, int attempt) async {
     try {
       T aggregate;
+
       final data = validate(command);
       switch (command.action) {
         case Action.create:
@@ -82,9 +94,20 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
         case Action.custom:
           aggregate = custom(command);
       }
+
       return await push(aggregate);
     } on WrongExpectedEventVersion catch (e) {
       // TODO: Detect and reconcile merge conflicts
+      // Try again?
+      if (attempt < max) {
+        return _executeWithRetry(command, max, attempt + 1);
+      }
+      logger.warning("Aborted execution of $command after $max retries: $e");
+      rethrow;
+    } on MultipleAggregatesWithChanges catch (e) {
+      // This will remove all pending changes
+      final events = rollbackAll();
+      logger.severe("Rolled back ${events.length} uncommitted events: $e");
       // Try again?
       if (attempt < max) {
         return _executeWithRetry(command, max, attempt + 1);
@@ -97,14 +120,81 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
     }
   }
 
+  /// Check if this [Repository] contains any aggregates with [AggregateRoot.isChanged]
+  bool get isChanged => _aggregates.values.any((aggregate) => aggregate.isChanged);
+
+  /// Rollback all changes in this [Repository]
+  Iterable<DomainEvent> rollbackAll() {
+    final List<DomainEvent> uncommitted = _aggregates.values.fold(
+      <DomainEvent>[],
+      (events, aggregate) => events..addAll(rollback(aggregate)),
+    );
+    return uncommitted;
+  }
+
   /// Handler for custom commands.
   ///
   /// MUST BE overridden by subclasses if [Command]s with action [Action.custom] are implemented.
   T custom(S command) => throw InvalidOperation("Custom command $command not handled");
 
+  /// Push aggregate changes to remote storage
+  ///
+  /// Returns pushed events is saved, empty list otherwise
+  ///
+  /// Throws an [WrongExpectedEventVersion] if [EventStore.current] event number is not
+  /// equal to the last event number in  [EventStore.canonicalStream]. This failure is
+  /// recoverable when the store has caught up with [EventStore.canonicalStream].
+  ///
+  /// Throws an [SocketException] failure if calls on [EventStore.connection] fails.
+  /// This failure is not recoverable.
+  ///
+  /// Throws [WriteFailed] for all other failures. This failure is not recoverable.
+  Future<Iterable<Event>> push(T aggregate) async {
+    try {
+      return await store.push([aggregate]);
+    } on WrongExpectedEventVersion {
+      // Are the other aggregates with uncommitted changes?
+      _assertAggregateChanges(aggregate);
+      // Rollback all changes, catch up with stream and rethrow error
+      rollback(aggregate);
+
+      final count = await store.catchUp(this);
+      logger.info("Caught up with $count events from ${store.canonicalStream}");
+      rethrow;
+    }
+  }
+
+  /// Assert that only a given [AggregateRoot] has changes.
+  ///
+  /// Every [Command.action] on a [Repository] should be
+  /// committed or rolled back before next command is executed.
+  void _assertAggregateChanges(aggregate) {
+    final other = _aggregates.values.firstWhere(
+      (test) => test != aggregate && test.isChanged,
+      orElse: () => null,
+    );
+    if (other != null) {
+      throw MultipleAggregatesWithChanges("Found uncommitted changes that will be lost in $other");
+    }
+  }
+
+  /// Rollback all pending changes in aggregate
+  Iterable<DomainEvent> rollback(T aggregate) {
+    final events = aggregate.getUncommittedChanges();
+    if (aggregate.isNew) {
+      _aggregates.remove(aggregate.uuid);
+    } else if (aggregate.isChanged) {
+      aggregate.loadFromHistory(store.get(aggregate.uuid).map(toDomainEvent));
+    }
+    return events;
+  }
+
   /// Get aggregate with given id.
   ///
-  /// Will create a new aggregate if not found.
+  /// Will create a new aggregate if not found by applying a left
+  /// fold from [SourceEvent] to [DomainEvent]. Each [DomainEvent]
+  /// is then processed by applying changes to [AggregateRoot.data]
+  /// in accordance to the business value of to each [DomainEvent].
   T get(String uuid, {Map<String, dynamic> data = const {}}) =>
       _aggregates[uuid] ??
       _aggregates.putIfAbsent(
@@ -137,33 +227,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
         <Event>[],
         (events, items) => <Event>[...events, ...items],
       );
-
-  /// Push aggregate changes to remote storage
-  ///
-  /// Returns pushed events is saved, empty list otherwise
-  Future<Iterable<Event>> push(T aggregate) async {
-    try {
-      return await store.push([aggregate]);
-    } on WrongExpectedEventVersion {
-      // Are the other aggregates with uncommitted changes?
-      final other = _aggregates.values.firstWhere(
-        (test) => test != aggregate && test.isChanged,
-        orElse: () => null,
-      );
-      if (other != null) {
-        throw WriteFailed("Found uncommitted changes that will be lost in $other");
-      }
-      // Rollback all changes, catch up with stream and rethrow error
-      if (aggregate.isNew) {
-        _aggregates.remove(aggregate.uuid);
-      } else {
-        aggregate.loadFromHistory(store.get(aggregate.uuid).map(toDomainEvent));
-      }
-      final count = await store.catchUp(this);
-      logger.info("Caught up with $count events from ${store.canonicalStream}");
-      rethrow;
-    }
-  }
 
   /// Validate data
   ///
@@ -248,7 +311,7 @@ abstract class AggregateRoot {
   bool isApplied(Event event) => _applied.contains(event.uuid);
 
   /// Get changed not committed to store
-  Iterable<Event> getUncommittedChanges() => _pending;
+  Iterable<DomainEvent> getUncommittedChanges() => _pending;
 
   /// Check if uncommitted changes exists
   bool get isNew => _applied.isEmpty;
@@ -259,7 +322,7 @@ abstract class AggregateRoot {
   /// Get aggregate uuid from event
   String toAggregateUuid(Event event) => event.data[uuidFieldName] as String;
 
-  /// Load events from history
+  /// Load events from history.
   @protected
   AggregateRoot loadFromHistory(Iterable<DomainEvent> events) {
     // Only clear if history exist, otherwise keep the event from construction
