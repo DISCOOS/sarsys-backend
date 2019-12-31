@@ -165,11 +165,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
     }
   }
 
-  /// Push all aggregate changes to remote storage
-  ///
-  /// Returns pushed events is saved, empty list otherwise
-  Future<Iterable<Event>> pushAll() => store.push(_aggregates.values);
-
   /// Validate data
   ///
   /// Subclasses MAY override this method to add additional validation
