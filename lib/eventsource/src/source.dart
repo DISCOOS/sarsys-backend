@@ -12,34 +12,62 @@ import 'core.dart';
 import 'domain.dart';
 import 'models/AtomFeed.dart';
 import 'models/AtomItem.dart';
-
-/// Base class for events sourced from an event stream.
-///
-/// A [Repository] folds [SourceEvent]s into [DomainEvent]s with [Repository.get].
-class SourceEvent extends Event {
-  const SourceEvent({
-    @required String uuid,
-    @required String type,
-    @required this.number,
-    @required Map<String, dynamic> data,
-  }) : super(
-          uuid: uuid,
-          type: type,
-          data: data,
-        );
-  final EventNumber number;
-}
+import 'results.dart';
 
 /// Storage class managing events locally in memory received from event store server
 @sealed
 class EventStore {
+  /// [EventStore] constructor
+  ///
+  /// Parameter [bus] is required. [EventStore] uses it
+  /// to publish events after a successful [push] of events
+  /// to the appropriate canonical stream.
+  ///
+  /// Parameter [stream] is required. It defines which
+  /// [AggregateRoot] stream to source events from.
+  ///
+  /// Parameter [prefix] is optional. If given,
+  /// it is concatenated with [stream] using
+  /// `EventStore.toCanonical([prefix, stream])` which
+  /// returns a canonical stream name of colon-delimited
+  /// stream segments.
+  ///
+  /// Parameter [useAggregateStreams] controls how this
+  /// repository is writing events for each [AggregateRoot]
+  /// instance.
+  ///
+  /// If true, events for each [AggregateRoot] is
+  /// written to a separate aggregate instance stream. Each
+  /// instance streams are identified by concatenating
+  /// [prefix], [stream] and [AggregateRoot.uuid] using
+  /// `EventStore.toCanonical([prefix, stream, uuid])`.
+  ///
+  /// This is the default behavior since it will minimize
+  /// write contention an hence reduce the number of
+  /// [WrongExpectedEventVersion] thrown by method [push].
+  ///
+  /// [EventStore] uses the system projection
+  /// [$stream_by_category](https://eventstore.org/docs/projections/system-projections/index.html?tabs=tabid-5#stream-by-category)
+  /// to project all stream instances of a [canonicalStream]
+  /// into one single category stream. This reduces the number
+  /// of connections required to subscribe to events making
+  /// the overall network load as low as possible. System
+  /// projections must be enabled for this to work.
+  ///
+  /// If false, all events are sourced from the same
+  /// [canonicalStream]. This is typically appropriate for
+  /// aggregates with a low write-rate or where write
+  /// contention is not an issue. In most cases however, it
+  /// is probably not a good idea to source all events from
+  /// the same stream.
+  ///
   EventStore({
     @required this.bus,
     @required this.stream,
     @required this.connection,
-    this.uuid,
     this.prefix,
-  }) : logger = Logger("EventStore[${toCanonical([prefix, stream, uuid])}]");
+    this.useAggregateStreams = true,
+  }) : logger = Logger("EventStore[${toCanonical([prefix, stream])}]");
 
   /// Get canonical stream name
   static String toCanonical(List<String> segments) => segments
@@ -48,16 +76,17 @@ class EventStore {
       )
       .join(':');
 
-  String get canonicalStream => toCanonical([prefix, stream, uuid]);
-
-  /// [AggregateRoot.uuid] is added as suffix
-  final String uuid;
+  String get canonicalStream => toCanonical([prefix, stream]);
 
   /// Stream prefix
   final String prefix;
 
   /// Stream name
   final String stream;
+
+  /// If true, eventstore will write events for each
+  /// [AggregateRoot] instance to a separate stream
+  final bool useAggregateStreams;
 
   /// [MessageBus] instance
   final MessageBus bus;
@@ -110,7 +139,7 @@ class EventStore {
 
   /// Catch up with stream from given number
   Future<int> _catchUp(Repository repository, EventNumber number) async {
-    // TODO: Read events in pages during replay
+    // TODO: Read events as string - implement readEventsAsStream
     final result = await connection.readAllEvents(
       stream: canonicalStream,
       number: number,
@@ -414,7 +443,7 @@ class _SubscriptionController {
 
   void reconnect(Repository repository, EventStore store) {
     _subscription.cancel();
-    if (!store.connection.disposed) {
+    if (!store.connection.closed) {
       _timer ??= Timer(
         Duration(milliseconds: toNextReconnectMillis()),
         () {
@@ -448,6 +477,7 @@ class _SubscriptionController {
 // TODO: Add delete operation to EventStoreConnection
 
 /// EventStore HTTP connection class
+@sealed
 class EventStoreConnection {
   EventStoreConnection({
     this.host = 'http://127.0.0.1',
@@ -780,275 +810,62 @@ class EventStoreConnection {
     }
   }
 
+  /// Read state of projection [name]
+  Future<ProjectionResult> readProjection({
+    @required String name,
+  }) async {
+    final result = await client.get(
+      '$host:$port/projection/$name',
+      headers: {
+        'Authorization': credentials.header,
+        'Accept': 'application/json',
+      },
+    );
+    return ProjectionResult.from(
+      name: name,
+      response: result,
+    );
+  }
+
+  /// Read state of projection [name]
+  Future<ProjectionResult> projectionCommand({
+    @required String name,
+    @required ProjectionCommand command,
+  }) async {
+    final url = '$host:$port/projection/$name/command/${enumName(command)}';
+    final result = await client.post(
+      url,
+      headers: {
+        'Authorization': credentials.header,
+        'Accept': 'application/json',
+      },
+    );
+    return ProjectionResult.from(
+      name: name,
+      response: result,
+    );
+  }
+
   /// When true, this store should not be used any more
-  bool get disposed => _disposed;
-  bool _disposed = false;
+  bool get closed => _closed;
+  bool _closed = false;
   void _assertState() {
-    if (_disposed) {
-      throw InvalidOperation("$this is disposed");
+    if (_closed) {
+      throw InvalidOperation("$this is closed");
     }
   }
 
+  /// Close connection.
+  ///
+  /// This [EventStoreConnection] instance should be disposed afterwards.
   void close() {
-    _disposed = true;
+    _closed = true;
     client.close();
   }
 
   @override
   String toString() {
     return 'EventStoreConnection{host: $host, port: $port, pageSize: $pageSize}';
-  }
-}
-
-/// Stream result class
-abstract class Result {
-  Result({
-    @required this.stream,
-    @required this.statusCode,
-    @required this.reasonPhrase,
-    this.eTag,
-  });
-
-  /// Event stream
-  final String stream;
-
-  /// The status code of the response.
-  final int statusCode;
-
-  /// The reason phrase associated with the status code.
-  final String reasonPhrase;
-
-  /// ETAG in header - pass to server with If-None-Match which returns 304 not modified it stream is unchanged
-  final String eTag;
-
-  @override
-  String toString() {
-    return '{stream: $stream, statusCode: $statusCode, reasonPhrase: $reasonPhrase, eTag: $eTag}';
-  }
-}
-
-/// Class with AtomFeed result for given stream
-class FeedResult extends Result {
-  FeedResult({
-    @required String stream,
-    @required int statusCode,
-    @required String reasonPhrase,
-    String eTag,
-    this.number,
-    this.direction,
-    this.atomFeed,
-  }) : super(
-          stream: stream,
-          statusCode: statusCode,
-          reasonPhrase: reasonPhrase,
-          eTag: eTag,
-        );
-
-  factory FeedResult.from({
-    String stream,
-    EventNumber number,
-    Direction direction,
-    Response response,
-  }) {
-    switch (response.statusCode) {
-      case 200:
-        return FeedResult(
-          stream: stream,
-          statusCode: response.statusCode,
-          reasonPhrase: response.reasonPhrase,
-          eTag: response.headers['etag'],
-          number: number,
-          direction: direction,
-          atomFeed: AtomFeed.fromJson(json.decode(response.body) as Map<String, dynamic>),
-        );
-      default:
-        return FeedResult(
-          stream: stream,
-          statusCode: response.statusCode,
-          reasonPhrase: response.reasonPhrase,
-          eTag: response.headers['etag'],
-        );
-    }
-  }
-
-  /// Current event number
-  final EventNumber number;
-
-  /// Event traversal direction
-  final Direction direction;
-
-  /// Atom feed data
-  final AtomFeed atomFeed;
-
-  /// Check if 200 OK
-  bool get isOK => statusCode == 200;
-
-  /// Check if 304 Not modified
-  bool get isNotModified => statusCode == 304;
-
-  /// Check if 404 Not found
-  bool get isNotFound => statusCode == 404;
-
-  /// Check if head (last page) of stream is reached
-  bool get isHead => atomFeed.headOfStream;
-
-  /// Check if tail (first page) of stream is reached
-  bool get isTail => !atomFeed.has(AtomFeed.next);
-
-  FeedResult assertResult() {
-    if (isOK == false) {
-      throw FeedFailed("Failed to get atom feed for $stream because: $statusCode $reasonPhrase");
-    }
-    return this;
-  }
-}
-
-/// Query result class
-class ReadResult extends FeedResult {
-  ReadResult({
-    @required String stream,
-    @required int statusCode,
-    @required String reasonPhrase,
-    String eTag,
-    AtomFeed atomFeed,
-    EventNumber number,
-    Direction direction = Direction.backward,
-    this.events = const <SourceEvent>[],
-  }) : super(
-          stream: stream,
-          statusCode: statusCode,
-          reasonPhrase: reasonPhrase,
-          atomFeed: atomFeed,
-          eTag: eTag,
-          number: number,
-          direction: direction,
-        );
-
-  factory ReadResult.from({
-    String stream,
-    AtomFeed atomFeed,
-    EventNumber number,
-    Direction direction,
-    Response response,
-  }) {
-    switch (response.statusCode) {
-      case 200:
-        final events = json.decode(response.body) as Map<String, dynamic>;
-        return ReadResult(
-            stream: stream,
-            statusCode: response.statusCode,
-            reasonPhrase: response.reasonPhrase,
-            eTag: response.headers['etag'],
-            atomFeed: atomFeed,
-            number: number,
-            direction: direction,
-            events: (events['entries'] as List)
-                .map((event) => SourceEvent(
-                      uuid: event['eventid'] as String,
-                      type: event['eventtype'] as String,
-                      data: event['data'] as Map<String, dynamic>,
-                      number: EventNumber(event['eventNumber'] as int),
-                    ))
-                .toList());
-      default:
-        return ReadResult(
-          stream: stream,
-          statusCode: response.statusCode,
-          reasonPhrase: response.reasonPhrase,
-          eTag: response.headers['etag'],
-        );
-    }
-  }
-
-  /// Append results together
-  ReadResult operator +(ReadResult result) => ReadResult(
-        stream: result.stream,
-        atomFeed: result.atomFeed,
-        direction: result.direction,
-        statusCode: result.statusCode,
-        reasonPhrase: result.reasonPhrase,
-        events: events..addAll(result.events),
-      );
-
-  /// Events read from stream
-  final List<SourceEvent> events;
-}
-
-/// Command result class
-class WriteResult extends Result {
-  WriteResult({
-    @required String stream,
-    @required int statusCode,
-    @required String reasonPhrase,
-    this.eventIds = const [],
-    this.location,
-    this.version,
-    int number,
-  })  : number = EventNumber(number),
-        super(
-          stream: stream,
-          statusCode: statusCode,
-          reasonPhrase: reasonPhrase,
-        );
-
-  factory WriteResult.from(
-    String stream,
-    ExpectedVersion version,
-    List<String> eventIds,
-    Response response,
-  ) {
-    switch (response.statusCode) {
-      case 201:
-        return WriteResult(
-          stream: stream,
-          statusCode: response.statusCode,
-          reasonPhrase: response.reasonPhrase,
-          eventIds: eventIds,
-          number: _toNumber(response),
-          location: response.headers['location'],
-          version: ExpectedVersion(_toNumber(response)),
-        );
-      case 400:
-        return WriteResult(
-          stream: stream,
-          statusCode: response.statusCode,
-          reasonPhrase: response.reasonPhrase,
-          version: ExpectedVersion(int.parse(response.headers['es-currentversion'])),
-        );
-      default:
-        return WriteResult(
-          stream: stream,
-          statusCode: response.statusCode,
-          reasonPhrase: response.reasonPhrase,
-          version: version,
-        );
-    }
-  }
-
-  /// Ids of created events
-  final List<String> eventIds;
-
-  /// Last event number on stream
-  final EventNumber number;
-
-  /// Version of last event written to [stream]
-  final ExpectedVersion version;
-
-  /// Url to written event
-  final String location;
-
-  /// Check if 201 Created
-  bool get isCreated => statusCode == 201;
-
-  /// Check if 400 Wrong expected EventNumber
-  bool get isWrongESNumber => statusCode == 400;
-
-  static int _toNumber(Response response) => int.parse(response.headers['location'].split('/')?.last);
-
-  @override
-  String toString() {
-    return 'WriteResult{stream: $stream, statusCode: $statusCode, '
-        'reasonPhrase: $reasonPhrase, number: $number, location: $location}';
   }
 }
 
@@ -1068,4 +885,27 @@ class UserCredentials {
   final String password;
 
   String get header => "Basic ${base64.encode(utf8.encode("$login:$password"))}";
+}
+
+/// Projection command enum
+enum ProjectionCommand {
+  /// Enable the specified projection.
+  ///
+  /// When enabling is complete status will be 'Running'
+  enable,
+
+  /// Disable the specified projection
+  ///
+  /// When disabling is complete status will be 'Stopped'
+  disable,
+
+  /// Reset the specified projection
+  ///
+  /// This is an unsafe operation. Any previously emitted
+  /// events will be emitted again to the same streams and
+  /// handled by their subscribers
+  reset,
+
+  /// Abort the specified projection.
+  abort,
 }

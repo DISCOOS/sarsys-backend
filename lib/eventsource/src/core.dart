@@ -45,6 +45,36 @@ class Event implements Message {
   }
 }
 
+/// Base class for domain events
+class DomainEvent extends Event {
+  const DomainEvent({
+    @required String uuid,
+    @required String type,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: type,
+          data: data,
+        );
+}
+
+/// Base class for events sourced from an event stream.
+///
+/// A [Repository] folds [SourceEvent]s into [DomainEvent]s with [Repository.get].
+class SourceEvent extends Event {
+  const SourceEvent({
+    @required String uuid,
+    @required String type,
+    @required this.number,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: type,
+          data: data,
+        );
+  final EventNumber number;
+}
+
 /// Command action types
 enum Action {
   create,
@@ -196,8 +226,13 @@ class InvalidOperation extends Failure {
   const InvalidOperation(String message) : super(message);
 }
 
-/// Thrown when an invalid operation is attempted
-class UUIDIsNull extends Failure {
+/// Thrown when an required projection is not available
+class ProjectionNotAvailable extends InvalidOperation {
+  const ProjectionNotAvailable(String message) : super(message);
+}
+
+/// Thrown when an uuid is null
+class UUIDIsNull extends InvalidOperation {
   const UUIDIsNull(String message) : super(message);
 }
 
@@ -209,11 +244,6 @@ class AggregateNotFound extends InvalidOperation {
 /// Thrown when an [Command.action] with [Action.create] is attempted on an existing [AggregateRoot]
 class AggregateExists extends InvalidOperation {
   const AggregateExists(String message) : super(message);
-}
-
-/// Thrown if an [Exception] is thrown during a build of a resource
-class BuildFailure extends InvalidOperation {
-  const BuildFailure(String message) : super(message);
 }
 
 /// Thrown when writing events and 'ES-ExpectedVersion' differs from 'ES-CurrentVersion'
@@ -247,12 +277,25 @@ class SubscriptionFailed extends Failure {
   const SubscriptionFailed(String message) : super(message);
 }
 
+/// Get enum value name
+String enumName(Object o) => o.toString().split('.').last;
+
 /// Type helper class
 Type typeOf<T>() => T;
 
 extension TypeX on Type {
-  /// Convert [Type] string into kebab-case
+  /// Convert [Type] string into colon delimited lower case string
+  String toColonCase() {
+    return toDelimiterCase(':');
+  }
+
+  /// Convert [Type] string into kebab case string
   String toKebabCase() {
-    return "${this}".split(RegExp('(?<=[a-z0-9])(?=[A-Z0-9])')).join('-').toLowerCase();
+    return toDelimiterCase('-');
+  }
+
+  /// Convert [Type] string into delimited lower case string
+  String toDelimiterCase(String delimiter) {
+    return "${this}".split(RegExp('(?<=[a-z0-9])(?=[A-Z0-9])')).join(delimiter).toLowerCase();
   }
 }

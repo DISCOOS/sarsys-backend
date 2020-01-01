@@ -5,4 +5,5 @@ export 'src/models/AtomAuthor.dart';
 export 'src/models/AtomFeed.dart';
 export 'src/models/AtomItem.dart';
 export 'src/models/AtomLink.dart';
+export 'src/results.dart';
 export 'src/source.dart';

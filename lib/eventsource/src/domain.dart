@@ -17,7 +17,9 @@ class RepositoryManager {
     this.bus,
     this.connection, {
     this.prefix,
-  });
+  }) : logger = Logger('RepositoryManager');
+
+  final Logger logger;
 
   /// Prefix all streams with this prefix
   final String prefix;
@@ -33,7 +35,21 @@ class RepositoryManager {
 
   /// Register [Repository] with given [AggregateRoot].
   ///
-  /// Throws [InvalidOperation] if type of [Repository] returned from [create] is already registered
+  /// Parameter [prefix] is concatenated using
+  /// `EventStore.toCanonical([this.prefix, prefix])`
+  /// which returns a colon-delimited stream prefix.
+  ///
+  /// Parameter [stream] is optional. It defines which
+  /// stream to source events from. If omitted, the stream
+  /// name is inferred from the aggregate root type [T] using
+  /// `typeOf<T>().toColonCase()` which returns a colon
+  /// delimited string of Camel Case words.
+  ///
+  /// The canonical stream in [EventStore] passed to [create] is
+  /// `EventStore.toCanonical([this.prefix, prefix, this.stream])`
+  ///
+  /// Throws [InvalidOperation] if type of [Repository]
+  /// returned from [create] is already registered
   void register<T extends AggregateRoot>(
     Repository<Command, T> create(EventStore store), {
     String prefix,
@@ -46,7 +62,7 @@ class RepositoryManager {
         this.prefix,
         prefix,
       ]),
-      stream: stream ?? typeOf<T>().toKebabCase(),
+      stream: stream ?? typeOf<T>().toColonCase(),
     );
     final repository = create(store);
     if (get<Repository<Command, T>>() != null) {
@@ -60,11 +76,49 @@ class RepositoryManager {
 
   /// Build all repositories from event stores
   ///
-  /// Throws an [BuildFailure] if a store was unable to connect to it's stream
+  /// Throws an [ProjectionNotAvailable] if one
+  /// or more [EventStore.useAggregateStreams] are
+  /// true and system projection
+  /// [$stream_by_category](https://eventstore.org/docs/projections/system-projections/index.html?tabs=tabid-5#stream-by-category)
+  ///  is not available.
   Future<void> build() async {
+    if (_stores.values.any(
+      (store) => store.useAggregateStreams,
+    )) {
+      await _prepare();
+    }
     await Future.wait(_stores.keys.map(
       (repository) => repository.build(),
     ));
+  }
+
+  /// Check if projections are enabled
+  Future<void> _prepare() async {
+    var result = await connection.readProjection(
+      name: '\$stream_by_category',
+    );
+    if (result.isOK) {
+      if (result.isRunning == false) {
+        // Try to enable command
+        result = await connection.projectionCommand(
+          name: '\$stream_by_category',
+          command: ProjectionCommand.enable,
+        );
+        // Check status again
+        if (result.isOK) {
+          result = await connection.readProjection(
+            name: '\$stream_by_category',
+          );
+        }
+      }
+    }
+    // Give up?
+    if (result.isRunning == false) {
+      logger.severe("Projections are required but could not be enabled");
+      throw ProjectionNotAvailable(
+        "EventStore projection '\$stream_by_category' not ${result.isOK ? 'running' : 'found'}",
+      );
+    }
   }
 
   /// Get [Repository] from [Type]
@@ -82,21 +136,20 @@ class RepositoryManager {
   }
 }
 
-/// Base class for domain events
-class DomainEvent extends Event {
-  const DomainEvent({
-    @required String uuid,
-    @required String type,
-    @required Map<String, dynamic> data,
-  }) : super(
-          uuid: uuid,
-          type: type,
-          data: data,
-        );
-}
-
 /// Repository or [AggregateRoot]s as the single responsible for all transactions on each aggregate
 abstract class Repository<S extends Command, T extends AggregateRoot> implements CommandHandler<S> {
+  /// Repository constructor
+  ///
+  /// Parameter [store] is required.
+  /// [RepositoryManager.register] will pass
+  /// an correctly configured [EventStore] instance
+  /// with a anonymous callback method.
+  ///
+  /// Parameter [uuidFieldName] defines the name of the
+  /// required field in [AggregateRoot.data] that contains a
+  /// [Universally unique identifier](https://en.wikipedia.org/wiki/Universally_unique_identifier)
+  /// for each [AggregateRoot] instance. Default value is 'uui'.
+  ///
   Repository({
     @required this.store,
     this.uuidFieldName = 'uuid',
@@ -115,7 +168,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   /// Map of aggregate roots
   final Map<String, T> _aggregates = {};
 
-  /// Build repository from local events
+  /// Build repository from local events.
   Future build() async {
     final events = await store.replay(this);
     if (events == 0) {
