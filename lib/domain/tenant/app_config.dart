@@ -12,11 +12,13 @@ class AppConfigRepository extends Repository<AppConfigCommand, AppConfig> {
         return AppConfigCreated(
           uuid: event.uuid,
           data: event.data,
+          created: event.created,
         );
       case 'AppConfigUpdated':
         return AppConfigUpdated(
           uuid: event.uuid,
           data: event.data,
+          created: event.created,
         );
     }
     throw InvalidOperation("Event type ${event.type} not recognized");
@@ -36,12 +38,14 @@ class AppConfig extends AggregateRoot {
   DomainEvent created(Map<String, dynamic> data) => AppConfigCreated(
         uuid: Uuid().v4(),
         data: data,
+        created: DateTime.now(),
       );
 
   @override
   DomainEvent updated(Map<String, dynamic> data) => AppConfigUpdated(
         uuid: Uuid().v4(),
         data: data,
+        created: DateTime.now(),
       );
 }
 
@@ -75,10 +79,12 @@ class UpdateAppConfig extends AppConfigCommand {
 class AppConfigCreated extends DomainEvent {
   AppConfigCreated({
     @required String uuid,
+    @required DateTime created,
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
           type: "$AppConfigCreated",
+          created: created,
           data: data,
         );
 }
@@ -86,10 +92,12 @@ class AppConfigCreated extends DomainEvent {
 class AppConfigUpdated extends DomainEvent {
   AppConfigUpdated({
     @required String uuid,
+    @required DateTime created,
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
           type: "$AppConfigUpdated",
+          created: created,
           data: data,
         );
 }
