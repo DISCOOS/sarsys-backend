@@ -335,7 +335,7 @@ class MessageChannel extends MessageHandler<Event> {
         appId: appId,
         uuid: Uuid().v4(),
         code: WebSocketError.invalidFormat,
-        reason: "Invalid json format in $event: $e with stacktrace: $e",
+        reason: "Invalid json format in $event: $e with stacktrace: $e with stacktrace: $stacktrace",
       );
     }
     return message;

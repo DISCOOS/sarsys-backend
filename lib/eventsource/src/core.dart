@@ -71,12 +71,14 @@ class SourceEvent extends Event {
     @required String uuid,
     @required String type,
     @required this.number,
+    @required this.created,
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
           type: type,
           data: data,
         );
+  final DateTime created;
   final EventNumber number;
 
   @override

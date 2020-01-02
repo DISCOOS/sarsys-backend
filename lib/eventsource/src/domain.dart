@@ -484,7 +484,7 @@ abstract class AggregateRoot {
 
   /// Get aggregate created event. Only invoked from constructor.
   @protected
-  DomainEvent created(Map<String, dynamic> data);
+  DomainEvent created(Map<String, dynamic> data) => throw UnsupportedError("Delete not implemented");
 
   /// Get aggregate updated event. Invoked from [Repository]
   @protected

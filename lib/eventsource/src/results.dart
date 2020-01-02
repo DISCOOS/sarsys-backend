@@ -172,6 +172,7 @@ class ReadResult extends FeedResult {
                       type: event['eventtype'] as String,
                       data: event['data'] as Map<String, dynamic>,
                       number: EventNumber(event['eventNumber'] as int),
+                      created: DateTime.tryParse(event['updated'] as String),
                     ))
                 .toList());
       default:

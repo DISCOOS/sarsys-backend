@@ -730,6 +730,7 @@ class EventStoreConnection {
         uuid: data['content']['eventId'] as String,
         type: data['content']['eventType'] as String,
         data: data['content']['data'] as Map<String, dynamic>,
+        created: DateTime.tryParse(data['updated'] as String),
         number: EventNumber(data['content']['eventNumber'] as int),
       );
 
@@ -858,7 +859,7 @@ class EventStoreConnection {
       (event) => {
         'eventId': _uuid(eventIds, event),
         'eventType': event.type,
-        "data": event.data,
+        'data': event.data,
       },
     );
     final response = await client.post(
