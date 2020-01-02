@@ -445,7 +445,7 @@ class EventStore {
           _current[stream] = event.number;
         }
         logger.fine(
-          "${repository.runtimeType}: _onSubscriptionEvent: processed $event",
+          "${repository.runtimeType}: _onSubscriptionEvent: Processed $event",
         );
       }
     } catch (e) {
