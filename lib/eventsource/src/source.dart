@@ -152,8 +152,9 @@ class EventStore {
   /// instance stream number is returned. This numbers
   /// is the same as for the [canonicalStream] if
   /// [useInstanceStreams] is false.
-  EventNumber current({String uuid}) =>
-      useInstanceStreams ? _current[toInstanceStream(uuid) ?? canonicalStream] : _current[canonicalStream];
+  EventNumber current({String uuid}) {
+    return useInstanceStreams && uuid != null ? _current[toInstanceStream(uuid)] : _current[canonicalStream];
+  }
 
   /// Replay events from stream to given repository
   ///
@@ -195,7 +196,7 @@ class EventStore {
     final head = EventNumber(max(_current[canonicalStream].value, number.value));
     if (head > number) {
       logger.fine(
-        "_catchUp: Number $number < current number for $canonicalStream: ${current()}: changed to $head",
+        "_catchUp: 'number': $number < current number for $canonicalStream: ${current()}: 'number' changed to $head",
       );
     }
 
@@ -227,6 +228,10 @@ class EventStore {
           _publish(events);
         },
       );
+
+      logger.fine(
+        "_catchUp: Current event number for $canonicalStream: ${current()}",
+      );
     }
     return result.events.length;
   }
@@ -234,10 +239,12 @@ class EventStore {
   EventNumber _getCanonicalNumber(Iterable<SourceEvent> events) {
     return _current[canonicalStream] +
         (useInstanceStreams
-            // NOTE: event numbers in projected stream is not
-            // monotone, but order is stable so just just do
-            // a 0-based increment
-            ? _current[canonicalStream].isNone ? events.length - 1 : events.length
+            // NOTE: event numbers in a projected stream is not
+            // monotone, but event order is stable so just do
+            // a 0-based increment. Since EventNumber.none.value
+            // equals -1, this vil account for the first event
+            // when adding event.length to it.
+            ? events.length
             // Event numbers in instance streams SHOULD ALWAYS
             // be sorted in an ordered monotone incrementing
             // manner
@@ -282,10 +289,10 @@ class EventStore {
     return events;
   }
 
-  EventNumber _setEventNumber(AggregateRoot aggregate, Iterable<Event> events) {
-    return _current[toInstanceStream(aggregate.uuid)] = _current.containsKey(toInstanceStream(aggregate.uuid))
+  void _setEventNumber(AggregateRoot aggregate, Iterable<Event> events) {
+    _current[toInstanceStream(aggregate.uuid)] = _current.containsKey(toInstanceStream(aggregate.uuid))
         ? _current[toInstanceStream(aggregate.uuid)] + events.length
-        : EventNumber(events.length - 1);
+        : EventNumber.none + events.length;
   }
 
   /// Publish events to [bus]
