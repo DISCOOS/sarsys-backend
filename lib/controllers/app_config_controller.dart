@@ -15,13 +15,13 @@ class AppConfigController extends ResourceController {
     @Bind.query('limit') int limit = 20,
   }) async {
     try {
-      final data = repository
-          .getAll(offset: offset, limit: limit)
-          .map(
-            (aggregate) => aggregate.data,
+      final events = repository
+          .getAll(
+            offset: offset,
+            limit: limit,
           )
           .toList();
-      return okPaged(repository.count, offset, limit, data);
+      return okPaged(repository.count, offset, limit, events);
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } on Failure catch (e) {
@@ -36,8 +36,7 @@ class AppConfigController extends ResourceController {
       return Response.notFound();
     }
     try {
-      final aggregate = repository.get(uuid);
-      return Response.ok(aggregate.data);
+      return ok(repository.get(uuid));
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } on Failure catch (e) {
