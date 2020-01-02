@@ -442,6 +442,11 @@ abstract class AggregateRoot {
   /// Check if uncommitted changes exists
   bool get isChanged => _pending.isNotEmpty;
 
+  DateTime _changedWhen;
+
+  /// Get [DateTime] of when this [AggregateRoot] was changed
+  DateTime get changedWhen => _changedWhen;
+
   /// Get aggregate uuid from event
   String toAggregateUuid(Event event) => event.data[uuidFieldName] as String;
 
@@ -508,6 +513,9 @@ abstract class AggregateRoot {
     if (!isNew) {
       _applied.add(event.uuid);
     }
+
+    _changedWhen = event.created;
+
     return event;
   }
 }

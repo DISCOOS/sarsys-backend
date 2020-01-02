@@ -22,21 +22,25 @@ class Event implements Message {
     @required this.uuid,
     @required this.type,
     @required this.data,
+    @required this.created,
   });
 
   /// Create an event with uuid
   factory Event.unique({
     @required String type,
+    @required DateTime created,
     @required Map<String, dynamic> data,
   }) =>
       Event(
         uuid: Uuid().v4(),
         type: type,
         data: data,
+        created: created,
       );
 
   final String uuid;
   final String type;
+  final DateTime created;
   final Map<String, dynamic> data;
 
   @override
@@ -47,14 +51,16 @@ class Event implements Message {
 
 /// Base class for domain events
 class DomainEvent extends Event {
-  const DomainEvent({
+  DomainEvent({
     @required String uuid,
     @required String type,
+    @required DateTime created,
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
           type: type,
           data: data,
+          created: created,
         );
 
   @override
@@ -71,14 +77,14 @@ class SourceEvent extends Event {
     @required String uuid,
     @required String type,
     @required this.number,
-    @required this.created,
+    @required DateTime created,
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
           type: type,
           data: data,
+          created: created,
         );
-  final DateTime created;
   final EventNumber number;
 
   @override

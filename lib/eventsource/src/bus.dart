@@ -407,6 +407,7 @@ class WebSocketMessage extends Event {
           uuid: uuid,
           type: type,
           data: data,
+          created: DateTime.now(),
         );
   final String appId;
 
