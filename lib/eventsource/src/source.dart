@@ -141,14 +141,20 @@ class EventStore {
   /// Current event numbers mapped to associated stream
   final Map<String, EventNumber> _current = {};
 
-  /// Current event number of [canonicalStream]
-  EventNumber get current => _current[canonicalStream];
-
   /// Check if store is empty
   bool get isEmpty => _store.isEmpty;
 
   /// Check if store is not empty
   bool get isNotEmpty => _store.isNotEmpty;
+
+  /// Current event number for [canonicalStream]
+  ///
+  /// If [AggregateRoot.uuid] is given, the aggregate
+  /// instance stream number is returned. This numbers
+  /// is the same as for the [canonicalStream] if
+  /// [useInstanceStreams] is false.
+  EventNumber current({String uuid}) =>
+      useInstanceStreams ? _current[canonicalStream] : _current[toInstanceStream(uuid) ?? canonicalStream];
 
   /// Replay events from stream to given repository
   ///
@@ -256,19 +262,19 @@ class EventStore {
   }
 
   EventNumber _setEventNumber(AggregateRoot aggregate, Iterable<Event> events) {
-    return _current[toInstanceStream(aggregate)] = _current.containsKey(toInstanceStream(aggregate))
-        ? _current[toInstanceStream(aggregate)] + events.length
+    return _current[toInstanceStream(aggregate.uuid)] = _current.containsKey(toInstanceStream(aggregate.uuid))
+        ? _current[toInstanceStream(aggregate.uuid)] + events.length
         : EventNumber(events.length - 1);
   }
 
   /// Publish events to [bus]
   void _publish(Iterable<Event> events) => events.forEach(bus.publish);
 
-  /// Get name of [AggregateRoot] instance stream.
-  String toInstanceStream(AggregateRoot aggregate) {
+  /// Get name of aggregate instance stream for [AggregateRoot.uuid].
+  String toInstanceStream(String uuid) {
     if (useInstanceStreams) {
-      final index = _store.keys.toList().indexOf(aggregate.uuid);
-      return "${toCanonical([prefix, this.aggregate])}-${index < 0 ? _store.length : index}";
+      final index = _store.keys.toList().indexOf(uuid);
+      return "${toCanonical([prefix, aggregate])}-${index < 0 ? _store.length : index}";
     }
     return canonicalStream;
   }
@@ -288,7 +294,7 @@ class EventStore {
     if (aggregate.isChanged == false) {
       return [];
     }
-    final stream = toInstanceStream(aggregate);
+    final stream = toInstanceStream(aggregate.uuid);
     final events = aggregate.getUncommittedChanges();
     final result = await connection.writeEvents(
       stream: stream,
@@ -360,7 +366,12 @@ class EventStore {
         repository,
         connection,
       );
-      if (isEmpty || event.number > _current[canonicalStream]) {
+
+      // TODO: Fix catch up when useInstanceStreams is true
+      // Problem 1) event.number is not monotone increasing in canonicalStream - use total count instead
+      // Problem 2) event.number should be checked against the instance stream number
+      // Problem 3) (don't remember)
+      if (isEmpty || event.number > current(uuid: repository.toAggregateUuid(event))) {
         // Get and commit changes
         final aggregate = repository.get(
           repository.toAggregateUuid(event),
