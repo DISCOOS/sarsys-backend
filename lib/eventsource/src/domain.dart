@@ -229,28 +229,30 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
           aggregate = custom(command);
       }
       return aggregate.isChanged ? await push(aggregate) : [];
-    } on WrongExpectedEventVersion catch (e) {
+    } on WrongExpectedEventVersion catch (e, stacktrace) {
       // TODO: Detect and reconcile merge conflicts
       // Try again?
       if (attempt < max) {
         return _executeWithRetry(command, max, attempt + 1);
       }
-      logger.warning("Aborted execution of $command after $max retries: $e");
+      logger.warning("Aborted execution of $command after $max retries: $e with stacktrace: $stacktrace");
       rethrow;
-    } on MultipleAggregatesWithChanges catch (e) {
+    } on MultipleAggregatesWithChanges catch (e, stacktrace) {
       // This will remove all pending changes
       final events = rollback(aggregate);
-      logger.severe("Rolled back ${events.length} uncommitted events: $e");
+      logger.severe("Rolled back ${events.length} uncommitted events: $e with stacktrace: $stacktrace");
       // Try again?
       if (attempt < max) {
         return _executeWithRetry(command, max, attempt + 1);
       }
       logger.warning("Aborted execution of $command after $max retries: $e");
       rethrow;
-    } catch (e) {
+    } catch (e, stacktrace) {
       if (aggregate != null) {
         final events = rollback(aggregate);
-        logger.severe("Failed to execute $command. ${events.length} events rolled back: $e");
+        logger.severe(
+          "Failed to execute $command. ${events.length} events rolled back: $e with stacktrace: $stacktrace",
+        );
       }
       rethrow;
     }

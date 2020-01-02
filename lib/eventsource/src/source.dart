@@ -448,8 +448,8 @@ class EventStore {
           "${repository.runtimeType}: _onSubscriptionEvent: Processed $event",
         );
       }
-    } catch (e) {
-      logger.severe("Failed to process $event, got $e");
+    } catch (e, stacktrace) {
+      logger.severe("Failed to process $event, got error $e with stacktrace: $stacktrace");
     }
   }
 

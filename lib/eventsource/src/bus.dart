@@ -282,8 +282,8 @@ class MessageChannel extends MessageHandler<Event> {
       } else {
         logger.warning("Sent ${data['type']} to client $appId >> $data");
       }
-    } catch (e) {
-      logger.warning("Failed to send message ${data['type']} to client $appId: $e");
+    } catch (e, stacktrace) {
+      logger.warning("Failed to send message ${data['type']} to client $appId: $e with stacktrace: $stacktrace");
     }
   }
 
@@ -330,12 +330,12 @@ class MessageChannel extends MessageHandler<Event> {
         code: WebSocketError.invalidFormat,
         reason: "Invalid WebSocketMessage: $event",
       );
-    } on FormatException catch (e) {
+    } on FormatException catch (e, stacktrace) {
       message = WebSocketError(
         appId: appId,
         uuid: Uuid().v4(),
         code: WebSocketError.invalidFormat,
-        reason: "Invalid json format in $event: $e",
+        reason: "Invalid json format in $event: $e with stacktrace: $e",
       );
     }
     return message;
@@ -361,8 +361,8 @@ class MessageChannel extends MessageHandler<Event> {
         ),
       );
       _removeAll(idle);
-    } catch (e) {
-      logger.severe("Failed to check liveliness with: $e");
+    } catch (e, stacktrace) {
+      logger.severe("Failed to check liveliness with: $e with stacktrace: $stacktrace");
     }
   }
 
