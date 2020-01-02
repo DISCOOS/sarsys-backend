@@ -442,7 +442,11 @@ abstract class AggregateRoot {
   /// Check if uncommitted changes exists
   bool get isChanged => _pending.isNotEmpty;
 
+  DateTime _createdWhen;
   DateTime _changedWhen;
+
+  /// Get [DateTime] of when this [AggregateRoot] was created
+  DateTime get createdWhen => _createdWhen;
 
   /// Get [DateTime] of when this [AggregateRoot] was changed
   DateTime get changedWhen => _changedWhen;
@@ -506,6 +510,15 @@ abstract class AggregateRoot {
     if (toAggregateUuid(event) != uuid) {
       throw InvalidOperation("Aggregate has $uuid, event $event contains ${toAggregateUuid(event)}");
     }
+
+    // Set timestamps
+    if (_applied.isEmpty || isNew) {
+      _createdWhen = event.created;
+      _changedWhen = _createdWhen;
+    } else {
+      _changedWhen = event.created;
+    }
+
     data.addAll(event.data);
     if (isChanged) {
       _pending.add(event);
@@ -513,8 +526,6 @@ abstract class AggregateRoot {
     if (!isNew) {
       _applied.add(event.uuid);
     }
-
-    _changedWhen = event.created;
 
     return event;
   }
