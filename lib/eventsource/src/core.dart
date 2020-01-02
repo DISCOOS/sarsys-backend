@@ -261,12 +261,17 @@ class AggregateExists extends InvalidOperation {
 
 /// Thrown when writing events and 'ES-ExpectedVersion' differs from 'ES-CurrentVersion'
 class WrongExpectedEventVersion extends InvalidOperation {
-  const WrongExpectedEventVersion(String message, this.current) : super(message);
-  final ExpectedVersion current;
+  const WrongExpectedEventVersion(
+    String message, {
+    @required this.expected,
+    @required this.actual,
+  }) : super(message);
+  final ExpectedVersion expected;
+  final EventNumber actual;
 
   @override
   String toString() {
-    return 'WrongExpectedEventVersion{current: $current, message: $message}';
+    return 'WrongExpectedEventVersion{expected: ${expected.value}actual: ${actual.value}, message: $message}';
   }
 }
 

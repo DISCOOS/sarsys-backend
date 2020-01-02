@@ -183,8 +183,9 @@ class EventStore {
 
   /// Catch up with stream
   Future<int> catchUp(Repository repository) async {
-    final count = await _catchUp(repository, _current[canonicalStream] + 1);
-    logger.info("Catched up with $count events from stream '${canonicalStream}'");
+    final next = _current[canonicalStream] + 1;
+    final count = await _catchUp(repository, next);
+    logger.info("Catched up on $count events from stream '${canonicalStream}' starting from number $next");
     return count;
   }
 
@@ -236,7 +237,7 @@ class EventStore {
             // NOTE: event numbers in projected stream is not
             // monotone, but order is stable so just just do
             // a 0-based increment
-            ? _current[canonicalStream].isNone ? events.length : events.length - 1
+            ? _current[canonicalStream].isNone ? events.length - 1 : events.length
             // Event numbers in instance streams SHOULD ALWAYS
             // be sorted in an ordered monotone incrementing
             // manner
@@ -328,13 +329,17 @@ class EventStore {
       _assertCurrentVersion(stream, result.version);
       return events;
     } else if (result.isWrongESNumber) {
-      throw WrongExpectedEventVersion(result.reasonPhrase, result.version);
+      throw WrongExpectedEventVersion(
+        result.reasonPhrase,
+        expected: result.version,
+        actual: result.number,
+      );
     }
     throw WriteFailed("Failed to push changes to $stream: ${result.statusCode} ${result.reasonPhrase}");
   }
 
   /// Get expected version number for given stream
-  ExpectedVersion _toExpectedVersion(String stream) => (_current[stream] ?? EventNumber.none) == EventNumber.none
+  ExpectedVersion _toExpectedVersion(String stream) => (_current[stream] ?? EventNumber.none).isNone
       ? ExpectedVersion.any
       : ExpectedVersion.from(
           _current[stream],

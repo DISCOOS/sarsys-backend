@@ -207,9 +207,8 @@ class WriteResult extends StreamResult {
     this.eventIds = const [],
     this.location,
     this.version,
-    int number,
-  })  : number = EventNumber(number),
-        super(
+    this.number,
+  }) : super(
           stream: stream,
           statusCode: statusCode,
           reasonPhrase: reasonPhrase,
@@ -228,7 +227,7 @@ class WriteResult extends StreamResult {
           statusCode: response.statusCode,
           reasonPhrase: response.reasonPhrase,
           eventIds: eventIds,
-          number: _toNumber(response),
+          number: EventNumber(_toNumber(response)),
           location: response.headers['location'],
           version: ExpectedVersion(_toNumber(response)),
         );
@@ -237,7 +236,8 @@ class WriteResult extends StreamResult {
           stream: stream,
           statusCode: response.statusCode,
           reasonPhrase: response.reasonPhrase,
-          version: ExpectedVersion(int.parse(response.headers['es-currentversion'])),
+          number: EventNumber(int.tryParse(response.headers['es-currentversion']) ?? EventNumber.none.value),
+          version: version,
         );
       default:
         return WriteResult(
@@ -264,8 +264,11 @@ class WriteResult extends StreamResult {
   /// Check if 201 Created
   bool get isCreated => statusCode == 201;
 
+  /// Check if 400 Bad request
+  bool get isBadRequest => statusCode == 400;
+
   /// Check if 400 Wrong expected EventNumber
-  bool get isWrongESNumber => statusCode == 400;
+  bool get isWrongESNumber => statusCode == 400 && "wrong expected eventnumber" == reasonPhrase.toLowerCase();
 
   static int _toNumber(Response response) => int.parse(response.headers['location'].split('/')?.last);
 

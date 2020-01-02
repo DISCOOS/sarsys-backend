@@ -281,7 +281,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
       return aggregate.isChanged ? await store.push(aggregate) : [];
     } on WrongExpectedEventVersion {
       // Are the other aggregates with uncommitted changes?
-      _assertAggregateChanges(aggregate);
+      _assertSingleAggregateChanged(aggregate);
       // Rollback all changes, catch up with stream and rethrow error
       rollback(aggregate);
       final count = await store.catchUp(this);
@@ -294,7 +294,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   ///
   /// Every [Command.action] on a [Repository] should be
   /// committed or rolled back before next command is executed.
-  void _assertAggregateChanges(aggregate) {
+  void _assertSingleAggregateChanged(aggregate) {
     final other = _aggregates.values.firstWhere(
       (test) => test != aggregate && test.isChanged,
       orElse: () => null,
