@@ -56,6 +56,11 @@ class DomainEvent extends Event {
           type: type,
           data: data,
         );
+
+  @override
+  String toString() {
+    return '$runtimeType{uuid: $uuid, type: $type, data: $data}';
+  }
 }
 
 /// Base class for events sourced from an event stream.
@@ -73,6 +78,11 @@ class SourceEvent extends Event {
           data: data,
         );
   final EventNumber number;
+
+  @override
+  String toString() {
+    return '$runtimeType{uuid: $uuid, type: $type, number: $number, data: $data}';
+  }
 }
 
 /// Command action types

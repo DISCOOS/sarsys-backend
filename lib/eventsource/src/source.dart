@@ -362,6 +362,7 @@ class EventStore {
   /// Handle event from subscriptions
   void _onSubscriptionEvent(Repository repository, SourceEvent event) {
     try {
+      logger.fine("${repository.runtimeType}: Subscription received $event");
       _subscriptions[repository.runtimeType]?.connected(
         repository,
         connection,
@@ -371,7 +372,11 @@ class EventStore {
       // Problem 1) event.number is not monotone increasing in canonicalStream - use total count instead
       // Problem 2) event.number should be checked against the instance stream number
       // Problem 3) (don't remember)
-      if (isEmpty || event.number > current(uuid: repository.toAggregateUuid(event))) {
+      final actual = current(uuid: repository.toAggregateUuid(event));
+      final process = isEmpty || event.number > actual;
+      logger.fine("${repository.runtimeType}: isEmpty: $isEmpty, current: $actual, process: $process");
+
+      if (process) {
         // Get and commit changes
         final aggregate = repository.get(
           repository.toAggregateUuid(event),
@@ -400,7 +405,7 @@ class EventStore {
 
   /// Handle subscription completed
   void _onSubscriptionDone(Repository repository) {
-    logger.fine("${repository.runtimeType} subscription closed");
+    logger.fine("${repository.runtimeType}: subscription closed");
     if (!_disposed) {
       _subscriptions[repository.runtimeType].reconnect(
         repository,
@@ -411,12 +416,7 @@ class EventStore {
 
   /// Handle subscription errors
   void _onSubscriptionError(Repository repository, error) {
-    logger.severe("${repository.runtimeType} subscription failed with: $error");
-
-    if (!(error is SocketException)) {
-      print(error);
-    }
-
+    logger.severe("${repository.runtimeType}: subscription failed with: $error");
     if (!_disposed) {
       _subscriptions[repository.runtimeType].reconnect(
         repository,
