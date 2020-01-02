@@ -18,6 +18,7 @@ Response ok(AggregateRoot aggregate) => Response.ok(toData(aggregate));
 
 Map<String, dynamic> toData(AggregateRoot aggregate) => {
       "type": "${aggregate.runtimeType}",
+      "created": aggregate.createdWhen.toIso8601String(),
       "changed": aggregate.changedWhen.toIso8601String(),
       "data": aggregate.data,
     };
