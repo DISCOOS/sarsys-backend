@@ -45,15 +45,16 @@ class RepositoryManager {
   /// `typeOf<T>().toColonCase()` which returns a colon
   /// delimited string of Camel Case words.
   ///
-  /// The canonical stream in [EventStore] passed to [create] is
-  /// `EventStore.toCanonical([this.prefix, prefix, this.stream])`
+  /// If [useInstanceStreams] is true, eventstore will write
+  /// events for each [AggregateRoot] instance to a separate stream.
   ///
   /// Throws [InvalidOperation] if type of [Repository]
-  /// returned from [create] is already registered
+  /// returned from [create] is already registered.
   void register<T extends AggregateRoot>(
     Repository<Command, T> create(EventStore store), {
     String prefix,
     String stream,
+    bool useInstanceStreams = true,
   }) {
     final store = EventStore(
       bus: bus,
@@ -62,7 +63,8 @@ class RepositoryManager {
         this.prefix,
         prefix,
       ]),
-      stream: stream ?? typeOf<T>().toColonCase(),
+      aggregate: stream ?? typeOf<T>().toColonCase(),
+      useInstanceStreams: useInstanceStreams ?? true,
     );
     final repository = create(store);
     if (get<Repository<Command, T>>() != null) {
@@ -77,13 +79,13 @@ class RepositoryManager {
   /// Build all repositories from event stores
   ///
   /// Throws an [ProjectionNotAvailable] if one
-  /// or more [EventStore.useAggregateStreams] are
+  /// or more [EventStore.useInstanceStreams] are
   /// true and system projection
-  /// [$stream_by_category](https://eventstore.org/docs/projections/system-projections/index.html?tabs=tabid-5#stream-by-category)
+  /// [$by_category](https://eventstore.org/docs/projections/system-projections/index.html?tabs=tabid-5#by-category)
   ///  is not available.
   Future<void> build() async {
     if (_stores.values.any(
-      (store) => store.useAggregateStreams,
+      (store) => store.useInstanceStreams,
     )) {
       await _prepare();
     }
@@ -95,20 +97,25 @@ class RepositoryManager {
   /// Check if projections are enabled
   Future<void> _prepare() async {
     var result = await connection.readProjection(
-      name: '\$stream_by_category',
+      name: '\$by_category',
     );
     if (result.isOK) {
       if (result.isRunning == false) {
         // Try to enable command
         result = await connection.projectionCommand(
-          name: '\$stream_by_category',
+          name: '\$by_category',
           command: ProjectionCommand.enable,
         );
-        // Check status again
         if (result.isOK) {
-          result = await connection.readProjection(
-            name: '\$stream_by_category',
-          );
+          // TODO: Check projection startup progress and until complete
+          const seconds = 5;
+          logger.info("Waiting $seconds seconds for projection '\$by_category' to start...");
+          // Check status again after 5 seconds
+          result = await Future.delayed(
+              const Duration(seconds: seconds),
+              () => connection.readProjection(
+                    name: '\$by_category',
+                  ));
         }
       }
     }
@@ -116,7 +123,7 @@ class RepositoryManager {
     if (result.isRunning == false) {
       logger.severe("Projections are required but could not be enabled");
       throw ProjectionNotAvailable(
-        "EventStore projection '\$stream_by_category' not ${result.isOK ? 'running' : 'found'}",
+        "EventStore projection '\$by_category' not ${result.isOK ? 'running' : 'found'}",
       );
     }
   }
@@ -205,9 +212,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   /// Execute command on given aggregate given times before giving up
   ///
   FutureOr<Iterable<Event>> _executeWithRetry(S command, int max, int attempt) async {
+    T aggregate;
     try {
-      T aggregate;
-
       final data = validate(command);
       switch (command.action) {
         case Action.create:
@@ -222,8 +228,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
         case Action.custom:
           aggregate = custom(command);
       }
-
-      return await push(aggregate);
+      return aggregate.isChanged ? await push(aggregate) : [];
     } on WrongExpectedEventVersion catch (e) {
       // TODO: Detect and reconcile merge conflicts
       // Try again?
@@ -234,7 +239,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
       rethrow;
     } on MultipleAggregatesWithChanges catch (e) {
       // This will remove all pending changes
-      final events = rollbackAll();
+      final events = rollback(aggregate);
       logger.severe("Rolled back ${events.length} uncommitted events: $e");
       // Try again?
       if (attempt < max) {
@@ -242,23 +247,17 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
       }
       logger.warning("Aborted execution of $command after $max retries: $e");
       rethrow;
-    } on SocketException catch (e) {
-      logger.severe("Failed to execute $command: $e");
+    } catch (e) {
+      if (aggregate != null) {
+        final events = rollback(aggregate);
+        logger.severe("Failed to execute $command. ${events.length} events rolled back: $e");
+      }
       rethrow;
     }
   }
 
   /// Check if this [Repository] contains any aggregates with [AggregateRoot.isChanged]
   bool get isChanged => _aggregates.values.any((aggregate) => aggregate.isChanged);
-
-  /// Rollback all changes in this [Repository]
-  Iterable<DomainEvent> rollbackAll() {
-    final List<DomainEvent> uncommitted = _aggregates.values.fold(
-      <DomainEvent>[],
-      (events, aggregate) => events..addAll(rollback(aggregate)),
-    );
-    return uncommitted;
-  }
 
   /// Handler for custom commands.
   ///
@@ -279,13 +278,12 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   /// Throws [WriteFailed] for all other failures. This failure is not recoverable.
   Future<Iterable<Event>> push(T aggregate) async {
     try {
-      return await store.push([aggregate]);
+      return aggregate.isChanged ? await store.push(aggregate) : [];
     } on WrongExpectedEventVersion {
       // Are the other aggregates with uncommitted changes?
       _assertAggregateChanges(aggregate);
       // Rollback all changes, catch up with stream and rethrow error
       rollback(aggregate);
-
       final count = await store.catchUp(this);
       logger.info("Caught up with $count events from ${store.canonicalStream}");
       rethrow;
@@ -308,6 +306,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
 
   /// Rollback all pending changes in aggregate
   Iterable<DomainEvent> rollback(T aggregate) {
+    // TODO: Roll back changes to Event.data - keep delta until commit.
     final events = aggregate.getUncommittedChanges();
     if (aggregate.isNew) {
       _aggregates.remove(aggregate.uuid);
@@ -349,12 +348,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   ///
   /// Returns true if changes was saved, false otherwise
   Iterable<Event> commit(T aggregate) => store.commit(aggregate);
-
-  /// Commit all changes and return pending events
-  Iterable<Event> commitAll() => _aggregates.values.map(store.commit).fold(
-        <Event>[],
-        (events, items) => <Event>[...events, ...items],
-      );
 
   /// Validate data
   ///
@@ -482,7 +475,7 @@ abstract class AggregateRoot {
 
   /// Get uncommitted changes and clear internal cache
   Iterable<DomainEvent> commit() {
-    final changes = _pending.toSet();
+    final changes = _pending.toList();
     _pending.clear();
     return changes;
   }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -6,6 +7,7 @@ import 'dart:math';
 import 'package:http/http.dart';
 import 'package:meta/meta.dart';
 import 'package:logging/logging.dart';
+import 'package:collection/collection.dart';
 
 import 'bus.dart';
 import 'core.dart';
@@ -23,32 +25,33 @@ class EventStore {
   /// to publish events after a successful [push] of events
   /// to the appropriate canonical stream.
   ///
-  /// Parameter [stream] is required. It defines which
-  /// [AggregateRoot] stream to source events from.
+  /// Parameter [aggregate] is required. It defines the
+  /// aggregate name segment in the [canonicalStream] to source
+  /// events from.
   ///
   /// Parameter [prefix] is optional. If given,
-  /// it is concatenated with [stream] using
+  /// it is concatenated with [aggregate] using
   /// `EventStore.toCanonical([prefix, stream])` which
   /// returns a canonical stream name of colon-delimited
   /// stream segments.
   ///
-  /// Parameter [useAggregateStreams] controls how this
+  /// Parameter [useInstanceStreams] controls how this
   /// repository is writing events for each [AggregateRoot]
   /// instance.
   ///
   /// If true, events for each [AggregateRoot] is
   /// written to a separate aggregate instance stream. Each
   /// instance streams are identified by concatenating
-  /// [prefix], [stream] and [AggregateRoot.uuid] using
-  /// `EventStore.toCanonical([prefix, stream, uuid])`.
+  /// [prefix], [aggregate] and [AggregateRoot.uuid] using
+  /// `EventStore.toCanonical([prefix, aggregate, uuid])`.
   ///
   /// This is the default behavior since it will minimize
   /// write contention an hence reduce the number of
   /// [WrongExpectedEventVersion] thrown by method [push].
   ///
   /// [EventStore] uses the system projection
-  /// [$stream_by_category](https://eventstore.org/docs/projections/system-projections/index.html?tabs=tabid-5#stream-by-category)
-  /// to project all stream instances of a [canonicalStream]
+  /// [$by_category](https://eventstore.org/docs/projections/system-projections/index.html?tabs=tabid-5#by-category)
+  /// to project all stream instances of [AggregateRoot]s
   /// into one single category stream. This reduces the number
   /// of connections required to subscribe to events making
   /// the overall network load as low as possible. System
@@ -63,11 +66,13 @@ class EventStore {
   ///
   EventStore({
     @required this.bus,
-    @required this.stream,
+    @required this.aggregate,
     @required this.connection,
     this.prefix,
-    this.useAggregateStreams = true,
-  }) : logger = Logger("EventStore[${toCanonical([prefix, stream])}]");
+    this.useInstanceStreams = true,
+  }) : logger = Logger("EventStore[${toCanonical([prefix, aggregate])}]") {
+    _current[canonicalStream] = EventNumber.none;
+  }
 
   /// Get canonical stream name
   static String toCanonical(List<String> segments) => segments
@@ -76,17 +81,46 @@ class EventStore {
       )
       .join(':');
 
-  String get canonicalStream => toCanonical([prefix, stream]);
+  /// The name of canonical stream to source events from.
+  ///
+  /// If [useInstanceStreams] is true, events from all instance
+  /// streams are projected by the system projection
+  /// [$by_category](https://eventstore.org/docs/projections/system-projections/index.html?tabs=tabid-5#by-category)
+  /// to a category stream with name equal to the concatenation
+  /// of '$ce-', [prefix] and [aggregate] with colon ':' as
+  /// delimiter. All events are read from the category
+  /// stream, including any subscriptions.
+  ///
+  /// Events for each [AggregateRoot] is written to separate
+  /// aggregate instance streams. The name of each instance
+  /// stream is a concatenation of [prefix], [aggregate] and
+  /// [AggregateRoot.uuid]. Method [toInstanceStream] will return
+  /// the name of the stream which the events are written to.
+  ///
+  /// If [useInstanceStreams] is false, all events are
+  /// read and written to [canonicalStream], equal to the
+  /// concatenation [prefix] and [aggregate] with colon ':'
+  /// as delimiter.
+  ///
+  String get canonicalStream => useInstanceStreams
+      ? '\$ce-${toCanonical([
+          prefix,
+          aggregate,
+        ])}'
+      : toCanonical([
+          prefix,
+          aggregate,
+        ]);
 
   /// Stream prefix
   final String prefix;
 
   /// Stream name
-  final String stream;
+  final String aggregate;
 
   /// If true, eventstore will write events for each
   /// [AggregateRoot] instance to a separate stream
-  final bool useAggregateStreams;
+  final bool useInstanceStreams;
 
   /// [MessageBus] instance
   final MessageBus bus;
@@ -97,15 +131,18 @@ class EventStore {
   /// [EventStoreConnection] instance
   final EventStoreConnection connection;
 
-  /// [Map] of events for each aggregate root sourced from stream
-  final _store = <String, List<Event>>{};
+  /// [Map] of events for each aggregate root sourced from stream.
+  ///
+  /// [LinkedHashMap] remembers the insertion order of keys, and
+  /// keys are iterated in the order they were inserted into the map.
+  /// This is important for stream id inference from key order.
+  final LinkedHashMap<String, List<Event>> _store = LinkedHashMap<String, List<Event>>();
 
-  /// [Map] of events from aggregate roots pending push to stream
-  //final _pending = <String, List<Event>>{};
+  /// Current event numbers mapped to associated stream
+  final Map<String, EventNumber> _current = {};
 
-  /// Current event number in store
-  EventNumber get current => _current;
-  EventNumber _current = EventNumber.none;
+  /// Current event number of [canonicalStream]
+  EventNumber get current => _current[canonicalStream];
 
   /// Check if store is empty
   bool get isEmpty => _store.isEmpty;
@@ -125,17 +162,24 @@ class EventStore {
       bus.replayStarted();
 
       // Fetch all events
-      return _catchUp(
+      final count = await _catchUp(
         repository,
         EventNumber.first,
       );
+
+      logger.info("Replayed $count events from stream '${canonicalStream}'");
+      return count;
     } finally {
       bus.replayEnded();
     }
   }
 
   /// Catch up with stream
-  Future<int> catchUp(Repository repository) async => _catchUp(repository, _current + 1);
+  Future<int> catchUp(Repository repository) async {
+    final count = await _catchUp(repository, _current[canonicalStream] + 1);
+    logger.info("Catched up with $count events from stream '${canonicalStream}'");
+    return count;
+  }
 
   /// Catch up with stream from given number
   Future<int> _catchUp(Repository repository, EventNumber number) async {
@@ -148,40 +192,46 @@ class EventStore {
     if (result.isOK) {
       _store.clear();
 
-      // Catch-up with last event number in stream
-      _current = result.events.fold(
-        EventNumber.none,
-        _assertMonotone,
+      // Catch-up with last event number in canonical stream
+      _current[canonicalStream] = useInstanceStreams
+          ? EventNumber(result.events.length - 1)
+          : result.events.fold(
+              EventNumber.none,
+              _assertMonotone,
+            );
+
+      // Group events by aggregate uuid
+      final eventsPerAggregate = groupBy<SourceEvent, String>(
+        result.events,
+        (event) => repository.toAggregateUuid(event),
       );
 
-      // Hydrate event store with events
-      result.events
-          .where(
-            (event) => repository.toAggregateUuid(event) is String,
-          )
-          .forEach(
-            (event) => _store.update(
-              repository.toAggregateUuid(event),
-              (events) => events..add(event),
-              ifAbsent: () => [event],
-            ),
+      // Hydrate store with events
+      eventsPerAggregate.forEach(
+        (uuid, events) {
+          _store.update(
+            uuid,
+            (events) => events..addAll(events),
+            ifAbsent: () => events.toList(),
           );
-
-      // This will recreate aggregates and republish events
-      _store.keys
-        ..forEach(
-          (uuid) => repository.get(uuid),
-        )
-        ..forEach(
-          (uuid) => _publish(_store[uuid]),
-        );
-
-      // Flush events accumulated during replay
-      repository.commitAll();
-
-      logger.info("Replayed ${result.events.length} events from stream '${canonicalStream}'");
+          _apply(repository, uuid, events);
+          _publish(events);
+        },
+      );
     }
     return result.events.length;
+  }
+
+  void _apply(Repository repository, String uuid, List<SourceEvent> events) {
+    final exists = repository.contains(uuid);
+    final aggregate = repository.get(uuid);
+    if (exists) {
+      events.forEach((event) => aggregate.patch(event.data));
+    }
+    // Commit remote changes
+    aggregate.commit();
+    // Catch up with last event in stream
+    _setEventNumber(aggregate, events);
   }
 
   /// Get events for given [AggregateRoot.uuid]
@@ -196,52 +246,73 @@ class EventStore {
     if (bus.replaying == false && events.isNotEmpty) {
       _store.update(
         aggregate.uuid,
-        (stored) => stored..addAll(events),
+        (stored) => List.from(stored)..addAll(events),
         ifAbsent: events.toList,
       );
-      _current += events.length;
+      _setEventNumber(aggregate, events);
       _publish(events);
     }
     return events;
   }
 
+  EventNumber _setEventNumber(AggregateRoot aggregate, Iterable<Event> events) {
+    return _current[toInstanceStream(aggregate)] = _current.containsKey(toInstanceStream(aggregate))
+        ? _current[toInstanceStream(aggregate)] + events.length
+        : EventNumber(events.length - 1);
+  }
+
   /// Publish events to [bus]
   void _publish(Iterable<Event> events) => events.forEach(bus.publish);
 
-  /// Push changes in [aggregates] to [canonicalStream]
-  ///
-  /// Throws an [WrongExpectedEventVersion] if [current] event number is not
-  /// equal to the last event number in  [canonicalStream]. This failure is
-  /// recoverable when the store has caught up with [canonicalStream].
-  ///
-  /// Throws an [WriteFailed] for all other failures. This failure is not
-  /// recoverable.
-  Future<Iterable<Event>> push(Iterable<AggregateRoot> aggregates) async {
-    _assertState();
-    // Collect events pending commit for given aggregates
-    final events = aggregates.fold(
-      <Event>[],
-      (events, aggregate) => <DomainEvent>[...events, ...aggregate.getUncommittedChanges() ?? []],
-    );
-    if (events.isEmpty) {
-      return events;
+  /// Get name of [AggregateRoot] instance stream.
+  String toInstanceStream(AggregateRoot aggregate) {
+    if (useInstanceStreams) {
+      final index = _store.keys.toList().indexOf(aggregate.uuid);
+      return "${toCanonical([prefix, this.aggregate])}-${index < 0 ? _store.length : index}";
     }
+    return canonicalStream;
+  }
+
+  /// Push changes in [aggregate] to to appropriate instance stream.
+  ///
+  /// Throws an [WrongExpectedEventVersion] if current event number
+  /// aggregate instance stream for [aggregate] stored locally is not
+  /// equal to the last event number in aggregate instance stream.
+  /// This failure is recoverable when the store has caught up with
+  /// all events in [canonicalStream].
+  ///
+  /// Throws an [WriteFailed] for all other failures. This failure
+  /// is not recoverable.
+  Future<Iterable<Event>> push(AggregateRoot aggregate) async {
+    _assertState();
+    if (aggregate.isChanged == false) {
+      return [];
+    }
+    final stream = toInstanceStream(aggregate);
+    final events = aggregate.getUncommittedChanges();
     final result = await connection.writeEvents(
-      stream: canonicalStream,
+      stream: stream,
       events: events,
-      version: _current == EventNumber.none ? ExpectedVersion.any : ExpectedVersion.from(_current),
+      version: _toExpectedVersion(stream),
     );
     if (result.isCreated) {
       // Commit all changes after successful write
-      aggregates.forEach(commit);
-      // Check if commits caught up with last known event in stream
-      _assertCurrentVersion(result.version);
+      commit(aggregate);
+      // Check if commits caught up with last known event in aggregate instance stream
+      _assertCurrentVersion(stream, result.version);
       return events;
     } else if (result.isWrongESNumber) {
       throw WrongExpectedEventVersion(result.reasonPhrase, result.version);
     }
-    throw WriteFailed("Failed to push changes: ${result.statusCode} ${result.reasonPhrase}");
+    throw WriteFailed("Failed to push changes to $stream: ${result.statusCode} ${result.reasonPhrase}");
   }
+
+  /// Get expected version number for given stream
+  ExpectedVersion _toExpectedVersion(String stream) => (_current[stream] ?? EventNumber.none) == EventNumber.none
+      ? ExpectedVersion.any
+      : ExpectedVersion.from(
+          _current[stream],
+        );
 
   /// Subscription controller for each repository
   /// subscribing to events from [canonicalStream]
@@ -263,7 +334,7 @@ class EventStore {
       repository.runtimeType,
       (controller) => controller.subscribe(
         repository,
-        current,
+        _current[canonicalStream],
         connection,
         canonicalStream,
       ),
@@ -275,7 +346,7 @@ class EventStore {
         maxBackoffTime: maxBackoffTime,
       )..subscribe(
           repository,
-          current,
+          _current[canonicalStream],
           connection,
           canonicalStream,
         ),
@@ -289,7 +360,7 @@ class EventStore {
         repository,
         connection,
       );
-      if (isEmpty || event.number > _current) {
+      if (isEmpty || event.number > _current[canonicalStream]) {
         // Get and commit changes
         final aggregate = repository.get(
           repository.toAggregateUuid(event),
@@ -308,7 +379,7 @@ class EventStore {
           }
         } else {
           // Catch up with stream
-          _current = event.number;
+          _current[canonicalStream] = event.number;
         }
       }
     } catch (e) {
@@ -361,10 +432,10 @@ class EventStore {
     }
   }
 
-  /// Assert that [current] event number is caught up with last known event in stream
-  void _assertCurrentVersion(ExpectedVersion version) {
-    if (_current != EventNumber.from(version)) {
-      throw WriteFailed("Catch up failed, current ${_current.value} not equal to version ${version.value}");
+  /// Assert that current event number for [stream] is caught up with last known event
+  void _assertCurrentVersion(String stream, ExpectedVersion version) {
+    if (_current[stream] != EventNumber.from(version)) {
+      throw WriteFailed("Catch up failed, current ${_current[stream].value} not equal to version ${version.value}");
     }
   }
 
@@ -461,7 +532,7 @@ class _SubscriptionController {
   void connected(Repository repository, EventStoreConnection connection) {
     if (reconnects > 0) {
       logger.info(
-        "${repository.runtimeType} reconnected at "
+        "${repository.runtimeType} reconnected to "
         "'${connection.host}:${connection.port}' after ${reconnects} attempts",
       );
       reconnects = 0;
@@ -585,7 +656,7 @@ class EventStoreConnection {
       reasonPhrase: events.isEmpty ? 'Not found' : 'OK',
       events: events,
       atomFeed: result.atomFeed,
-      number: events.isEmpty ? result.number : events.last.number,
+      number: events.isEmpty ? result.number : result.number + events.length,
       direction: result.direction,
     );
   }
@@ -755,7 +826,7 @@ class EventStoreConnection {
     var current = number;
 
     // Catch-up subscription?
-    if (!current.isLast) {
+    if (false == current.isLast) {
       FeedResult feed;
       do {
         feed = await getFeed(
