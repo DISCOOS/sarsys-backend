@@ -152,9 +152,12 @@ class EventStore {
   /// instance stream number is returned. This numbers
   /// is the same as for the [canonicalStream] if
   /// [useInstanceStreams] is false.
-  EventNumber current({String uuid}) {
-    return useInstanceStreams && uuid != null ? _current[toInstanceStream(uuid)] : _current[canonicalStream];
-  }
+  ///
+  /// If stream does not exist, [EventNumber.none] is returned.
+  ///
+  EventNumber current({String uuid}) =>
+      (useInstanceStreams && uuid != null ? _current[toInstanceStream(uuid)] : _current[canonicalStream]) ??
+      EventNumber.none;
 
   /// Replay events from stream to given repository
   ///
@@ -184,7 +187,7 @@ class EventStore {
 
   /// Catch up with stream
   Future<int> catchUp(Repository repository) async {
-    final next = _current[canonicalStream] + 1;
+    final next = current() + 1;
     final count = await _catchUp(repository, next);
     logger.info("Catched up on $count events from stream '${canonicalStream}' starting from number $next");
     return count;
@@ -193,7 +196,7 @@ class EventStore {
   /// Catch up with stream from given number
   Future<int> _catchUp(Repository repository, EventNumber number) async {
     // Lower bound is last known event number in stream
-    final head = EventNumber(max(_current[canonicalStream].value, number.value));
+    final head = EventNumber(max(current().value, number.value));
     if (head > number) {
       logger.fine(
         "_catchUp: 'number': $number < current number for $canonicalStream: ${current()}: 'number' changed to $head",
@@ -237,7 +240,7 @@ class EventStore {
   }
 
   EventNumber _getCanonicalNumber(Iterable<SourceEvent> events) {
-    return _current[canonicalStream] +
+    return current() +
         (useInstanceStreams
             // NOTE: event numbers in a projected stream is not
             // monotone, but event order is stable so just do
@@ -389,7 +392,7 @@ class EventStore {
   ) =>
       controller.subscribe(
         repository,
-        _current[canonicalStream] + 1,
+        current() + 1,
         connection,
         canonicalStream,
       );
@@ -496,7 +499,7 @@ class EventStore {
   /// Assert that current event number for [stream] is caught up with last known event
   void _assertCurrentVersion(String stream, ExpectedVersion version) {
     if (_current[stream] != EventNumber.from(version)) {
-      throw WriteFailed("Catch up failed, current ${_current[stream].value} not equal to version ${version.value}");
+      throw WriteFailed("Catch up failed, current ${_current[stream]?.value} not equal to version ${version?.value}");
     }
   }
 
