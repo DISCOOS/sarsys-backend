@@ -157,7 +157,10 @@ class EventNumber extends Equatable {
   static const none = EventNumber(-1);
 
   // Last event in stream
-  static const last = EventNumber(-1);
+  static const last = EventNumber(-2);
+
+  /// Test if event number is NONE
+  bool get isNone => this == none;
 
   /// Test if first event number in stream
   bool get isFirst => this == first;

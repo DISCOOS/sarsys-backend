@@ -161,7 +161,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
     @required this.store,
     this.uuidFieldName = 'uuid',
     int maxBackoffTimeSeconds = 10,
-  })  : logger = Logger("${typeOf<T>()}"),
+  })  : logger = Logger("Repository[${typeOf<T>()}]"),
         maxBackoffTime = Duration(seconds: maxBackoffTimeSeconds);
 
   final EventStore store;

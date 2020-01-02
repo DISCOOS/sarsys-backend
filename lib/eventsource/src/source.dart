@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math';
 
 import 'package:http/http.dart';
@@ -154,7 +153,7 @@ class EventStore {
   /// is the same as for the [canonicalStream] if
   /// [useInstanceStreams] is false.
   EventNumber current({String uuid}) =>
-      useInstanceStreams ? _current[canonicalStream] : _current[toInstanceStream(uuid) ?? canonicalStream];
+      useInstanceStreams ? _current[toInstanceStream(uuid) ?? canonicalStream] : _current[canonicalStream];
 
   /// Replay events from stream to given repository
   ///
@@ -166,6 +165,8 @@ class EventStore {
 
     try {
       bus.replayStarted();
+
+      _store.clear();
 
       // Fetch all events
       final count = await _catchUp(
@@ -189,22 +190,23 @@ class EventStore {
 
   /// Catch up with stream from given number
   Future<int> _catchUp(Repository repository, EventNumber number) async {
+    // Lower bound is last known event number in stream
+    final head = EventNumber(max(_current[canonicalStream].value, number.value));
+    if (head > number) {
+      logger.fine(
+        "_catchUp: Number $number < current number for $canonicalStream: ${current()}: changed to $head",
+      );
+    }
+
     // TODO: Read events as string - implement readEventsAsStream
     final result = await connection.readAllEvents(
       stream: canonicalStream,
-      number: number,
+      number: head,
     );
 
     if (result.isOK) {
-      _store.clear();
-
       // Catch-up with last event number in canonical stream
-      _current[canonicalStream] = useInstanceStreams
-          ? EventNumber(result.events.length - 1)
-          : result.events.fold(
-              EventNumber.none,
-              _assertMonotone,
-            );
+      _current[canonicalStream] = _getCanonicalNumber(result.events);
 
       // Group events by aggregate uuid
       final eventsPerAggregate = groupBy<SourceEvent, String>(
@@ -226,6 +228,24 @@ class EventStore {
       );
     }
     return result.events.length;
+  }
+
+  EventNumber _getCanonicalNumber(Iterable<SourceEvent> events) {
+    return _current[canonicalStream] +
+        (useInstanceStreams
+            // NOTE: event numbers in projected stream is not
+            // monotone, but order is stable so just just do
+            // a 0-based increment
+            ? _current[canonicalStream].isNone ? events.length : events.length - 1
+            // Event numbers in instance streams SHOULD ALWAYS
+            // be sorted in an ordered monotone incrementing
+            // manner
+            : events
+                .fold(
+                  EventNumber.none,
+                  _assertMonotone,
+                )
+                .value);
   }
 
   void _apply(Repository repository, String uuid, List<SourceEvent> events) {
@@ -331,38 +351,44 @@ class EventStore {
   void subscribe(
     Repository repository, {
     Duration maxBackoffTime = const Duration(seconds: 10),
-  }) async {
+  }) {
     // Sanity checks
     _assertState();
     _assertRepository(repository);
 
     _subscriptions.update(
       repository.runtimeType,
-      (controller) => controller.subscribe(
-        repository,
-        _current[canonicalStream],
-        connection,
-        canonicalStream,
-      ),
-      ifAbsent: () => _SubscriptionController(
-        logger: logger,
-        onDone: _onSubscriptionDone,
-        onEvent: _onSubscriptionEvent,
-        onError: _onSubscriptionError,
-        maxBackoffTime: maxBackoffTime,
-      )..subscribe(
-          repository,
-          _current[canonicalStream],
-          connection,
-          canonicalStream,
-        ),
+      (controller) => _subscribe(controller, repository),
+      ifAbsent: () => _subscribe(
+          _SubscriptionController(
+            logger: logger,
+            onDone: _onSubscriptionDone,
+            onEvent: _onSubscriptionEvent,
+            onError: _onSubscriptionError,
+            maxBackoffTime: maxBackoffTime,
+          ),
+          repository),
     );
   }
+
+  _SubscriptionController _subscribe(
+    _SubscriptionController controller,
+    Repository<Command, AggregateRoot> repository,
+  ) =>
+      controller.subscribe(
+        repository,
+        _current[canonicalStream] + 1,
+        connection,
+        canonicalStream,
+      );
 
   /// Handle event from subscriptions
   void _onSubscriptionEvent(Repository repository, SourceEvent event) {
     try {
-      logger.fine("${repository.runtimeType}: Subscription received $event");
+      logger.fine(
+        "${repository.runtimeType}: _onSubscriptionEvent: ${event.runtimeType}"
+        "{type: ${event.type}, uuid: ${event.uuid}}",
+      );
       _subscriptions[repository.runtimeType]?.connected(
         repository,
         connection,
@@ -372,9 +398,16 @@ class EventStore {
       // Problem 1) event.number is not monotone increasing in canonicalStream - use total count instead
       // Problem 2) event.number should be checked against the instance stream number
       // Problem 3) (don't remember)
-      final actual = current(uuid: repository.toAggregateUuid(event));
+      final uuid = repository.toAggregateUuid(event);
+      final stream = toInstanceStream(uuid);
+      final actual = current(uuid: uuid);
       final process = isEmpty || event.number > actual;
-      logger.fine("${repository.runtimeType}: isEmpty: $isEmpty, current: $actual, process: $process");
+      logger.finer(
+        "${repository.runtimeType}: _onSubscriptionEvent: "
+        "process: $process, isEmpty: $isEmpty, "
+        "current: $actual, received: ${event.number}, "
+        "stream: $stream, isInstanceStream: $useInstanceStreams, numbers: $_current",
+      );
 
       if (process) {
         // Get and commit changes
@@ -394,12 +427,17 @@ class EventStore {
             throw InvalidOperation("One source event produced ${events.length} domain events");
           }
         } else {
-          // Catch up with stream
-          _current[canonicalStream] = event.number;
+          // Get last number in canonical stream
+          _current[canonicalStream] = _getCanonicalNumber([event]);
+          // Update last number in canonical stream
+          _current[stream] = event.number;
         }
+        logger.fine(
+          "${repository.runtimeType}: _onSubscriptionEvent: processed $event",
+        );
       }
     } catch (e) {
-      logger.severe("Failed to process ${event.type}{uuid: ${event.uuid}}, got $e");
+      logger.severe("Failed to process $event, got $e");
     }
   }
 
@@ -459,7 +497,7 @@ class EventStore {
   }
 
   EventNumber _assertMonotone(EventNumber previous, SourceEvent next) {
-    if (previous.value >= next.number.value) {
+    if (previous.value != next.number.value - 1) {
       throw InvalidOperation("EventNumber not monotone increasing, current: $previous, "
           "next: ${next.number} in event ${next.type} with uuid: ${next.uuid}");
     }
@@ -515,6 +553,7 @@ class _SubscriptionController {
           onDone: () => onDone(repository),
           onError: (error) => onError(repository, error),
         );
+    logger.fine("${repository.runtimeType}: Subscribed to stream $stream from event number $current");
     return this;
   }
 
@@ -667,7 +706,7 @@ class EventStoreConnection {
       reasonPhrase: events.isEmpty ? 'Not found' : 'OK',
       events: events,
       atomFeed: result.atomFeed,
-      number: events.isEmpty ? result.number : result.number + events.length,
+      number: events.isEmpty ? result.number : result.number + (events.length - 1),
       direction: result.direction,
     );
   }
@@ -838,6 +877,7 @@ class EventStoreConnection {
 
     // Catch-up subscription?
     if (false == current.isLast) {
+      _logger.fine("Stream $stream catch up from event number $current");
       FeedResult feed;
       do {
         feed = await getFeed(
@@ -847,23 +887,21 @@ class EventStoreConnection {
         );
         if (feed.isOK) {
           final result = await readEventsInFeed(feed);
-          if (!result.isOK) {
-            throw SubscriptionFailed(
-              "Failed to read events: ${result.statusCode} ${result.reasonPhrase}",
-            );
+          if (result.isOK) {
+            for (var e in result.events) {
+              yield e;
+            }
+            current = result.number + 1;
           }
-          for (var e in result.events) {
-            yield e;
-          }
-          current = result.number;
         }
       } while (feed.isOK && !feed.atomFeed.headOfStream);
 
-      // Move one more event forward?
-      if (current.value > 0) {
-        current = current + 1;
+      if (number < current) {
+        _logger.fine("Stream $stream caught up from $number to $current");
       }
     }
+
+    _logger.fine("Listen for events in $stream starting from number $current");
 
     // Continues until StreamSubscription.cancel() is invoked
     await for (var request in Stream.periodic(
@@ -882,7 +920,9 @@ class EventStoreConnection {
           for (var e in result.events) {
             yield e;
           }
-          current = result.number + 1;
+          final next = result.number + 1;
+          _logger.fine("Stream $stream caught up to event $current, listening for $next");
+          current = next;
         } else if (!result.isNotFound) {
           throw SubscriptionFailed(
             "Failed to read head of stream $stream: ${result.statusCode} ${result.reasonPhrase}",
