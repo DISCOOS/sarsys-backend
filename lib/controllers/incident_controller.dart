@@ -17,29 +17,28 @@ class IncidentController extends CRUDController<IncidentCommand, Incident> {
   // Documentation
   //////////////////////////////////
 
+  static const passCodesDescription = "User with admin role will get all incidents containing "
+      "all available fields. All other roles will get incidents based on affiliation. "
+      "Which fields each incident contains is based on given passcode. All available fields are "
+      "only returned for incidents  with passcode which match the value given in header 'X-Passcode'. "
+      "Rquests without header 'X-Passcode', or with an invalid passcode, will get incidents containing "
+      "fields [uuid] and [name] only. Brute-force attacks are banned for a lmitied time without any "
+      "feedback. When banned, all incidents will contain fields [uuid] and [name] only, regardless of "
+      "the value in 'X-Passcode'.";
+
   @override
   String documentOperationDescription(APIDocumentContext context, Operation operation) {
     String desc = "${documentOperationSummary(context, operation)}. ";
     switch (operation.method) {
       case "GET":
-        desc += operation.pathVariables.isEmpty
-            ? "The actual incidents returned by this operation depends on which scope the user have. "
-            : "Admins will get all incidents, all other roles will get the incidents based on affiliation.";
-        break;
-      case "POST":
-        desc += "The field [uuid] MUST BE unique for each incident. "
-            "Use a [universally unique identifier]"
-            "(https://en.wikipedia.org/wiki/Universally_unique_identifier).";
-        break;
-      case "PATCH":
-        desc += "Only fields in request are updated. Existing values WILL BE overwritten, others remain unchanged.";
+        desc = "$desc $passCodesDescription";
         break;
     }
     return desc;
   }
 
   @override
-  APISchemaObject documentSchemaObject() => APISchemaObject.object(
+  APISchemaObject documentAggregate(APIDocumentContext context) => APISchemaObject.object(
         {
           "uuid": APISchemaObject.string(format: 'uuid')
             ..format = 'uuid'
@@ -76,16 +75,116 @@ class IncidentController extends CRUDController<IncidentCommand, Incident> {
             ..format = 'date-time',
           "reference": APISchemaObject.string()..description = "External reference from requesting authority",
           "justification": APISchemaObject.string()..description = "Justification for registering the incident",
+          "talkGroups": APISchemaObject.array(ofSchema: context.schema['TalkGroup'])
+            ..description = "List of talk gropus in used",
+          "ipp": context.schema['Location']..description = "Initial planning point",
+          "meetup": context.schema['Location']..description = "On scene meeting point",
         },
       )..required = [
           'uuid',
           'name',
           'type',
           'status',
-          'resolution',
           'occured',
           'created',
           'updated',
           'justification',
+          'ipp',
+          'meetup',
+        ];
+
+  @override
+  Map<String, APISchemaObject> documentEntities(APIDocumentContext context) => {
+        "TalkGroup": documentTalkGroup(),
+        "Location": documentLocation(context),
+        "Point": documentPoint(),
+        "Address": documentAddress(),
+        "PassCodes": documentPassCodes(),
+      };
+
+  APISchemaObject documentTalkGroup() => APISchemaObject.object(
+        {
+          "name": APISchemaObject.boolean()..description = "Talkgroup identifier",
+          "type": APISchemaObject.string()
+            ..description = "Talkgroup type"
+            ..enumerated = [
+              'tetra',
+              'marine',
+              'analog',
+            ],
+        },
+      )
+        ..description = "TalkGroup Schema"
+        ..required = [
+          'name',
+          'type',
+        ];
+
+  APISchemaObject documentLocation(APIDocumentContext context) => APISchemaObject.object(
+        {
+          "point": APISchemaObject.array(ofSchema: context.schema['Point'])..description = "Location position",
+          "address": APISchemaObject.array(ofSchema: context.schema['Address'])..description = "Location address",
+          "description": APISchemaObject.string()..description = "Location description",
+        },
+      )
+        ..description = "Location Schema"
+        ..required = [
+          'point',
+        ];
+
+  APISchemaObject documentPoint() => APISchemaObject.object(
+        {
+          "lat": APISchemaObject.number()..description = "Latitude in decimal degrees",
+          "lon": APISchemaObject.number()..description = "Longitude in decimal degrees",
+          "alt": APISchemaObject.number()..description = "Altitude above sea level in meters",
+          "acc": APISchemaObject.number()..description = "Accuracy in meters",
+          "timestamp": APISchemaObject.string()
+            ..description = "Timestamp in ISO8601 Date Time String Format"
+            ..format = "date-time",
+          "type": APISchemaObject.string()
+            ..description = "Point type"
+            ..enumerated = [
+              'manual',
+              'device',
+              'personnel',
+              'aggregated',
+            ],
+        },
+      )
+        ..description = "Point Schema"
+        ..required = [
+          'lat',
+          'lon',
+          'timestamp',
+        ];
+
+  APISchemaObject documentAddress() => APISchemaObject.object(
+        {
+          "lines": APISchemaObject.array(ofType: APIType.string)
+            ..description = "Pass codes for authorizing access to incident data"
+            ..type = APIType.string,
+          "city": APISchemaObject.string()..description = "City name",
+          "postalCode": APISchemaObject.string()..description = "Postal, state or zip code",
+          "countryCode": APISchemaObject.string()..description = "ISO 3166 country code",
+        },
+      )
+        ..description = "Point Schema"
+        ..required = [
+          'lat',
+          'lon',
+          'timestamp',
+        ];
+
+  // TODO: Use https://pub.dev/packages/password to hash pass codes in streams?
+  APISchemaObject documentPassCodes() => APISchemaObject.object(
+        {
+          "commander": APISchemaObject.string()..description = "Passcode for access with Commander rights",
+          "personnel": APISchemaObject.string()..description = "Passcode for access with Personnel rights",
+        },
+      )
+        ..description = "Pass codes for access rights to spesific Incident instance"
+        ..required = [
+          'commander',
+          'personnel',
         ];
 }

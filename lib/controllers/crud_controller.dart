@@ -115,9 +115,8 @@ abstract class CRUDController<S extends Command, T extends AggregateRoot> extend
     String desc = "${documentOperationSummary(context, operation)}. ";
     switch (operation.method) {
       case "POST":
-        desc += "The field [uuid] MUST BE unique for each incident. "
-            "Use a [universally unique identifier]"
-            "(https://en.wikipedia.org/wiki/Universally_unique_identifier).";
+        desc += "The field [uuid] MUST BE unique for each incident. Use a "
+            "[universally unique identifier](https://en.wikipedia.org/wiki/Universally_unique_identifier).";
         break;
       case "PATCH":
         desc += "Only fields in request are updated. Existing values WILL BE overwritten, others remain unchanged.";
@@ -208,14 +207,28 @@ abstract class CRUDController<S extends Command, T extends AggregateRoot> extend
   @override
   void documentComponents(APIDocumentContext context) {
     super.documentComponents(context);
-    context.schema.register(
-      "$aggregateType",
-      documentSchemaObject()
-        ..title = "$aggregateType"
-        ..required = ['uuid']
-        ..description = "$aggregateType schema",
-    );
+    _documentSchemaObjects(context).forEach((name, object) {
+      if (object.title?.isNotEmpty == false) {
+        object.title = "$name";
+      }
+      if (object.description?.isNotEmpty == false) {
+        object.description = "$name schema";
+      }
+      if (object.title == "$aggregateType" && object.required?.contains('uuid') == false) {
+        if (!object.properties.containsKey("uuid")) {
+          throw UnimplementedError("Property 'uuid' is required for aggregates");
+        }
+        object.required = ["uuid", ...object.required];
+      }
+      context.schema.register(name, object);
+    });
   }
 
-  APISchemaObject documentSchemaObject();
+  Map<String, APISchemaObject> _documentSchemaObjects(APIDocumentContext context) => {
+        "$aggregateType": documentAggregate(context),
+      }..addAll(documentEntities(context));
+
+  APISchemaObject documentAggregate(APIDocumentContext context);
+
+  Map<String, APISchemaObject> documentEntities(APIDocumentContext context) => {};
 }
