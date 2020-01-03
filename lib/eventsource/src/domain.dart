@@ -220,7 +220,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
           aggregate = get(command.uuid, data: data);
           break;
         case Action.update:
-          aggregate = get(command.uuid)..patch(data);
+          aggregate = get(command.uuid)..patch(data, type: typeOf<S>().toString(), command: true);
           break;
         case Action.delete:
           aggregate = get(command.uuid)..delete();
@@ -469,15 +469,27 @@ abstract class AggregateRoot {
   /// Patch aggregate root with data (free-form json compatible data).
   ///
   /// Returns a [DomainEvent] if data was changed, null otherwise.
-  DomainEvent patch(Map<String, dynamic> data) {
+  DomainEvent patch(Map<String, dynamic> data, {DateTime timestamp, String type, bool command}) {
     final diffs = JsonPatch.diff(this.data, data);
     // TODO: Add support for strict validation of data (fields and values)
     // Replace and add is supported by patch (put will introduce remove)
     final willChange = diffs.where((diff) => const ['add', 'replace'].contains(diff['op'])).isNotEmpty;
     // Remove read-only fields
-    return willChange ? _apply(updated(data), true, false) : null;
+    return willChange
+        ? _apply(
+            updated(
+              data,
+              type: type,
+              command: command,
+              timestamp: timestamp,
+            ),
+            true,
+            false,
+          )
+        : null;
   }
 
+  // TODO: Add support for detecting tombstone (delete) events
   /// Delete aggregate root
   DomainEvent delete() {
     data.clear();
@@ -493,15 +505,22 @@ abstract class AggregateRoot {
 
   /// Get aggregate created event. Only invoked from constructor.
   @protected
-  DomainEvent created(Map<String, dynamic> data) => throw UnsupportedError("Delete not implemented");
+  DomainEvent created(Map<String, dynamic> data, {String type, DateTime timestamp}) =>
+      throw UnimplementedError("created() not implemented");
 
   /// Get aggregate updated event. Invoked from [Repository]
   @protected
-  DomainEvent updated(Map<String, dynamic> data) => throw UnsupportedError("Delete not implemented");
+  DomainEvent updated(
+    Map<String, dynamic> data, {
+    String type,
+    bool command,
+    DateTime timestamp,
+  }) =>
+      throw UnimplementedError("updated() not implemented");
 
   /// Get aggregate deleted event. Invoked from [Repository]
   @protected
-  DomainEvent deleted() => throw UnsupportedError("Delete not implemented");
+  DomainEvent deleted({String type, DateTime timestamp}) => throw UnimplementedError("deleted() not implemented");
 
   /// Applies changed to [data].
   ///

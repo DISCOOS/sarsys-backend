@@ -60,7 +60,7 @@ class DomainEvent extends Event {
           uuid: uuid,
           type: type,
           data: data,
-          created: created,
+          created: created ?? DateTime.now(),
         );
 
   @override
@@ -73,7 +73,7 @@ class DomainEvent extends Event {
 ///
 /// A [Repository] folds [SourceEvent]s into [DomainEvent]s with [Repository.get].
 class SourceEvent extends Event {
-  const SourceEvent({
+  SourceEvent({
     @required String uuid,
     @required String type,
     @required this.number,
@@ -83,7 +83,7 @@ class SourceEvent extends Event {
           uuid: uuid,
           type: type,
           data: data,
-          created: created,
+          created: created ?? DateTime.now(),
         );
   final EventNumber number;
 

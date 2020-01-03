@@ -263,7 +263,7 @@ class EventStore {
     final exists = repository.contains(uuid);
     final aggregate = repository.get(uuid);
     if (exists) {
-      events.forEach((event) => aggregate.patch(event.data));
+      events.forEach((event) => aggregate.patch(event.data, type: event.type));
     }
     // Commit remote changes
     aggregate.commit();
@@ -432,7 +432,7 @@ class EventStore {
         );
         if (aggregate.isChanged == false) {
           if (aggregate.isApplied(event) == false) {
-            aggregate.patch(event.data);
+            aggregate.patch(event.data, type: event.type);
           }
         }
         if (aggregate.isChanged) {
