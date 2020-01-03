@@ -35,17 +35,28 @@ class AppConfig extends AggregateRoot {
   }) : super(uuid, data);
 
   @override
-  DomainEvent created(Map<String, dynamic> data) => AppConfigCreated(
+  DomainEvent created(
+    Map<String, dynamic> data, {
+    String type,
+    DateTime timestamp,
+  }) =>
+      AppConfigCreated(
         uuid: Uuid().v4(),
         data: data,
-        created: DateTime.now(),
+        created: timestamp,
       );
 
   @override
-  DomainEvent updated(Map<String, dynamic> data) => AppConfigUpdated(
+  DomainEvent updated(
+    Map<String, dynamic> data, {
+    String type,
+    bool command,
+    DateTime timestamp,
+  }) =>
+      AppConfigUpdated(
         uuid: Uuid().v4(),
         data: data,
-        created: DateTime.now(),
+        created: timestamp,
       );
 }
 

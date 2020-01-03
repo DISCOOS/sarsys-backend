@@ -111,6 +111,22 @@ abstract class CRUDController<S extends Command, T extends AggregateRoot> extend
   String _toLowerCase() => aggregateType.toString().toString();
 
   @override
+  String documentOperationDescription(APIDocumentContext context, Operation operation) {
+    String desc = "${documentOperationSummary(context, operation)}. ";
+    switch (operation.method) {
+      case "POST":
+        desc += "The field [uuid] MUST BE unique for each incident. "
+            "Use a [universally unique identifier]"
+            "(https://en.wikipedia.org/wiki/Universally_unique_identifier).";
+        break;
+      case "PATCH":
+        desc += "Only fields in request are updated. Existing values WILL BE overwritten, others remain unchanged.";
+        break;
+    }
+    return desc;
+  }
+
+  @override
   APIRequestBody documentOperationRequestBody(APIDocumentContext context, Operation operation) {
     switch (operation.method) {
       case "POST":
