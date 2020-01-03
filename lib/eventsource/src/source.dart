@@ -177,7 +177,6 @@ class EventStore {
         repository,
         EventNumber.first,
       );
-
       logger.info("Replayed $count events from stream '${canonicalStream}'");
       return count;
     } finally {

@@ -209,10 +209,11 @@ abstract class CRUDController<S extends Command, T extends AggregateRoot> extend
   void documentComponents(APIDocumentContext context) {
     super.documentComponents(context);
     context.schema.register(
-      "AppConfig",
+      "$aggregateType",
       documentSchemaObject()
         ..title = "$aggregateType"
-        ..required = ['uuid'],
+        ..required = ['uuid']
+        ..description = "$aggregateType schema",
     );
   }
 

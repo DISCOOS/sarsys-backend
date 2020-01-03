@@ -15,10 +15,10 @@ class MessageBus implements MessageNotifier, CommandSender, EventPublisher {
   final Map<Type, List<MessageHandler>> _routes = {};
 
   /// Check if messages are being replayed
-  bool get replaying => _replaying;
+  bool get replaying => _replaying > 0;
 
-  /// Flag toggled by integration messages [ReplayStarted] and [ReplayEnded]
-  bool _replaying = false;
+  /// Replay counter incremented by [ReplayStarted] and decremented by [ReplayEnded]
+  int _replaying = 0;
 
   /// Register message handler
   void register<T extends Message>(MessageHandler handler) => _routes.update(
@@ -66,15 +66,12 @@ class MessageBus implements MessageNotifier, CommandSender, EventPublisher {
   /// Throws [InvalidOperation] on illegal [replaying] state.
   Message _inspect(Message message) {
     if (message is ReplayStarted) {
-      if (_replaying) {
-        throw const InvalidOperation("Illegal state. Is already replaying events");
-      }
-      _replaying = true;
+      _replaying++;
     } else if (message is ReplayEnded) {
-      if (_replaying == false) {
+      if (_replaying == 0) {
         throw const InvalidOperation("Illegal state. Is not replaying events");
       }
-      _replaying = false;
+      _replaying--;
     }
     return message;
   }

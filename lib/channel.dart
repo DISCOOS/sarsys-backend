@@ -4,7 +4,10 @@ import 'package:sarsys_app_server/controllers/app_config_controller.dart';
 import 'package:sarsys_app_server/domain/messages.dart';
 import 'package:sarsys_app_server/eventsource/eventsource.dart';
 
+import 'controllers/incident_controller.dart';
 import 'controllers/websocket_controller.dart';
+import 'domain/incident/events.dart';
+import 'domain/incident/incident.dart';
 import 'domain/tenant/app_config.dart';
 import 'sarsys_app_server.dart';
 
@@ -76,6 +79,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
 
     // Register repositories
     manager.register<AppConfig>((manager) => AppConfigRepository(manager));
+    manager.register<Incident>((manager) => IncidentRepository(manager));
 
     /// Build resources
     await manager.build();
@@ -84,6 +88,11 @@ class SarSysAppServerChannel extends ApplicationChannel {
     // Register events handled by message broker
     messages.register<AppConfigCreated>(manager.bus);
     messages.register<AppConfigUpdated>(manager.bus);
+    messages.register<IncidentRegistered>(manager.bus);
+    messages.register<IncidentInformationUpdated>(manager.bus);
+    messages.register<IncidentRespondedTo>(manager.bus);
+    messages.register<IncidentCancelled>(manager.bus);
+    messages.register<IncidentResolved>(manager.bus);
     messages.build();
 
     // Sanity check
@@ -151,7 +160,8 @@ class SarSysAppServerChannel extends ApplicationChannel {
       )
       ..route('/api/healthz').link(() => HealthController())
       ..route('/api/messages/connect').link(() => WebSocketController(messages))
-      ..route('/api/app-config[/:uuid]').link(() => AppConfigController(manager.get<AppConfigRepository>()));
+      ..route('/api/app-configs[/:uuid]').link(() => AppConfigController(manager.get<AppConfigRepository>()))
+      ..route('/api/incidents[/:uuid]').link(() => IncidentController(manager.get<IncidentRepository>()));
   }
 
   @override
