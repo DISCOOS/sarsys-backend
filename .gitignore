@@ -8,11 +8,14 @@
 build/
 
 # If you're building an application, you may want to check-in your pubspec.lock
-#pubspec.lock
+pubspec.lock
 
 # Directory created by dartdoc
 # If you don't generate documentation locally you can remove this line.
 doc/api/
+
+# Do not check in snapshots
+bin/main.snapshot
 
 # Aqueduct
 .buildlog

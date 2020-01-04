@@ -11,10 +11,13 @@ Future main(List<String> args) async {
   final parser = ArgParser()
     ..addOption("port", defaultsTo: "80", abbr: "p")
     ..addOption("config", defaultsTo: "config.yaml", abbr: "c")
-    ..addOption("instances", defaultsTo: "1", abbr: "i");
+    ..addOption("instances", defaultsTo: "1", abbr: "i")
+    ..addOption("timeout", defaultsTo: "30")
+    ..addOption("training", defaultsTo: "false");
   final results = parser.parse(args);
+  final training = (results['training'] as String).toLowerCase() == "true";
   final app = Application<SarSysAppServerChannel>()
-    ..isolateStartupTimeout = const Duration(seconds: isolateStartupTimeout)
+    ..isolateStartupTimeout = Duration(seconds: isolateStartupTimeout)
     ..options.configurationFilePath = results['config'] as String
     ..options.port = int.tryParse(results['port'] as String) ?? 8888;
 
@@ -25,5 +28,9 @@ Future main(List<String> args) async {
   await app.start(numberOfInstances: count > 0 ? count : 1);
 
   logger.info("Application started on port: ${app.options.port}.");
+  if (training) {
+    logger.info("Snapshot training, stopping...");
+    await app.stop();
+  }
   logger.info("Use Ctrl-C (SIGINT) to stop running the application.");
 }
