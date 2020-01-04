@@ -180,9 +180,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
       ..route('/api/messages/connect').link(() => WebSocketController(messages))
       ..route('/api/app-configs[/:uuid]').link(() => AppConfigController(manager.get<AppConfigRepository>()))
       ..route('/api/incidents[/:uuid]').link(() => IncidentController(manager.get<IncidentRepository>()))
-      ..route('/api/incidents/:uuid/operations[/:operationId]').link(
-        () => OperationController(manager.get<sar.OperationRepository>()),
-      );
+      ..route('/api/operations[/:uuid]').link(() => OperationController(manager.get<sar.OperationRepository>()));
   }
 
   @override

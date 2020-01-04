@@ -58,6 +58,9 @@ class OperationController extends CRUDController<sar.OperationCommand, sar.Opera
               'rescue',
               'other',
             ],
+          "incident": APISchemaObject.string()
+            ..format = 'incident'
+            ..description = "Unique incident id (required)",
           "status": APISchemaObject.string()
             ..description = "Operation status"
             ..enumerated = [
