@@ -8,6 +8,13 @@ abstract class CRUDController<S extends Command, T extends AggregateRoot> extend
 
   Type get aggregateType => typeOf<T>();
 
+  @override
+  FutureOr<RequestOrResponse> willProcessRequest(Request req) => repository.ready
+      ? req
+      : serviceUnavailable(
+          body: "$repository is unavailable: build pending",
+        );
+
   // GET /app-config
   @Operation.get()
   Future<Response> getAll({
