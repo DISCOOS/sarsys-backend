@@ -1,9 +1,11 @@
 import 'package:sarsys_app_server/controllers/crud_controller.dart';
-import 'package:sarsys_app_server/domain/incident/incident.dart';
+import 'package:sarsys_app_server/domain/incident/aggregate.dart';
+import 'package:sarsys_app_server/domain/incident/commands.dart';
+import 'package:sarsys_app_server/domain/incident/repository.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 
 /// A ResourceController that handles
-/// [/api/app-config](http://localhost/api/client.html#/Incident) [Request]s
+/// [/api/app-config](http://localhost/api/client.html#/Incident) requests
 class IncidentController extends CRUDController<IncidentCommand, Incident> {
   IncidentController(IncidentRepository repository) : super(repository);
 
@@ -17,7 +19,7 @@ class IncidentController extends CRUDController<IncidentCommand, Incident> {
   // Documentation
   //////////////////////////////////
 
-  static const passCodesDescription = "User with admin role will get all incidents containing "
+  static const passCodesDescription = "Users with an admin role will get all incidents containing "
       "all available fields. All other roles will get incidents based on affiliation. "
       "Which fields each incident contains is based on given passcode. All available fields are "
       "only returned for incidents  with passcode which match the value given in header 'X-Passcode'. "
@@ -43,12 +45,14 @@ class IncidentController extends CRUDController<IncidentCommand, Incident> {
           "uuid": APISchemaObject.string(format: 'uuid')
             ..format = 'uuid'
             ..description = "Unique incident id",
-          "name": APISchemaObject.boolean()..description = "Name of incident scene",
+          "name": APISchemaObject.string()..description = "Name of incident scene",
+          "summary": APISchemaObject.string()..description = "Situation summary",
           "type": APISchemaObject.string()
             ..description = "Incident type"
             ..enumerated = [
               'lost',
               'distress',
+              'disaster',
               'other',
             ],
           "status": APISchemaObject.string()
@@ -61,130 +65,104 @@ class IncidentController extends CRUDController<IncidentCommand, Incident> {
           "resolution": APISchemaObject.string()
             ..description = "Incident resolution"
             ..enumerated = [
+              'unresolved',
               'cancelled',
+              'duplicate',
               'resolved',
             ],
           "occurred": APISchemaObject.string()
-            ..description = "Date and time the incident occurred in ISO8601 Date Time String Format"
+            ..description = "Timestamp the incident occurred in ISO8601 Date Time String Format"
             ..format = 'date-time',
           "created": APISchemaObject.string()
-            ..description = "Date and time the incident was registered in ISO8601 Date Time String Format"
+            ..description = "Timestamp the the incident was registered in ISO8601 Date Time String Format"
             ..format = 'date-time',
           "changed": APISchemaObject.string()
-            ..description = "Date and time the incident was last changed in ISO8601 Date Time String Format"
+            ..description = "Timestamp when the incident was last changed in ISO8601 Date Time String Format"
             ..format = 'date-time',
-          "reference": APISchemaObject.string()..description = "External reference from requesting authority",
-          "justification": APISchemaObject.string()..description = "Justification for registering the incident",
-          "talkGroups": APISchemaObject.array(ofSchema: context.schema['TalkGroup'])
-            ..description = "List of talk gropus in used",
-          "ipp": context.schema['Location']..description = "Initial planning point",
-          "meetup": context.schema['Location']..description = "On scene meeting point",
+          "clues": APISchemaObject.array(ofSchema: context.schema['Clue'])
+            ..description = "List of Clues for planning and response",
+          "subjects": APISchemaObject.array(ofSchema: context.schema['Subject'])
+            ..description = "List of Subjects involved in the incident",
+          "passcodes": context.schema['PassCodes']..description = "Passcodes for Incident access rights",
         },
       )..required = [
           'uuid',
           'name',
+          'summary',
           'type',
           'status',
+          'resolution',
           'occured',
           'created',
           'updated',
-          'justification',
-          'ipp',
-          'meetup',
         ];
 
   @override
   Map<String, APISchemaObject> documentEntities(APIDocumentContext context) => {
-        "TalkGroup": documentTalkGroup(),
-        "Location": documentLocation(context),
-        "Point": documentPoint(),
-        "Address": documentAddress(),
-        "PassCodes": documentPassCodes(),
+        "Clue": documentClue(context),
+        "Subject": documentSubject(context),
       };
 
-  APISchemaObject documentTalkGroup() => APISchemaObject.object(
+  APISchemaObject documentSubject(APIDocumentContext context) => APISchemaObject.object(
         {
-          "name": APISchemaObject.boolean()..description = "Talkgroup identifier",
+          "name": APISchemaObject.string()..description = "Subject name",
+          "situation": APISchemaObject.string()..description = "Subject situation",
           "type": APISchemaObject.string()
-            ..description = "Talkgroup type"
+            ..description = "Subject type"
             ..enumerated = [
-              'tetra',
-              'marine',
-              'analog',
+              'person',
+              'vehicle',
+              'other',
             ],
+          "quality": APISchemaObject.string()
+            ..description = "Clue quality assessment"
+            ..enumerated = [
+              'confirmed',
+              'plausable',
+              'possible',
+              'unlikely',
+              'rejected',
+            ],
+          "location": context.schema['Location']..description = "Rescue or assitance location",
         },
       )
-        ..description = "TalkGroup Schema"
+        ..description = "Objective Schema"
         ..required = [
           'name',
           'type',
+          'situation',
+          'quality',
         ];
 
-  APISchemaObject documentLocation(APIDocumentContext context) => APISchemaObject.object(
+  APISchemaObject documentClue(APIDocumentContext context) => APISchemaObject.object(
         {
-          "point": APISchemaObject.array(ofSchema: context.schema['Point'])..description = "Location position",
-          "address": APISchemaObject.array(ofSchema: context.schema['Address'])..description = "Location address",
-          "description": APISchemaObject.string()..description = "Location description",
-        },
-      )
-        ..description = "Location Schema"
-        ..required = [
-          'point',
-        ];
-
-  APISchemaObject documentPoint() => APISchemaObject.object(
-        {
-          "lat": APISchemaObject.number()..description = "Latitude in decimal degrees",
-          "lon": APISchemaObject.number()..description = "Longitude in decimal degrees",
-          "alt": APISchemaObject.number()..description = "Altitude above sea level in meters",
-          "acc": APISchemaObject.number()..description = "Accuracy in meters",
-          "timestamp": APISchemaObject.string()
-            ..description = "Timestamp in ISO8601 Date Time String Format"
-            ..format = "date-time",
+          "name": APISchemaObject.array(ofSchema: context.schema['Point'])..description = "Clue name",
+          "description": APISchemaObject.string()..description = "Clue description",
           "type": APISchemaObject.string()
-            ..description = "Point type"
+            ..description = "Clue type"
             ..enumerated = [
-              'manual',
-              'device',
-              'personnel',
-              'aggregated',
+              'find',
+              'condition',
+              'observation',
+              'circumstance',
             ],
+          "quality": APISchemaObject.string()
+            ..description = "Clue quality assessment"
+            ..enumerated = [
+              'confirmed',
+              'plausable',
+              'possible',
+              'unlikely',
+              'rejected',
+            ],
+          "location": APISchemaObject.array(ofSchema: context.schema['Location'])
+            ..description = "Rescue or assitance location",
         },
       )
-        ..description = "Point Schema"
+        ..description = "Objective Schema"
         ..required = [
-          'lat',
-          'lon',
-          'timestamp',
-        ];
-
-  APISchemaObject documentAddress() => APISchemaObject.object(
-        {
-          "lines": APISchemaObject.array(ofType: APIType.string)
-            ..description = "Pass codes for authorizing access to incident data"
-            ..type = APIType.string,
-          "city": APISchemaObject.string()..description = "City name",
-          "postalCode": APISchemaObject.string()..description = "Postal, state or zip code",
-          "countryCode": APISchemaObject.string()..description = "ISO 3166 country code",
-        },
-      )
-        ..description = "Point Schema"
-        ..required = [
-          'lat',
-          'lon',
-          'timestamp',
-        ];
-
-  // TODO: Use https://pub.dev/packages/password to hash pass codes in streams?
-  APISchemaObject documentPassCodes() => APISchemaObject.object(
-        {
-          "commander": APISchemaObject.string()..description = "Passcode for access with Commander rights",
-          "personnel": APISchemaObject.string()..description = "Passcode for access with Personnel rights",
-        },
-      )
-        ..description = "Pass codes for access rights to spesific Incident instance"
-        ..required = [
-          'commander',
-          'personnel',
+          'name',
+          'type',
+          'quality',
         ];
 }

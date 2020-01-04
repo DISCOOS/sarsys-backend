@@ -1,18 +1,21 @@
-import 'package:sarsys_app_server/auth/oidc.dart';
-import 'package:sarsys_app_server/controllers/health_controller.dart';
-import 'package:sarsys_app_server/controllers/app_config_controller.dart';
-import 'package:sarsys_app_server/domain/messages.dart';
-import 'package:sarsys_app_server/eventsource/eventsource.dart';
+import 'package:http/http.dart';
 
+import 'auth/oidc.dart';
+import 'controllers/app_config_controller.dart';
+import 'controllers/health_controller.dart';
 import 'controllers/incident_controller.dart';
+import 'controllers/operation_controller.dart';
 import 'controllers/websocket_controller.dart';
-import 'domain/incident/events.dart';
 import 'domain/incident/incident.dart';
+import 'domain/messages.dart';
+import 'domain/operation/operation.dart' as sar;
 import 'domain/tenant/app_config.dart';
+import 'eventsource/eventsource.dart';
+
 import 'sarsys_app_server.dart';
 
 /// MUST BE used when bootstrapping Aqueduct
-const int isolateStartupTimeout = 120;
+const int isolateStartupTimeout = 30;
 
 /// This type initializes an application.
 ///
@@ -80,10 +83,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     // Register repositories
     manager.register<AppConfig>((manager) => AppConfigRepository(manager));
     manager.register<Incident>((manager) => IncidentRepository(manager));
-
-    /// Build resources
-    await manager.build();
-    logger.info("Built repositories in ${stopwatch.elapsedMilliseconds}ms");
+    manager.register<sar.Operation>((manager) => sar.OperationRepository(manager));
 
     // Register events handled by message broker
     messages.register<AppConfigCreated>(manager.bus);
@@ -95,10 +95,29 @@ class SarSysAppServerChannel extends ApplicationChannel {
     messages.register<IncidentResolved>(manager.bus);
     messages.build();
 
-    // Sanity check
     if (stopwatch.elapsed.inSeconds > isolateStartupTimeout * 0.8) {
       logger.severe("Approaching maximum duration to wait for each isolate to complete startup");
     }
+
+    // Defer repository builds so that isolates are not killed on eventstore connection timeouts
+    Future.delayed(
+      const Duration(milliseconds: 1),
+      () => _buildWithRetries(stopwatch),
+    );
+  }
+
+  void _buildWithRetries(Stopwatch stopwatch) async {
+    /// Build resources
+    try {
+      await manager.build();
+      logger.info("Built repositories in ${stopwatch.elapsedMilliseconds}ms => ready for aggregate requests!");
+      return;
+    } on ClientException catch (e) {
+      logger.severe("Failed to connect to eventstore with ${manager.connection} with: $e => retrying in 2 seconds");
+    } on SocketException catch (e) {
+      logger.severe("Failed to connect to eventstore with ${manager.connection} with: $e => retrying in 2 seconds");
+    }
+    await Future.delayed(const Duration(seconds: 2), () => _buildWithRetries(stopwatch));
   }
 
   void _loadConfig() {
@@ -137,8 +156,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
 
   /// Construct the request channel.
   ///
-  /// Return an instance of some [Controller] that will be the initial receiver
-  /// of all [Request]s.
+  /// Return an instance of some [Controller] that will be the initial receiverof all requests.
   ///
   /// This method is invoked after [prepare].
   @override
@@ -161,7 +179,10 @@ class SarSysAppServerChannel extends ApplicationChannel {
       ..route('/api/healthz').link(() => HealthController())
       ..route('/api/messages/connect').link(() => WebSocketController(messages))
       ..route('/api/app-configs[/:uuid]').link(() => AppConfigController(manager.get<AppConfigRepository>()))
-      ..route('/api/incidents[/:uuid]').link(() => IncidentController(manager.get<IncidentRepository>()));
+      ..route('/api/incidents[/:uuid]').link(() => IncidentController(manager.get<IncidentRepository>()))
+      ..route('/api/incidents/:uuid/operations[/:operationId]').link(
+        () => OperationController(manager.get<sar.OperationRepository>()),
+      );
   }
 
   @override
@@ -193,9 +214,32 @@ class SarSysAppServerChannel extends ApplicationChannel {
     return super.close();
   }
 
+  //////////////////////////////////
+  // Documentation
+  //////////////////////////////////
+
   @override
   void documentComponents(APIDocumentContext registry) {
-    registry.responses
+    documentResponses(registry);
+    registry.schema.register('PassCodes', documentPassCodes());
+    super.documentComponents(registry);
+  }
+
+  // TODO: Use https://pub.dev/packages/password to hash pass codes in streams?
+  APISchemaObject documentPassCodes() => APISchemaObject.object(
+        {
+          "commander": APISchemaObject.string()..description = "Passcode for access with Commander rights",
+          "personnel": APISchemaObject.string()..description = "Passcode for access with Personnel rights",
+        },
+      )
+        ..description = "Pass codes for access rights to spesific Incident instance"
+        ..required = [
+          'commander',
+          'personnel',
+        ];
+
+  APIComponentCollection<APIResponse> documentResponses(APIDocumentContext registry) {
+    return registry.responses
       ..register(
           "201",
           APIResponse(
@@ -241,6 +285,5 @@ class SarSysAppServerChannel extends ApplicationChannel {
             "Service unavailable. The server is not ready to handle the request. "
             "Common causes are a server that is down for maintenance or that is overloaded.",
           ));
-    super.documentComponents(registry);
   }
 }
