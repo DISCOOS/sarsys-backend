@@ -1,3 +1,6 @@
+# Default host IP
+HOST = 0.0.0.0
+
 # Detect operating system in Makefile.
 ifeq ($(OS),Windows_NT)
 	OSNAME = WIN32
@@ -8,13 +11,17 @@ else
 	endif
 	ifeq ($(UNAME_S),Darwin)
 		OSNAME = OSX
+		# Mac OSX workaround
+		HOST = host.docker.internal
 	endif
 endif
 
+
+
 .PHONY: \
-	check commit test serve document models build push publish restart rollback status
+	check commit test serve document models snapshot localhost build push publish restart rollback status
 .SILENT: \
-	check commit test serve document models build push publish restart rollback status
+	check commit test serve document models snapshot localhost build push publish restart rollback status
 
 check:
 	if [[ `git status --porcelain` ]]; then echo 'You have changes, aborting.'; exit 1; else echo "No changes"; fi
@@ -30,7 +37,8 @@ serve:
 
 document:
 	echo "Generate OpenAPI document..."
-	aqueduct document --title "SarSys App Server" --host https://sarsys.app --host http://localhost --machine | tail -1 > web/sarsys.json
+	aqueduct document --title "SarSys App Server" --host https://sarsys.app \
+		--host http://localhost --machine | tail -1 > web/sarsys.json
 	echo "[✓] Generate OpenAPI document"
 
 models:
@@ -38,11 +46,26 @@ models:
 	pub run build_runner build --delete-conflicting-outputs; \
 	echo "[✓] Generating models complete."
 
+snapshot:
+	echo "Build dart JIT snapshot of bin/main.dart (faster boot and less memory usage) ..."
+	dart --snapshot=bin/main.snapshot --snapshot-kind=app-jit bin/main.dart \
+		--port 8082 --instances 1 --config config.src.yaml --training=true
+	echo "[✓] Building dart snapshot bin/main.snapshot finished"
+	echo "Start SarSys App Server from dart snapshot with config.src.yaml..."
+	dart bin/main.snapshot --port 80 --instances 1 --config config.src.yaml
+	echo "[✓] SarSys App Server listening at http://127.0.0.1:80"
+
 build: test document
 	echo "Build docker image..."
 	docker pull google/dart
 	docker build --no-cache -t discoos/sarsys_app_server:latest .
 	echo "[✓] Build docker image finished"
+
+localhost:
+	echo "Start SarSys App Server as docker container ..."
+	echo "$(OSNAME): Host IP available using $(HOST)"
+	docker run -i -t -p 80:8082 --env EVENTSTORE_HOST=http://$(HOST) --env EVENTSTORE_PORT=2113 --env EVENTSTORE_LOGIN=admin --env EVENTSTORE_PASSWORD=changeit --env TENANT=discoos --rm --name sarsys_app_server discoos/sarsys_app_server:latest
+	echo "[✓] SarSys App Server listening at http://127.0.0.1:80"
 
 push:
 	echo "Push changes to github..."
