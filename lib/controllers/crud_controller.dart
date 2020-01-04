@@ -12,7 +12,7 @@ abstract class CRUDController<S extends Command, T extends AggregateRoot> extend
   FutureOr<RequestOrResponse> willProcessRequest(Request req) => repository.ready
       ? req
       : serviceUnavailable(
-          body: "$repository is unavailable: build pending",
+          body: "Repository ${repository.runtimeType} is unavailable: build pending",
         );
 
   // GET /app-config
