@@ -175,6 +175,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   /// Map of aggregate roots
   final Map<String, T> _aggregates = {};
 
+  /// Flag indicating that [build] succeeded
+  bool _ready = false;
+  bool get ready => _ready;
+
   /// Build repository from local events.
   Future build() async {
     final events = await store.replay(this);
@@ -184,6 +188,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
       logger.info("Repository loaded with ${_aggregates.length} aggregates");
     }
     store.subscribe(this);
+    _ready = true;
   }
 
   /// Get number of aggregates
