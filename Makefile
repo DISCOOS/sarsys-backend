@@ -19,9 +19,9 @@ endif
 
 
 .PHONY: \
-	check commit test serve document models snapshot localhost build push publish restart rollback status
+	check commit test serve document models snapshot localhost build push publish restart rollback status eventstore
 .SILENT: \
-	check commit test serve document models snapshot localhost build push publish restart rollback status
+	check commit test serve document models snapshot localhost build push publish restart rollback status eventstore
 
 check:
 	if [[ `git status --porcelain` ]]; then echo 'You have changes, aborting.'; exit 1; else echo "No changes"; fi
@@ -64,7 +64,7 @@ build: test document
 localhost:
 	echo "Start SarSys App Server as docker container ..."
 	echo "$(OSNAME): Host IP available using $(HOST)"
-	docker run -i -t -p 80:8082 --env EVENTSTORE_HOST=http://$(HOST) --env EVENTSTORE_PORT=2113 --env EVENTSTORE_LOGIN=admin --env EVENTSTORE_PASSWORD=changeit --env TENANT=discoos --rm --name sarsys_app_server discoos/sarsys_app_server:latest
+	docker run -d -i -t -p 80:8082 --env EVENTSTORE_HOST=http://$(HOST) --env EVENTSTORE_PORT=2113 --env EVENTSTORE_LOGIN=admin --env EVENTSTORE_PASSWORD=changeit --env TENANT=discoos --rm --name sarsys_app_server discoos/sarsys_app_server:latest
 	echo "[✓] SarSys App Server listening at http://127.0.0.1:80"
 
 push:
@@ -111,3 +111,8 @@ status:
 	echo "Fetching rollout history from kubernetes..."
 	kubectl -n sarsys rollout history deployment sarsys-app-server
 	echo "[✓] Status finished"
+
+eventstore:
+	echo "Starting eventstore..."
+	docker run -d --rm --name eventstore -p 2113:2113 -p 1113:1113 eventstore/eventstore
+	echo "[✓] Eventstore started"
