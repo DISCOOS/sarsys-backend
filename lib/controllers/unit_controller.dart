@@ -6,7 +6,7 @@ import 'package:sarsys_app_server/sarsys_app_server.dart';
 
 /// A ResourceController that handles
 /// [/api/units](http://localhost/api/client.html#/Unit) requests
-class UnitController extends CRUDController<UnitCommand, Unit> {
+class UnitController extends AggregateController<UnitCommand, Unit> {
   UnitController(UnitRepository repository) : super(repository);
 
   @override

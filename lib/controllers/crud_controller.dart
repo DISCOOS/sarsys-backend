@@ -5,8 +5,8 @@ import 'package:sarsys_app_server/validation/validation.dart';
 // TODO: Add support for entities as query-param to limit default response to only value objects
 
 /// A basic CRUD ResourceController for [AggregateRoot] requests
-abstract class CRUDController<S extends Command, T extends AggregateRoot> extends ResourceController {
-  CRUDController(this.repository, {this.validator});
+abstract class AggregateController<S extends Command, T extends AggregateRoot> extends ResourceController {
+  AggregateController(this.repository, {this.validator});
   final RequestValidator validator;
   final Repository<S, T> repository;
 
@@ -19,7 +19,10 @@ abstract class CRUDController<S extends Command, T extends AggregateRoot> extend
           body: "Repository ${repository.runtimeType} is unavailable: build pending",
         );
 
-  // GET /app-config
+  //////////////////////////////////
+  // Aggregate Operations
+  //////////////////////////////////
+
   @Operation.get()
   Future<Response> getAll({
     @Bind.query('offset') int offset = 0,
@@ -40,9 +43,8 @@ abstract class CRUDController<S extends Command, T extends AggregateRoot> extend
     }
   }
 
-  // GET /app-config/:id
   @Operation.get('uuid')
-  Future<Response> getById(@Bind.path('uuid') String uuid) async {
+  Future<Response> getByUuid(@Bind.path('uuid') String uuid) async {
     if (!repository.contains(uuid)) {
       return Response.notFound();
     }
@@ -55,7 +57,6 @@ abstract class CRUDController<S extends Command, T extends AggregateRoot> extend
     }
   }
 
-  // POST /app-config
   @Operation.post()
   Future<Response> post(@Bind.body() Map<String, dynamic> data) async {
     try {
@@ -76,9 +77,8 @@ abstract class CRUDController<S extends Command, T extends AggregateRoot> extend
     }
   }
 
-  S create(Map<String, dynamic> data) => throw UnsupportedError("Delete not implemented");
+  S create(Map<String, dynamic> data) => throw UnsupportedError("Create not implemented");
 
-  // PATCH /app-config/:id
   @Operation('PATCH', 'uuid')
   Future<Response> patch(@Bind.path('uuid') String uuid, @Bind.body() Map<String, dynamic> data) async {
     try {
@@ -100,7 +100,7 @@ abstract class CRUDController<S extends Command, T extends AggregateRoot> extend
     }
   }
 
-  S update(Map<String, dynamic> data) => throw UnsupportedError("Delete not implemented");
+  S update(Map<String, dynamic> data) => throw UnsupportedError("Update not implemented");
 
   //////////////////////////////////
   // Documentation

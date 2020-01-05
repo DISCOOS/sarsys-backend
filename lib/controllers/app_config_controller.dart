@@ -5,7 +5,7 @@ import 'package:sarsys_app_server/validation/validation.dart';
 
 /// A ResourceController that handles
 /// [/api/app-config](http://localhost/api/client.html#/AppConfig) [Request]s
-class AppConfigController extends CRUDController<AppConfigCommand, AppConfig> {
+class AppConfigController extends AggregateController<AppConfigCommand, AppConfig> {
   AppConfigController(AppConfigRepository repository, RequestValidator validator)
       : super(repository, validator: validator);
 

@@ -6,7 +6,7 @@ import 'package:sarsys_app_server/sarsys_app_server.dart';
 
 /// A ResourceController that handles
 /// [/api/incidents](http://localhost/api/client.html#/Incident) requests
-class IncidentController extends CRUDController<IncidentCommand, Incident> {
+class IncidentController extends AggregateController<IncidentCommand, Incident> {
   IncidentController(IncidentRepository repository) : super(repository);
 
   @override
@@ -97,6 +97,7 @@ class IncidentController extends CRUDController<IncidentCommand, Incident> {
         "Subject": documentSubject(context),
       };
 
+  /// IncidentStatus - Value Object
   APISchemaObject documentStatus() => APISchemaObject.string()
     ..description = "Incident status"
     ..defaultValue = "registered"
@@ -106,6 +107,7 @@ class IncidentController extends CRUDController<IncidentCommand, Incident> {
       'closed',
     ];
 
+  /// IncidentResolution - Value Object
   APISchemaObject documentResolution() => APISchemaObject.string()
     ..description = "Incident resolution"
     ..defaultValue = "unresolved"

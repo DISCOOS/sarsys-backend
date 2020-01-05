@@ -6,7 +6,7 @@ import '../sarsys_app_server.dart';
 
 /// A ResourceController that handles
 /// [/api/operations](http://localhost/api/client.html#/Operation) requests
-class OperationController extends CRUDController<sar.OperationCommand, sar.Operation> {
+class OperationController extends AggregateController<sar.OperationCommand, sar.Operation> {
   OperationController(OperationRepository repository) : super(repository);
 
   @override
