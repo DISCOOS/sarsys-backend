@@ -49,7 +49,10 @@ class OperationController extends CRUDController<sar.OperationCommand, sar.Opera
         {
           "uuid": APISchemaObject.string(format: 'uuid')
             ..format = 'uuid'
-            ..description = "Unique Operation id",
+            ..description = "Unique Operation uuid",
+          "incidentUuid": APISchemaObject.string()
+            ..format = 'incident'
+            ..description = "Unique Incident uuid (required)",
           "name": APISchemaObject.string()..description = "Name of operation scene",
           "type": APISchemaObject.string()
             ..description = "Operation type"
@@ -58,9 +61,6 @@ class OperationController extends CRUDController<sar.OperationCommand, sar.Opera
               'rescue',
               'other',
             ],
-          "incident": APISchemaObject.string()
-            ..format = 'incident'
-            ..description = "Unique incident id (required)",
           "status": APISchemaObject.string()
             ..description = "Operation status"
             ..enumerated = [
@@ -95,6 +95,7 @@ class OperationController extends CRUDController<sar.OperationCommand, sar.Opera
         },
       )..required = [
           'uuid',
+          'incident',
           'name',
           'type',
           'status',
