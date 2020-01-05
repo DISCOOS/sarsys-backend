@@ -8,11 +8,13 @@ import 'controllers/app_config_controller.dart';
 import 'controllers/health_controller.dart';
 import 'controllers/incident_controller.dart';
 import 'controllers/operation_controller.dart';
+import 'controllers/unit_controller.dart';
 import 'controllers/websocket_controller.dart';
 import 'domain/incident/incident.dart';
 import 'domain/messages.dart';
 import 'domain/operation/operation.dart' as sar;
 import 'domain/tenant/app_config.dart';
+import 'domain/unit/unit.dart';
 import 'eventsource/eventsource.dart';
 
 import 'sarsys_app_server.dart';
@@ -105,7 +107,8 @@ class SarSysAppServerChannel extends ApplicationChannel {
             requestValidator,
           ))
       ..route('/api/incidents[/:uuid]').link(() => IncidentController(manager.get<IncidentRepository>()))
-      ..route('/api/operations[/:uuid]').link(() => OperationController(manager.get<sar.OperationRepository>()));
+      ..route('/api/operations[/:uuid]').link(() => OperationController(manager.get<sar.OperationRepository>()))
+      ..route('/api/units[/:uuid]').link(() => UnitController(manager.get<UnitRepository>()));
   }
 
   @override
@@ -181,6 +184,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     );
   }
 
+  // TODO MessageChannel
   void _buildMessageChannel() {
     messages.register<AppConfigCreated>(manager.bus);
     messages.register<AppConfigUpdated>(manager.bus);
@@ -189,6 +193,8 @@ class SarSysAppServerChannel extends ApplicationChannel {
     messages.register<IncidentRespondedTo>(manager.bus);
     messages.register<IncidentCancelled>(manager.bus);
     messages.register<IncidentResolved>(manager.bus);
+    // TODO: MessageChannel - Add Operation events
+    // TODO: MessageChannel - Add Unit events
     messages.build();
   }
 
@@ -197,6 +203,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     manager.register<AppConfig>((manager) => AppConfigRepository(manager));
     manager.register<Incident>((manager) => IncidentRepository(manager));
     manager.register<sar.Operation>((manager) => sar.OperationRepository(manager));
+    manager.register<Unit>((manager) => UnitRepository(manager));
 
     // Defer repository builds so that isolates are not killed on eventstore connection timeouts
     Future.delayed(

@@ -5,7 +5,7 @@ import 'package:sarsys_app_server/domain/incident/repository.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 
 /// A ResourceController that handles
-/// [/api/app-config](http://localhost/api/client.html#/Incident) requests
+/// [/api/incidents](http://localhost/api/client.html#/Incident) requests
 class IncidentController extends CRUDController<IncidentCommand, Incident> {
   IncidentController(IncidentRepository repository) : super(repository);
 
