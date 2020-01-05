@@ -1,9 +1,11 @@
 import 'package:sarsys_app_server/eventsource/eventsource.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
+import 'package:sarsys_app_server/validation/validation.dart';
 
 /// A basic CRUD ResourceController for [AggregateRoot] requests
 abstract class CRUDController<S extends Command, T extends AggregateRoot> extends ResourceController {
-  CRUDController(this.repository);
+  CRUDController(this.repository, {this.validator});
+  final RequestValidator validator;
   final Repository<S, T> repository;
 
   Type get aggregateType => typeOf<T>();
@@ -55,13 +57,15 @@ abstract class CRUDController<S extends Command, T extends AggregateRoot> extend
   @Operation.post()
   Future<Response> post(@Bind.body() Map<String, dynamic> data) async {
     try {
-      await repository.execute(create(data));
+      await repository.execute(create(validate(data)));
       return Response.created("${toLocation(request)}/${data['uuid']}");
     } on AggregateExists catch (e) {
       return Response.conflict(body: e.message);
     } on UUIDIsNull {
       return Response.badRequest(body: "Field [uuid] in $aggregateType is required");
     } on InvalidOperation catch (e) {
+      return Response.badRequest(body: e.message);
+    } on SchemaException catch (e) {
       return Response.badRequest(body: e.message);
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
@@ -77,13 +81,15 @@ abstract class CRUDController<S extends Command, T extends AggregateRoot> extend
   Future<Response> patch(@Bind.path('uuid') String uuid, @Bind.body() Map<String, dynamic> data) async {
     try {
       data['uuid'] = uuid;
-      final events = await repository.execute(update(data));
+      final events = await repository.execute(update(validate(data)));
       return events.isEmpty ? Response.noContent() : Response.noContent();
     } on AggregateNotFound catch (e) {
       return Response.notFound(body: e.message);
     } on UUIDIsNull {
       return Response.badRequest(body: "Field [uuid] in $aggregateType is required");
     } on InvalidOperation catch (e) {
+      return Response.badRequest(body: e.message);
+    } on SchemaException catch (e) {
       return Response.badRequest(body: e.message);
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
@@ -238,4 +244,11 @@ abstract class CRUDController<S extends Command, T extends AggregateRoot> extend
   APISchemaObject documentAggregate(APIDocumentContext context);
 
   Map<String, APISchemaObject> documentEntities(APIDocumentContext context) => {};
+
+  Map<String, dynamic> validate(Map<String, dynamic> data) {
+    if (validator != null) {
+      validator.validateBody("$aggregateType", data);
+    }
+    return data;
+  }
 }

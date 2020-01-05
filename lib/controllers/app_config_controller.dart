@@ -1,11 +1,13 @@
 import 'package:sarsys_app_server/controllers/crud_controller.dart';
 import 'package:sarsys_app_server/domain/tenant/app_config.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
+import 'package:sarsys_app_server/validation/validation.dart';
 
 /// A ResourceController that handles
 /// [/api/app-config](http://localhost/api/client.html#/AppConfig) [Request]s
 class AppConfigController extends CRUDController<AppConfigCommand, AppConfig> {
-  AppConfigController(AppConfigRepository repository) : super(repository);
+  AppConfigController(AppConfigRepository repository, RequestValidator validator)
+      : super(repository, validator: validator);
 
   @override
   AppConfigCommand create(Map<String, dynamic> data) => CreateAppConfig(data);
@@ -51,20 +53,20 @@ class AppConfigController extends CRUDController<AppConfigCommand, AppConfig> {
             ..description = "Role of logged in user in demo-mode"
             ..defaultValue = "Commander"
             ..enumerated = [
-              'Commander',
-              'UnitLeader',
-              'Personnel',
+              'commander',
+              'unitleader',
+              'personnel',
             ],
           "onboarding": APISchemaObject.boolean()
             ..description = "Show onboarding before next login"
             ..defaultValue = true,
-          "organization": APISchemaObject.integer()
+          "organization": APISchemaObject.string()
             ..description = "Default organization identifier"
             ..defaultValue = "61",
-          "division": APISchemaObject.integer()
+          "division": APISchemaObject.string()
             ..description = "Default division identifier"
             ..defaultValue = "140",
-          "department": APISchemaObject.integer()
+          "department": APISchemaObject.string()
             ..description = "Default department identifier"
             ..defaultValue = "141",
           "talkGroupCatalog": APISchemaObject.string()

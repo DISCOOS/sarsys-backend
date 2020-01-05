@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:http/http.dart';
+import 'package:sarsys_app_server/validation/validation.dart';
 
 import 'auth/oidc.dart';
 import 'controllers/app_config_controller.dart';
@@ -17,13 +20,24 @@ import 'sarsys_app_server.dart';
 /// MUST BE used when bootstrapping Aqueduct
 const int isolateStartupTimeout = 30;
 
+/// Accepted ID token scopes
+const List<String> scopes = [
+  'roles:admin',
+  'roles:commander',
+  'roles:unit_leader',
+  'roles:personnel',
+];
+
+/// Path to SarSys OpenAPI specification file
+const String apiSpecPath = 'web/sarsys.json';
+
 /// This type initializes an application.
 ///
 /// Override methods in this class to set up routes and initialize services like
 /// database connections. See http://aqueduct.io/docs/http/channel/.
 class SarSysAppServerChannel extends ApplicationChannel {
   /// Validates oidc tokens against scopes
-  final OIDCValidator validator = OIDCValidator();
+  final OIDCValidator authValidator = OIDCValidator();
 
   /// Channel responsible for distributing messages to client applications
   final MessageChannel messages = MessageChannel(
@@ -32,6 +46,9 @@ class SarSysAppServerChannel extends ApplicationChannel {
 
   /// Loaded in [prepare]
   SarSysConfig config;
+
+  /// Validates requests against current open api specification
+  RequestValidator requestValidator;
 
   /// Manages an [Repository] for each registered [AggregateRoot]
   RepositoryManager manager;
@@ -50,77 +67,59 @@ class SarSysAppServerChannel extends ApplicationChannel {
   Future prepare() async {
     final stopwatch = Stopwatch()..start();
 
-    // Parse from config file, given by --config to main.dart or default config.yaml
     _loadConfig();
-
-    // Set log level
-    Logger.root.level = Level.LEVELS.firstWhere(
-      (level) => level.name == config.level,
-      orElse: () => Level.INFO,
-    );
-    logger.info("Log level set to ${Logger.root.level.name}");
-
-    // Set namespace as canonical stream prefix for given tenant
-    final namespace = EventStore.toCanonical([
-      config.tenant,
-      config.prefix,
-    ]);
-
-    // Construct manager from configurations
-    manager = RepositoryManager(
-      MessageBus(),
-      EventStoreConnection(
-        host: config.eventstore.host,
-        port: config.eventstore.port,
-        credentials: UserCredentials(
-          login: config.eventstore.login,
-          password: config.eventstore.password,
-        ),
-      ),
-      prefix: namespace,
-    );
-
-    // Register repositories
-    manager.register<AppConfig>((manager) => AppConfigRepository(manager));
-    manager.register<Incident>((manager) => IncidentRepository(manager));
-    manager.register<sar.Operation>((manager) => sar.OperationRepository(manager));
-
-    // Register events handled by message broker
-    messages.register<AppConfigCreated>(manager.bus);
-    messages.register<AppConfigUpdated>(manager.bus);
-    messages.register<IncidentRegistered>(manager.bus);
-    messages.register<IncidentInformationUpdated>(manager.bus);
-    messages.register<IncidentRespondedTo>(manager.bus);
-    messages.register<IncidentCancelled>(manager.bus);
-    messages.register<IncidentResolved>(manager.bus);
-    messages.build();
+    _configureLogger();
+    _buildValidators();
+    _buildRepoManager();
+    _buildRepos(stopwatch);
+    _buildMessageChannel();
 
     if (stopwatch.elapsed.inSeconds > isolateStartupTimeout * 0.8) {
       logger.severe("Approaching maximum duration to wait for each isolate to complete startup");
     }
-
-    // Defer repository builds so that isolates are not killed on eventstore connection timeouts
-    Future.delayed(
-      const Duration(milliseconds: 1),
-      () => _buildWithRetries(stopwatch),
-    );
   }
 
-  void _buildWithRetries(Stopwatch stopwatch) async {
-    /// Build resources
-    try {
-      await manager.build();
-      logger.info("Built repositories in ${stopwatch.elapsedMilliseconds}ms => ready for aggregate requests!");
-      return;
-    } on ClientException catch (e) {
-      logger.severe("Failed to connect to eventstore with ${manager.connection} with: $e => retrying in 2 seconds");
-    } on SocketException catch (e) {
-      logger.severe("Failed to connect to eventstore with ${manager.connection} with: $e => retrying in 2 seconds");
+  /// Construct the request channel.
+  ///
+  /// Return an instance of some [Controller] that will be the initial receiverof all requests.
+  ///
+  /// This method is invoked after [prepare].
+  @override
+  Controller get entryPoint {
+    final authorizer = Authorizer.bearer(authValidator, scopes: scopes);
+    return Router()
+      ..route('/').link(() => authorizer)
+      ..route('/api/*').link(
+        () => FileController("web")
+          ..addCachePolicy(
+            const CachePolicy(preventCaching: true),
+            (p) => p.endsWith("client.html"),
+          ),
+      )
+      ..route('/api/healthz').link(() => HealthController())
+      ..route('/api/messages/connect').link(() => WebSocketController(messages))
+      ..route('/api/app-configs[/:uuid]').link(() => AppConfigController(
+            manager.get<AppConfigRepository>(),
+            requestValidator,
+          ))
+      ..route('/api/incidents[/:uuid]').link(() => IncidentController(manager.get<IncidentRepository>()))
+      ..route('/api/operations[/:uuid]').link(() => OperationController(manager.get<sar.OperationRepository>()));
+  }
+
+  @override
+  void willStartReceivingRequests() {
+    // Set k8s information for debugging purposes
+    if (config.debug == true) {
+      _setResponseFromEnv("TENANT", "X-Tenant");
+      _setResponseFromEnv("PREFIX", "X-Prefix");
+      _setResponseFromEnv("NODE_NAME", "X-Node-Name");
+      _setResponseFromEnv("POD_NAME", "X-Pod-Name");
+      _setResponseFromEnv("POD_NAMESPACE", "X-Pod-Namespace");
     }
-    await Future.delayed(const Duration(seconds: 2), () => _buildWithRetries(stopwatch));
   }
 
   void _loadConfig() {
+    // Parse from config file, given by --config to main.dart or default config.yaml
     config = SarSysConfig(options.configurationFilePath);
     logger.onRecord.listen(
       (record) => printRecord(record, debug: config.debug),
@@ -144,55 +143,78 @@ class SarSysAppServerChannel extends ApplicationChannel {
     logger.info("TENANT is '${config.tenant == null ? 'not set' : '${config.tenant}'}'");
   }
 
-  /// Print [LogRecord] formatted
-  static void printRecord(LogRecord rec, {bool debug = false}) {
-    print(
-      "${rec.time}: ${rec.level.name}: "
-      "${debug ? '${rec.loggerName}: ' : ''}"
-      "${debug && Platform.environment.containsKey('POD-NAME') ? '${Platform.environment['POD-NAME']}: ' : ''}"
-      "${rec.message} ${rec.error ?? ""} ${rec.stackTrace ?? ""}",
+  void _configureLogger() {
+    Logger.root.level = Level.LEVELS.firstWhere(
+      (level) => level.name == config.level,
+      orElse: () => Level.INFO,
+    );
+    logger.info("Log level set to ${Logger.root.level.name}");
+  }
+
+  void _buildValidators() {
+    final file = File(apiSpecPath);
+    final spec = file.readAsStringSync();
+    final data = json.decode(spec.isEmpty ? '{}' : spec);
+    requestValidator = RequestValidator(data as Map<String, dynamic>);
+  }
+
+  void _buildRepoManager() {
+    final namespace = EventStore.toCanonical([
+      config.tenant,
+      config.prefix,
+    ]);
+
+    // Construct manager from configurations
+    manager = RepositoryManager(
+      MessageBus(),
+      EventStoreConnection(
+        host: config.eventstore.host,
+        port: config.eventstore.port,
+        credentials: UserCredentials(
+          login: config.eventstore.login,
+          password: config.eventstore.password,
+        ),
+      ),
+      prefix: namespace,
     );
   }
 
-  /// Construct the request channel.
-  ///
-  /// Return an instance of some [Controller] that will be the initial receiverof all requests.
-  ///
-  /// This method is invoked after [prepare].
-  @override
-  Controller get entryPoint {
-    final authorizer = Authorizer.bearer(validator, scopes: [
-      'roles:admin',
-      'roles:commander',
-      'roles:unit_leader',
-      'roles:personnel',
-    ]);
-    return Router()
-      ..route('/').link(() => authorizer)
-      ..route('/api/*').link(
-        () => FileController("web")
-          ..addCachePolicy(
-            const CachePolicy(preventCaching: true),
-            (p) => p.endsWith("client.html"),
-          ),
-      )
-      ..route('/api/healthz').link(() => HealthController())
-      ..route('/api/messages/connect').link(() => WebSocketController(messages))
-      ..route('/api/app-configs[/:uuid]').link(() => AppConfigController(manager.get<AppConfigRepository>()))
-      ..route('/api/incidents[/:uuid]').link(() => IncidentController(manager.get<IncidentRepository>()))
-      ..route('/api/operations[/:uuid]').link(() => OperationController(manager.get<sar.OperationRepository>()));
+  void _buildMessageChannel() {
+    messages.register<AppConfigCreated>(manager.bus);
+    messages.register<AppConfigUpdated>(manager.bus);
+    messages.register<IncidentRegistered>(manager.bus);
+    messages.register<IncidentInformationUpdated>(manager.bus);
+    messages.register<IncidentRespondedTo>(manager.bus);
+    messages.register<IncidentCancelled>(manager.bus);
+    messages.register<IncidentResolved>(manager.bus);
+    messages.build();
   }
 
-  @override
-  void willStartReceivingRequests() {
-    // Set k8s information for debugging purposes
-    if (config.debug == true) {
-      _setResponseFromEnv("TENANT", "X-Tenant");
-      _setResponseFromEnv("PREFIX", "X-Prefix");
-      _setResponseFromEnv("NODE_NAME", "X-Node-Name");
-      _setResponseFromEnv("POD_NAME", "X-Pod-Name");
-      _setResponseFromEnv("POD_NAMESPACE", "X-Pod-Namespace");
+  void _buildRepos(Stopwatch stopwatch) {
+    // Register repositories
+    manager.register<AppConfig>((manager) => AppConfigRepository(manager));
+    manager.register<Incident>((manager) => IncidentRepository(manager));
+    manager.register<sar.Operation>((manager) => sar.OperationRepository(manager));
+
+    // Defer repository builds so that isolates are not killed on eventstore connection timeouts
+    Future.delayed(
+      const Duration(milliseconds: 1),
+      () => _buildReposWithRetries(stopwatch),
+    );
+  }
+
+  void _buildReposWithRetries(Stopwatch stopwatch) async {
+    /// Build resources
+    try {
+      await manager.build();
+      logger.info("Built repositories in ${stopwatch.elapsedMilliseconds}ms => ready for aggregate requests!");
+      return;
+    } on ClientException catch (e) {
+      logger.severe("Failed to connect to eventstore with ${manager.connection} with: $e => retrying in 2 seconds");
+    } on SocketException catch (e) {
+      logger.severe("Failed to connect to eventstore with ${manager.connection} with: $e => retrying in 2 seconds");
     }
+    await Future.delayed(const Duration(seconds: 2), () => _buildReposWithRetries(stopwatch));
   }
 
   void _setResponseFromEnv(String name, String header) {
@@ -202,6 +224,16 @@ class SarSysAppServerChannel extends ApplicationChannel {
         Platform.environment[name],
       );
     }
+  }
+
+  /// Print [LogRecord] formatted
+  static void printRecord(LogRecord rec, {bool debug = false}) {
+    print(
+      "${rec.time}: ${rec.level.name}: "
+      "${debug ? '${rec.loggerName}: ' : ''}"
+      "${debug && Platform.environment.containsKey('POD-NAME') ? '${Platform.environment['POD-NAME']}: ' : ''}"
+      "${rec.message} ${rec.error ?? ""} ${rec.stackTrace ?? ""}",
+    );
   }
 
   @override
