@@ -71,12 +71,6 @@ class UnitController extends CRUDController<UnitCommand, Unit> {
           "personnel": APISchemaObject.array(ofType: APIType.string)
             ..description = "List of uuid of Personnel assigned to this unit"
             ..format = 'uuid',
-          "created": APISchemaObject.string()
-            ..description = "When Unit was created"
-            ..format = 'date-time',
-          "changed": APISchemaObject.string()
-            ..description = "When Unit was last changed"
-            ..format = 'date-time',
         },
       )
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed

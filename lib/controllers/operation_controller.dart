@@ -75,12 +75,6 @@ class OperationController extends CRUDController<sar.OperationCommand, sar.Opera
             ..isReadOnly = true
             ..description = "State transitions (read only)"
             ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
-          "created": APISchemaObject.string()
-            ..description = "When Operation was created"
-            ..format = 'date-time',
-          "changed": APISchemaObject.string()
-            ..description = "When Operation was last changed"
-            ..format = 'date-time',
           "reference": APISchemaObject.string()..description = "External reference from requesting authority",
           "justification": APISchemaObject.string()..description = "Justification for responding",
           "talkGroups": APISchemaObject.array(ofSchema: context.schema['TalkGroup'])

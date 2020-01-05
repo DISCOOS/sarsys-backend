@@ -69,12 +69,6 @@ class IncidentController extends CRUDController<IncidentCommand, Incident> {
             ..isReadOnly = true
             ..description = "State transitions (read only)"
             ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
-          "created": APISchemaObject.string()
-            ..description = "When Incident was created"
-            ..format = 'date-time',
-          "changed": APISchemaObject.string()
-            ..description = "When Incident was last changed"
-            ..format = 'date-time',
           "occurred": APISchemaObject.string()
             ..description = "When Incident occurred"
             ..format = 'date-time',
