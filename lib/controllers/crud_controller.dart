@@ -2,6 +2,8 @@ import 'package:sarsys_app_server/eventsource/eventsource.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 
+// TODO: Add support for entities as query-param to limit default response to only value objects
+
 /// A basic CRUD ResourceController for [AggregateRoot] requests
 abstract class CRUDController<S extends Command, T extends AggregateRoot> extends ResourceController {
   CRUDController(this.repository, {this.validator});
@@ -238,10 +240,10 @@ abstract class CRUDController<S extends Command, T extends AggregateRoot> extend
   }
 
   Map<String, APISchemaObject> _documentSchemaObjects(APIDocumentContext context) => {
-        "$aggregateType": documentAggregate(context),
+        "$aggregateType": documentAggregateRoot(context),
       }..addAll(documentEntities(context));
 
-  APISchemaObject documentAggregate(APIDocumentContext context);
+  APISchemaObject documentAggregateRoot(APIDocumentContext context);
 
   Map<String, APISchemaObject> documentEntities(APIDocumentContext context) => {};
 

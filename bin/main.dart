@@ -17,7 +17,7 @@ Future main(List<String> args) async {
   final results = parser.parse(args);
   final training = (results['training'] as String).toLowerCase() == "true";
   final app = Application<SarSysAppServerChannel>()
-    ..isolateStartupTimeout = Duration(seconds: isolateStartupTimeout)
+    ..isolateStartupTimeout = const Duration(seconds: isolateStartupTimeout)
     ..options.configurationFilePath = results['config'] as String
     ..options.port = int.tryParse(results['port'] as String) ?? 8888;
 

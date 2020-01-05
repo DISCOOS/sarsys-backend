@@ -44,15 +44,16 @@ class OperationController extends CRUDController<sar.OperationCommand, sar.Opera
     return desc;
   }
 
+  /// Operation - Aggregate root
   @override
-  APISchemaObject documentAggregate(APIDocumentContext context) => APISchemaObject.object(
+  APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object(
         {
-          "uuid": APISchemaObject.string(format: 'uuid')
+          "uuid": APISchemaObject.string()
             ..format = 'uuid'
             ..description = "Unique Operation uuid",
           "incidentUuid": APISchemaObject.string()
-            ..format = 'incident'
-            ..description = "Unique Incident uuid (required)",
+            ..format = 'uuid'
+            ..description = "Uuid of Incident this Operation is a response to",
           "name": APISchemaObject.string()..description = "Name of operation scene",
           "type": APISchemaObject.string()
             ..description = "Operation type"
@@ -61,27 +62,24 @@ class OperationController extends CRUDController<sar.OperationCommand, sar.Opera
               'rescue',
               'other',
             ],
-          "status": APISchemaObject.string()
-            ..description = "Operation status"
-            ..enumerated = [
-              'responded',
-              'finished',
-            ],
-          "resolution": APISchemaObject.string()
-            ..description = "Operation resolution"
-            ..enumerated = [
-              'unresolved',
-              'cancelled',
-              'resolved',
-            ],
-          "responded": APISchemaObject.string()
-            ..description = "Timestamp when response occured in ISO8601 Date Time String Format"
+          "status": documentStatus(),
+          "resolution": documentOperationResolution(),
+          "transitions": APISchemaObject.array(ofType: APIType.object)
+            ..items = APISchemaObject.object({
+              "status": documentStatus(),
+              "resolution": documentOperationResolution(),
+              "timestamp": APISchemaObject.string()
+                ..description = "When transition occured"
+                ..format = 'date-time',
+            })
+            ..isReadOnly = true
+            ..description = "State transitions (read only)"
+            ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
+          "created": APISchemaObject.string()
+            ..description = "When Operation was created"
             ..format = 'date-time',
-          "onscene": APISchemaObject.string()
-            ..description = "Timestamp when first responder was on scene in ISO8601 Date Time String Format"
-            ..format = 'date-time',
-          "finished": APISchemaObject.string()
-            ..description = "Timestamp when Operation was finisehd in ISO8601 Date Time String Format"
+          "changed": APISchemaObject.string()
+            ..description = "When Operation was last changed"
             ..format = 'date-time',
           "reference": APISchemaObject.string()..description = "External reference from requesting authority",
           "justification": APISchemaObject.string()..description = "Justification for responding",
@@ -95,29 +93,101 @@ class OperationController extends CRUDController<sar.OperationCommand, sar.Opera
         },
       )
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+        // POST only
         ..required = [
           'uuid',
-          'incident',
+          'incidentUuid',
           'name',
           'type',
-          'status',
-          'responded',
-          'onscene',
-          'finished',
-          'justification',
           'ipp',
           'meetup',
+          'justification',
         ];
 
   @override
   Map<String, APISchemaObject> documentEntities(APIDocumentContext context) => {
-        "Objective": documentObjective(context),
-        "Location": documentLocation(context),
-        "TalkGroup": documentTalkGroup(),
         "Point": documentPoint(),
         "Address": documentAddress(),
+        "Address": documentAddress(),
+        "TalkGroup": documentTalkGroup(),
+        "Location": documentLocation(context),
+        "Objective": documentObjective(context),
       };
 
+  /// OperationStatus - Value object
+  APISchemaObject documentStatus() => APISchemaObject.string()
+    ..description = "Operation status"
+    ..defaultValue = "planned"
+    ..enumerated = [
+      'planned',
+      'enroute',
+      'onscene',
+      'finished',
+    ];
+
+  /// OperationResolution - Entity object
+  APISchemaObject documentOperationResolution() => APISchemaObject.string()
+    ..description = "Operation resolution"
+    ..defaultValue = "unresolved"
+    ..enumerated = [
+      'unresolved',
+      'cancelled',
+      'duplicate',
+      'resolved',
+    ];
+
+  /// ObjectiveResolution - Entity object
+  APISchemaObject documentObjectiveResolution() => APISchemaObject.string()
+    ..description = "Objective resolution"
+    ..defaultValue = "unresolved"
+    ..enumerated = [
+      'unresolved',
+      'cancelled',
+      'duplicate',
+      'resolved',
+    ];
+
+  /// Objective - Entity object
+  APISchemaObject documentObjective(APIDocumentContext context) => APISchemaObject.object(
+        {
+          "id": APISchemaObject.integer()..description = "Objective id (unique in Operation only)",
+          "name": APISchemaObject.array(ofSchema: context.schema['Point'])..description = "Objective name",
+          "description": APISchemaObject.string()..description = "Objective description",
+          "type": APISchemaObject.string()
+            ..description = "Objective type"
+            ..enumerated = [
+              'locate',
+              'rescue',
+              'assist',
+            ],
+          "location": APISchemaObject.array(ofSchema: context.schema['Location'])
+            ..description = "Rescue or assitance location",
+          "resolution": documentObjectiveResolution(),
+        },
+      )
+        ..description = "Objective Schema (entity object)"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+        ..required = [
+          'name',
+          'type',
+          'resolution',
+        ];
+
+  /// Location - Value object
+  APISchemaObject documentLocation(APIDocumentContext context) => APISchemaObject.object(
+        {
+          "point": APISchemaObject.array(ofSchema: context.schema['Point'])..description = "Location position",
+          "address": APISchemaObject.array(ofSchema: context.schema['Address'])..description = "Location address",
+          "description": APISchemaObject.string()..description = "Location description",
+        },
+      )
+        ..description = "Location Schema (value object)"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+        ..required = [
+          'point',
+        ];
+
+  /// TalkGroup - Value object
   APISchemaObject documentTalkGroup() => APISchemaObject.object(
         {
           "name": APISchemaObject.boolean()..description = "Talkgroup identifier",
@@ -130,56 +200,14 @@ class OperationController extends CRUDController<sar.OperationCommand, sar.Opera
             ],
         },
       )
-        ..description = "TalkGroup Schema"
+        ..description = "TalkGroup Schema (value object)"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
           'name',
           'type',
         ];
 
-  APISchemaObject documentObjective(APIDocumentContext context) => APISchemaObject.object(
-        {
-          "name": APISchemaObject.array(ofSchema: context.schema['Point'])..description = "Objective name",
-          "description": APISchemaObject.string()..description = "Objective description",
-          "type": APISchemaObject.string()
-            ..description = "Objective type"
-            ..enumerated = [
-              'locate',
-              'rescue',
-              'assist',
-            ],
-          "location": APISchemaObject.array(ofSchema: context.schema['Location'])
-            ..description = "Rescue or assitance location",
-          "resolution": APISchemaObject.string()
-            ..description = "Objective resolution"
-            ..enumerated = [
-              'unresolved',
-              'cancelled',
-              'resolved',
-            ],
-        },
-      )
-        ..description = "Objective Schema"
-        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
-        ..required = [
-          'name',
-          'type',
-          'resolution',
-        ];
-
-  APISchemaObject documentLocation(APIDocumentContext context) => APISchemaObject.object(
-        {
-          "point": APISchemaObject.array(ofSchema: context.schema['Point'])..description = "Location position",
-          "address": APISchemaObject.array(ofSchema: context.schema['Address'])..description = "Location address",
-          "description": APISchemaObject.string()..description = "Location description",
-        },
-      )
-        ..description = "Location Schema"
-        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
-        ..required = [
-          'point',
-        ];
-
+  /// Point - Value object
   APISchemaObject documentPoint() => APISchemaObject.object(
         {
           "lat": APISchemaObject.number()..description = "Latitude in decimal degrees",
@@ -199,7 +227,7 @@ class OperationController extends CRUDController<sar.OperationCommand, sar.Opera
             ],
         },
       )
-        ..description = "Point Schema"
+        ..description = "Point Schema (value object)"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
           'lat',
@@ -207,6 +235,7 @@ class OperationController extends CRUDController<sar.OperationCommand, sar.Opera
           'timestamp',
         ];
 
+  /// Address - Value object
   APISchemaObject documentAddress() => APISchemaObject.object(
         {
           "lines": APISchemaObject.array(ofType: APIType.string)
@@ -217,7 +246,7 @@ class OperationController extends CRUDController<sar.OperationCommand, sar.Opera
           "countryCode": APISchemaObject.string()..description = "ISO 3166 country code",
         },
       )
-        ..description = "Point Schema"
+        ..description = "Point Schema (value object)"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
           'lat',

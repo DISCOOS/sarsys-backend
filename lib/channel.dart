@@ -86,6 +86,8 @@ class SarSysAppServerChannel extends ApplicationChannel {
   /// This method is invoked after [prepare].
   @override
   Controller get entryPoint {
+    // TODO: PassCodes - implement ReadModel and validation for all protected Aggregates
+
     final authorizer = Authorizer.bearer(authValidator, scopes: scopes);
     return Router()
       ..route('/').link(() => authorizer)

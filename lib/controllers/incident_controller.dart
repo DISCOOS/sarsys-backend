@@ -39,8 +39,9 @@ class IncidentController extends CRUDController<IncidentCommand, Incident> {
     return desc;
   }
 
+  /// Incident - Aggregate root
   @override
-  APISchemaObject documentAggregate(APIDocumentContext context) => APISchemaObject.object(
+  APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object(
         {
           "uuid": APISchemaObject.string(format: 'uuid')
             ..format = 'uuid'
@@ -55,29 +56,27 @@ class IncidentController extends CRUDController<IncidentCommand, Incident> {
               'disaster',
               'other',
             ],
-          "status": APISchemaObject.string()
-            ..description = "Incident status"
-            ..enumerated = [
-              'registered',
-              'handling',
-              'closed',
-            ],
-          "resolution": APISchemaObject.string()
-            ..description = "Incident resolution"
-            ..enumerated = [
-              'unresolved',
-              'cancelled',
-              'duplicate',
-              'resolved',
-            ],
-          "occurred": APISchemaObject.string()
-            ..description = "Timestamp the incident occurred in ISO8601 Date Time String Format"
-            ..format = 'date-time',
+          "status": documentStatus(),
+          "resolution": documentResolution(),
+          "transitions": APISchemaObject.array(ofType: APIType.object)
+            ..items = APISchemaObject.object({
+              "status": documentStatus(),
+              "resolution": documentResolution(),
+              "timestamp": APISchemaObject.string()
+                ..description = "When transition occured"
+                ..format = 'date-time',
+            })
+            ..isReadOnly = true
+            ..description = "State transitions (read only)"
+            ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
           "created": APISchemaObject.string()
-            ..description = "Timestamp the the incident was registered in ISO8601 Date Time String Format"
+            ..description = "When Incident was created"
             ..format = 'date-time',
           "changed": APISchemaObject.string()
-            ..description = "Timestamp when the incident was last changed in ISO8601 Date Time String Format"
+            ..description = "When Incident was last changed"
+            ..format = 'date-time',
+          "occurred": APISchemaObject.string()
+            ..description = "When Incident occurred"
             ..format = 'date-time',
           "clues": APISchemaObject.array(ofSchema: context.schema['Clue'])
             ..description = "List of Clues for planning and response",
@@ -87,6 +86,7 @@ class IncidentController extends CRUDController<IncidentCommand, Incident> {
         },
       )
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+        // POST only
         ..required = [
           'uuid',
           'name',
@@ -95,8 +95,6 @@ class IncidentController extends CRUDController<IncidentCommand, Incident> {
           'status',
           'resolution',
           'occured',
-          'created',
-          'updated',
         ];
 
   @override
@@ -105,8 +103,30 @@ class IncidentController extends CRUDController<IncidentCommand, Incident> {
         "Subject": documentSubject(context),
       };
 
+  APISchemaObject documentStatus() => APISchemaObject.string()
+    ..description = "Incident status"
+    ..defaultValue = "registered"
+    ..enumerated = [
+      'registered',
+      'handling',
+      'closed',
+    ];
+
+  APISchemaObject documentResolution() => APISchemaObject.string()
+    ..description = "Incident resolution"
+    ..defaultValue = "unresolved"
+    ..enumerated = [
+      'unresolved',
+      'cancelled',
+      'duplicate',
+      'resolved',
+    ];
+
+  // TODO: Subject - replace name with reference to PII
+  /// Subject - Entity object
   APISchemaObject documentSubject(APIDocumentContext context) => APISchemaObject.object(
         {
+          "id": APISchemaObject.integer()..description = "Subject id (unique in Incident only)",
           "name": APISchemaObject.string()..description = "Subject name",
           "situation": APISchemaObject.string()..description = "Subject situation",
           "type": APISchemaObject.string()
@@ -137,8 +157,10 @@ class IncidentController extends CRUDController<IncidentCommand, Incident> {
           'quality',
         ];
 
+  /// Clue - Entity object
   APISchemaObject documentClue(APIDocumentContext context) => APISchemaObject.object(
         {
+          "id": APISchemaObject.integer()..description = "Clue id (unique in Incident only)",
           "name": APISchemaObject.array(ofSchema: context.schema['Point'])..description = "Clue name",
           "description": APISchemaObject.string()..description = "Clue description",
           "type": APISchemaObject.string()

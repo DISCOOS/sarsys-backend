@@ -40,8 +40,9 @@ class AppConfigController extends CRUDController<AppConfigCommand, AppConfig> {
     return desc;
   }
 
+  /// AppConfig - Aggregate root
   @override
-  APISchemaObject documentAggregate(APIDocumentContext context) => APISchemaObject.object(
+  APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object(
         {
           "uuid": APISchemaObject.string(format: 'uuid')
             ..format = 'uuid'
