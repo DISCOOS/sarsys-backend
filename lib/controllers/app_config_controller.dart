@@ -111,5 +111,8 @@ class AppConfigController extends CRUDController<AppConfigCommand, AppConfig> {
             ..description = "Sentry DNS for remote error reporting"
             ..defaultValue = 'https://2d6130375010466b9652b9e9efc415cc@sentry.io/1523681',
         },
-      )..description = "SarSys application configuration";
+      )
+        ..description = "SarSys application configuration"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+        ..required = ['uuid'];
 }

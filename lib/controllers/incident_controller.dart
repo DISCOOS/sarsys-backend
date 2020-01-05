@@ -85,7 +85,9 @@ class IncidentController extends CRUDController<IncidentCommand, Incident> {
             ..description = "List of Subjects involved in the incident",
           "passcodes": context.schema['PassCodes']..description = "Passcodes for Incident access rights",
         },
-      )..required = [
+      )
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+        ..required = [
           'uuid',
           'name',
           'summary',
@@ -127,6 +129,7 @@ class IncidentController extends CRUDController<IncidentCommand, Incident> {
         },
       )
         ..description = "Objective Schema"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
           'name',
           'type',
@@ -160,6 +163,7 @@ class IncidentController extends CRUDController<IncidentCommand, Incident> {
         },
       )
         ..description = "Objective Schema"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
           'name',
           'type',

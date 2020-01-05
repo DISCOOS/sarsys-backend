@@ -93,7 +93,9 @@ class OperationController extends CRUDController<sar.OperationCommand, sar.Opera
             ..description = "List of Operation objectives",
           "passcodes": context.schema['PassCodes']..description = "Passcodes for Operation access rights",
         },
-      )..required = [
+      )
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+        ..required = [
           'uuid',
           'incident',
           'name',
@@ -129,6 +131,7 @@ class OperationController extends CRUDController<sar.OperationCommand, sar.Opera
         },
       )
         ..description = "TalkGroup Schema"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
           'name',
           'type',
@@ -157,6 +160,7 @@ class OperationController extends CRUDController<sar.OperationCommand, sar.Opera
         },
       )
         ..description = "Objective Schema"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
           'name',
           'type',
@@ -171,6 +175,7 @@ class OperationController extends CRUDController<sar.OperationCommand, sar.Opera
         },
       )
         ..description = "Location Schema"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
           'point',
         ];
@@ -195,6 +200,7 @@ class OperationController extends CRUDController<sar.OperationCommand, sar.Opera
         },
       )
         ..description = "Point Schema"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
           'lat',
           'lon',
@@ -212,6 +218,7 @@ class OperationController extends CRUDController<sar.OperationCommand, sar.Opera
         },
       )
         ..description = "Point Schema"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
           'lat',
           'lon',

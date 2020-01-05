@@ -263,6 +263,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
         },
       )
         ..description = "Pass codes for access rights to spesific Incident instance"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
           'commander',
           'personnel',
