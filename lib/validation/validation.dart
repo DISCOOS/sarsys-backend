@@ -4,16 +4,19 @@ import 'package:sarsys_app_server/sarsys_app_server.dart';
 class RequestValidator {
   RequestValidator(this.specification);
   final Map<String, dynamic> specification;
-  final Map<String, JsonSchema> schemas = {};
+  final Map<String, JsonSchema> validating = {};
 
-  JsonSchema _withSchema(String ref) {
-    if (!schemas.containsKey(ref)) {
-      schemas[ref] = _toSchema(ref);
+  /// Validate OpenAPI schemas
+  JsonSchema withSchema() {
+    if (!validating.containsKey('schemas')) {
+      validating['schemas'] = JsonSchema.createSchema({
+        "components": {"schemas": specification["components"]["schemas"]}
+      });
     }
-    return schemas[ref];
+    return validating['schemas'];
   }
 
-  JsonSchema _toSchema(String ref) {
+  bool has(String ref) {
     final parts = ref.split('/');
     if (parts.first != '#') {
       throw SchemaException("$ref is not a json schema reference");
@@ -27,11 +30,14 @@ class RequestValidator {
       }
       throw SchemaException("Specification $parent is not a object map");
     });
-    return JsonSchema.createSchema(data);
+    return data != null;
   }
 
   void validateBody(String schema, dynamic data) {
-    final errors = _withSchema("#/components/schemas/$schema").validateWithErrors(data)
+    if (!has("#/components/schemas/$schema")) {
+      throw SchemaException("Schema $schema does not exist");
+    }
+    final errors = withSchema().validateWithErrors(data)
       ..removeWhere(
         (error) => error.message == 'uuid not supported as format',
       );
