@@ -105,9 +105,10 @@ enum Action {
 abstract class Command extends Message {
   Command(
     this.action, {
+    String uuid,
     this.uuidFieldName = 'uuid',
     this.data = const {},
-  });
+  }) : _uuid = uuid;
 
   /// Command action
   final Action action;
@@ -118,8 +119,11 @@ abstract class Command extends Message {
   /// Command data
   final Map<String, dynamic> data;
 
+  /// Aggregate uuid
+  final String _uuid;
+
   /// Get [AggregateRoot.uuid] value
-  String get uuid => data[uuidFieldName] as String;
+  String get uuid => _uuid ?? data[uuidFieldName] as String;
 
   @override
   String toString() {
