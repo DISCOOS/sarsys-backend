@@ -6,7 +6,8 @@ import 'package:sarsys_app_server/validation/validation.dart';
 import 'auth/oidc.dart';
 import 'controllers/app_config_controller.dart';
 import 'controllers/health_controller.dart';
-import 'controllers/incident_controller.dart';
+import 'controllers/incident/incident_controller.dart';
+import 'controllers/incident/subject_controller.dart';
 import 'controllers/operation_controller.dart';
 import 'controllers/unit_controller.dart';
 import 'controllers/websocket_controller.dart';
@@ -106,7 +107,14 @@ class SarSysAppServerChannel extends ApplicationChannel {
             manager.get<AppConfigRepository>(),
             requestValidator,
           ))
-      ..route('/api/incidents[/:uuid]').link(() => IncidentController(manager.get<IncidentRepository>()))
+      ..route('/api/incidents[/:uuid]').link(() => IncidentController(
+            manager.get<IncidentRepository>(),
+            requestValidator,
+          ))
+      ..route('/api/incidents/:uuid/subjects[/:id]').link(() => SubjectController(
+            manager.get<IncidentRepository>(),
+            requestValidator,
+          ))
       ..route('/api/operations[/:uuid]').link(() => OperationController(manager.get<sar.OperationRepository>()))
       ..route('/api/units[/:uuid]').link(() => UnitController(manager.get<UnitRepository>()));
   }

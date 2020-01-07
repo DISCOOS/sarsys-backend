@@ -1,6 +1,6 @@
 import 'package:sarsys_app_server/domain/operation/repository.dart';
 
-import '../controllers/crud_controller.dart';
+import '../controllers/aggregate_controller.dart';
 import '../domain/operation/operation.dart' as sar;
 import '../sarsys_app_server.dart';
 

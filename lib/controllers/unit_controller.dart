@@ -1,4 +1,4 @@
-import 'package:sarsys_app_server/controllers/crud_controller.dart';
+import 'package:sarsys_app_server/controllers/aggregate_controller.dart';
 import 'package:sarsys_app_server/domain/unit/aggregate.dart';
 import 'package:sarsys_app_server/domain/unit/commands.dart';
 import 'package:sarsys_app_server/domain/unit/repository.dart';

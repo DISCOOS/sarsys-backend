@@ -14,19 +14,46 @@ Response serviceUnavailable({Map<String, dynamic> headers, dynamic body}) => Res
       body,
     );
 
-Response ok(AggregateRoot aggregate) => Response.ok(toData(aggregate));
+Response okAggregate(AggregateRoot aggregate) => Response.ok(toAggregateData(aggregate));
 
-Map<String, dynamic> toData(AggregateRoot aggregate) => {
+Map<String, dynamic> toAggregateData(AggregateRoot aggregate) => {
       "type": "${aggregate.runtimeType}",
       "created": aggregate.createdWhen.toIso8601String(),
       "changed": aggregate.changedWhen.toIso8601String(),
       "data": aggregate.data,
     };
 
-Response okPaged(int count, int offset, int limit, List<AggregateRoot> aggregates) => Response.ok({
+Response okAggregatePaged(int count, int offset, int limit, List<AggregateRoot> aggregates) => Response.ok({
       "total": count,
       "offset": offset,
       "limit": limit,
       if (offset + aggregates.length < count) "next": offset + aggregates.length,
-      "entries": aggregates.map(toData).toList() ?? [],
+      "entries": aggregates.map(toAggregateData).toList() ?? [],
     });
+
+Response okEntities<T extends AggregateRoot>(
+  String uuid,
+  String entity,
+  List<Map<String, dynamic>> entities,
+) {
+  return Response.ok({
+    "total": entities.length,
+    "entries": entities.map((data) => toEntityData<T>(uuid, entity, data)).toList() ?? [],
+  });
+}
+
+Response okEntity<T extends AggregateRoot>(
+  String uuid,
+  String entity,
+  Map<String, dynamic> data,
+) =>
+    Response.ok(toEntityData<T>(uuid, entity, data));
+
+Map<String, dynamic> toEntityData<T extends AggregateRoot>(String uuid, String entity, Map<String, dynamic> data) => {
+      "aggregate": {
+        "type": "${typeOf<T>()}",
+        "uuid": uuid,
+      },
+      "type": entity,
+      "data": data,
+    };

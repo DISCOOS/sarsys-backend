@@ -35,7 +35,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
             limit: limit,
           )
           .toList();
-      return okPaged(repository.count, offset, limit, events);
+      return okAggregatePaged(repository.count, offset, limit, events);
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } on Failure catch (e) {
@@ -49,7 +49,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       return Response.notFound();
     }
     try {
-      return ok(repository.get(uuid));
+      return okAggregate(repository.get(uuid));
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } on Failure catch (e) {
@@ -123,18 +123,18 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     return summary;
   }
 
-  String _toLowerCase() => aggregateType.toString().toString();
+  String _toLowerCase() => aggregateType.toString().toLowerCase();
 
   @override
   String documentOperationDescription(APIDocumentContext context, Operation operation) {
     String desc = "${documentOperationSummary(context, operation)}. ";
     switch (operation.method) {
       case "POST":
-        desc += "The field [uuid] MUST BE unique for each incident. Use a "
+        desc += "The field [uuid] MUST BE unique for each $aggregateType. Use a "
             "[universally unique identifier](https://en.wikipedia.org/wiki/Universally_unique_identifier).";
         break;
       case "PATCH":
-        desc += "Only fields in request are updated. Existing values WILL BE overwritten, others remain unchanged.";
+        desc += "Only fields in request are applied to $aggregateType. Other values remain unchanged.";
         break;
     }
     return desc;

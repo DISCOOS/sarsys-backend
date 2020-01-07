@@ -1,13 +1,15 @@
-import 'package:sarsys_app_server/controllers/crud_controller.dart';
+import 'package:sarsys_app_server/controllers/aggregate_controller.dart';
 import 'package:sarsys_app_server/domain/incident/aggregate.dart';
 import 'package:sarsys_app_server/domain/incident/commands.dart';
 import 'package:sarsys_app_server/domain/incident/repository.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
+import 'package:sarsys_app_server/validation/validation.dart';
 
 /// A ResourceController that handles
 /// [/api/incidents](http://localhost/api/client.html#/Incident) requests
 class IncidentController extends AggregateController<IncidentCommand, Incident> {
-  IncidentController(IncidentRepository repository) : super(repository);
+  IncidentController(IncidentRepository repository, RequestValidator validator)
+      : super(repository, validator: validator);
 
   @override
   IncidentCommand create(Map<String, dynamic> data) => CreateIncident(data);
@@ -94,7 +96,6 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
   @override
   Map<String, APISchemaObject> documentEntities(APIDocumentContext context) => {
         "Clue": documentClue(context),
-        "Subject": documentSubject(context),
       };
 
   /// IncidentStatus - Value Object
@@ -117,41 +118,6 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
       'duplicate',
       'resolved',
     ];
-
-  // TODO: Subject - replace name with reference to PII
-  /// Subject - Entity object
-  APISchemaObject documentSubject(APIDocumentContext context) => APISchemaObject.object(
-        {
-          "id": APISchemaObject.integer()..description = "Subject id (unique in Incident only)",
-          "name": APISchemaObject.string()..description = "Subject name",
-          "situation": APISchemaObject.string()..description = "Subject situation",
-          "type": APISchemaObject.string()
-            ..description = "Subject type"
-            ..enumerated = [
-              'person',
-              'vehicle',
-              'other',
-            ],
-          "quality": APISchemaObject.string()
-            ..description = "Clue quality assessment"
-            ..enumerated = [
-              'confirmed',
-              'plausable',
-              'possible',
-              'unlikely',
-              'rejected',
-            ],
-          "location": context.schema['Location']..description = "Rescue or assitance location",
-        },
-      )
-        ..description = "Objective Schema"
-        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
-        ..required = [
-          'name',
-          'type',
-          'situation',
-          'quality',
-        ];
 
   /// Clue - Entity object
   APISchemaObject documentClue(APIDocumentContext context) => APISchemaObject.object(
