@@ -1,13 +1,15 @@
 import 'package:sarsys_app_server/eventsource/eventsource.dart';
 import 'package:uuid/uuid.dart';
 
+import 'commands.dart';
 import 'events.dart';
 
 class Operation extends AggregateRoot {
   Operation(
-    String uuid, {
+    String uuid,
+    Map<String, Process> processors, {
     Map<String, dynamic> data = const {},
-  }) : super(uuid, data);
+  }) : super(uuid, processors, data);
 
   @override
   DomainEvent created(
@@ -24,28 +26,28 @@ class Operation extends AggregateRoot {
   // TODO: Refactor into Read and Write models? Current mapping Event to Read and Command to Write does not feel right.
 
   @override
-  DomainEvent updated(Map<String, dynamic> data, {String type, bool command, DateTime timestamp}) {
+  DomainEvent updated(Map<String, dynamic> data, {Type type, bool command, DateTime timestamp}) {
     switch (type) {
-      case "UpdateOperation":
-      case "OperationInformationUpdated":
+      case UpdateOperationInformation:
+      case OperationInformationUpdated:
         return OperationInformationUpdated(
           uuid: Uuid().v4(),
           data: data,
           created: timestamp,
         );
-      case "OperationStarted":
+      case OperationStarted:
         return OperationStarted(
           uuid: Uuid().v4(),
           data: data,
           created: timestamp,
         );
-      case "OperationCancelled":
+      case OperationCancelled:
         return OperationCancelled(
           uuid: Uuid().v4(),
           data: data,
           created: timestamp,
         );
-      case "OperationFinished":
+      case OperationFinished:
         return OperationFinished(
           uuid: Uuid().v4(),
           data: data,

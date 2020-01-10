@@ -143,6 +143,8 @@ class RepositoryManager {
   }
 }
 
+typedef Process = DomainEvent Function(Message message);
+
 /// Repository or [AggregateRoot]s as the single responsible for all transactions on each aggregate
 abstract class Repository<S extends Command, T extends AggregateRoot> implements CommandHandler<S> {
   /// Repository constructor
@@ -159,25 +161,44 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   ///
   Repository({
     @required this.store,
+    @required Map<Type, Process> processors,
     this.uuidFieldName = 'uuid',
     int maxBackoffTimeSeconds = 10,
-  })  : logger = Logger("Repository[${typeOf<T>()}]"),
+  })  : _processors = Map.unmodifiable(processors.map(
+          (type, process) => MapEntry("$type", process),
+        )),
+        logger = Logger("Repository[${typeOf<T>()}]"),
         maxBackoffTime = Duration(seconds: maxBackoffTimeSeconds);
 
-  final EventStore store;
-
   final Logger logger;
+  final EventStore store;
   final String uuidFieldName;
-
-  /// Maximum backoff duration between reconnect attempts
-  final Duration maxBackoffTime;
-
-  /// Map of aggregate roots
-  final Map<String, T> _aggregates = {};
 
   /// Flag indicating that [build] succeeded
   bool _ready = false;
   bool get ready => _ready;
+
+  /// Maximum backoff duration between reconnect attempts
+  final Duration maxBackoffTime;
+
+  /// [Message] type name to [DomainEvent] processors
+  final Map<String, Process> _processors;
+
+  /// Map of aggregate roots
+  final Map<String, T> _aggregates = {};
+
+  /// Get number of aggregates
+  int get count => _aggregates.length;
+
+  /// Get aggregate uuid from event
+  String toAggregateUuid(Event event) => event.data[uuidFieldName] as String;
+
+  /// Create aggregate root with given id. Should only called from within [Repository].
+  @protected
+  T create(Map<String, Process> processors, String uuid, Map<String, dynamic> data);
+
+  /// Check if repository contains given aggregate root
+  bool contains(String uuid) => _aggregates.containsKey(uuid);
 
   /// Build repository from local events.
   Future build() async {
@@ -191,8 +212,17 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
     _ready = true;
   }
 
-  /// Get number of aggregates
-  int get count => _aggregates.length;
+  /// Get domain event from given event
+  DomainEvent toDomainEvent(Event event) {
+    if (event is DomainEvent) {
+      return event;
+    }
+    final process = _processors["${event.type}"];
+    if (process != null) {
+      return process(event);
+    }
+    throw InvalidOperation("Message ${event.type} not recognized");
+  }
 
   /// Execute command on given aggregate root.
   ///
@@ -225,7 +255,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
           aggregate = get(command.uuid, data: data);
           break;
         case Action.update:
-          aggregate = get(command.uuid)..patch(data, type: typeOf<S>().toString(), command: true);
+          aggregate = get(command.uuid)..patch(data, type: command.emits, timestamp: command.created);
           break;
         case Action.delete:
           aggregate = get(command.uuid)..delete();
@@ -333,7 +363,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
       _aggregates[uuid] ??
       _aggregates.putIfAbsent(
         uuid,
-        () => create(uuid, data)..loadFromHistory(store.get(uuid).map(toDomainEvent)),
+        () => create(_processors, uuid, data)..loadFromHistory(store.get(uuid).map(toDomainEvent)),
       );
 
   /// Get all aggregate roots.
@@ -360,12 +390,21 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   ///
   /// Subclasses MAY override this method to add additional validation
   ///
-  /// Throws [InvalidOperation] if [Event.data] does not contain [Repository.uuidFieldName]
+  /// Throws [InvalidOperation] if [Message.data] does not contain [Repository.uuidFieldName]
   @mustCallSuper
   Map<String, dynamic> validate(S command) {
     if (command.uuid == null) {
       throw const UUIDIsNull("Field [uuid] is null");
     }
+    if (command is EntityCommand) {
+      _validateEntityCommand(command);
+    } else {
+      _validateAggregateCommand(command);
+    }
+    return command.data;
+  }
+
+  void _validateAggregateCommand(S command) {
     switch (command.action) {
       case Action.create:
         if (_aggregates.containsKey(command.uuid)) {
@@ -380,21 +419,27 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
         }
         break;
     }
-    return command.data;
   }
 
-  /// Get domain event from event source
-  DomainEvent toDomainEvent(Event event);
-
-  /// Get aggregate uuid from event
-  String toAggregateUuid(Event event) => event.data[uuidFieldName] as String;
-
-  /// Create aggregate root with given id. Should only called from within [Repository].
-  @protected
-  T create(String uuid, Map<String, dynamic> data);
-
-  /// Check if repository contains given aggregate root
-  bool contains(String uuid) => _aggregates.containsKey(uuid);
+  void _validateEntityCommand(EntityCommand command) {
+    if (!_aggregates.containsKey(command.uuid)) {
+      throw AggregateNotFound("Aggregate ${command.uuid} does not exists");
+    }
+    switch (command.action) {
+      case Action.create:
+//        if (_aggregates[command.uuid].data[]) {
+//          throw AggregateExists("Aggregate ${command.uuid} exists");
+//        }
+        break;
+      case Action.update:
+      case Action.delete:
+      case Action.custom:
+        if (!_aggregates.containsKey(command.uuid)) {
+          throw AggregateNotFound("Aggregate ${command.uuid} does not exists");
+        }
+        break;
+    }
+  }
 }
 
 /// Base class for [aggregate roots](https://martinfowler.com/bliki/DDD_Aggregate.html).
@@ -402,9 +447,12 @@ abstract class AggregateRoot {
   @mustCallSuper
   AggregateRoot(
     this.uuid,
+    Map<String, Process> processors,
     Map<String, dynamic> data, {
     this.uuidFieldName = 'uuid',
-  }) : data = Map.from(data) {
+    this.entityIdFieldName = 'id',
+  })  : _processors = Map.unmodifiable(processors),
+        data = Map.from(data) {
     _apply(
       created(
         Map.from(data)
@@ -420,11 +468,17 @@ abstract class AggregateRoot {
 
   /// Aggregate uuid
   ///
-  /// Not the same as [Event.uuid], which is unique for each [Event].
+  /// Not the same as [Message.uuid], which is unique for each [Event].
   final String uuid;
 
-  /// Field name in [Event.data] for [AggregateRoot.uuid].
+  /// Field name in [Message.data] for [AggregateRoot.uuid].
   final String uuidFieldName;
+
+  /// Field name in [Message.data] for [EntityObject.id].
+  final String entityIdFieldName;
+
+  /// [Message] to [DomainEvent] processors
+  final Map<String, Process> _processors;
 
   /// Aggregate root data (weak schema)
   final Map<String, dynamic> data;
@@ -432,7 +486,7 @@ abstract class AggregateRoot {
   /// Local uncommitted changes
   final _pending = <DomainEvent>[];
 
-  /// [Event.uuid]s of applied events
+  /// [Message.uuid]s of applied events
   final _applied = <String>{};
 
   /// Check if event is applied
@@ -474,9 +528,8 @@ abstract class AggregateRoot {
   /// Patch aggregate root with data (free-form json compatible data).
   ///
   /// Returns a [DomainEvent] if data was changed, null otherwise.
-  DomainEvent patch(Map<String, dynamic> data, {DateTime timestamp, String type, bool command}) {
+  DomainEvent patch(Map<String, dynamic> data, {DateTime timestamp, Type type}) {
     final diffs = JsonPatch.diff(this.data, data);
-    // TODO: Add support for strict validation of data (fields and values)
     // Replace and add is supported by patch (put will introduce remove)
     final willChange = diffs.where((diff) => const ['add', 'replace'].contains(diff['op'])).isNotEmpty;
     // Remove read-only fields
@@ -485,7 +538,6 @@ abstract class AggregateRoot {
             updated(
               data,
               type: type,
-              command: command,
               timestamp: timestamp,
             ),
             true,
@@ -510,18 +562,26 @@ abstract class AggregateRoot {
 
   /// Get aggregate created event. Only invoked from constructor.
   @protected
-  DomainEvent created(Map<String, dynamic> data, {String type, DateTime timestamp}) =>
-      throw UnimplementedError("created() not implemented");
+  DomainEvent created(Map<String, dynamic> data) => throw UnimplementedError("created() not implemented");
 
   /// Get aggregate updated event. Invoked from [Repository]
   @protected
   DomainEvent updated(
     Map<String, dynamic> data, {
-    String type,
-    bool command,
+    Type type,
     DateTime timestamp,
-  }) =>
-      throw UnimplementedError("updated() not implemented");
+  }) {
+    final process = _processors["$type"];
+    if (process != null) {
+      return process(Message(
+        uuid: uuid,
+        type: "$type",
+        data: data,
+        created: timestamp,
+      ));
+    }
+    throw InvalidOperation("Message ${type} not recognized");
+  }
 
   /// Get aggregate deleted event. Invoked from [Repository]
   @protected
@@ -553,4 +613,55 @@ abstract class AggregateRoot {
 
     return event;
   }
+
+  /// Get array of [EntityObject]
+  EntityArray entities(String field) => EntityArray(field, this);
+}
+
+class EntityArray {
+  EntityArray(
+    this.field,
+    this.root,
+  );
+
+  final String field;
+  final AggregateRoot root;
+
+  /// Get entity object with given [id]
+  Map<String, dynamic> operator [](int id) => (root.data[field] as List<Map<String, dynamic>>).firstWhere(
+        (data) => (data[root.entityIdFieldName] as int) == id,
+        orElse: () => null,
+      );
+
+  /// Set entity object with given [id]
+  void operator []=(int id, Map<String, dynamic> data) {
+    final entities = root.data[field] as List<Map<String, dynamic>>;
+    final current = entities.firstWhere(
+      (data) => (data[root.entityIdFieldName] as int) == id,
+      orElse: () => null,
+    );
+    if (current == null) {
+      entities.add(data);
+    } else {
+      entities[entities.indexOf(data)] = data;
+    }
+  }
+
+  /// Remove entity object with given [id]
+  void remove(int id) => (root.data[field] as List<Map<String, dynamic>>).removeWhere(
+        (data) => (data[root.entityIdFieldName] as int) == id,
+      );
+}
+
+class EntityObject {
+  EntityObject(this.id, this.data, this.idFieldName);
+
+  /// Entity id
+  final int id;
+
+  /// Field name in [Message.data] for [EntityObject.id].
+  final String idFieldName;
+
+  /// Entity object data (weak schema)
+  Map<String, dynamic> data;
 }

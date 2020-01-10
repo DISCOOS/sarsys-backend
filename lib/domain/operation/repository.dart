@@ -5,45 +5,39 @@ import 'commands.dart';
 import 'events.dart';
 
 class OperationRepository extends Repository<OperationCommand, Operation> {
-  OperationRepository(EventStore store) : super(store: store);
+  OperationRepository(EventStore store)
+      : super(store: store, processors: {
+          OperationRegistered: (event) => OperationRegistered(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          OperationInformationUpdated: (event) => OperationInformationUpdated(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          OperationStarted: (event) => OperationStarted(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          OperationCancelled: (event) => OperationCancelled(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          OperationFinished: (event) => OperationFinished(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              )
+        });
 
   @override
-  DomainEvent toDomainEvent(Event event) {
-    switch (event.type) {
-      case "OperationRegistered":
-        return OperationRegistered(
-          uuid: event.uuid,
-          data: event.data,
-          created: event.created,
-        );
-      case 'OperationInformationUpdated':
-        return OperationInformationUpdated(
-          uuid: event.uuid,
-          data: event.data,
-          created: event.created,
-        );
-      case 'OperationStarted':
-        return OperationStarted(
-          uuid: event.uuid,
-          data: event.data,
-          created: event.created,
-        );
-      case 'OperationCancelled':
-        return OperationCancelled(
-          uuid: event.uuid,
-          data: event.data,
-          created: event.created,
-        );
-      case 'OperationFinished':
-        return OperationFinished(
-          uuid: event.uuid,
-          data: event.data,
-          created: event.created,
-        );
-    }
-    throw InvalidOperation("Event type ${event.type} not recognized");
-  }
-
-  @override
-  Operation create(String uuid, Map<String, dynamic> data) => Operation(uuid, data: data);
+  Operation create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => Operation(
+        uuid,
+        processors,
+        data: data,
+      );
 }

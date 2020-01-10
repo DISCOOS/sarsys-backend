@@ -10,10 +10,10 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
   UnitController(UnitRepository repository) : super(repository);
 
   @override
-  UnitCommand create(Map<String, dynamic> data) => CreateUnit(data);
+  UnitCommand create(Map<String, dynamic> data) => MobilizeUnit(data);
 
   @override
-  UnitCommand update(Map<String, dynamic> data) => UpdateUnit(data);
+  UnitCommand update(Map<String, dynamic> data) => UpdateUnitInformation(data);
 
   //////////////////////////////////
   // Documentation

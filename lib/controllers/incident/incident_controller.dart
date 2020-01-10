@@ -12,10 +12,10 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
       : super(repository, validator: validator);
 
   @override
-  IncidentCommand create(Map<String, dynamic> data) => CreateIncident(data);
+  IncidentCommand create(Map<String, dynamic> data) => RegisterIncident(data);
 
   @override
-  IncidentCommand update(Map<String, dynamic> data) => UpdateIncident(data);
+  IncidentCommand update(Map<String, dynamic> data) => UpdateIncidentInformation(data);
 
   //////////////////////////////////
   // Documentation

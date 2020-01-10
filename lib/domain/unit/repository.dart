@@ -5,39 +5,34 @@ import 'commands.dart';
 import 'events.dart';
 
 class UnitRepository extends Repository<UnitCommand, Unit> {
-  UnitRepository(EventStore store) : super(store: store);
+  UnitRepository(EventStore store)
+      : super(store: store, processors: {
+          UnitCreated: (event) => UnitCreated(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          UnitInformationUpdated: (event) => UnitInformationUpdated(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          UnitMobilized: (event) => UnitMobilized(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          UnitRetired: (event) => UnitRetired(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+        });
 
   @override
-  DomainEvent toDomainEvent(Event event) {
-    switch (event.type) {
-      case "UnitCreated":
-        return UnitCreated(
-          uuid: event.uuid,
-          data: event.data,
-          created: event.created,
-        );
-      case 'UnitInformationUpdated':
-        return UnitInformationUpdated(
-          uuid: event.uuid,
-          data: event.data,
-          created: event.created,
-        );
-      case 'UnitMobilized':
-        return UnitMobilized(
-          uuid: event.uuid,
-          data: event.data,
-          created: event.created,
-        );
-      case 'UnitRetired':
-        return UnitRetired(
-          uuid: event.uuid,
-          data: event.data,
-          created: event.created,
-        );
-    }
-    throw InvalidOperation("Event type ${event.type} not recognized");
-  }
-
-  @override
-  Unit create(String uuid, Map<String, dynamic> data) => Unit(uuid, data: data);
+  Unit create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => Unit(
+        uuid,
+        processors,
+        data: data,
+      );
 }

@@ -3,54 +3,46 @@ import 'package:sarsys_app_server/eventsource/eventsource.dart';
 import 'package:uuid/uuid.dart';
 
 class AppConfigRepository extends Repository<AppConfigCommand, AppConfig> {
-  AppConfigRepository(EventStore store) : super(store: store);
+  AppConfigRepository(EventStore store)
+      : super(store: store, processors: {
+          AppConfigCreated: (event) => AppConfigCreated(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          AppConfigUpdated: (event) => AppConfigUpdated(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+        });
 
   @override
-  DomainEvent toDomainEvent(Event event) {
-    switch (event.type) {
-      case "AppConfigCreated":
-        return AppConfigCreated(
-          uuid: event.uuid,
-          data: event.data,
-          created: event.created,
-        );
-      case 'AppConfigUpdated':
-        return AppConfigUpdated(
-          uuid: event.uuid,
-          data: event.data,
-          created: event.created,
-        );
-    }
-    throw InvalidOperation("Event type ${event.type} not recognized");
-  }
-
-  @override
-  AppConfig create(String uuid, Map<String, dynamic> data) => AppConfig(uuid, data: data);
+  AppConfig create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => AppConfig(
+        uuid,
+        processors,
+        data: data,
+      );
 }
 
 class AppConfig extends AggregateRoot {
   AppConfig(
-    String uuid, {
+    String uuid,
+    Map<String, Process> processors, {
     Map<String, dynamic> data = const {},
-  }) : super(uuid, data);
+  }) : super(uuid, processors, data);
 
   @override
-  DomainEvent created(
-    Map<String, dynamic> data, {
-    String type,
-    DateTime timestamp,
-  }) =>
-      AppConfigCreated(
+  DomainEvent created(Map<String, dynamic> data) => AppConfigCreated(
         uuid: Uuid().v4(),
         data: data,
-        created: timestamp,
+        created: DateTime.now(),
       );
 
   @override
   DomainEvent updated(
     Map<String, dynamic> data, {
-    String type,
-    bool command,
+    Type type,
     DateTime timestamp,
   }) =>
       AppConfigUpdated(
@@ -64,20 +56,20 @@ class AppConfig extends AggregateRoot {
 // AppConfig Commands
 //////////////////////////////////////
 
-abstract class AppConfigCommand extends Command {
+abstract class AppConfigCommand<T extends DomainEvent> extends Command<T> {
   AppConfigCommand(
     Action action, {
     Map<String, dynamic> data = const {},
   }) : super(action, data: data);
 }
 
-class CreateAppConfig extends AppConfigCommand {
+class CreateAppConfig extends AppConfigCommand<AppConfigCreated> {
   CreateAppConfig(
     Map<String, dynamic> data,
   ) : super(Action.create, data: data);
 }
 
-class UpdateAppConfig extends AppConfigCommand {
+class UpdateAppConfig extends AppConfigCommand<AppConfigUpdated> {
   UpdateAppConfig(
     Map<String, dynamic> data,
   ) : super(Action.update, data: data);

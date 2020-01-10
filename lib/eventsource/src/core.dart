@@ -8,22 +8,39 @@ import 'domain.dart';
 import 'models/AtomFeed.dart';
 
 /// Message interface
-abstract class Message {
-  const Message();
+class Message {
+  const Message({
+    @required this.uuid,
+    this.created,
+    String type,
+    this.data,
+  }) : _type = type;
+  final String uuid;
+  final DateTime created;
+  final Map<String, dynamic> data;
+
+  final String _type;
+  String get type => _type ?? "$runtimeType";
+
   @override
   String toString() {
-    return '$runtimeType{}';
+    return '$runtimeType{uuid: $uuid, type: $type}';
   }
 }
 
 /// Event class
-class Event implements Message {
+class Event extends Message {
   const Event({
-    @required this.uuid,
-    @required this.type,
-    @required this.data,
-    @required this.created,
-  });
+    @required String uuid,
+    @required String type,
+    @required Map<String, dynamic> data,
+    @required DateTime created,
+  }) : super(
+          uuid: uuid,
+          type: type,
+          data: data,
+          created: created,
+        );
 
   /// Create an event with uuid
   factory Event.unique({
@@ -37,11 +54,6 @@ class Event implements Message {
         data: data,
         created: created,
       );
-
-  final String uuid;
-  final String type;
-  final DateTime created;
-  final Map<String, dynamic> data;
 
   @override
   String toString() {
@@ -102,32 +114,66 @@ enum Action {
 }
 
 /// Command interface
-abstract class Command extends Message {
+abstract class Command<T extends DomainEvent> extends Message {
   Command(
     this.action, {
     String uuid,
     this.uuidFieldName = 'uuid',
-    this.data = const {},
-  }) : _uuid = uuid;
+    Map<String, dynamic> data = const {},
+  })  : _uuid = uuid,
+        super(uuid: uuid, data: data);
 
   /// Command action
   final Action action;
-
-  /// [AggregateRoot.uuid] field name in [data]
-  final String uuidFieldName;
-
-  /// Command data
-  final Map<String, dynamic> data;
 
   /// Aggregate uuid
   final String _uuid;
 
   /// Get [AggregateRoot.uuid] value
+  @override
   String get uuid => _uuid ?? data[uuidFieldName] as String;
+
+  /// [AggregateRoot.uuid] field name in [data]
+  final String uuidFieldName;
+
+  /// Get [DomainEvent] type emitted after command is executed
+  Type get emits => typeOf<T>();
 
   @override
   String toString() {
     return '$runtimeType{uuid: $uuid, action: $action}';
+  }
+}
+
+/// Command interface
+abstract class EntityCommand extends Command {
+  EntityCommand(
+    Action action, {
+    String uuid,
+    int entityId,
+    String uuidFieldName = 'uuid',
+    this.entityIdFieldName = 'id',
+    Map<String, dynamic> data = const {},
+  })  : _id = entityId,
+        super(
+          action,
+          uuid: uuid,
+          uuidFieldName: uuidFieldName,
+          data: data,
+        );
+
+  /// [EntityObject.id] value
+  final int _id;
+
+  /// Get [EntityObject.id] value
+  int get entityId => _id ?? data[entityIdFieldName] as int;
+
+  /// [EntityObject.id] field name in [data]
+  final String entityIdFieldName;
+
+  @override
+  String toString() {
+    return '$runtimeType{uuid: $uuid, action: $action, entityId: $entityId}';
   }
 }
 
