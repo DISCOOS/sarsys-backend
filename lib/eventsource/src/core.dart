@@ -33,8 +33,8 @@ class Event extends Message {
   const Event({
     @required String uuid,
     @required String type,
-    @required Map<String, dynamic> data,
     @required DateTime created,
+    @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
           type: type,
@@ -54,6 +54,15 @@ class Event extends Message {
         data: data,
         created: created,
       );
+
+  /// Test if `data['deleted'] == 'true'`
+  bool get isDeleted => data['deleted'] == 'true';
+
+  /// Get `data['changes']`
+  Map<String, dynamic> get changes => data['changes'] as Map<String, dynamic>;
+
+  /// Get list of JSON Patch methods from `data['patches']`
+  List<Map<String, dynamic>> get patches => List<Map<String, dynamic>>.from(data['patches'] as List<dynamic>);
 
   @override
   String toString() {
@@ -148,7 +157,7 @@ abstract class Command<T extends DomainEvent> extends Message {
 /// Command interface
 abstract class EntityCommand extends Command {
   EntityCommand(
-    Action action, {
+    this.aggregateField, {
     String uuid,
     int entityId,
     String uuidFieldName = 'uuid',
@@ -156,11 +165,14 @@ abstract class EntityCommand extends Command {
     Map<String, dynamic> data = const {},
   })  : _id = entityId,
         super(
-          action,
+          Action.update,
           uuid: uuid,
           uuidFieldName: uuidFieldName,
           data: data,
         );
+
+  /// Aggregate field name storing entities
+  final String aggregateField;
 
   /// [EntityObject.id] value
   final int _id;
@@ -315,6 +327,16 @@ class AggregateNotFound extends InvalidOperation {
 /// Thrown when an [Command.action] with [Action.create] is attempted on an existing [AggregateRoot]
 class AggregateExists extends InvalidOperation {
   const AggregateExists(String message) : super(message);
+}
+
+/// Thrown when an [Command] is attempted on an [EntityObject] not found
+class EntityNotFound extends InvalidOperation {
+  const EntityNotFound(String message) : super(message);
+}
+
+/// Thrown when an [Command.action] with [Action.create] is attempted on an existing [EntityObject]
+class EntityExists extends InvalidOperation {
+  const EntityExists(String message) : super(message);
 }
 
 /// Thrown when writing events and 'ES-ExpectedVersion' differs from 'ES-CurrentVersion'

@@ -413,10 +413,7 @@ class EventStore {
         connection,
       );
 
-      // TODO: Fix catch up when useInstanceStreams is true
-      // Problem 1) event.number is not monotone increasing in canonicalStream - use total count instead
-      // Problem 2) event.number should be checked against the instance stream number
-      // Problem 3) (don't remember)
+      // Prepare event sourcing
       final uuid = repository.toAggregateUuid(event);
       final stream = toInstanceStream(uuid);
       final actual = current(uuid: uuid);
@@ -436,7 +433,9 @@ class EventStore {
         );
         if (aggregate.isChanged == false) {
           if (aggregate.isApplied(event) == false) {
-            aggregate.patch(event.data, type: repository.toDomainEvent(event).runtimeType);
+            aggregate.apply(
+              repository.toDomainEvent(event),
+            );
           }
         }
         if (aggregate.isChanged) {
