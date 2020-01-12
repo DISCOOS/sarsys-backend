@@ -69,3 +69,16 @@ class IncidentResolved extends DomainEvent {
           data: data,
         );
 }
+
+class IncidentDeleted extends DomainEvent {
+  IncidentDeleted({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$IncidentDeleted",
+          created: created,
+          data: data,
+        );
+}

@@ -31,7 +31,7 @@ class OperationRepository extends Repository<OperationCommand, Operation> {
                 uuid: event.uuid,
                 data: event.data,
                 created: event.created,
-              )
+              ),
         });
 
   @override

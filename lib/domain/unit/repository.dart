@@ -27,6 +27,11 @@ class UnitRepository extends Repository<UnitCommand, Unit> {
                 data: event.data,
                 created: event.created,
               ),
+          UnitDeleted: (event) => UnitDeleted(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
         });
 
   @override

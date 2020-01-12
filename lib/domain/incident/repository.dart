@@ -26,6 +26,11 @@ class IncidentRepository extends Repository<IncidentCommand, Incident> {
                 uuid: event.uuid,
                 data: event.data,
                 created: event.created,
+              ),
+          IncidentDeleted: (event) => IncidentDeleted(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
               )
         });
 

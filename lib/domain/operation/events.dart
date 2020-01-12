@@ -69,3 +69,16 @@ class OperationFinished extends DomainEvent {
           data: data,
         );
 }
+
+class OperationDeleted extends DomainEvent {
+  OperationDeleted({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$OperationDeleted",
+          created: created,
+          data: data,
+        );
+}

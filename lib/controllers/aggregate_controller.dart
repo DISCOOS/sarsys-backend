@@ -40,6 +40,8 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       return Response.badRequest(body: e.message);
     } on Failure catch (e) {
       return Response.serverError(body: e.message);
+    } on Error catch (e) {
+      return Response.serverError(body: e);
     }
   }
 

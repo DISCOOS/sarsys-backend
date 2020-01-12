@@ -69,3 +69,16 @@ class UnitRetired extends DomainEvent {
           data: data,
         );
 }
+
+class UnitDeleted extends DomainEvent {
+  UnitDeleted({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$UnitDeleted",
+          created: created,
+          data: data,
+        );
+}

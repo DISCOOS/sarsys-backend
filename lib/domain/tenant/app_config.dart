@@ -1,6 +1,5 @@
 import 'package:meta/meta.dart';
 import 'package:sarsys_app_server/eventsource/eventsource.dart';
-import 'package:uuid/uuid.dart';
 
 class AppConfigRepository extends Repository<AppConfigCommand, AppConfig> {
   AppConfigRepository(EventStore store)
@@ -25,31 +24,12 @@ class AppConfigRepository extends Repository<AppConfigCommand, AppConfig> {
       );
 }
 
-class AppConfig extends AggregateRoot {
+class AppConfig extends AggregateRoot<AppConfigCreated, AppConfigDeleted> {
   AppConfig(
     String uuid,
     Map<String, Process> processors, {
     Map<String, dynamic> data = const {},
   }) : super(uuid, processors, data);
-
-  @override
-  DomainEvent created(Map<String, dynamic> data) => AppConfigCreated(
-        uuid: Uuid().v4(),
-        data: data,
-        created: DateTime.now(),
-      );
-
-  @override
-  DomainEvent updated(
-    Map<String, dynamic> data, {
-    Type type,
-    DateTime timestamp,
-  }) =>
-      AppConfigUpdated(
-        uuid: Uuid().v4(),
-        data: data,
-        created: timestamp,
-      );
 }
 
 //////////////////////////////////////
@@ -100,6 +80,19 @@ class AppConfigUpdated extends DomainEvent {
   }) : super(
           uuid: uuid,
           type: "$AppConfigUpdated",
+          created: created,
+          data: data,
+        );
+}
+
+class AppConfigDeleted extends DomainEvent {
+  AppConfigDeleted({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$AppConfigDeleted",
           created: created,
           data: data,
         );
