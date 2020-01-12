@@ -438,7 +438,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
           "found: ${command.action}",
         );
     }
-    return command.data;
+    return {
+      command.aggregateField: array.patch(command.data).toList(),
+    };
   }
 }
 
@@ -734,14 +736,11 @@ class EntityArray {
   EntityArray patch(Map<String, dynamic> data) {
     final id = _toId(data);
     final array = _asArray().toList();
-    final current = array.where((data) => _toId(data) == id).toList();
-    if (current.isNotEmpty) {
-      array[array.indexOf(data)] = data;
+    final current = array.indexWhere((data) => _toId(data) == id);
+    if (current == -1) {
+      array.add(data);
     } else {
-      throw ArgumentError(
-        "EntityObject id does not exist: $id, "
-        "Aggregate field $aggregateField contains: $array",
-      );
+      array[current] = data;
     }
     return _fromArray(array);
   }
@@ -762,36 +761,30 @@ class EntityArray {
     return EntityArray(aggregateField, entityIdFieldName, root);
   }
 
-//  /// Set entity object with given [id]
-//  void operator []=(int id, Map<String, dynamic> data) {
-//    final entities = _asArray().toList();
-//    final current = entities.where((data) => _toId(data) == id).toList();
-//    if (current.isEmpty) {
-//      entities.add(data);
-//    } else {
-//      entities[entities.indexOf(data)] = data;
-//    }
-//    root.data[field] = entities;
-//  }
-//
-//  /// Get entity object with given [id]
-//  EntityObject operator [](int id) {
-//    final found = _asArray().where(
-//      (data) => (data[root.entityIdFieldName] as int) == id,
-//    );
-//    if (found.length > 1) {
-//      throw UnsupportedError("More than one entity object with id $id found");
-//    }
-//    return EntityObject(id, found.first, root.entityIdFieldName);
-//  }
-//
-//
-//  /// Add [EntityObject] to array
-//  EntityObject add(Map<String, dynamic> data) {
-//    final array = _asArray();
-//
-//  }
-//
+  /// Set entity object with given [id]
+  void operator []=(int id, EntityObject entity) {
+    final data = entity.data;
+    data[entityIdFieldName] = id;
+    final array = _asArray().toList();
+    final current = array.indexWhere((data) => _toId(data) == id);
+    if (current == -1) {
+      array.add(data);
+    } else {
+      array[current] = data;
+    }
+    data[aggregateField] = array;
+  }
+
+  /// Get entity object with given [id]
+  EntityObject operator [](int id) {
+    final found = _asArray().where(
+      (data) => (data[entityIdFieldName] as int) == id,
+    );
+    if (found.length > 1) {
+      throw UnsupportedError("More than one entity object with id $id found");
+    }
+    return EntityObject(id, found.first, entityIdFieldName);
+  }
 
   int _toId(Map<String, dynamic> data) {
     if (data[entityIdFieldName] is Map<String, dynamic>) {
