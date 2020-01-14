@@ -12,16 +12,16 @@ class UnitController extends EntityController<OperationCommand, sar.Operation> {
       : super(repository, "Unit", "units", validator: validator);
 
   @override
-  OperationCommand create(String uuid, String type, Map<String, dynamic> data) => MobilizeUnit(uuid, data);
+  OperationCommand onCreate(String uuid, String type, Map<String, dynamic> data) => MobilizeUnit(uuid, data);
 
   @override
-  OperationCommand update(String uuid, String type, Map<String, dynamic> data) => UpdateUnitInformation(
+  OperationCommand onUpdate(String uuid, String type, Map<String, dynamic> data) => UpdateUnitInformation(
         uuid,
         data,
       );
 
   @override
-  OperationCommand delete(String uuid, String type, Map<String, dynamic> data) => RetireUnit(uuid, data);
+  OperationCommand onDelete(String uuid, String type, Map<String, dynamic> data) => RetireUnit(uuid, data);
 
   //////////////////////////////////
   // Documentation

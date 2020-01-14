@@ -8,11 +8,13 @@ import 'controllers/health_controller.dart';
 import 'controllers/incident/controllers.dart';
 import 'controllers/operation/controllers.dart';
 import 'controllers/personnel/personnel_controller.dart';
+import 'controllers/subject/subject_controller.dart';
 import 'controllers/websocket_controller.dart';
 import 'domain/incident/incident.dart';
 import 'domain/messages.dart';
 import 'domain/operation/operation.dart' as sar;
 import 'domain/personnel/personnel.dart';
+import 'domain/subject/subject.dart';
 import 'domain/tenant/app_config.dart';
 import 'eventsource/eventsource.dart';
 import 'sarsys_app_server.dart';
@@ -113,8 +115,8 @@ class SarSysAppServerChannel extends ApplicationChannel {
             manager.get<IncidentRepository>(),
             requestValidator,
           ))
-      ..route('/api/incidents/:uuid/subjects[/:id]').link(() => SubjectController(
-            manager.get<IncidentRepository>(),
+      ..route('/api/subjects[/:uuid]').link(() => SubjectController(
+            manager.get<SubjectRepository>(),
             requestValidator,
           ))
       ..route('/api/incidents/:uuid/clues[/:id]').link(() => ClueController(
@@ -234,6 +236,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     // Register repositories
     manager.register<AppConfig>((manager) => AppConfigRepository(manager));
     manager.register<Incident>((manager) => IncidentRepository(manager));
+    manager.register<Subject>((manager) => SubjectRepository(manager));
     manager.register<Personnel>((manager) => PersonnelRepository(manager));
     manager.register<sar.Operation>((manager) => sar.OperationRepository(manager));
 

@@ -12,10 +12,10 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
       : super(repository, validator: validator);
 
   @override
-  sar.OperationCommand create(Map<String, dynamic> data) => sar.RegisterOperation(data);
+  sar.OperationCommand onCreate(Map<String, dynamic> data) => sar.RegisterOperation(data);
 
   @override
-  sar.OperationCommand update(Map<String, dynamic> data) => sar.UpdateOperationInformation(data);
+  sar.OperationCommand onUpdate(Map<String, dynamic> data) => sar.UpdateOperationInformation(data);
 
   //////////////////////////////////
   // Documentation

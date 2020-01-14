@@ -1,7 +1,5 @@
 import 'package:sarsys_app_server/controllers/aggregate_controller.dart';
-import 'package:sarsys_app_server/domain/incident/aggregate.dart';
-import 'package:sarsys_app_server/domain/incident/commands.dart';
-import 'package:sarsys_app_server/domain/incident/repository.dart';
+import 'package:sarsys_app_server/domain/incident/incident.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 
@@ -12,10 +10,13 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
       : super(repository, validator: validator);
 
   @override
-  IncidentCommand create(Map<String, dynamic> data) => RegisterIncident(data);
+  IncidentCommand onCreate(Map<String, dynamic> data) => RegisterIncident(data);
 
   @override
-  IncidentCommand update(Map<String, dynamic> data) => UpdateIncidentInformation(data);
+  IncidentCommand onUpdate(Map<String, dynamic> data) => UpdateIncidentInformation(data);
+
+  @override
+  IncidentCommand onDelete(Map<String, dynamic> data) => DeleteIncident(data);
 
   //////////////////////////////////
   // Documentation

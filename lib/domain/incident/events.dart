@@ -84,49 +84,6 @@ class IncidentDeleted extends DomainEvent {
 }
 
 //////////////////////////////////
-// Subject Domain Events
-//////////////////////////////////
-
-class SubjectAdded extends DomainEvent {
-  SubjectAdded({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-  }) : super(
-          uuid: uuid,
-          type: "$SubjectAdded",
-          created: created,
-          data: data,
-        );
-}
-
-class SubjectUpdated extends DomainEvent {
-  SubjectUpdated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-  }) : super(
-          uuid: uuid,
-          type: "$SubjectUpdated",
-          created: created,
-          data: data,
-        );
-}
-
-class SubjectRemoved extends DomainEvent {
-  SubjectRemoved({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-  }) : super(
-          uuid: uuid,
-          type: "$SubjectRemoved",
-          created: created,
-          data: data,
-        );
-}
-
-//////////////////////////////////
 // Clue Domain Events
 //////////////////////////////////
 

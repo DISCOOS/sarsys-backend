@@ -24,7 +24,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
   //////////////////////////////////
 
   @Operation.get('uuid')
-  Future<Response> onGetAll(@Bind.path('uuid') String uuid) async {
+  Future<Response> getAll(@Bind.path('uuid') String uuid) async {
     if (!repository.contains(uuid)) {
       return Response.notFound(body: "Aggregate $uuid not found");
     }
@@ -42,7 +42,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
   }
 
   @Operation.get('uuid', 'id')
-  Future<Response> onGetById(
+  Future<Response> getById(
     @Bind.path('uuid') String uuid,
     @Bind.path('id') int id,
   ) async {
@@ -68,7 +68,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
   }
 
   @Operation.post('uuid')
-  Future<Response> onCreate(
+  Future<Response> create(
     @Bind.path('uuid') String uuid,
     @Bind.body() Map<String, dynamic> data,
   ) async {
@@ -77,7 +77,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
         return Response.notFound(body: "Aggregate $uuid not found");
       }
       final aggregate = repository.get(uuid);
-      await repository.execute(create(uuid, entityType, validate(data)));
+      await repository.execute(onCreate(uuid, entityType, validate(data)));
       return Response.created("${toLocation(request)}/${data[aggregate.entityIdFieldName]}");
     } on AggregateExists catch (e) {
       return Response.conflict(body: e.message);
@@ -94,10 +94,10 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     }
   }
 
-  S create(String uuid, String type, Map<String, dynamic> data) => throw UnsupportedError("Create not implemented");
+  S onCreate(String uuid, String type, Map<String, dynamic> data) => throw UnsupportedError("Create not implemented");
 
   @Operation('PATCH', 'uuid', 'id')
-  Future<Response> onUpdate(
+  Future<Response> update(
     @Bind.path('uuid') String uuid,
     @Bind.path('id') int id,
     @Bind.body() Map<String, dynamic> data,
@@ -108,7 +108,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       }
       final aggregate = repository.get(uuid);
       data[aggregate.entityIdFieldName] = id;
-      final events = await repository.execute(update(uuid, entityType, validate(data)));
+      final events = await repository.execute(onUpdate(uuid, entityType, validate(data)));
       return events.isEmpty ? Response.noContent() : Response.noContent();
     } on EntityNotFound catch (e) {
       return Response.notFound(body: e.message);
@@ -123,10 +123,10 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     }
   }
 
-  S update(String uuid, String type, Map<String, dynamic> data) => throw UnsupportedError("Update not implemented");
+  S onUpdate(String uuid, String type, Map<String, dynamic> data) => throw UnsupportedError("Update not implemented");
 
   @Operation('DELETE', 'uuid', 'id')
-  Future<Response> onDelete(
+  Future<Response> delete(
     @Bind.path('uuid') String uuid,
     @Bind.path('id') int id, {
     @Bind.body() Map<String, dynamic> data,
@@ -138,7 +138,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       final aggregate = repository.get(uuid);
       final entity = data ?? {};
       entity[aggregate.entityIdFieldName] = id;
-      final events = await repository.execute(delete(uuid, entityType, validate(entity)));
+      final events = await repository.execute(onDelete(uuid, entityType, validate(entity)));
       return events.isEmpty ? Response.noContent() : Response.noContent();
     } on AggregateNotFound catch (e) {
       return Response.notFound(body: e.message);
@@ -155,7 +155,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     }
   }
 
-  S delete(String uuid, String type, Map<String, dynamic> data) => throw UnsupportedError("Remove not implemented");
+  S onDelete(String uuid, String type, Map<String, dynamic> data) => throw UnsupportedError("Remove not implemented");
 
   //////////////////////////////////
   // Documentation

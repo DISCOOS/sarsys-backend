@@ -10,10 +10,10 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
       : super(repository, validator: validator);
 
   @override
-  AppConfigCommand create(Map<String, dynamic> data) => CreateAppConfig(data);
+  AppConfigCommand onCreate(Map<String, dynamic> data) => CreateAppConfig(data);
 
   @override
-  AppConfigCommand update(Map<String, dynamic> data) => UpdateAppConfig(data);
+  AppConfigCommand onUpdate(Map<String, dynamic> data) => UpdateAppConfig(data);
 
   //////////////////////////////////
   // Documentation

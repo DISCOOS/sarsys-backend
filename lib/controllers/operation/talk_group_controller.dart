@@ -12,13 +12,13 @@ class TalkGroupController extends EntityController<OperationCommand, sar.Operati
       : super(repository, "TalkGroup", "talkgroups", validator: validator);
 
   @override
-  OperationCommand create(String uuid, String type, Map<String, dynamic> data) => AddTalkGroup(uuid, data);
+  OperationCommand onCreate(String uuid, String type, Map<String, dynamic> data) => AddTalkGroup(uuid, data);
 
   @override
-  OperationCommand update(String uuid, String type, Map<String, dynamic> data) => UpdateTalkGroup(uuid, data);
+  OperationCommand onUpdate(String uuid, String type, Map<String, dynamic> data) => UpdateTalkGroup(uuid, data);
 
   @override
-  OperationCommand delete(String uuid, String type, Map<String, dynamic> data) => RemoveTalkGroup(uuid, data);
+  OperationCommand onDelete(String uuid, String type, Map<String, dynamic> data) => RemoveTalkGroup(uuid, data);
 
   //////////////////////////////////
   // Documentation

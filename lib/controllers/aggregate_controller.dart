@@ -60,9 +60,9 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   }
 
   @Operation.post()
-  Future<Response> post(@Bind.body() Map<String, dynamic> data) async {
+  Future<Response> create(@Bind.body() Map<String, dynamic> data) async {
     try {
-      await repository.execute(create(validate(data)));
+      await repository.execute(onCreate(validate(data)));
       return Response.created("${toLocation(request)}/${data[repository.uuidFieldName]}");
     } on AggregateExists catch (e) {
       return Response.conflict(body: e.message);
@@ -79,13 +79,13 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     }
   }
 
-  S create(Map<String, dynamic> data) => throw UnsupportedError("Create not implemented");
+  S onCreate(Map<String, dynamic> data) => throw UnsupportedError("Create not implemented");
 
   @Operation('PATCH', 'uuid')
-  Future<Response> patch(@Bind.path('uuid') String uuid, @Bind.body() Map<String, dynamic> data) async {
+  Future<Response> update(@Bind.path('uuid') String uuid, @Bind.body() Map<String, dynamic> data) async {
     try {
       data[repository.uuidFieldName] = uuid;
-      final events = await repository.execute(update(validate(data)));
+      final events = await repository.execute(onUpdate(validate(data)));
       return events.isEmpty ? Response.noContent() : Response.noContent();
     } on AggregateNotFound catch (e) {
       return Response.notFound(body: e.message);
@@ -102,7 +102,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     }
   }
 
-  S update(Map<String, dynamic> data) => throw UnsupportedError("Update not implemented");
+  S onUpdate(Map<String, dynamic> data) => throw UnsupportedError("Update not implemented");
 
   @Operation('DELETE', 'uuid')
   Future<Response> delete(@Bind.path('uuid') String uuid, @Bind.body() Map<String, dynamic> data) async {

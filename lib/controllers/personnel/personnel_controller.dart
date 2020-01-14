@@ -10,10 +10,10 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
       : super(repository, validator: validator);
 
   @override
-  PersonnelCommand create(Map<String, dynamic> data) => CreatePersonnel(data);
+  PersonnelCommand onCreate(Map<String, dynamic> data) => CreatePersonnel(data);
 
   @override
-  PersonnelCommand update(Map<String, dynamic> data) => UpdatePersonnelInformation(data);
+  PersonnelCommand onUpdate(Map<String, dynamic> data) => UpdatePersonnelInformation(data);
 
   @override
   PersonnelCommand onDelete(Map<String, dynamic> data) => DeletePersonnel(data);

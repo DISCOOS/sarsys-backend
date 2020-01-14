@@ -1,24 +1,21 @@
-import 'package:sarsys_app_server/controllers/entity_controller.dart';
-import 'package:sarsys_app_server/domain/incident/aggregate.dart';
-import 'package:sarsys_app_server/domain/incident/commands.dart';
-import 'package:sarsys_app_server/domain/incident/repository.dart';
+import 'package:sarsys_app_server/controllers/aggregate_controller.dart';
+import 'package:sarsys_app_server/domain/subject/subject.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 
 /// A ResourceController that handles
 /// [/api/incidents/{uuid}/subjects](http://localhost/api/client.html#/Subject) requests
-class SubjectController extends EntityController<IncidentCommand, Incident> {
-  SubjectController(IncidentRepository repository, RequestValidator validator)
-      : super(repository, "Subject", "subjects", validator: validator);
+class SubjectController extends AggregateController<SubjectCommand, Subject> {
+  SubjectController(SubjectRepository repository, RequestValidator validator) : super(repository, validator: validator);
 
   @override
-  IncidentCommand create(String uuid, String type, Map<String, dynamic> data) => AddSubject(uuid, data);
+  SubjectCommand onCreate(Map<String, dynamic> data) => RegisterSubject(data);
 
   @override
-  IncidentCommand update(String uuid, String type, Map<String, dynamic> data) => UpdateSubject(uuid, data);
+  SubjectCommand onUpdate(Map<String, dynamic> data) => UpdateSubject(data);
 
   @override
-  IncidentCommand delete(String uuid, String type, Map<String, dynamic> data) => RemoveSubject(uuid, data);
+  SubjectCommand onDelete(Map<String, dynamic> data) => DeleteSubject(data);
 
   //////////////////////////////////
   // Documentation
@@ -26,10 +23,10 @@ class SubjectController extends EntityController<IncidentCommand, Incident> {
 
   /// Subject - Entity object
   @override
-  APISchemaObject documentEntityObject(APIDocumentContext context) => APISchemaObject.object(
+  APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object(
         {
           "id": APISchemaObject.integer()
-            ..description = "Subject id (unique in Incident only)"
+            ..description = "Subject id (unique in Subject only)"
             ..defaultValue = 1,
           // TODO: Subject - replace name with reference to PII
           "name": APISchemaObject.string()..description = "Subject name",
