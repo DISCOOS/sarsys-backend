@@ -363,11 +363,21 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   /// fold from [SourceEvent] to [DomainEvent]. Each [DomainEvent]
   /// is then processed by applying changes to [AggregateRoot.data]
   /// in accordance to the business value of to each [DomainEvent].
-  T get(String uuid, {Map<String, dynamic> data = const {}}) =>
+  T get(
+    String uuid, {
+    Map<String, dynamic> data = const {},
+    List<Map<String, dynamic>> patches = const [],
+  }) =>
       _aggregates[uuid] ??
       _aggregates.putIfAbsent(
         uuid,
-        () => create(_processors, uuid, data)..loadFromHistory(store.get(uuid).map(toDomainEvent)),
+        () => create(
+          _processors,
+          uuid,
+          JsonPatch.apply(data ?? {}, patches) as Map<String, dynamic>,
+        )..loadFromHistory(
+            store.get(uuid).map(toDomainEvent),
+          ),
       );
 
   /// Get all aggregate roots.

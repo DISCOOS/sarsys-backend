@@ -429,7 +429,7 @@ class EventStore {
         // Get and commit changes
         final aggregate = repository.get(
           repository.toAggregateUuid(event),
-          data: event.data,
+          patches: event.patches,
         );
         if (aggregate.isChanged == false) {
           if (aggregate.isApplied(event) == false) {
