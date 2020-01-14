@@ -17,6 +17,9 @@ class SubjectController extends EntityController<IncidentCommand, Incident> {
   @override
   IncidentCommand update(String uuid, String type, Map<String, dynamic> data) => UpdateSubject(uuid, data);
 
+  @override
+  IncidentCommand delete(String uuid, String type, Map<String, dynamic> data) => DeleteSubject(uuid, data);
+
   //////////////////////////////////
   // Documentation
   //////////////////////////////////
@@ -45,7 +48,9 @@ class SubjectController extends EntityController<IncidentCommand, Incident> {
   @override
   APISchemaObject documentEntityObject(APIDocumentContext context) => APISchemaObject.object(
         {
-          "id": APISchemaObject.integer()..description = "Subject id (unique in Incident only)",
+          "id": APISchemaObject.integer()
+            ..description = "Subject id (unique in Incident only)"
+            ..defaultValue = 1,
           // TODO: Subject - replace name with reference to PII
           "name": APISchemaObject.string()..description = "Subject name",
           "situation": APISchemaObject.string()..description = "Subject situation",

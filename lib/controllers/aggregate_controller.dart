@@ -63,7 +63,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   Future<Response> post(@Bind.body() Map<String, dynamic> data) async {
     try {
       await repository.execute(create(validate(data)));
-      return Response.created("${toLocation(request)}/${data['uuid']}");
+      return Response.created("${toLocation(request)}/${data[repository.uuidFieldName]}");
     } on AggregateExists catch (e) {
       return Response.conflict(body: e.message);
     } on UUIDIsNull {
@@ -84,7 +84,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   @Operation('PATCH', 'uuid')
   Future<Response> patch(@Bind.path('uuid') String uuid, @Bind.body() Map<String, dynamic> data) async {
     try {
-      data['uuid'] = uuid;
+      data[repository.uuidFieldName] = uuid;
       final events = await repository.execute(update(validate(data)));
       return events.isEmpty ? Response.noContent() : Response.noContent();
     } on AggregateNotFound catch (e) {
@@ -231,9 +231,9 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       if (object.description?.isNotEmpty == false) {
         object.description = "$name schema";
       }
-      if (object.title == "$aggregateType" && object.required?.contains('uuid') == false) {
-        if (!object.properties.containsKey("uuid")) {
-          throw UnimplementedError("Property 'uuid' is required for aggregates");
+      if (object.title == "$aggregateType" && object.required?.contains(repository.uuidFieldName) == false) {
+        if (!object.properties.containsKey(repository.uuidFieldName)) {
+          throw UnimplementedError("Property '${repository.uuidFieldName}' is required for aggregates");
         }
         object.required = ["uuid", ...object.required];
       }

@@ -82,3 +82,42 @@ class IncidentDeleted extends DomainEvent {
           data: data,
         );
 }
+
+class SubjectCreated extends DomainEvent {
+  SubjectCreated({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$SubjectCreated",
+          created: created,
+          data: data,
+        );
+}
+
+class SubjectUpdated extends DomainEvent {
+  SubjectUpdated({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$SubjectUpdated",
+          created: created,
+          data: data,
+        );
+}
+
+class SubjectDeleted extends DomainEvent {
+  SubjectDeleted({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$SubjectDeleted",
+          created: created,
+          data: data,
+        );
+}

@@ -858,13 +858,14 @@ class EventStoreConnection {
   }) async {
     _assertState();
     final eventIds = <String>[];
-    final body = events.map(
+    final data = events.map(
       (event) => {
         'eventId': _uuid(eventIds, event),
         'eventType': event.type,
         'data': event.data,
       },
     );
+    final body = json.encode(data.toList());
     final response = await client.post(
       _toStreamUri(stream),
       headers: {
@@ -872,7 +873,7 @@ class EventStoreConnection {
         'Content-type': 'application/vnd.eventstore.events+json',
         'ES-ExpectedVersion': '${version.value}'
       },
-      body: json.encode(body.toList()),
+      body: body,
     );
     return WriteResult.from(stream, version, eventIds, response);
   }

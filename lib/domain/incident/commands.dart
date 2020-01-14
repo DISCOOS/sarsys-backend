@@ -21,16 +21,40 @@ class UpdateIncidentInformation extends IncidentCommand<IncidentInformationUpdat
   ) : super(Action.update, data: data);
 }
 
-class CreateSubject extends IncidentCommand<IncidentInformationUpdated> {
+class SubjectCommand<T extends DomainEvent> extends IncidentCommand<T> implements EntityCommand<T> {
+  SubjectCommand(
+    Action action,
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(action, uuid: uuid, data: data);
+
+  @override
+  String get aggregateField => "subjects";
+
+  @override
+  int get entityId => data[entityIdFieldName] as int;
+
+  @override
+  String get entityIdFieldName => 'id';
+}
+
+class CreateSubject extends SubjectCommand<SubjectCreated> {
   CreateSubject(
     String uuid,
     Map<String, dynamic> data,
-  ) : super(Action.create, uuid: uuid, data: data);
+  ) : super(Action.create, uuid, data);
 }
 
-class UpdateSubject extends IncidentCommand<IncidentInformationUpdated> {
+class UpdateSubject extends SubjectCommand<SubjectUpdated> {
   UpdateSubject(
     String uuid,
     Map<String, dynamic> data,
-  ) : super(Action.update, uuid: uuid, data: data);
+  ) : super(Action.update, uuid, data);
+}
+
+class DeleteSubject extends SubjectCommand<SubjectDeleted> {
+  DeleteSubject(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.delete, uuid, data);
 }

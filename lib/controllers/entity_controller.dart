@@ -4,9 +4,9 @@ import 'package:sarsys_app_server/validation/validation.dart';
 
 /// A basic CRUD ResourceController for [AggregateRoot] entity requests
 abstract class EntityController<S extends Command, T extends AggregateRoot> extends ResourceController {
-  EntityController(this.repository, this.entityType, this.entitiesField, {this.validator});
+  EntityController(this.repository, this.entityType, this.aggregateField, {this.validator});
   final String entityType;
-  final String entitiesField;
+  final String aggregateField;
   final RequestValidator validator;
   final Repository<S, T> repository;
 
@@ -24,15 +24,15 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
   //////////////////////////////////
 
   @Operation.get('uuid')
-  Future<Response> getAll(@Bind.path('uuid') String uuid) async {
+  Future<Response> onGetAll(@Bind.path('uuid') String uuid) async {
     if (!repository.contains(uuid)) {
-      return Response.notFound();
+      return Response.notFound(body: "Aggregate $uuid not found");
     }
     try {
       return okEntities<T>(
         uuid,
         entityType,
-        repository.get(uuid).data["entitiesField"] as List<Map<String, dynamic>>,
+        List<Map<String, dynamic>>.from(repository.get(uuid).data[aggregateField] as List<dynamic>),
       );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
@@ -42,17 +42,17 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
   }
 
   @Operation.get('uuid', 'id')
-  Future<Response> getById(
+  Future<Response> onGetById(
     @Bind.path('uuid') String uuid,
     @Bind.path('id') int id,
   ) async {
     if (!repository.contains(uuid)) {
-      return Response.notFound();
+      return Response.notFound(body: "Aggregate $uuid not found");
     }
     final aggregate = repository.get(uuid);
-    final data = aggregate.data[entitiesField] as List;
+    final data = aggregate.data[aggregateField] as List;
     if (data.isEmpty || data.length - 1 < id) {
-      return Response.notFound();
+      return Response.notFound(body: "Entity $id not found");
     }
     try {
       return okEntity<T>(
@@ -67,16 +67,21 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     }
   }
 
-  @Operation.post('uuid', 'id')
-  Future<Response> post(
+  @Operation.post('uuid')
+  Future<Response> onCreate(
     @Bind.path('uuid') String uuid,
-    @Bind.path('id') int id,
     @Bind.body() Map<String, dynamic> data,
   ) async {
     try {
+      if (!repository.contains(uuid)) {
+        return Response.notFound(body: "Aggregate $uuid not found");
+      }
+      final aggregate = repository.get(uuid);
       await repository.execute(create(uuid, entityType, validate(data)));
-      return Response.created("${toLocation(request)}/${data['uuid']}");
+      return Response.created("${toLocation(request)}/${data[aggregate.entityIdFieldName]}");
     } on AggregateExists catch (e) {
+      return Response.conflict(body: e.message);
+    } on EntityExists catch (e) {
       return Response.conflict(body: e.message);
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
@@ -92,16 +97,20 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
   S create(String uuid, String type, Map<String, dynamic> data) => throw UnsupportedError("Create not implemented");
 
   @Operation('PATCH', 'uuid', 'id')
-  Future<Response> patch(
+  Future<Response> onUpdate(
     @Bind.path('uuid') String uuid,
-    @Bind.path('uuid') int id,
+    @Bind.path('id') int id,
     @Bind.body() Map<String, dynamic> data,
   ) async {
     try {
-      data['uuid'] = uuid;
+      if (!repository.contains(uuid)) {
+        return Response.notFound(body: "Aggregate $uuid not found");
+      }
+      final aggregate = repository.get(uuid);
+      data[aggregate.entityIdFieldName] = id;
       final events = await repository.execute(update(uuid, entityType, validate(data)));
       return events.isEmpty ? Response.noContent() : Response.noContent();
-    } on AggregateExists catch (e) {
+    } on EntityNotFound catch (e) {
       return Response.notFound(body: e.message);
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
@@ -115,6 +124,38 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
   }
 
   S update(String uuid, String type, Map<String, dynamic> data) => throw UnsupportedError("Update not implemented");
+
+  @Operation('DELETE', 'uuid', 'id')
+  Future<Response> onDelete(
+    @Bind.path('uuid') String uuid,
+    @Bind.path('id') int id, {
+    @Bind.body() Map<String, dynamic> data,
+  }) async {
+    try {
+      if (!repository.contains(uuid)) {
+        return Response.notFound(body: "Aggregate $uuid not found");
+      }
+      final aggregate = repository.get(uuid);
+      final entity = data ?? {};
+      entity[aggregate.entityIdFieldName] = id;
+      final events = await repository.execute(delete(uuid, entityType, validate(entity)));
+      return events.isEmpty ? Response.noContent() : Response.noContent();
+    } on AggregateNotFound catch (e) {
+      return Response.notFound(body: e.message);
+    } on EntityNotFound catch (e) {
+      return Response.notFound(body: e.message);
+    } on InvalidOperation catch (e) {
+      return Response.badRequest(body: e.message);
+    } on SchemaException catch (e) {
+      return Response.badRequest(body: e.message);
+    } on SocketException catch (e) {
+      return serviceUnavailable(body: "Eventstore unavailable: $e");
+    } on Failure catch (e) {
+      return Response.serverError(body: e.message);
+    }
+  }
+
+  S delete(String uuid, String type, Map<String, dynamic> data) => throw UnsupportedError("Remove not implemented");
 
   //////////////////////////////////
   // Documentation
@@ -132,6 +173,9 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
         break;
       case "PATCH":
         summary = "Update ${_toLowerCase()}";
+        break;
+      case "DELETE":
+        summary = "Delete ${_toLowerCase()}";
         break;
     }
     return summary;

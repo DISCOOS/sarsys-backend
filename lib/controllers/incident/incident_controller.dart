@@ -123,7 +123,7 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
   APISchemaObject documentClue(APIDocumentContext context) => APISchemaObject.object(
         {
           "id": APISchemaObject.integer()..description = "Clue id (unique in Incident only)",
-          "name": APISchemaObject.array(ofSchema: context.schema['Point'])..description = "Clue name",
+          "name": APISchemaObject.string()..description = "Clue name",
           "description": APISchemaObject.string()..description = "Clue description",
           "type": APISchemaObject.string()
             ..description = "Clue type"

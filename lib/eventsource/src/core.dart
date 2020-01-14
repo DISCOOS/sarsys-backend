@@ -58,9 +58,6 @@ class Event extends Message {
   /// Test if `data['deleted'] == 'true'`
   bool get isDeleted => data['deleted'] == 'true';
 
-  /// Get `data['changes']`
-  Map<String, dynamic> get changes => data['changes'] as Map<String, dynamic>;
-
   /// Get list of JSON Patch methods from `data['patches']`
   List<Map<String, dynamic>> get patches => List<Map<String, dynamic>>.from(data['patches'] as List<dynamic>);
 
@@ -155,8 +152,9 @@ abstract class Command<T extends DomainEvent> extends Message {
 }
 
 /// Command interface
-abstract class EntityCommand extends Command {
+abstract class EntityCommand<T extends DomainEvent> extends Command<T> {
   EntityCommand(
+    Action action,
     this.aggregateField, {
     String uuid,
     int entityId,
@@ -165,7 +163,7 @@ abstract class EntityCommand extends Command {
     Map<String, dynamic> data = const {},
   })  : _id = entityId,
         super(
-          Action.update,
+          action,
           uuid: uuid,
           uuidFieldName: uuidFieldName,
           data: data,
