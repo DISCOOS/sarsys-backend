@@ -66,3 +66,45 @@ class DeleteObjective extends ObjectiveCommand<ObjectiveDeleted> {
     Map<String, dynamic> data,
   ) : super(Action.delete, uuid, data);
 }
+
+//////////////////////////////////
+// TalkGroup entity commands
+//////////////////////////////////
+
+class TalkGroupCommand<T extends DomainEvent> extends OperationCommand<T> implements EntityCommand<T> {
+  TalkGroupCommand(
+    Action action,
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(action, uuid: uuid, data: data);
+
+  @override
+  String get aggregateField => "talkgroups";
+
+  @override
+  int get entityId => data[entityIdFieldName] as int;
+
+  @override
+  String get entityIdFieldName => 'id';
+}
+
+class AddTalkGroup extends TalkGroupCommand<TalkGroupAdded> {
+  AddTalkGroup(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.create, uuid, data);
+}
+
+class UpdateTalkGroup extends TalkGroupCommand<TalkGroupUpdated> {
+  UpdateTalkGroup(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.update, uuid, data);
+}
+
+class RemoveTalkGroup extends TalkGroupCommand<TalkGroupRemoved> {
+  RemoveTalkGroup(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.delete, uuid, data);
+}

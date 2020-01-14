@@ -52,7 +52,7 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
             ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
           "reference": APISchemaObject.string()..description = "External reference from requesting authority",
           "justification": APISchemaObject.string()..description = "Justification for responding",
-          "talkGroups": APISchemaObject.array(ofSchema: context.schema['TalkGroup'])
+          "talkgroups": APISchemaObject.array(ofSchema: context.schema['TalkGroup'])
             ..description = "List of talk gropus in use",
           "ipp": context.schema['Location']..description = "Initial planning point",
           "meetup": context.schema['Location']..description = "On scene meeting point",
@@ -77,8 +77,6 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
   Map<String, APISchemaObject> documentEntities(APIDocumentContext context) => {
         "Point": documentPoint(),
         "Address": documentAddress(),
-        "Address": documentAddress(),
-        "TalkGroup": documentTalkGroup(),
         "Location": documentLocation(context),
       };
 
@@ -116,26 +114,6 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
           'point',
-        ];
-
-  /// TalkGroup - Value object
-  APISchemaObject documentTalkGroup() => APISchemaObject.object(
-        {
-          "name": APISchemaObject.boolean()..description = "Talkgroup identifier",
-          "type": APISchemaObject.string()
-            ..description = "Talkgroup type"
-            ..enumerated = [
-              'tetra',
-              'marine',
-              'analog',
-            ],
-        },
-      )
-        ..description = "TalkGroup Schema (value object)"
-        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
-        ..required = [
-          'name',
-          'type',
         ];
 
   /// Point - Value object

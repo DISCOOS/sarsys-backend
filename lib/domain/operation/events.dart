@@ -125,3 +125,46 @@ class ObjectiveDeleted extends DomainEvent {
           data: data,
         );
 }
+
+//////////////////////////////////////
+// Objective Domain Events
+//////////////////////////////////////
+
+class TalkGroupAdded extends DomainEvent {
+  TalkGroupAdded({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$TalkGroupAdded",
+          created: created,
+          data: data,
+        );
+}
+
+class TalkGroupUpdated extends DomainEvent {
+  TalkGroupUpdated({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$TalkGroupUpdated",
+          created: created,
+          data: data,
+        );
+}
+
+class TalkGroupRemoved extends DomainEvent {
+  TalkGroupRemoved({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$TalkGroupRemoved",
+          created: created,
+          data: data,
+        );
+}

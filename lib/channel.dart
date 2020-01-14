@@ -8,7 +8,7 @@ import 'controllers/app_config_controller.dart';
 import 'controllers/health_controller.dart';
 import 'controllers/incident/controllers.dart';
 import 'controllers/operation/controllers.dart';
-import 'controllers/unit_controller.dart';
+import 'controllers/unit/controllers.dart';
 import 'controllers/websocket_controller.dart';
 import 'domain/incident/incident.dart';
 import 'domain/messages.dart';
@@ -126,6 +126,10 @@ class SarSysAppServerChannel extends ApplicationChannel {
         () => OperationController(manager.get<sar.OperationRepository>()),
       )
       ..route('/api/operations/:uuid/objectives[/:id]').link(() => ObjectiveController(
+            manager.get<sar.OperationRepository>(),
+            requestValidator,
+          ))
+      ..route('/api/operations/:uuid/talkgroups[/:id]').link(() => TalkGroupController(
             manager.get<sar.OperationRepository>(),
             requestValidator,
           ))
