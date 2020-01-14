@@ -58,9 +58,9 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
           'uuid',
-          'operationUuid',
-          'number',
           'type',
+          'status',
+          'number',
           'callsign',
         ];
 

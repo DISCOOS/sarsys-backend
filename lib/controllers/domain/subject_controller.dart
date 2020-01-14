@@ -43,6 +43,7 @@ class SubjectController extends AggregateController<SubjectCommand, Subject> {
         ..description = "Objective Schema"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
+          'uuid',
           'name',
           'type',
           'situation',

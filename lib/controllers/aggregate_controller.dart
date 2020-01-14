@@ -29,12 +29,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     @Bind.query('limit') int limit = 20,
   }) async {
     try {
-      final events = repository
-          .getAll(
-            offset: offset,
-            limit: limit,
-          )
-          .toList();
+      final events = repository.getAll(offset: offset, limit: limit).toList();
       return okAggregatePaged(repository.count, offset, limit, events);
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
@@ -47,10 +42,10 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
 
   @Operation.get('uuid')
   Future<Response> getByUuid(@Bind.path('uuid') String uuid) async {
-    if (!repository.contains(uuid)) {
-      return Response.notFound();
-    }
     try {
+      if (!repository.contains(uuid)) {
+        return Response.notFound(body: "$aggregateType $uuid not found");
+      }
       return okAggregate(repository.get(uuid));
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
@@ -84,6 +79,9 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   @Operation('PATCH', 'uuid')
   Future<Response> update(@Bind.path('uuid') String uuid, @Bind.body() Map<String, dynamic> data) async {
     try {
+      if (!repository.contains(uuid)) {
+        return Response.notFound(body: "$aggregateType $uuid not found");
+      }
       data[repository.uuidFieldName] = uuid;
       final events = await repository.execute(onUpdate(validate(data)));
       return events.isEmpty ? Response.noContent() : Response.noContent();
@@ -105,10 +103,17 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   S onUpdate(Map<String, dynamic> data) => throw UnsupportedError("Update not implemented");
 
   @Operation('DELETE', 'uuid')
-  Future<Response> delete(@Bind.path('uuid') String uuid, @Bind.body() Map<String, dynamic> data) async {
+  Future<Response> delete(
+    @Bind.path('uuid') String uuid, {
+    @Bind.body() Map<String, dynamic> data,
+  }) async {
     try {
-      data[repository.uuidFieldName] = uuid;
-      final events = await repository.execute(onDelete(validate(data)));
+      if (!repository.contains(uuid)) {
+        return Response.notFound(body: "$aggregateType $uuid not found");
+      }
+      final aggregate = data ?? {};
+      aggregate[repository.uuidFieldName] = uuid;
+      final events = await repository.execute(onDelete(validate(aggregate)));
       return events.isEmpty ? Response.noContent() : Response.noContent();
     } on AggregateNotFound catch (e) {
       return Response.notFound(body: e.message);

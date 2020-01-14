@@ -54,7 +54,7 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
       )
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
-          'id',
+          'uuid',
           'fname',
           'lname',
           'status',

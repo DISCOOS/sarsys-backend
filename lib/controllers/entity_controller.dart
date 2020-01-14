@@ -25,10 +25,10 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
 
   @Operation.get('uuid')
   Future<Response> getAll(@Bind.path('uuid') String uuid) async {
-    if (!repository.contains(uuid)) {
-      return Response.notFound(body: "Aggregate $uuid not found");
-    }
     try {
+      if (!repository.contains(uuid)) {
+        return Response.notFound(body: "$aggregateType $uuid not found");
+      }
       return okEntities<T>(
         uuid,
         entityType,
@@ -46,15 +46,15 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     @Bind.path('uuid') String uuid,
     @Bind.path('id') int id,
   ) async {
-    if (!repository.contains(uuid)) {
-      return Response.notFound(body: "Aggregate $uuid not found");
-    }
-    final aggregate = repository.get(uuid);
-    final data = aggregate.data[aggregateField] as List;
-    if (data.isEmpty || data.length - 1 < id) {
-      return Response.notFound(body: "Entity $id not found");
-    }
     try {
+      if (!repository.contains(uuid)) {
+        return Response.notFound(body: "$aggregateType $uuid not found");
+      }
+      final aggregate = repository.get(uuid);
+      final data = aggregate.data[aggregateField] as List;
+      if (data.isEmpty || data.length - 1 < id) {
+        return Response.notFound(body: "Entity $id not found");
+      }
       return okEntity<T>(
         uuid,
         entityType,
@@ -73,8 +73,8 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     @Bind.body() Map<String, dynamic> data,
   ) async {
     try {
-      if (!repository.contains(uuid)) {
-        return Response.notFound(body: "Aggregate $uuid not found");
+      if (repository.contains(uuid)) {
+        return Response.notFound(body: "$aggregateType $uuid exists");
       }
       final aggregate = repository.get(uuid);
       await repository.execute(onCreate(uuid, entityType, validate(data)));
@@ -104,7 +104,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
   ) async {
     try {
       if (!repository.contains(uuid)) {
-        return Response.notFound(body: "Aggregate $uuid not found");
+        return Response.notFound(body: "$aggregateType $uuid not found");
       }
       final aggregate = repository.get(uuid);
       data[aggregate.entityIdFieldName] = id;

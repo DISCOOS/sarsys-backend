@@ -9,6 +9,7 @@ import 'controllers/health_controller.dart';
 import 'controllers/websocket_controller.dart';
 import 'domain/incident/incident.dart';
 import 'domain/messages.dart';
+import 'domain/mission/mission.dart';
 import 'domain/operation/operation.dart' as sar;
 import 'domain/personnel/personnel.dart';
 import 'domain/subject/subject.dart';
@@ -133,6 +134,10 @@ class SarSysAppServerChannel extends ApplicationChannel {
             manager.get<sar.OperationRepository>(),
             requestValidator,
           ))
+      ..route('/api/missions[/:uuid]').link(() => MissionController(
+            manager.get<MissionRepository>(),
+            requestValidator,
+          ))
       ..route('/api/personnels[/:uuid]').link(() => PersonnelController(
             manager.get<PersonnelRepository>(),
             requestValidator,
@@ -237,6 +242,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     manager.register<Subject>((manager) => SubjectRepository(manager));
     manager.register<Personnel>((manager) => PersonnelRepository(manager));
     manager.register<Unit>((manager) => UnitRepository(manager));
+    manager.register<Mission>((manager) => MissionRepository(manager));
     manager.register<sar.Operation>((manager) => sar.OperationRepository(manager));
 
     // Defer repository builds so that isolates are not killed on eventstore connection timeouts
