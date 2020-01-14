@@ -1,9 +1,8 @@
+import 'package:sarsys_app_server/controllers/aggregate_controller.dart';
+import 'package:sarsys_app_server/domain/operation/operation.dart' as sar;
 import 'package:sarsys_app_server/domain/operation/repository.dart';
+import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
-
-import '../../domain/operation/operation.dart' as sar;
-import '../../sarsys_app_server.dart';
-import '../aggregate_controller.dart';
 
 /// A ResourceController that handles
 /// [/api/operations](http://localhost/api/client.html#/Operation) requests
@@ -16,6 +15,9 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
 
   @override
   sar.OperationCommand onUpdate(Map<String, dynamic> data) => sar.UpdateOperationInformation(data);
+
+  @override
+  sar.OperationCommand onDelete(Map<String, dynamic> data) => sar.DeleteOperation(data);
 
   //////////////////////////////////
   // Documentation

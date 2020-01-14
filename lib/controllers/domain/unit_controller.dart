@@ -1,36 +1,32 @@
-import 'package:sarsys_app_server/controllers/entity_controller.dart';
-import 'package:sarsys_app_server/domain/operation/aggregate.dart' as sar;
-import 'package:sarsys_app_server/domain/operation/commands.dart';
-import 'package:sarsys_app_server/domain/operation/repository.dart';
+import 'package:sarsys_app_server/controllers/aggregate_controller.dart';
+import 'package:sarsys_app_server/domain/unit/unit.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 
 /// A ResourceController that handles
 /// [/api/incidents/{uuid}/units](http://localhost/api/client.html#/Unit) requests
-class UnitController extends EntityController<OperationCommand, sar.Operation> {
-  UnitController(OperationRepository repository, RequestValidator validator)
-      : super(repository, "Unit", "units", validator: validator);
+class UnitController extends AggregateController<UnitCommand, Unit> {
+  UnitController(UnitRepository repository, RequestValidator validator) : super(repository, validator: validator);
 
   @override
-  OperationCommand onCreate(String uuid, String type, Map<String, dynamic> data) => MobilizeUnit(uuid, data);
+  UnitCommand onCreate(Map<String, dynamic> data) => CreateUnit(data);
 
   @override
-  OperationCommand onUpdate(String uuid, String type, Map<String, dynamic> data) => UpdateUnitInformation(
-        uuid,
-        data,
-      );
+  UnitCommand onUpdate(Map<String, dynamic> data) => UpdateUnitInformation(data);
 
   @override
-  OperationCommand onDelete(String uuid, String type, Map<String, dynamic> data) => RetireUnit(uuid, data);
+  UnitCommand onDelete(Map<String, dynamic> data) => DeleteUnit(data);
 
   //////////////////////////////////
   // Documentation
   //////////////////////////////////
 
   @override
-  APISchemaObject documentEntityObject(APIDocumentContext context) => APISchemaObject.object(
+  APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object(
         {
-          "id": APISchemaObject.integer()..description = "Unit id (unique in Operation only)",
+          "uuid": APISchemaObject.string()
+            ..format = 'uuid'
+            ..description = "Unique Personnel id",
           "type": documentType(),
           "number": APISchemaObject.integer()..description = "Unit number",
           /* TODO: Add affiliation

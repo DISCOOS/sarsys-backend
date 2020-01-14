@@ -26,6 +26,12 @@ class UpdateOperationInformation extends OperationCommand<OperationInformationUp
   ) : super(Action.update, data: data);
 }
 
+class DeleteOperation extends OperationCommand<OperationDeleted> {
+  DeleteOperation(
+    Map<String, dynamic> data,
+  ) : super(Action.update, data: data);
+}
+
 //////////////////////////////////
 // Objective entity commands
 //////////////////////////////////
@@ -108,46 +114,4 @@ class RemoveTalkGroup extends TalkGroupCommand<TalkGroupRemoved> {
     String uuid,
     Map<String, dynamic> data,
   ) : super(Action.delete, uuid, data);
-}
-
-//////////////////////////////////
-// Unit entity commands
-//////////////////////////////////
-
-class UnitCommand<T extends DomainEvent> extends OperationCommand<T> implements EntityCommand<T> {
-  UnitCommand(
-    Action action,
-    String uuid,
-    Map<String, dynamic> data,
-  ) : super(action, uuid: uuid, data: data);
-
-  @override
-  String get aggregateField => "units";
-
-  @override
-  int get entityId => data[entityIdFieldName] as int;
-
-  @override
-  String get entityIdFieldName => 'id';
-}
-
-class MobilizeUnit extends UnitCommand<UnitMobilized> {
-  MobilizeUnit(
-    String uuid,
-    Map<String, dynamic> data,
-  ) : super(Action.create, uuid, data);
-}
-
-class UpdateUnitInformation extends UnitCommand<UnitInformationUpdated> {
-  UpdateUnitInformation(
-    String uuid,
-    Map<String, dynamic> data,
-  ) : super(Action.create, uuid, data);
-}
-
-class RetireUnit extends UnitCommand<UnitMobilized> {
-  RetireUnit(
-    String uuid,
-    Map<String, dynamic> data,
-  ) : super(Action.create, uuid, data);
 }
