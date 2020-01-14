@@ -1,21 +1,22 @@
 import 'dart:convert';
 
 import 'package:http/http.dart';
-import 'package:sarsys_app_server/validation/validation.dart';
 
 import 'auth/oidc.dart';
 import 'controllers/app_config_controller.dart';
 import 'controllers/health_controller.dart';
 import 'controllers/incident/controllers.dart';
 import 'controllers/operation/controllers.dart';
+import 'controllers/personnel/personnel_controller.dart';
 import 'controllers/websocket_controller.dart';
 import 'domain/incident/incident.dart';
 import 'domain/messages.dart';
 import 'domain/operation/operation.dart' as sar;
+import 'domain/personnel/personnel.dart';
 import 'domain/tenant/app_config.dart';
 import 'eventsource/eventsource.dart';
-
 import 'sarsys_app_server.dart';
+import 'validation/validation.dart';
 
 /// MUST BE used when bootstrapping Aqueduct
 const int isolateStartupTimeout = 30;
@@ -120,9 +121,10 @@ class SarSysAppServerChannel extends ApplicationChannel {
             manager.get<IncidentRepository>(),
             requestValidator,
           ))
-      ..route('/api/operations[/:uuid]').link(
-        () => OperationController(manager.get<sar.OperationRepository>()),
-      )
+      ..route('/api/operations[/:uuid]').link(() => OperationController(
+            manager.get<sar.OperationRepository>(),
+            requestValidator,
+          ))
       ..route('/api/operations/:uuid/objectives[/:id]').link(() => ObjectiveController(
             manager.get<sar.OperationRepository>(),
             requestValidator,
@@ -131,8 +133,8 @@ class SarSysAppServerChannel extends ApplicationChannel {
             manager.get<sar.OperationRepository>(),
             requestValidator,
           ))
-      ..route('/api/operations/:uuid/personnels[/:id]').link(() => PersonnelController(
-            manager.get<sar.OperationRepository>(),
+      ..route('/api/personnels[/:uuid]').link(() => PersonnelController(
+            manager.get<PersonnelRepository>(),
             requestValidator,
           ))
       ..route('/api/operations/:uuid/units[/:id]').link(() => UnitController(
@@ -232,6 +234,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     // Register repositories
     manager.register<AppConfig>((manager) => AppConfigRepository(manager));
     manager.register<Incident>((manager) => IncidentRepository(manager));
+    manager.register<Personnel>((manager) => PersonnelRepository(manager));
     manager.register<sar.Operation>((manager) => sar.OperationRepository(manager));
 
     // Defer repository builds so that isolates are not killed on eventstore connection timeouts

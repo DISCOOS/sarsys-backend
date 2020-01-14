@@ -1,36 +1,31 @@
-import 'package:sarsys_app_server/controllers/entity_controller.dart';
-import 'package:sarsys_app_server/domain/operation/aggregate.dart' as sar;
-import 'package:sarsys_app_server/domain/operation/commands.dart';
-import 'package:sarsys_app_server/domain/operation/repository.dart';
+import 'package:sarsys_app_server/controllers/aggregate_controller.dart';
+import 'package:sarsys_app_server/domain/personnel/personnel.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 
 /// A ResourceController that handles
 /// [/api/incidents/{uuid}/personnels](http://localhost/api/client.html#/Personnel) requests
-class PersonnelController extends EntityController<OperationCommand, sar.Operation> {
-  PersonnelController(OperationRepository repository, RequestValidator validator)
-      : super(repository, "Personnel", "personnels", validator: validator);
+class PersonnelController extends AggregateController<PersonnelCommand, Personnel> {
+  PersonnelController(PersonnelRepository repository, RequestValidator validator)
+      : super(repository, validator: validator);
 
   @override
-  OperationCommand create(String uuid, String type, Map<String, dynamic> data) => MobilizePersonnel(uuid, data);
+  PersonnelCommand create(Map<String, dynamic> data) => CreatePersonnel(data);
 
   @override
-  OperationCommand update(String uuid, String type, Map<String, dynamic> data) => UpdatePersonnelInformation(
-        uuid,
-        data,
-      );
+  PersonnelCommand update(Map<String, dynamic> data) => UpdatePersonnelInformation(data);
 
   @override
-  OperationCommand delete(String uuid, String type, Map<String, dynamic> data) => RetirePersonnel(uuid, data);
+  PersonnelCommand onDelete(Map<String, dynamic> data) => DeletePersonnel(data);
 
   //////////////////////////////////
   // Documentation
   //////////////////////////////////
 
   @override
-  APISchemaObject documentEntityObject(APIDocumentContext context) => APISchemaObject.object(
+  APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object(
         {
-          "id": APISchemaObject.integer()..description = "Personnel id (unique in Operation only)",
+          "id": APISchemaObject.integer()..description = "Globally unique Personnel id",
           "fname": APISchemaObject.string()..description = "First name",
           "lname": APISchemaObject.string()..description = "Last name",
           "phone": APISchemaObject.string()..description = "Phone number",

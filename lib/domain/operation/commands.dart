@@ -111,48 +111,6 @@ class RemoveTalkGroup extends TalkGroupCommand<TalkGroupRemoved> {
 }
 
 //////////////////////////////////
-// Personnel entity commands
-//////////////////////////////////
-
-class PersonnelCommand<T extends DomainEvent> extends OperationCommand<T> implements EntityCommand<T> {
-  PersonnelCommand(
-    Action action,
-    String uuid,
-    Map<String, dynamic> data,
-  ) : super(action, uuid: uuid, data: data);
-
-  @override
-  String get aggregateField => "personnels";
-
-  @override
-  int get entityId => data[entityIdFieldName] as int;
-
-  @override
-  String get entityIdFieldName => 'id';
-}
-
-class MobilizePersonnel extends PersonnelCommand<PersonnelMobilized> {
-  MobilizePersonnel(
-    String uuid,
-    Map<String, dynamic> data,
-  ) : super(Action.create, uuid, data);
-}
-
-class UpdatePersonnelInformation extends PersonnelCommand<PersonnelInformationUpdated> {
-  UpdatePersonnelInformation(
-    String uuid,
-    Map<String, dynamic> data,
-  ) : super(Action.create, uuid, data);
-}
-
-class RetirePersonnel extends PersonnelCommand<PersonnelRetired> {
-  RetirePersonnel(
-    String uuid,
-    Map<String, dynamic> data,
-  ) : super(Action.create, uuid, data);
-}
-
-//////////////////////////////////
 // Unit entity commands
 //////////////////////////////////
 

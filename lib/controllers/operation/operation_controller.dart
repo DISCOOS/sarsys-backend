@@ -1,4 +1,5 @@
 import 'package:sarsys_app_server/domain/operation/repository.dart';
+import 'package:sarsys_app_server/validation/validation.dart';
 
 import '../../domain/operation/operation.dart' as sar;
 import '../../sarsys_app_server.dart';
@@ -7,7 +8,8 @@ import '../aggregate_controller.dart';
 /// A ResourceController that handles
 /// [/api/operations](http://localhost/api/client.html#/Operation) requests
 class OperationController extends AggregateController<sar.OperationCommand, sar.Operation> {
-  OperationController(OperationRepository repository) : super(repository);
+  OperationController(OperationRepository repository, RequestValidator validator)
+      : super(repository, validator: validator);
 
   @override
   sar.OperationCommand create(Map<String, dynamic> data) => sar.RegisterOperation(data);

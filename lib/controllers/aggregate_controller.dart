@@ -104,6 +104,29 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
 
   S update(Map<String, dynamic> data) => throw UnsupportedError("Update not implemented");
 
+  @Operation('DELETE', 'uuid')
+  Future<Response> delete(@Bind.path('uuid') String uuid, @Bind.body() Map<String, dynamic> data) async {
+    try {
+      data[repository.uuidFieldName] = uuid;
+      final events = await repository.execute(onDelete(validate(data)));
+      return events.isEmpty ? Response.noContent() : Response.noContent();
+    } on AggregateNotFound catch (e) {
+      return Response.notFound(body: e.message);
+    } on UUIDIsNull {
+      return Response.badRequest(body: "Field [uuid] in $aggregateType is required");
+    } on InvalidOperation catch (e) {
+      return Response.badRequest(body: e.message);
+    } on SchemaException catch (e) {
+      return Response.badRequest(body: e.message);
+    } on SocketException catch (e) {
+      return serviceUnavailable(body: "Eventstore unavailable: $e");
+    } on Failure catch (e) {
+      return Response.serverError(body: e.message);
+    }
+  }
+
+  S onDelete(Map<String, dynamic> data) => throw UnsupportedError("Update not implemented");
+
   //////////////////////////////////
   // Documentation
   //////////////////////////////////

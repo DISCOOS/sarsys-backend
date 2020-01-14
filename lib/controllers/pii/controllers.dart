@@ -1,1 +1,1 @@
-export '../operation/personnel_controller.dart';
+export '../personnel/personnel_controller.dart';
