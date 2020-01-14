@@ -1,5 +1,6 @@
-import 'package:sarsys_app_server/domain/operation/events.dart';
 import 'package:sarsys_app_server/eventsource/eventsource.dart';
+
+import 'events.dart';
 
 abstract class OperationCommand<T extends DomainEvent> extends Command<T> {
   OperationCommand(
@@ -107,4 +108,88 @@ class RemoveTalkGroup extends TalkGroupCommand<TalkGroupRemoved> {
     String uuid,
     Map<String, dynamic> data,
   ) : super(Action.delete, uuid, data);
+}
+
+//////////////////////////////////
+// Personnel entity commands
+//////////////////////////////////
+
+class PersonnelCommand<T extends DomainEvent> extends OperationCommand<T> implements EntityCommand<T> {
+  PersonnelCommand(
+    Action action,
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(action, uuid: uuid, data: data);
+
+  @override
+  String get aggregateField => "personnels";
+
+  @override
+  int get entityId => data[entityIdFieldName] as int;
+
+  @override
+  String get entityIdFieldName => 'id';
+}
+
+class MobilizePersonnel extends PersonnelCommand<PersonnelMobilized> {
+  MobilizePersonnel(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.create, uuid, data);
+}
+
+class UpdatePersonnelInformation extends PersonnelCommand<PersonnelInformationUpdated> {
+  UpdatePersonnelInformation(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.create, uuid, data);
+}
+
+class RetirePersonnel extends PersonnelCommand<PersonnelRetired> {
+  RetirePersonnel(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.create, uuid, data);
+}
+
+//////////////////////////////////
+// Unit entity commands
+//////////////////////////////////
+
+class UnitCommand<T extends DomainEvent> extends OperationCommand<T> implements EntityCommand<T> {
+  UnitCommand(
+    Action action,
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(action, uuid: uuid, data: data);
+
+  @override
+  String get aggregateField => "units";
+
+  @override
+  int get entityId => data[entityIdFieldName] as int;
+
+  @override
+  String get entityIdFieldName => 'id';
+}
+
+class MobilizeUnit extends UnitCommand<UnitMobilized> {
+  MobilizeUnit(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.create, uuid, data);
+}
+
+class UpdateUnitInformation extends UnitCommand<UnitInformationUpdated> {
+  UpdateUnitInformation(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.create, uuid, data);
+}
+
+class RetireUnit extends UnitCommand<UnitMobilized> {
+  RetireUnit(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.create, uuid, data);
 }

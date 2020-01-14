@@ -127,7 +127,7 @@ class ObjectiveRemoved extends DomainEvent {
 }
 
 //////////////////////////////////////
-// Objective Domain Events
+// TalkGroup Domain Events
 //////////////////////////////////////
 
 class TalkGroupAdded extends DomainEvent {
@@ -164,6 +164,170 @@ class TalkGroupRemoved extends DomainEvent {
   }) : super(
           uuid: uuid,
           type: "$TalkGroupRemoved",
+          created: created,
+          data: data,
+        );
+}
+
+//////////////////////////////////////
+// Personnel Domain Events
+//////////////////////////////////////
+
+class PersonnelCreated extends DomainEvent {
+  PersonnelCreated({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$PersonnelCreated",
+          created: created,
+          data: data,
+        );
+}
+
+class PersonnelInformationUpdated extends DomainEvent {
+  PersonnelInformationUpdated({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$PersonnelInformationUpdated",
+          created: created,
+          data: data,
+        );
+}
+
+class PersonnelMobilized extends DomainEvent {
+  PersonnelMobilized({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$PersonnelMobilized",
+          created: created,
+          data: data,
+        );
+}
+
+class PersonnelDeployed extends DomainEvent {
+  PersonnelDeployed({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$PersonnelDeployed",
+          created: created,
+          data: data,
+        );
+}
+
+class PersonnelRetired extends DomainEvent {
+  PersonnelRetired({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$PersonnelRetired",
+          created: created,
+          data: data,
+        );
+}
+
+class PersonnelDeleted extends DomainEvent {
+  PersonnelDeleted({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$PersonnelDeleted",
+          created: created,
+          data: data,
+        );
+}
+
+//////////////////////////////////////
+// Unit Domain Events
+//////////////////////////////////////
+
+class UnitCreated extends DomainEvent {
+  UnitCreated({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$UnitCreated",
+          created: created,
+          data: data,
+        );
+}
+
+class UnitInformationUpdated extends DomainEvent {
+  UnitInformationUpdated({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$UnitInformationUpdated",
+          created: created,
+          data: data,
+        );
+}
+
+class UnitMobilized extends DomainEvent {
+  UnitMobilized({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$UnitMobilized",
+          created: created,
+          data: data,
+        );
+}
+
+class UnitDeployed extends DomainEvent {
+  UnitDeployed({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$UnitDeployed",
+          created: created,
+          data: data,
+        );
+}
+
+class UnitRetired extends DomainEvent {
+  UnitRetired({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$UnitRetired",
+          created: created,
+          data: data,
+        );
+}
+
+class UnitDeleted extends DomainEvent {
+  UnitDeleted({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$UnitDeleted",
           created: created,
           data: data,
         );

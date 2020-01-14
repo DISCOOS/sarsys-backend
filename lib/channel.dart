@@ -8,13 +8,11 @@ import 'controllers/app_config_controller.dart';
 import 'controllers/health_controller.dart';
 import 'controllers/incident/controllers.dart';
 import 'controllers/operation/controllers.dart';
-import 'controllers/unit/controllers.dart';
 import 'controllers/websocket_controller.dart';
 import 'domain/incident/incident.dart';
 import 'domain/messages.dart';
 import 'domain/operation/operation.dart' as sar;
 import 'domain/tenant/app_config.dart';
-import 'domain/unit/unit.dart';
 import 'eventsource/eventsource.dart';
 
 import 'sarsys_app_server.dart';
@@ -133,9 +131,14 @@ class SarSysAppServerChannel extends ApplicationChannel {
             manager.get<sar.OperationRepository>(),
             requestValidator,
           ))
-      ..route('/api/units[/:uuid]').link(
-        () => UnitController(manager.get<UnitRepository>()),
-      );
+      ..route('/api/operations/:uuid/personnels[/:id]').link(() => PersonnelController(
+            manager.get<sar.OperationRepository>(),
+            requestValidator,
+          ))
+      ..route('/api/operations/:uuid/units[/:id]').link(() => UnitController(
+            manager.get<sar.OperationRepository>(),
+            requestValidator,
+          ));
   }
 
   @override
@@ -230,7 +233,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
     manager.register<AppConfig>((manager) => AppConfigRepository(manager));
     manager.register<Incident>((manager) => IncidentRepository(manager));
     manager.register<sar.Operation>((manager) => sar.OperationRepository(manager));
-    manager.register<Unit>((manager) => UnitRepository(manager));
 
     // Defer repository builds so that isolates are not killed on eventstore connection timeouts
     Future.delayed(

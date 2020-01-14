@@ -1,5 +1,6 @@
-import 'package:sarsys_app_server/domain/incident/events.dart';
 import 'package:sarsys_app_server/eventsource/eventsource.dart';
+
+import 'events.dart';
 
 abstract class IncidentCommand<T extends DomainEvent> extends Command<T> {
   IncidentCommand(
