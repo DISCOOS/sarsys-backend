@@ -83,6 +83,10 @@ class IncidentDeleted extends DomainEvent {
         );
 }
 
+//////////////////////////////////
+// Subject Domain Events
+//////////////////////////////////
+
 class SubjectCreated extends DomainEvent {
   SubjectCreated({
     @required String uuid,
@@ -117,6 +121,49 @@ class SubjectDeleted extends DomainEvent {
   }) : super(
           uuid: uuid,
           type: "$SubjectDeleted",
+          created: created,
+          data: data,
+        );
+}
+
+//////////////////////////////////
+// Clue Domain Events
+//////////////////////////////////
+
+class ClueCreated extends DomainEvent {
+  ClueCreated({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$ClueCreated",
+          created: created,
+          data: data,
+        );
+}
+
+class ClueUpdated extends DomainEvent {
+  ClueUpdated({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$ClueUpdated",
+          created: created,
+          data: data,
+        );
+}
+
+class ClueDeleted extends DomainEvent {
+  ClueDeleted({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$ClueDeleted",
           created: created,
           data: data,
         );

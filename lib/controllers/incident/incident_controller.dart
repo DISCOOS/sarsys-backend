@@ -21,26 +21,6 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
   // Documentation
   //////////////////////////////////
 
-  static const passCodesDescription = "Users with an admin role will get all incidents containing "
-      "all available fields. All other roles will get incidents based on affiliation. "
-      "Which fields each incident contains is based on given passcode. All available fields are "
-      "only returned for incidents  with passcode which match the value given in header 'X-Passcode'. "
-      "Rquests without header 'X-Passcode', or with an invalid passcode, will get incidents containing "
-      "fields [uuid] and [name] only. Brute-force attacks are banned for a lmitied time without any "
-      "feedback. When banned, all incidents will contain fields [uuid] and [name] only, regardless of "
-      "the value in 'X-Passcode'.";
-
-  @override
-  String documentOperationDescription(APIDocumentContext context, Operation operation) {
-    String desc = "${documentOperationSummary(context, operation)}. ";
-    switch (operation.method) {
-      case "GET":
-        desc = "$desc $passCodesDescription";
-        break;
-    }
-    return desc;
-  }
-
   /// Incident - Aggregate root
   @override
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object(
@@ -93,11 +73,6 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
           'occured',
         ];
 
-  @override
-  Map<String, APISchemaObject> documentEntities(APIDocumentContext context) => {
-        "Clue": documentClue(context),
-      };
-
   /// IncidentStatus - Value Object
   APISchemaObject documentStatus() => APISchemaObject.string()
     ..description = "Incident status"
@@ -118,39 +93,4 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
       'duplicate',
       'resolved',
     ];
-
-  /// Clue - Entity object
-  APISchemaObject documentClue(APIDocumentContext context) => APISchemaObject.object(
-        {
-          "id": APISchemaObject.integer()..description = "Clue id (unique in Incident only)",
-          "name": APISchemaObject.string()..description = "Clue name",
-          "description": APISchemaObject.string()..description = "Clue description",
-          "type": APISchemaObject.string()
-            ..description = "Clue type"
-            ..enumerated = [
-              'find',
-              'condition',
-              'observation',
-              'circumstance',
-            ],
-          "quality": APISchemaObject.string()
-            ..description = "Clue quality assessment"
-            ..enumerated = [
-              'confirmed',
-              'plausable',
-              'possible',
-              'unlikely',
-              'rejected',
-            ],
-          "location": APISchemaObject.array(ofSchema: context.schema['Location'])
-            ..description = "Rescue or assitance location",
-        },
-      )
-        ..description = "Objective Schema"
-        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
-        ..required = [
-          'name',
-          'type',
-          'quality',
-        ];
 }

@@ -82,3 +82,46 @@ class OperationDeleted extends DomainEvent {
           data: data,
         );
 }
+
+//////////////////////////////////////
+// Objective Domain Events
+//////////////////////////////////////
+
+class ObjectiveCreated extends DomainEvent {
+  ObjectiveCreated({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$ObjectiveCreated",
+          created: created,
+          data: data,
+        );
+}
+
+class ObjectiveUpdated extends DomainEvent {
+  ObjectiveUpdated({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$ObjectiveUpdated",
+          created: created,
+          data: data,
+        );
+}
+
+class ObjectiveDeleted extends DomainEvent {
+  ObjectiveDeleted({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$ObjectiveDeleted",
+          created: created,
+          data: data,
+        );
+}

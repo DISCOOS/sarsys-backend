@@ -4,9 +4,14 @@ import 'package:sarsys_app_server/eventsource/eventsource.dart';
 abstract class OperationCommand<T extends DomainEvent> extends Command<T> {
   OperationCommand(
     Action action, {
+    String uuid,
     Map<String, dynamic> data = const {},
-  }) : super(action, data: data);
+  }) : super(action, uuid: uuid, data: data);
 }
+
+//////////////////////////////////
+// Operation aggregate commands
+//////////////////////////////////
 
 class RegisterOperation extends OperationCommand<OperationRegistered> {
   RegisterOperation(
@@ -18,4 +23,46 @@ class UpdateOperationInformation extends OperationCommand<OperationInformationUp
   UpdateOperationInformation(
     Map<String, dynamic> data,
   ) : super(Action.update, data: data);
+}
+
+//////////////////////////////////
+// Objective entity commands
+//////////////////////////////////
+
+class ObjectiveCommand<T extends DomainEvent> extends OperationCommand<T> implements EntityCommand<T> {
+  ObjectiveCommand(
+    Action action,
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(action, uuid: uuid, data: data);
+
+  @override
+  String get aggregateField => "objectives";
+
+  @override
+  int get entityId => data[entityIdFieldName] as int;
+
+  @override
+  String get entityIdFieldName => 'id';
+}
+
+class CreateObjective extends ObjectiveCommand<ObjectiveCreated> {
+  CreateObjective(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.create, uuid, data);
+}
+
+class UpdateObjective extends ObjectiveCommand<ObjectiveUpdated> {
+  UpdateObjective(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.update, uuid, data);
+}
+
+class DeleteObjective extends ObjectiveCommand<ObjectiveDeleted> {
+  DeleteObjective(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.delete, uuid, data);
 }

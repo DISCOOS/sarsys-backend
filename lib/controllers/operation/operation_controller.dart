@@ -1,8 +1,8 @@
 import 'package:sarsys_app_server/domain/operation/repository.dart';
 
-import '../controllers/aggregate_controller.dart';
-import '../domain/operation/operation.dart' as sar;
-import '../sarsys_app_server.dart';
+import '../../domain/operation/operation.dart' as sar;
+import '../../sarsys_app_server.dart';
+import '../aggregate_controller.dart';
 
 /// A ResourceController that handles
 /// [/api/operations](http://localhost/api/client.html#/Operation) requests
@@ -18,31 +18,6 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
   //////////////////////////////////
   // Documentation
   //////////////////////////////////
-
-  static const passCodesDescription = "Users with an admin role are allowed to get all operations. "
-      "All other roles will get access to operations based on given passcodes. All available fields are "
-      "only returned for operations with passcode which match the value given in header 'X-Passcode'. "
-      "Rquests without header 'X-Passcode', or with an invalid passcode, will get operations containing "
-      "fields [uuid] and [name] only. Brute-force attacks are banned for a lmitied time without any "
-      "feedback. When banned, all operations will contain fields [uuid] and [name] only, regardless of "
-      "the value in 'X-Passcode'.";
-
-  @override
-  String documentOperationDescription(APIDocumentContext context, Operation operation) {
-    String desc = "${documentOperationSummary(context, operation)}. ";
-    switch (operation.method) {
-      case "GET":
-        switch (operation.method) {
-          case "GET":
-            desc = "$desc $passCodesDescription";
-            break;
-        }
-        return desc;
-
-        break;
-    }
-    return desc;
-  }
 
   /// Operation - Aggregate root
   @override
@@ -105,7 +80,6 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
         "Address": documentAddress(),
         "TalkGroup": documentTalkGroup(),
         "Location": documentLocation(context),
-        "Objective": documentObjective(context),
       };
 
   /// OperationStatus - Value object
@@ -129,43 +103,6 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
       'duplicate',
       'resolved',
     ];
-
-  /// ObjectiveResolution - Entity object
-  APISchemaObject documentObjectiveResolution() => APISchemaObject.string()
-    ..description = "Objective resolution"
-    ..defaultValue = "unresolved"
-    ..enumerated = [
-      'unresolved',
-      'cancelled',
-      'duplicate',
-      'resolved',
-    ];
-
-  /// Objective - Entity object
-  APISchemaObject documentObjective(APIDocumentContext context) => APISchemaObject.object(
-        {
-          "id": APISchemaObject.integer()..description = "Objective id (unique in Operation only)",
-          "name": APISchemaObject.array(ofSchema: context.schema['Point'])..description = "Objective name",
-          "description": APISchemaObject.string()..description = "Objective description",
-          "type": APISchemaObject.string()
-            ..description = "Objective type"
-            ..enumerated = [
-              'locate',
-              'rescue',
-              'assist',
-            ],
-          "location": APISchemaObject.array(ofSchema: context.schema['Location'])
-            ..description = "Rescue or assitance location",
-          "resolution": documentObjectiveResolution(),
-        },
-      )
-        ..description = "Objective Schema (entity object)"
-        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
-        ..required = [
-          'name',
-          'type',
-          'resolution',
-        ];
 
   /// Location - Value object
   APISchemaObject documentLocation(APIDocumentContext context) => APISchemaObject.object(

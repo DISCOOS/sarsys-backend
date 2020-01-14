@@ -1,0 +1,64 @@
+import 'package:sarsys_app_server/controllers/entity_controller.dart';
+import 'package:sarsys_app_server/domain/operation/aggregate.dart' as sar;
+import 'package:sarsys_app_server/domain/operation/commands.dart';
+import 'package:sarsys_app_server/domain/operation/repository.dart';
+import 'package:sarsys_app_server/sarsys_app_server.dart';
+import 'package:sarsys_app_server/validation/validation.dart';
+
+/// A ResourceController that handles
+/// [/api/incidents/{uuid}/subjects](http://localhost/api/client.html#/Objective) requests
+class ObjectiveController extends EntityController<OperationCommand, sar.Operation> {
+  ObjectiveController(OperationRepository repository, RequestValidator validator)
+      : super(repository, "Objective", "objectives", validator: validator);
+
+  @override
+  OperationCommand create(String uuid, String type, Map<String, dynamic> data) => CreateObjective(uuid, data);
+
+  @override
+  OperationCommand update(String uuid, String type, Map<String, dynamic> data) => UpdateObjective(uuid, data);
+
+  @override
+  OperationCommand delete(String uuid, String type, Map<String, dynamic> data) => DeleteObjective(uuid, data);
+
+  //////////////////////////////////
+  // Documentation
+  //////////////////////////////////
+
+  /// Objective - Entity object
+  @override
+  APISchemaObject documentEntityObject(APIDocumentContext context) => APISchemaObject.object(
+        {
+          "id": APISchemaObject.integer()..description = "Objective id (unique in Operation only)",
+          "name": APISchemaObject.array(ofSchema: context.schema['Point'])..description = "Objective name",
+          "description": APISchemaObject.string()..description = "Objective description",
+          "type": APISchemaObject.string()
+            ..description = "Objective type"
+            ..enumerated = [
+              'locate',
+              'rescue',
+              'assist',
+            ],
+          "location": APISchemaObject.array(ofSchema: context.schema['Location'])
+            ..description = "Rescue or assitance location",
+          "resolution": documentObjectiveResolution(),
+        },
+      )
+        ..description = "Objective Schema (entity object)"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+        ..required = [
+          'name',
+          'type',
+          'resolution',
+        ];
+
+  /// ObjectiveResolution - Value object
+  APISchemaObject documentObjectiveResolution() => APISchemaObject.string()
+    ..description = "Objective resolution"
+    ..defaultValue = "unresolved"
+    ..enumerated = [
+      'unresolved',
+      'cancelled',
+      'duplicate',
+      'resolved',
+    ];
+}

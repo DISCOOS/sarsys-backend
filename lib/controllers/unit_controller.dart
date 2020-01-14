@@ -19,25 +19,6 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
   // Documentation
   //////////////////////////////////
 
-  static const passCodesDescription = "Users with an admin role are allowed to get all units. "
-      "All other roles will get access to units based on given passcodes. All available fields are "
-      "only returned for units with passcode which match the value given in header 'X-Passcode'. "
-      "Rquests without header 'X-Passcode', or with an invalid passcode, will get units containing "
-      "fields [uuid] and [name] only. Brute-force attacks are banned for a lmitied time without any "
-      "feedback. When banned, all units will contain fields [uuid] and [name] only, regardless of "
-      "the value in 'X-Passcode'.";
-
-  @override
-  String documentOperationDescription(APIDocumentContext context, Operation operation) {
-    String desc = "${documentOperationSummary(context, operation)}. ";
-    switch (operation.method) {
-      case "GET":
-        desc = "$desc $passCodesDescription";
-        break;
-    }
-    return desc;
-  }
-
   /// Unit - Aggregate root
   @override
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object(

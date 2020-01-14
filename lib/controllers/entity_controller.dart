@@ -166,7 +166,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     String summary;
     switch (operation.method) {
       case "GET":
-        summary = operation.pathVariables.isEmpty ? "Get all ${_toLowerCase()}s" : "Get ${_toLowerCase()}";
+        summary = operation.pathVariables.length < 2 ? "Get all ${_toLowerCase()}s" : "Get ${_toLowerCase()}";
         break;
       case "POST":
         summary = "Create ${_toLowerCase()}";

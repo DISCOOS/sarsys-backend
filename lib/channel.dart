@@ -6,9 +6,8 @@ import 'package:sarsys_app_server/validation/validation.dart';
 import 'auth/oidc.dart';
 import 'controllers/app_config_controller.dart';
 import 'controllers/health_controller.dart';
-import 'controllers/incident/incident_controller.dart';
-import 'controllers/incident/subject_controller.dart';
-import 'controllers/operation_controller.dart';
+import 'controllers/incident/controllers.dart';
+import 'controllers/operation/controllers.dart';
 import 'controllers/unit_controller.dart';
 import 'controllers/websocket_controller.dart';
 import 'domain/incident/incident.dart';
@@ -40,7 +39,7 @@ const String apiSpecPath = 'web/sarsys.json';
 /// database connections. See http://aqueduct.io/docs/http/channel/.
 class SarSysAppServerChannel extends ApplicationChannel {
   /// Validates oidc tokens against scopes
-  final OIDCValidator authValidator = OIDCValidator();
+  final OIDCValidator authValidator = OIDCValidator(['id.discoos.org']);
 
   /// Channel responsible for distributing messages to client applications
   final MessageChannel messages = MessageChannel(
@@ -101,8 +100,12 @@ class SarSysAppServerChannel extends ApplicationChannel {
             (p) => p.endsWith("client.html"),
           ),
       )
-      ..route('/api/healthz').link(() => HealthController())
-      ..route('/api/messages/connect').link(() => WebSocketController(messages))
+      ..route('/api/healthz').link(
+        () => HealthController(),
+      )
+      ..route('/api/messages/connect').link(
+        () => WebSocketController(messages),
+      )
       ..route('/api/app-configs[/:uuid]').link(() => AppConfigController(
             manager.get<AppConfigRepository>(),
             requestValidator,
@@ -115,8 +118,20 @@ class SarSysAppServerChannel extends ApplicationChannel {
             manager.get<IncidentRepository>(),
             requestValidator,
           ))
-      ..route('/api/operations[/:uuid]').link(() => OperationController(manager.get<sar.OperationRepository>()))
-      ..route('/api/units[/:uuid]').link(() => UnitController(manager.get<UnitRepository>()));
+      ..route('/api/incidents/:uuid/clues[/:id]').link(() => ClueController(
+            manager.get<IncidentRepository>(),
+            requestValidator,
+          ))
+      ..route('/api/operations[/:uuid]').link(
+        () => OperationController(manager.get<sar.OperationRepository>()),
+      )
+      ..route('/api/operations/:uuid/objectives[/:id]').link(() => ObjectiveController(
+            manager.get<sar.OperationRepository>(),
+            requestValidator,
+          ))
+      ..route('/api/units[/:uuid]').link(
+        () => UnitController(manager.get<UnitRepository>()),
+      );
   }
 
   @override
@@ -269,6 +284,28 @@ class SarSysAppServerChannel extends ApplicationChannel {
   void documentComponents(APIDocumentContext registry) {
     documentResponses(registry);
     registry.schema.register('PassCodes', documentPassCodes());
+    registry.securitySchemes
+      ..register(
+        "id.discoos.org",
+        APISecurityScheme.openID(
+          Uri.parse("https://id.discoos.io/auth/realms/DISCOOS/.well-known/openid-configuration"),
+        )..description = "This endpoint requires an identity token issed from https://id.discoos.io passed as a "
+            "[Bearer token](https://swagger.io/docs/specification/authentication/bearer-authentication/) issued by "
+            "in an [Authorization header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Authorization).",
+      )
+      ..register(
+        "Passcode",
+        APISecurityScheme.apiKey(
+          'X-Passcode',
+          APIParameterLocation.header,
+        )..description = "Authenticed users with an admin role is granted access to all "
+            "objects and all available fields in each of these objects regardless of any "
+            "affiliation or 'X-Passcode' given. All other roles are only granted access to "
+            "objects if 'X-Passcode' is valid. Requests without header 'X-Passcode' or an invalid "
+            "passcode will receive response `403 Forbidden`. Brute-force attacks are banned "
+            "for a lmitied time without any feedback. When banned, all request will receive "
+            "response `403 Forbidden` regardless of the value in 'X-Passcode'.",
+      );
     super.documentComponents(registry);
   }
 
