@@ -12,13 +12,13 @@ class ClueController extends EntityController<IncidentCommand, Incident> {
       : super(repository, "Clue", "clues", validator: validator);
 
   @override
-  IncidentCommand create(String uuid, String type, Map<String, dynamic> data) => CreateClue(uuid, data);
+  IncidentCommand create(String uuid, String type, Map<String, dynamic> data) => AddClue(uuid, data);
 
   @override
   IncidentCommand update(String uuid, String type, Map<String, dynamic> data) => UpdateClue(uuid, data);
 
   @override
-  IncidentCommand delete(String uuid, String type, Map<String, dynamic> data) => DeleteClue(uuid, data);
+  IncidentCommand delete(String uuid, String type, Map<String, dynamic> data) => RemoveClue(uuid, data);
 
   //////////////////////////////////
   // Documentation

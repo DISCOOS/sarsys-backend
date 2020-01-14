@@ -87,14 +87,14 @@ class OperationDeleted extends DomainEvent {
 // Objective Domain Events
 //////////////////////////////////////
 
-class ObjectiveCreated extends DomainEvent {
-  ObjectiveCreated({
+class ObjectiveAdded extends DomainEvent {
+  ObjectiveAdded({
     @required String uuid,
     @required DateTime created,
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$ObjectiveCreated",
+          type: "$ObjectiveAdded",
           created: created,
           data: data,
         );
@@ -113,14 +113,14 @@ class ObjectiveUpdated extends DomainEvent {
         );
 }
 
-class ObjectiveDeleted extends DomainEvent {
-  ObjectiveDeleted({
+class ObjectiveRemoved extends DomainEvent {
+  ObjectiveRemoved({
     @required String uuid,
     @required DateTime created,
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$ObjectiveDeleted",
+          type: "$ObjectiveRemoved",
           created: created,
           data: data,
         );

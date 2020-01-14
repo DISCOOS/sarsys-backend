@@ -46,8 +46,8 @@ class SubjectCommand<T extends DomainEvent> extends IncidentCommand<T> implement
   String get entityIdFieldName => 'id';
 }
 
-class CreateSubject extends SubjectCommand<SubjectCreated> {
-  CreateSubject(
+class AddSubject extends SubjectCommand<SubjectAdded> {
+  AddSubject(
     String uuid,
     Map<String, dynamic> data,
   ) : super(Action.create, uuid, data);
@@ -60,8 +60,8 @@ class UpdateSubject extends SubjectCommand<SubjectUpdated> {
   ) : super(Action.update, uuid, data);
 }
 
-class DeleteSubject extends SubjectCommand<SubjectDeleted> {
-  DeleteSubject(
+class RemoveSubject extends SubjectCommand<SubjectRemoved> {
+  RemoveSubject(
     String uuid,
     Map<String, dynamic> data,
   ) : super(Action.delete, uuid, data);
@@ -88,8 +88,8 @@ class ClueCommand<T extends DomainEvent> extends IncidentCommand<T> implements E
   String get entityIdFieldName => 'id';
 }
 
-class CreateClue extends ClueCommand<ClueCreated> {
-  CreateClue(
+class AddClue extends ClueCommand<ClueAdded> {
+  AddClue(
     String uuid,
     Map<String, dynamic> data,
   ) : super(Action.create, uuid, data);
@@ -102,8 +102,8 @@ class UpdateClue extends ClueCommand<ClueUpdated> {
   ) : super(Action.update, uuid, data);
 }
 
-class DeleteClue extends ClueCommand<ClueDeleted> {
-  DeleteClue(
+class RemoveClue extends ClueCommand<ClueRemoved> {
+  RemoveClue(
     String uuid,
     Map<String, dynamic> data,
   ) : super(Action.delete, uuid, data);

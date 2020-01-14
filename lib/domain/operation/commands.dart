@@ -46,8 +46,8 @@ class ObjectiveCommand<T extends DomainEvent> extends OperationCommand<T> implem
   String get entityIdFieldName => 'id';
 }
 
-class CreateObjective extends ObjectiveCommand<ObjectiveCreated> {
-  CreateObjective(
+class AddObjective extends ObjectiveCommand<ObjectiveAdded> {
+  AddObjective(
     String uuid,
     Map<String, dynamic> data,
   ) : super(Action.create, uuid, data);
@@ -60,8 +60,8 @@ class UpdateObjective extends ObjectiveCommand<ObjectiveUpdated> {
   ) : super(Action.update, uuid, data);
 }
 
-class DeleteObjective extends ObjectiveCommand<ObjectiveDeleted> {
-  DeleteObjective(
+class RemoveObjective extends ObjectiveCommand<ObjectiveRemoved> {
+  RemoveObjective(
     String uuid,
     Map<String, dynamic> data,
   ) : super(Action.delete, uuid, data);

@@ -12,13 +12,13 @@ class ObjectiveController extends EntityController<OperationCommand, sar.Operati
       : super(repository, "Objective", "objectives", validator: validator);
 
   @override
-  OperationCommand create(String uuid, String type, Map<String, dynamic> data) => CreateObjective(uuid, data);
+  OperationCommand create(String uuid, String type, Map<String, dynamic> data) => AddObjective(uuid, data);
 
   @override
   OperationCommand update(String uuid, String type, Map<String, dynamic> data) => UpdateObjective(uuid, data);
 
   @override
-  OperationCommand delete(String uuid, String type, Map<String, dynamic> data) => DeleteObjective(uuid, data);
+  OperationCommand delete(String uuid, String type, Map<String, dynamic> data) => RemoveObjective(uuid, data);
 
   //////////////////////////////////
   // Documentation

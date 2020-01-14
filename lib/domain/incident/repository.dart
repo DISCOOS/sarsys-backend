@@ -32,7 +32,7 @@ class IncidentRepository extends Repository<IncidentCommand, Incident> {
                 data: event.data,
                 created: event.created,
               ),
-          SubjectCreated: (event) => SubjectCreated(
+          SubjectAdded: (event) => SubjectAdded(
                 uuid: event.uuid,
                 data: event.data,
                 created: event.created,
@@ -42,7 +42,7 @@ class IncidentRepository extends Repository<IncidentCommand, Incident> {
                 data: event.data,
                 created: event.created,
               ),
-          SubjectDeleted: (event) => SubjectDeleted(
+          SubjectRemoved: (event) => SubjectRemoved(
                 uuid: event.uuid,
                 data: event.data,
                 created: event.created,

@@ -12,13 +12,13 @@ class SubjectController extends EntityController<IncidentCommand, Incident> {
       : super(repository, "Subject", "subjects", validator: validator);
 
   @override
-  IncidentCommand create(String uuid, String type, Map<String, dynamic> data) => CreateSubject(uuid, data);
+  IncidentCommand create(String uuid, String type, Map<String, dynamic> data) => AddSubject(uuid, data);
 
   @override
   IncidentCommand update(String uuid, String type, Map<String, dynamic> data) => UpdateSubject(uuid, data);
 
   @override
-  IncidentCommand delete(String uuid, String type, Map<String, dynamic> data) => DeleteSubject(uuid, data);
+  IncidentCommand delete(String uuid, String type, Map<String, dynamic> data) => RemoveSubject(uuid, data);
 
   //////////////////////////////////
   // Documentation

@@ -87,14 +87,14 @@ class IncidentDeleted extends DomainEvent {
 // Subject Domain Events
 //////////////////////////////////
 
-class SubjectCreated extends DomainEvent {
-  SubjectCreated({
+class SubjectAdded extends DomainEvent {
+  SubjectAdded({
     @required String uuid,
     @required DateTime created,
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$SubjectCreated",
+          type: "$SubjectAdded",
           created: created,
           data: data,
         );
@@ -113,14 +113,14 @@ class SubjectUpdated extends DomainEvent {
         );
 }
 
-class SubjectDeleted extends DomainEvent {
-  SubjectDeleted({
+class SubjectRemoved extends DomainEvent {
+  SubjectRemoved({
     @required String uuid,
     @required DateTime created,
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$SubjectDeleted",
+          type: "$SubjectRemoved",
           created: created,
           data: data,
         );
@@ -130,14 +130,14 @@ class SubjectDeleted extends DomainEvent {
 // Clue Domain Events
 //////////////////////////////////
 
-class ClueCreated extends DomainEvent {
-  ClueCreated({
+class ClueAdded extends DomainEvent {
+  ClueAdded({
     @required String uuid,
     @required DateTime created,
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$ClueCreated",
+          type: "$ClueAdded",
           created: created,
           data: data,
         );
@@ -156,14 +156,14 @@ class ClueUpdated extends DomainEvent {
         );
 }
 
-class ClueDeleted extends DomainEvent {
-  ClueDeleted({
+class ClueRemoved extends DomainEvent {
+  ClueRemoved({
     @required String uuid,
     @required DateTime created,
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$ClueDeleted",
+          type: "$ClueRemoved",
           created: created,
           data: data,
         );
