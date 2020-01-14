@@ -21,13 +21,12 @@ class SubjectController extends AggregateController<SubjectCommand, Subject> {
   // Documentation
   //////////////////////////////////
 
-  /// Subject - Entity object
   @override
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object(
         {
-          "id": APISchemaObject.integer()
-            ..description = "Subject id (unique in Subject only)"
-            ..defaultValue = 1,
+          "uuid": APISchemaObject.string()
+            ..format = 'uuid'
+            ..description = "Unique Subject id",
           // TODO: Subject - replace name with reference to PII
           "name": APISchemaObject.string()..description = "Subject name",
           "situation": APISchemaObject.string()..description = "Subject situation",

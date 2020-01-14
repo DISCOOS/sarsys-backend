@@ -25,7 +25,9 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
   @override
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object(
         {
-          "id": APISchemaObject.integer()..description = "Globally unique Personnel id",
+          "uuid": APISchemaObject.string()
+            ..format = 'uuid'
+            ..description = "Unique Personnel id",
           "fname": APISchemaObject.string()..description = "First name",
           "lname": APISchemaObject.string()..description = "Last name",
           "phone": APISchemaObject.string()..description = "Phone number",

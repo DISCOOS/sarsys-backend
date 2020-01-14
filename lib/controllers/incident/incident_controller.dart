@@ -59,6 +59,8 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
             ..description = "List of Clues for planning and response",
           "subjects": APISchemaObject.array(ofSchema: context.schema['Subject'])
             ..description = "List of Subjects involved in the incident",
+          "operations": APISchemaObject.array(ofSchema: context.schema['Operation'])
+            ..description = "List of Operations handling this Incident",
           "passcodes": context.schema['PassCodes']..description = "Passcodes for Incident access rights",
         },
       )

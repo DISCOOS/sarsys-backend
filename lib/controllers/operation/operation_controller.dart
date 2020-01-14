@@ -27,10 +27,7 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
         {
           "uuid": APISchemaObject.string()
             ..format = 'uuid'
-            ..description = "Unique Operation uuid",
-          "incidentUuid": APISchemaObject.string()
-            ..format = 'uuid'
-            ..description = "Uuid of Incident this Operation is a response to",
+            ..description = "Unique Operation id",
           "name": APISchemaObject.string()..description = "Name of operation scene",
           "type": APISchemaObject.string()
             ..description = "Operation type"
