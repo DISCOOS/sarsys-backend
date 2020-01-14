@@ -45,7 +45,7 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
             ..isReadOnly = true
             ..description = "State transitions (read only)"
             ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
-          "personnel": APISchemaObject.array(ofType: APIType.string)
+          "personnels": APISchemaObject.array(ofType: APIType.string)
             ..description = "List of uuid of Unit assigned to this unit"
             ..format = 'uuid',
           /* TODO: Make Tracking an Value Object in ReadModel - manage tracking uuid internally

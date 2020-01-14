@@ -57,11 +57,12 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
             ..format = 'date-time',
           "clues": APISchemaObject.array(ofSchema: context.schema['Clue'])
             ..description = "List of Clues for planning and response",
-          "subjects": APISchemaObject.array(ofSchema: context.schema['Subject'])
-            ..description = "List of Subjects involved in the incident",
-          "operations": APISchemaObject.array(ofSchema: context.schema['Operation'])
-            ..description = "List of Operations handling this Incident",
-          "passcodes": context.schema['PassCodes']..description = "Passcodes for Incident access rights",
+          "subjects": APISchemaObject.array(ofType: APIType.string)
+            ..description = "List of uuids of Subjects impacted by this Incident"
+            ..format = 'uuid',
+          "operations": APISchemaObject.array(ofType: APIType.string)
+            ..description = "List of uuids of Operations responding to this Incident"
+            ..format = 'uuid',
         },
       )
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
@@ -71,9 +72,7 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
           'name',
           'summary',
           'type',
-          'status',
-          'resolution',
-          'occured',
+          'occurred',
         ];
 
   /// IncidentStatus - Value Object

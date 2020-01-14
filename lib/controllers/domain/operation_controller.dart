@@ -59,6 +59,15 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
           "meetup": context.schema['Location']..description = "On scene meeting point",
           "objectives": APISchemaObject.array(ofSchema: context.schema['Objective'])
             ..description = "List of Operation objectives",
+          "missions": APISchemaObject.array(ofType: APIType.string)
+            ..description = "List of uuid of Missions executed by this operation"
+            ..format = 'uuid',
+          "units": APISchemaObject.array(ofType: APIType.string)
+            ..description = "List of uuid of Units mobilized for this operation"
+            ..format = 'uuid',
+          "personnels": APISchemaObject.array(ofType: APIType.string)
+            ..description = "List of uuid of Personnels mobilized for this operation"
+            ..format = 'uuid',
           "passcodes": context.schema['PassCodes']..description = "Passcodes for Operation access rights",
         },
       )
