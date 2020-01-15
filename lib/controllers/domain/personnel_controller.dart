@@ -31,9 +31,7 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
           "fname": APISchemaObject.string()..description = "First name",
           "lname": APISchemaObject.string()..description = "Last name",
           "phone": APISchemaObject.string()..description = "Phone number",
-          /* TODO: Add affiliation
-          "affiliation": context.schema["Affiliation"]
-          */
+          "affiliation": context.schema["Affiliation"],
           "status": documentStatus(),
           "transitions": documentTransitions(),
           /* TODO: Make Tracking an Value Object in ReadModel - manage tracking uuid internally
@@ -72,4 +70,41 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
       'deployed',
       'retired',
     ];
+
+  @override
+  Map<String, APISchemaObject> documentValues(APIDocumentContext context) => {
+        "Affiliation": APISchemaObject.object({
+          "organisation": context.schema["Organisation"],
+          "division": context.schema["Division"],
+          "department": context.schema["Department"],
+        })
+          ..isReadOnly = true
+          ..description = "Affiliation information"
+          ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
+        "Organisation": APISchemaObject.object({
+          "uuid": APISchemaObject.string()..description = "Unique organization id",
+          "name": APISchemaObject.string()..description = "Name",
+          "alias": APISchemaObject.string()..description = "Alias",
+          "icon": APISchemaObject.string()
+            ..format = "uri"
+            ..description = "Alias",
+        })
+          ..isReadOnly = true
+          ..description = "Organization information"
+          ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
+        "Division": APISchemaObject.object({
+          "id": APISchemaObject.string()..description = "Division id unique for given organization",
+          "name": APISchemaObject.string()..description = "Name",
+        })
+          ..isReadOnly = true
+          ..description = "Division information"
+          ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
+        "Department": APISchemaObject.object({
+          "id": APISchemaObject.string()..description = "Department id unique for given organization",
+          "name": APISchemaObject.string()..description = "Name",
+        })
+          ..isReadOnly = true
+          ..description = "Department information"
+          ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
+      };
 }

@@ -29,9 +29,7 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
             ..description = "Unique Personnel id",
           "type": documentType(),
           "number": APISchemaObject.integer()..description = "Unit number",
-          /* TODO: Add affiliation
-          "affiliation": context.schema["Affiliation"]
-          */
+          "affiliation": context.schema["Affiliation"],
           "phone": APISchemaObject.string()..description = "Unit phone number",
           "callsign": APISchemaObject.string()..description = "Unit callsign",
           "status": documentStatus(),
