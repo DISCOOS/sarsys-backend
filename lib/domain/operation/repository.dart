@@ -32,6 +32,41 @@ class OperationRepository extends Repository<OperationCommand, Operation> {
                 data: event.data,
                 created: event.created,
               ),
+          OperationDeleted: (event) => OperationDeleted(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          ObjectiveAdded: (event) => ObjectiveAdded(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          ObjectiveUpdated: (event) => ObjectiveUpdated(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          ObjectiveRemoved: (event) => ObjectiveRemoved(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          TalkGroupAdded: (event) => TalkGroupAdded(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          TalkGroupUpdated: (event) => TalkGroupUpdated(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          TalkGroupRemoved: (event) => TalkGroupRemoved(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
         });
 
   @override
