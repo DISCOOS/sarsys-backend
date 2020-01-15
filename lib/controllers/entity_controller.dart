@@ -166,22 +166,22 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     String summary;
     switch (operation.method) {
       case "GET":
-        summary = operation.pathVariables.length < 2 ? "Get all ${_toLowerCase()}s" : "Get ${_toLowerCase()}";
+        summary = operation.pathVariables.length < 2 ? "Get all ${_toName()}s" : "Get ${_toName()}";
         break;
       case "POST":
-        summary = "Create ${_toLowerCase()}";
+        summary = "Create ${_toName()}";
         break;
       case "PATCH":
-        summary = "Update ${_toLowerCase()}";
+        summary = "Update ${_toName()}";
         break;
       case "DELETE":
-        summary = "Delete ${_toLowerCase()}";
+        summary = "Delete ${_toName()}";
         break;
     }
     return summary;
   }
 
-  String _toLowerCase() => entityType.toLowerCase();
+  String _toName() => entityType.toDelimiterCase(' ');
 
   @override
   String documentOperationDescription(APIDocumentContext context, Operation operation) {

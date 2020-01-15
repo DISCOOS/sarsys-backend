@@ -141,19 +141,19 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     String summary;
     switch (operation.method) {
       case "GET":
-        summary = operation.pathVariables.isEmpty ? "Get all ${_toLowerCase()}s" : "Get ${_toLowerCase()}";
+        summary = operation.pathVariables.isEmpty ? "Get all ${_toName()}s" : "Get ${_toName()}";
         break;
       case "POST":
-        summary = "Create ${_toLowerCase()}";
+        summary = "Create ${_toName()}";
         break;
       case "PATCH":
-        summary = "Update ${_toLowerCase()}";
+        summary = "Update ${_toName()}";
         break;
     }
     return summary;
   }
 
-  String _toLowerCase() => aggregateType.toString().toLowerCase();
+  String _toName() => aggregateType.toDelimiterCase(' ');
 
   @override
   String documentOperationDescription(APIDocumentContext context, Operation operation) {

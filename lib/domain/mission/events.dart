@@ -82,3 +82,89 @@ class MissionDeleted extends DomainEvent {
           data: data,
         );
 }
+
+//////////////////////////////////
+// MissionPart Domain Events
+//////////////////////////////////
+
+class MissionPartAdded extends DomainEvent {
+  MissionPartAdded({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$MissionPartAdded",
+          created: created,
+          data: data,
+        );
+}
+
+class MissionPartUpdated extends DomainEvent {
+  MissionPartUpdated({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$MissionPartUpdated",
+          created: created,
+          data: data,
+        );
+}
+
+class MissionPartRemoved extends DomainEvent {
+  MissionPartRemoved({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$MissionPartRemoved",
+          created: created,
+          data: data,
+        );
+}
+
+//////////////////////////////////
+// MissionResult Domain Events
+//////////////////////////////////
+
+class MissionResultAdded extends DomainEvent {
+  MissionResultAdded({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$MissionResultAdded",
+          created: created,
+          data: data,
+        );
+}
+
+class MissionResultUpdated extends DomainEvent {
+  MissionResultUpdated({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$MissionResultUpdated",
+          created: created,
+          data: data,
+        );
+}
+
+class MissionResultRemoved extends DomainEvent {
+  MissionResultRemoved({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$MissionResultRemoved",
+          created: created,
+          data: data,
+        );
+}

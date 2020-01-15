@@ -33,8 +33,10 @@ class MissionController extends AggregateController<MissionCommand, Mission> {
           "priority": documentPriority(),
           "resolution": documentResolution(),
           "transitions": documentTransition(),
-          "plan": context.schema['GeometryBag'],
-          "results": context.schema['GeometryBag'],
+          "parts": APISchemaObject.array(ofSchema: context.schema["MissionPart"])
+            ..description = "Points, linestrings, rectangles and circles describing mission parts",
+          "results": APISchemaObject.array(ofSchema: context.schema["MissionResult"])
+            ..description = "Points, linestrings, rectangles and circles describing the results",
           "assignedTo": APISchemaObject.string()
             ..format = 'uuid'
             ..description = "Uuid of unit assigned to mission",
@@ -113,14 +115,11 @@ class MissionController extends AggregateController<MissionCommand, Mission> {
       };
 
   APISchemaObject documentGeometryBag(APIDocumentContext context) => APISchemaObject.object({
-        "name": APISchemaObject.string()..description = "Geometry name",
-        "description": APISchemaObject.string()..description = "Geometry description",
         "points": APISchemaObject.array(ofSchema: context.schema["Point"]),
         "lines": APISchemaObject.array(ofSchema: context.schema["LineString"]),
         "rectangles": APISchemaObject.array(ofSchema: context.schema["Rectangle"]),
         "circles": APISchemaObject.array(ofSchema: context.schema["Circle"]),
       })
-        ..description = "Bag of points, linestrings, rectangles and circles"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
 
   /// LineString - Value Object

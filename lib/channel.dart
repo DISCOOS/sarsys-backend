@@ -138,6 +138,14 @@ class SarSysAppServerChannel extends ApplicationChannel {
             manager.get<MissionRepository>(),
             requestValidator,
           ))
+      ..route('/api/missions/:uuid/parts[/:id]').link(() => MissionPartController(
+            manager.get<MissionRepository>(),
+            requestValidator,
+          ))
+      ..route('/api/missions/:uuid/results[/:id]').link(() => MissionResultController(
+            manager.get<MissionRepository>(),
+            requestValidator,
+          ))
       ..route('/api/personnels[/:uuid]').link(() => PersonnelController(
             manager.get<PersonnelRepository>(),
             requestValidator,

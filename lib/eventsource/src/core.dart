@@ -382,15 +382,32 @@ Type typeOf<T>() => T;
 extension TypeX on Type {
   /// Convert [Type] string into colon delimited lower case string
   String toColonCase() {
-    return toDelimiterCase(':');
+    return "${this}".toColonCase();
   }
 
   /// Convert [Type] string into kebab case string
   String toKebabCase() {
-    return toDelimiterCase('-');
+    return "${this}".toKebabCase();
   }
 
   /// Convert [Type] string into delimited lower case string
+  String toDelimiterCase(String delimiter) {
+    return "${this}".toDelimiterCase(delimiter);
+  }
+}
+
+extension StringX on String {
+  /// Convert [String] into colon delimited lower case string
+  String toColonCase() {
+    return toDelimiterCase(':');
+  }
+
+  /// Convert [String] into kebab case string
+  String toKebabCase() {
+    return toDelimiterCase('-');
+  }
+
+  /// Convert [String] into delimited lower case string
   String toDelimiterCase(String delimiter) {
     return "${this}".split(RegExp('(?<=[a-z0-9])(?=[A-Z0-9])')).join(delimiter).toLowerCase();
   }
