@@ -30,13 +30,7 @@ class SubjectController extends AggregateController<SubjectCommand, Subject> {
           // TODO: Subject - replace name with reference to PII
           "name": APISchemaObject.string()..description = "Subject name",
           "situation": APISchemaObject.string()..description = "Subject situation",
-          "type": APISchemaObject.string()
-            ..description = "Subject type"
-            ..enumerated = [
-              'person',
-              'vehicle',
-              'other',
-            ],
+          "type": documentType(),
           "location": context.schema['Location']..description = "Rescue or assitance location",
         },
       )
@@ -49,4 +43,13 @@ class SubjectController extends AggregateController<SubjectCommand, Subject> {
           'situation',
           'location',
         ];
+
+  APISchemaObject documentType() => APISchemaObject.string()
+    ..description = "Subject type"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+    ..enumerated = [
+      'person',
+      'vehicle',
+      'other',
+    ];
 }

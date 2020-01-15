@@ -31,27 +31,10 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
             ..description = "Unique incident id",
           "name": APISchemaObject.string()..description = "Name of incident scene",
           "summary": APISchemaObject.string()..description = "Situation summary",
-          "type": APISchemaObject.string()
-            ..description = "Incident type"
-            ..enumerated = [
-              'lost',
-              'distress',
-              'disaster',
-              'other',
-            ],
+          "type": documentType(),
           "status": documentStatus(),
           "resolution": documentResolution(),
-          "transitions": APISchemaObject.array(ofType: APIType.object)
-            ..items = APISchemaObject.object({
-              "status": documentStatus(),
-              "resolution": documentResolution(),
-              "timestamp": APISchemaObject.string()
-                ..description = "When transition occured"
-                ..format = 'date-time',
-            })
-            ..isReadOnly = true
-            ..description = "State transitions (read only)"
-            ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
+          "transitions": documentTransitions(),
           "occurred": APISchemaObject.string()
             ..description = "When Incident occurred"
             ..format = 'date-time',
@@ -75,10 +58,33 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
           'occurred',
         ];
 
+  APISchemaObject documentType() => APISchemaObject.string()
+    ..description = "Incident type"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+    ..enumerated = [
+      'lost',
+      'distress',
+      'disaster',
+      'other',
+    ];
+
+  APISchemaObject documentTransitions() => APISchemaObject.array(ofType: APIType.object)
+    ..items = APISchemaObject.object({
+      "status": documentStatus(),
+      "resolution": documentResolution(),
+      "timestamp": APISchemaObject.string()
+        ..description = "When transition occured"
+        ..format = 'date-time',
+    })
+    ..isReadOnly = true
+    ..description = "State transitions (read only)"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
+
   /// IncidentStatus - Value Object
   APISchemaObject documentStatus() => APISchemaObject.string()
     ..description = "Incident status"
     ..defaultValue = "registered"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
     ..enumerated = [
       'registered',
       'handling',
@@ -89,6 +95,7 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
   APISchemaObject documentResolution() => APISchemaObject.string()
     ..description = "Incident resolution"
     ..defaultValue = "unresolved"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
     ..enumerated = [
       'unresolved',
       'cancelled',

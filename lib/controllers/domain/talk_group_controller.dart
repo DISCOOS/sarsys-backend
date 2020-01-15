@@ -30,13 +30,7 @@ class TalkGroupController extends EntityController<OperationCommand, sar.Operati
         {
           "id": APISchemaObject.integer()..description = "TalkGroup id (unique in Operation only)",
           "name": APISchemaObject.boolean()..description = "Talkgroup name",
-          "type": APISchemaObject.string()
-            ..description = "Talkgroup type"
-            ..enumerated = [
-              'tetra',
-              'marine',
-              'analog',
-            ],
+          "type": documentType(),
         },
       )
         ..description = "TalkGroup Schema (value object)"
@@ -46,4 +40,13 @@ class TalkGroupController extends EntityController<OperationCommand, sar.Operati
           'name',
           'type',
         ];
+
+  APISchemaObject documentType() => APISchemaObject.string()
+    ..description = "Talkgroup type"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+    ..enumerated = [
+      'tetra',
+      'marine',
+      'analog',
+    ];
 }

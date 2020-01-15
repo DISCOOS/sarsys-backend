@@ -31,26 +31,10 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
             ..format = 'uuid'
             ..description = "Unique Operation id",
           "name": APISchemaObject.string()..description = "Name of operation scene",
-          "type": APISchemaObject.string()
-            ..description = "Operation type"
-            ..enumerated = [
-              'search',
-              'rescue',
-              'other',
-            ],
+          "type": documentType(),
           "status": documentStatus(),
           "resolution": documentOperationResolution(),
-          "transitions": APISchemaObject.array(ofType: APIType.object)
-            ..items = APISchemaObject.object({
-              "status": documentStatus(),
-              "resolution": documentOperationResolution(),
-              "timestamp": APISchemaObject.string()
-                ..description = "When transition occured"
-                ..format = 'date-time',
-            })
-            ..isReadOnly = true
-            ..description = "State transitions (read only)"
-            ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
+          "transitions": documentTransitions(),
           "reference": APISchemaObject.string()..description = "External reference from requesting authority",
           "justification": APISchemaObject.string()..description = "Justification for responding",
           "talkgroups": APISchemaObject.array(ofSchema: context.schema['TalkGroup'])
@@ -83,6 +67,27 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
           'justification',
         ];
 
+  APISchemaObject documentTransitions() => APISchemaObject.array(ofType: APIType.object)
+    ..items = APISchemaObject.object({
+      "status": documentStatus(),
+      "resolution": documentOperationResolution(),
+      "timestamp": APISchemaObject.string()
+        ..description = "When transition occured"
+        ..format = 'date-time',
+    })
+    ..isReadOnly = true
+    ..description = "State transitions (read only)"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
+
+  APISchemaObject documentType() => APISchemaObject.string()
+    ..description = "Operation type"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+    ..enumerated = [
+      'search',
+      'rescue',
+      'other',
+    ];
+
   @override
   Map<String, APISchemaObject> documentEntities(APIDocumentContext context) => {
         "Point": documentPoint(),
@@ -93,6 +98,7 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
   /// OperationStatus - Value object
   APISchemaObject documentStatus() => APISchemaObject.string()
     ..description = "Operation status"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
     ..defaultValue = "planned"
     ..enumerated = [
       'planned',
@@ -104,6 +110,7 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
   /// OperationResolution - Entity object
   APISchemaObject documentOperationResolution() => APISchemaObject.string()
     ..description = "Operation resolution"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
     ..defaultValue = "unresolved"
     ..enumerated = [
       'unresolved',
@@ -136,14 +143,7 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
           "timestamp": APISchemaObject.string()
             ..description = "Timestamp in ISO8601 Date Time String Format"
             ..format = "date-time",
-          "type": APISchemaObject.string()
-            ..description = "Point type"
-            ..enumerated = [
-              'manual',
-              'device',
-              'personnel',
-              'aggregated',
-            ],
+          "type": documentPointType(),
         },
       )
         ..description = "Point Schema (value object)"
@@ -153,6 +153,16 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
           'lon',
           'timestamp',
         ];
+
+  APISchemaObject documentPointType() => APISchemaObject.string()
+    ..description = "Point type"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+    ..enumerated = [
+      'manual',
+      'device',
+      'personnel',
+      'aggregated',
+    ];
 
   /// Address - Value object
   APISchemaObject documentAddress() => APISchemaObject.object(

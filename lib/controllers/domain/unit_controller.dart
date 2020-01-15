@@ -35,16 +35,7 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
           "phone": APISchemaObject.string()..description = "Unit phone number",
           "callsign": APISchemaObject.string()..description = "Unit callsign",
           "status": documentStatus(),
-          "transitions": APISchemaObject.array(ofType: APIType.object)
-            ..items = APISchemaObject.object({
-              "status": documentStatus(),
-              "timestamp": APISchemaObject.string()
-                ..description = "When transition occured"
-                ..format = 'date-time',
-            })
-            ..isReadOnly = true
-            ..description = "State transitions (read only)"
-            ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
+          "transitions": documentTransitions(),
           "personnels": APISchemaObject.array(ofType: APIType.string)
             ..description = "List of uuid of Unit assigned to this unit"
             ..format = 'uuid',
@@ -64,9 +55,21 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
           'callsign',
         ];
 
+  APISchemaObject documentTransitions() => APISchemaObject.array(ofType: APIType.object)
+    ..items = APISchemaObject.object({
+      "status": documentStatus(),
+      "timestamp": APISchemaObject.string()
+        ..description = "When transition occured"
+        ..format = 'date-time',
+    })
+    ..isReadOnly = true
+    ..description = "State transitions (read only)"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
+
   /// Unit type - Value Object
   APISchemaObject documentType() => APISchemaObject.string()
     ..description = "Unit type"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
     ..enumerated = [
       'team',
       'k9',
@@ -81,6 +84,7 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
   /// Unit Status - Value Object
   APISchemaObject documentStatus() => APISchemaObject.string()
     ..description = "Unit status"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
     ..defaultValue = "mobilized"
     ..enumerated = [
       'mobilized',

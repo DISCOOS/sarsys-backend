@@ -98,4 +98,15 @@ class MissionController extends AggregateController<MissionCommand, Mission> {
       'duplicate',
       'resolved',
     ];
+
+  /// Polyline - Value Object
+  APISchemaObject documentPolyline() => APISchemaObject.string()
+    ..description = "Mission status"
+    ..defaultValue = "unresolved"
+    ..enumerated = [
+      'unresolved',
+      'cancelled',
+      'duplicate',
+      'resolved',
+    ];
 }

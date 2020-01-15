@@ -55,6 +55,7 @@ class ObjectiveController extends EntityController<OperationCommand, sar.Operati
   APISchemaObject documentObjectiveResolution() => APISchemaObject.string()
     ..description = "Objective resolution"
     ..defaultValue = "unresolved"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
     ..enumerated = [
       'unresolved',
       'cancelled',

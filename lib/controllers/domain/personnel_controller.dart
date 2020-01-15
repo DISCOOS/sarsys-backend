@@ -35,16 +35,7 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
           "affiliation": context.schema["Affiliation"]
           */
           "status": documentStatus(),
-          "transitions": APISchemaObject.array(ofType: APIType.object)
-            ..items = APISchemaObject.object({
-              "status": documentStatus(),
-              "timestamp": APISchemaObject.string()
-                ..description = "When transition occured"
-                ..format = 'date-time',
-            })
-            ..isReadOnly = true
-            ..description = "State transitions (read only)"
-            ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
+          "transitions": documentTransitions(),
           /* TODO: Make Tracking an Value Object in ReadModel - manage tracking uuid internally
           "tracking": APISchemaObject.string()
             ..format = 'uuid'
@@ -60,9 +51,21 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
           'status',
         ];
 
+  APISchemaObject documentTransitions() => APISchemaObject.array(ofType: APIType.object)
+    ..items = APISchemaObject.object({
+      "status": documentStatus(),
+      "timestamp": APISchemaObject.string()
+        ..description = "When transition occured"
+        ..format = 'date-time',
+    })
+    ..isReadOnly = true
+    ..description = "State transitions (read only)"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
+
   /// Personnel Status - Value Object
   APISchemaObject documentStatus() => APISchemaObject.string()
     ..description = "Personnel status"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
     ..defaultValue = "mobilized"
     ..enumerated = [
       'mobilized',

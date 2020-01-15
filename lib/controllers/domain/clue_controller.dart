@@ -31,23 +31,8 @@ class ClueController extends EntityController<IncidentCommand, Incident> {
           "id": APISchemaObject.integer()..description = "Clue id (unique in Incident only)",
           "name": APISchemaObject.string()..description = "Clue name",
           "description": APISchemaObject.string()..description = "Clue description",
-          "type": APISchemaObject.string()
-            ..description = "Clue type"
-            ..enumerated = [
-              'find',
-              'condition',
-              'observation',
-              'circumstance',
-            ],
-          "quality": APISchemaObject.string()
-            ..description = "Clue quality assessment"
-            ..enumerated = [
-              'confirmed',
-              'plausable',
-              'possible',
-              'unlikely',
-              'rejected',
-            ],
+          "type": documentType(),
+          "quality": documentQuality(),
           "location": APISchemaObject.array(ofSchema: context.schema['Location'])
             ..description = "Rescue or assitance location",
         },
@@ -59,4 +44,25 @@ class ClueController extends EntityController<IncidentCommand, Incident> {
           'type',
           'quality',
         ];
+
+  APISchemaObject documentQuality() => APISchemaObject.string()
+    ..description = "Clue quality assessment"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+    ..enumerated = [
+      'confirmed',
+      'plausable',
+      'possible',
+      'unlikely',
+      'rejected',
+    ];
+
+  APISchemaObject documentType() => APISchemaObject.string()
+    ..description = "Clue type"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+    ..enumerated = [
+      'find',
+      'condition',
+      'observation',
+      'circumstance',
+    ];
 }
