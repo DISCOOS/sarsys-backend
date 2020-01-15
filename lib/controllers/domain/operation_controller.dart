@@ -49,6 +49,9 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
           "units": APISchemaObject.array(ofType: APIType.string)
             ..description = "List of uuid of Units mobilized for this operation"
             ..format = 'uuid',
+          "commander": APISchemaObject.array(ofType: APIType.string)
+            ..description = "Uuid of personnel in command"
+            ..format = 'uuid',
           "personnels": APISchemaObject.array(ofType: APIType.string)
             ..description = "List of uuid of Personnels mobilized for this operation"
             ..format = 'uuid',
