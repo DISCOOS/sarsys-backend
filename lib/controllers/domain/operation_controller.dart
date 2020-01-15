@@ -151,11 +151,11 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
         ..required = [
           'lat',
           'lon',
-          'timestamp',
         ];
 
   APISchemaObject documentPointType() => APISchemaObject.string()
     ..description = "Point type"
+    ..defaultValue = "manual"
     ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
     ..enumerated = [
       'manual',

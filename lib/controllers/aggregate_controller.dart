@@ -271,11 +271,14 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
 
   Map<String, APISchemaObject> _documentSchemaObjects(APIDocumentContext context) => {
         "$aggregateType": documentAggregateRoot(context),
-      }..addAll(documentEntities(context));
+      }
+        ..addAll(documentEntities(context))
+        ..addAll(documentValues(context));
 
   APISchemaObject documentAggregateRoot(APIDocumentContext context);
 
   Map<String, APISchemaObject> documentEntities(APIDocumentContext context) => {};
+  Map<String, APISchemaObject> documentValues(APIDocumentContext context) => {};
 
   Map<String, dynamic> validate(Map<String, dynamic> data) {
     if (validator != null) {
