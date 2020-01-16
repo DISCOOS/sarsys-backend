@@ -384,16 +384,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   Iterable<T> getAll({
     int offset = 0,
     int limit = 20,
-  }) {
-    if (offset < 0 || limit < 0) {
-      throw const InvalidOperation("Offset and limit can not be negative");
-    } else if (offset > _aggregates.length) {
-      throw InvalidOperation("Index out of bounds: offset $offset > length ${_aggregates.length}");
-    } else if (offset == 0 && limit == 0) {
-      return _aggregates.values.toList();
-    }
-    return _aggregates.values.skip(offset).take(limit);
-  }
+  }) =>
+      _aggregates.values.toPage(offset: offset, limit: limit);
 
   /// Commit aggregate changes to local storage
   ///
@@ -848,4 +840,20 @@ class EntityObject {
 
   /// Entity object data (weak schema)
   Map<String, dynamic> data;
+}
+
+extension IterableX<T> on Iterable<T> {
+  Iterable<T> toPage({
+    int offset = 0,
+    int limit = 20,
+  }) {
+    if (offset < 0 || limit < 0) {
+      throw const InvalidOperation("Offset and limit can not be negative");
+    } else if (offset > length) {
+      throw InvalidOperation("Index out of bounds: offset $offset > length $length");
+    } else if (offset == 0 && limit == 0) {
+      return toList();
+    }
+    return skip(offset).take(limit);
+  }
 }

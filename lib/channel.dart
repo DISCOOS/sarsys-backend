@@ -5,12 +5,16 @@ import 'package:http/http.dart';
 import 'auth/oidc.dart';
 import 'controllers/app_config_controller.dart';
 import 'controllers/domain/controllers.dart';
+import 'controllers/eventsource/controllers.dart';
 import 'controllers/health_controller.dart';
 import 'controllers/websocket_controller.dart';
+import 'domain/department/department.dart';
+import 'domain/division/division.dart';
 import 'domain/incident/incident.dart';
 import 'domain/messages.dart';
 import 'domain/mission/mission.dart';
 import 'domain/operation/operation.dart' as sar;
+import 'domain/organisation/organisation.dart';
 import 'domain/personnel/personnel.dart';
 import 'domain/subject/subject.dart';
 import 'domain/tenant/app_config.dart';
@@ -114,6 +118,16 @@ class SarSysAppServerChannel extends ApplicationChannel {
             manager.get<IncidentRepository>(),
             requestValidator,
           ))
+      ..route('/api/incidents/:uuid/subjects').link(() => LookupController<Subject>(
+            'subjects',
+            manager.get<IncidentRepository>(),
+            manager.get<SubjectRepository>(),
+          ))
+      ..route('/api/incidents/:uuid/operations').link(() => LookupController<sar.Operation>(
+            'operations',
+            manager.get<IncidentRepository>(),
+            manager.get<sar.OperationRepository>(),
+          ))
       ..route('/api/subjects[/:uuid]').link(() => SubjectController(
             manager.get<SubjectRepository>(),
             requestValidator,
@@ -152,6 +166,30 @@ class SarSysAppServerChannel extends ApplicationChannel {
           ))
       ..route('/api/units[/:uuid]').link(() => UnitController(
             manager.get<UnitRepository>(),
+            requestValidator,
+          ))
+      ..route('/api/organisation[/:uuid]').link(() => OrganisationController(
+            manager.get<OrganisationRepository>(),
+            requestValidator,
+          ))
+      ..route('/api/organisation/:uuid/divisions').link(() => LookupController<Division>(
+            'divisions',
+            manager.get<OrganisationRepository>(),
+            manager.get<DivisionRepository>(),
+          ))
+      ..route('/api/divisions[/:uuid]').link(() => DivisionController(
+            manager.get<DivisionRepository>(),
+            requestValidator,
+          ))
+      ..route('/api/divisions/:uuid/departments').link(() => LookupController<Department>(
+            'departments',
+            manager.get<DivisionRepository>(),
+            manager.get<DepartmentRepository>(),
+          ))
+
+      /// TODO: Implement move between divisions
+      ..route('/api/departments[/:uuid]').link(() => DepartmentController(
+            manager.get<DepartmentRepository>(),
             requestValidator,
           ));
   }
@@ -251,6 +289,9 @@ class SarSysAppServerChannel extends ApplicationChannel {
     manager.register<Personnel>((manager) => PersonnelRepository(manager));
     manager.register<Unit>((manager) => UnitRepository(manager));
     manager.register<Mission>((manager) => MissionRepository(manager));
+    manager.register<Organisation>((manager) => OrganisationRepository(manager));
+    manager.register<Department>((manager) => DepartmentRepository(manager));
+    manager.register<Division>((manager) => DivisionRepository(manager));
     manager.register<sar.Operation>((manager) => sar.OperationRepository(manager));
 
     // Defer repository builds so that isolates are not killed on eventstore connection timeouts

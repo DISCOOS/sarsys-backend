@@ -240,8 +240,8 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
         if (operation.pathVariables.isEmpty) {
           return [
             APIParameter.query('offset')
-              ..description = 'Start with [$aggregateType] number equal to offset. Default is 0.',
-            APIParameter.query('limit')..description = 'Maximum number of [$aggregateType] to fetch. Default is 20.',
+              ..description = 'Start with [${_toName()}] number equal to offset. Default is 0.',
+            APIParameter.query('limit')..description = 'Maximum number of [${_toName()}] to fetch. Default is 20.',
           ];
         }
         break;

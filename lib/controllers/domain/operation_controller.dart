@@ -1,4 +1,4 @@
-import 'package:sarsys_app_server/controllers/aggregate_controller.dart';
+import 'package:sarsys_app_server/controllers/eventsource/aggregate_controller.dart';
 import 'package:sarsys_app_server/domain/operation/operation.dart' as sar;
 import 'package:sarsys_app_server/domain/operation/repository.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';

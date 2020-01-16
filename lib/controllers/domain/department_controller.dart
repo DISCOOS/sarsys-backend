@@ -1,0 +1,39 @@
+import 'package:sarsys_app_server/controllers/eventsource/aggregate_controller.dart';
+import 'package:sarsys_app_server/domain/department/department.dart';
+import 'package:sarsys_app_server/sarsys_app_server.dart';
+import 'package:sarsys_app_server/validation/validation.dart';
+
+/// A ResourceController that handles
+/// [/api/incidents/{uuid}/Departments](http://localhost/api/client.html#/Department) requests
+class DepartmentController extends AggregateController<DepartmentCommand, Department> {
+  DepartmentController(DepartmentRepository repository, RequestValidator validator)
+      : super(repository, validator: validator);
+
+  @override
+  DepartmentCommand onCreate(Map<String, dynamic> data) => CreateDepartment(data);
+
+  @override
+  DepartmentCommand onUpdate(Map<String, dynamic> data) => UpdateDepartment(data);
+
+  @override
+  DepartmentCommand onDelete(Map<String, dynamic> data) => DeleteDepartment(data);
+
+  //////////////////////////////////
+  // Documentation
+  //////////////////////////////////
+
+  @override
+  APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object({
+        "uuid": APISchemaObject.string()
+          ..format = 'uuid'
+          ..description = "Unique Department id",
+        "name": APISchemaObject.string()..description = "Department name",
+        "alias": APISchemaObject.string()..description = "Department alias",
+      })
+        ..description = "Department Schema (aggregate root)"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+        ..required = [
+          'id',
+          'name',
+        ];
+}

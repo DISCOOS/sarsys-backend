@@ -1,4 +1,4 @@
-import 'package:sarsys_app_server/controllers/entity_controller.dart';
+import 'package:sarsys_app_server/controllers/eventsource/entity_controller.dart';
 import 'package:sarsys_app_server/domain/incident/aggregate.dart';
 import 'package:sarsys_app_server/domain/incident/commands.dart';
 import 'package:sarsys_app_server/domain/incident/repository.dart';

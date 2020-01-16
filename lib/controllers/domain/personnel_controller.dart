@@ -1,4 +1,4 @@
-import 'package:sarsys_app_server/controllers/aggregate_controller.dart';
+import 'package:sarsys_app_server/controllers/eventsource/aggregate_controller.dart';
 import 'package:sarsys_app_server/domain/personnel/personnel.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
@@ -80,31 +80,6 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
         })
           ..isReadOnly = true
           ..description = "Affiliation information"
-          ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
-        "Organisation": APISchemaObject.object({
-          "uuid": APISchemaObject.string()..description = "Unique organization id",
-          "name": APISchemaObject.string()..description = "Name",
-          "alias": APISchemaObject.string()..description = "Alias",
-          "icon": APISchemaObject.string()
-            ..format = "uri"
-            ..description = "Alias",
-        })
-          ..isReadOnly = true
-          ..description = "Organization information"
-          ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
-        "Division": APISchemaObject.object({
-          "id": APISchemaObject.string()..description = "Division id unique for given organization",
-          "name": APISchemaObject.string()..description = "Name",
-        })
-          ..isReadOnly = true
-          ..description = "Division information"
-          ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
-        "Department": APISchemaObject.object({
-          "id": APISchemaObject.string()..description = "Department id unique for given organization",
-          "name": APISchemaObject.string()..description = "Name",
-        })
-          ..isReadOnly = true
-          ..description = "Department information"
           ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
       };
 }
