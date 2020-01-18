@@ -93,7 +93,7 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
 
   @override
   Map<String, APISchemaObject> documentEntities(APIDocumentContext context) => {
-        "Point": documentPoint(),
+        "Position": documentPosition(),
         "Address": documentAddress(),
         "Location": documentLocation(context),
       };
@@ -125,7 +125,7 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
   /// Location - Value object
   APISchemaObject documentLocation(APIDocumentContext context) => APISchemaObject.object(
         {
-          "point": APISchemaObject.array(ofSchema: context.schema['Point'])..description = "Location position",
+          "position": APISchemaObject.array(ofSchema: context.schema['Position'])..description = "Location position",
           "address": APISchemaObject.array(ofSchema: context.schema['Address'])..description = "Location address",
           "description": APISchemaObject.string()..description = "Location description",
         },
@@ -133,11 +133,11 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
         ..description = "Location Schema (value object)"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
-          'point',
+          'position',
         ];
 
   /// Point - Value object
-  APISchemaObject documentPoint() => APISchemaObject.object(
+  APISchemaObject documentPosition() => APISchemaObject.object(
         {
           "lat": APISchemaObject.number()..description = "Latitude in decimal degrees",
           "lon": APISchemaObject.number()..description = "Longitude in decimal degrees",
@@ -146,18 +146,18 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
           "timestamp": APISchemaObject.string()
             ..description = "Timestamp in ISO8601 Date Time String Format"
             ..format = "date-time",
-          "type": documentPointType(),
+          "type": documentPositionType(),
         },
       )
-        ..description = "Point Schema (value object)"
+        ..description = "Position Schema (value object)"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
           'lat',
           'lon',
         ];
 
-  APISchemaObject documentPointType() => APISchemaObject.string()
-    ..description = "Point type"
+  APISchemaObject documentPositionType() => APISchemaObject.string()
+    ..description = "Position type"
     ..defaultValue = "manual"
     ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
     ..enumerated = [
@@ -178,7 +178,7 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
           "countryCode": APISchemaObject.string()..description = "ISO 3166 country code",
         },
       )
-        ..description = "Point Schema (value object)"
+        ..description = "Position Schema (value object)"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
           'lat',

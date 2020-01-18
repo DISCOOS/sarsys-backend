@@ -29,7 +29,7 @@ class ObjectiveController extends EntityController<OperationCommand, sar.Operati
   APISchemaObject documentEntityObject(APIDocumentContext context) => APISchemaObject.object(
         {
           "id": APISchemaObject.integer()..description = "Objective id (unique in Operation only)",
-          "name": APISchemaObject.array(ofSchema: context.schema['Point'])..description = "Objective name",
+          "name": APISchemaObject.string()..description = "Objective name",
           "description": APISchemaObject.string()..description = "Objective description",
           "type": APISchemaObject.string()
             ..description = "Objective type"
