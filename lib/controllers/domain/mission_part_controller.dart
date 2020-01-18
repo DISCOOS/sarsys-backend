@@ -29,7 +29,7 @@ class MissionPartController extends EntityController<MissionCommand, Mission> {
           "id": APISchemaObject.integer()..description = "Mission part id (unique in Mission only)",
           "name": APISchemaObject.string()..description = "Mission part name",
           "description": APISchemaObject.string()..description = "Mission part description",
-          "data": context.schema["GeometryBag"],
+          "data": context.schema["FeatureCollection"],
         },
       )
         ..description = "MissionPart Schema"

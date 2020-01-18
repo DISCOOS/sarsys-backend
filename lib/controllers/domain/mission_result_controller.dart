@@ -29,7 +29,7 @@ class MissionResultController extends EntityController<MissionCommand, Mission> 
           "id": APISchemaObject.integer()..description = "Mission result id (unique in Mission only)",
           "name": APISchemaObject.string()..description = "Mission result name",
           "description": APISchemaObject.string()..description = "Mission result description",
-          "data": context.schema["GeometryBag"],
+          "data": context.schema["FeatureCollection"],
         },
       )
         ..description = "MissionResult Schema"
