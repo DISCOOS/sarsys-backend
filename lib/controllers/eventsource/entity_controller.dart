@@ -133,7 +133,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
   }) async {
     try {
       if (!repository.contains(uuid)) {
-        return Response.notFound(body: "Aggregate $uuid not found");
+        return Response.notFound(body: "$aggregateType $uuid not found");
       }
       final aggregate = repository.get(uuid);
       final entity = data ?? {};
@@ -156,6 +156,13 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
   }
 
   S onDelete(String uuid, String type, Map<String, dynamic> data) => throw UnsupportedError("Remove not implemented");
+
+  Map<String, dynamic> validate(Map<String, dynamic> data) {
+    if (validator != null) {
+      validator.validateBody("$entityType", data);
+    }
+    return data;
+  }
 
   //////////////////////////////////
   // Documentation
@@ -224,6 +231,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     final responses = {
       "401": context.responses.getObject("401"),
       "403": context.responses.getObject("403"),
+      "503": context.responses.getObject("503"),
     };
     switch (operation.method) {
       case "GET":
@@ -245,8 +253,6 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
           "201": context.responses.getObject("201"),
           "400": context.responses.getObject("400"),
           "409": context.responses.getObject("409"),
-          "409": context.responses.getObject("409"),
-          "503": context.responses.getObject("503"),
         });
         break;
       case "PATCH":
@@ -254,7 +260,6 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
           "204": context.responses.getObject("204"),
           "400": context.responses.getObject("400"),
           "409": context.responses.getObject("409"),
-          "503": context.responses.getObject("503"),
         });
         break;
     }
@@ -282,11 +287,4 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
   APISchemaObject documentEntityObject(APIDocumentContext context);
 
   Map<String, APISchemaObject> documentEntities(APIDocumentContext context) => {};
-
-  Map<String, dynamic> validate(Map<String, dynamic> data) {
-    if (validator != null) {
-      validator.validateBody("$entityType", data);
-    }
-    return data;
-  }
 }

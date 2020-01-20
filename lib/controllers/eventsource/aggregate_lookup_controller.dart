@@ -1,9 +1,10 @@
 import 'package:sarsys_app_server/eventsource/eventsource.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
+import 'package:strings/strings.dart';
 
 /// A basic ResourceController for ReadModel requests
-class LookupController<T extends AggregateRoot> extends ResourceController {
-  LookupController(this.field, this.primary, this.foreign);
+class AggregateLookupController<T extends AggregateRoot> extends ResourceController {
+  AggregateLookupController(this.field, this.primary, this.foreign);
   final Repository primary;
   final String field;
   final Repository<Command, T> foreign;
@@ -11,10 +12,10 @@ class LookupController<T extends AggregateRoot> extends ResourceController {
   Type get aggregateType => typeOf<T>();
 
   @override
-  FutureOr<RequestOrResponse> willProcessRequest(Request req) => primary.ready
+  FutureOr<RequestOrResponse> willProcessRequest(Request req) => primary.ready && foreign.ready
       ? req
       : serviceUnavailable(
-          body: "Repository ${primary.runtimeType} is unavailable: build pending",
+          body: "Repositories ${[primary.runtimeType, foreign.runtimeType].join(', ')} are unavailable: build pending",
         );
 
   //////////////////////////////////
@@ -22,7 +23,7 @@ class LookupController<T extends AggregateRoot> extends ResourceController {
   //////////////////////////////////
 
   @Operation.get('uuid')
-  Future<Response> lookup(
+  Future<Response> get(
     @Bind.path('uuid') String uuid, {
     @Bind.query('offset') int offset = 0,
     @Bind.query('limit') int limit = 20,
@@ -32,8 +33,16 @@ class LookupController<T extends AggregateRoot> extends ResourceController {
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
       final aggregate = primary.get(uuid);
-      final uuids = List<String>.from(aggregate.data[field] as List ?? []);
-      final aggregates = uuids.toPage(offset: offset, limit: limit).map(foreign.get).toList();
+      // Foreign uuids that exists
+      final uuids = List<String>.from(aggregate.data[field] as List ?? [])
+        ..removeWhere(
+          (uuid) => !_exists(uuid, aggregate),
+        );
+      final aggregates = uuids
+          .where((uuid) => _exists(uuid, aggregate))
+          .toPage(offset: offset, limit: limit)
+          .map(foreign.get)
+          .toList();
       return okAggregatePaged(uuids.length, offset, limit, aggregates);
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
@@ -44,15 +53,40 @@ class LookupController<T extends AggregateRoot> extends ResourceController {
     }
   }
 
+  bool _exists(String uuid, AggregateRoot parent) {
+    final test = foreign.contains(uuid);
+    if (!test) {
+      logger.fine("${typeOf<T>()}{${foreign.uuidFieldName}: $uuid} not found in aggregate list '$field' in $parent");
+    }
+    return test;
+  }
+
   //////////////////////////////////
   // Documentation
   //////////////////////////////////
 
   @override
   List<String> documentOperationTags(APIDocumentContext context, Operation operation) {
-    final tag = "${primary.runtimeType}".replaceAll("Repository", "");
-    return [tag];
+    return [parentType];
   }
+
+  String get parentType => "${primary.runtimeType}".replaceAll("Repository", "");
+
+  @override
+  Map<String, APIOperation> documentOperations(APIDocumentContext context, String route, APIPath path) {
+    final operations = super.documentOperations(context, route, path);
+    return operations.map((key, method) => MapEntry(
+          key,
+          APIOperation("${method.id}${capitalize(field)}", method.responses,
+              summary: method.summary,
+              description: method.description,
+              parameters: method.parameters,
+              requestBody: method.requestBody,
+              tags: method.tags),
+        ));
+  }
+
+  String _toName() => aggregateType.toDelimiterCase(' ');
 
   @override
   String documentOperationSummary(APIDocumentContext context, Operation operation) {
@@ -65,13 +99,17 @@ class LookupController<T extends AggregateRoot> extends ResourceController {
     return summary;
   }
 
-  String _toName() => aggregateType.toDelimiterCase(' ');
+  @override
+  String documentOperationDescription(APIDocumentContext context, Operation operation) {
+    return documentOperationSummary(context, operation);
+  }
 
   @override
   Map<String, APIResponse> documentOperationResponses(APIDocumentContext context, Operation operation) {
     final responses = {
       "401": context.responses.getObject("401"),
       "403": context.responses.getObject("403"),
+      "503": context.responses.getObject("503"),
     };
     switch (operation.method) {
       case "GET":
@@ -91,8 +129,11 @@ class LookupController<T extends AggregateRoot> extends ResourceController {
     switch (operation.method) {
       case "GET":
         return [
-          APIParameter.query('offset')..description = 'Start with [${_toName()}] number equal to offset. Default is 0.',
-          APIParameter.query('limit')..description = 'Maximum number of [${_toName()}] to fetch. Default is 20.',
+          APIParameter.path('uuid')
+            ..description = '$parentType uuid'
+            ..isRequired = true,
+          APIParameter.query('offset')..description = 'Start with ${_toName()} number equal to offset. Default is 0.',
+          APIParameter.query('limit')..description = 'Maximum number of ${_toName()} to fetch. Default is 20.',
         ];
     }
     return super.documentOperationParameters(context, operation);

@@ -1,4 +1,4 @@
-import 'package:sarsys_app_server/controllers/eventsource/aggregate_controller.dart';
+import 'package:sarsys_app_server/controllers/eventsource/controllers.dart';
 import 'package:sarsys_app_server/domain/operation/operation.dart' as sar;
 import 'package:sarsys_app_server/domain/operation/repository.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
@@ -19,6 +19,15 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
   @override
   sar.OperationCommand onDelete(Map<String, dynamic> data) => sar.DeleteOperation(data);
 
+  @override
+  Map<String, dynamic> validate(Map<String, dynamic> data) {
+    // TODO: Refactor read-only checks into RequestValidator
+    if (data.containsKey('incident')) {
+      throw SchemaException("Schema $aggregateType has 1 errors: /incident/uuid: is read only");
+    }
+    return super.validate(data);
+  }
+
   //////////////////////////////////
   // Documentation
   //////////////////////////////////
@@ -30,6 +39,13 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
           "uuid": APISchemaObject.string()
             ..format = 'uuid'
             ..description = "Unique Operation id",
+          "incident": APISchemaObject.object({
+            "uuid": APISchemaObject.string()
+              ..format = 'uuid'
+              ..description = "Incident uuid which this operation responds to"
+          })
+            ..isReadOnly = true
+            ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
           "name": APISchemaObject.string()..description = "Name of operation scene",
           "type": documentType(),
           "status": documentStatus(),
@@ -37,24 +53,19 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
           "transitions": documentTransitions(),
           "reference": APISchemaObject.string()..description = "External reference from requesting authority",
           "justification": APISchemaObject.string()..description = "Justification for responding",
+          "commander": context.schema['UUID']..description = "Uuid of personnel in command",
           "talkgroups": APISchemaObject.array(ofSchema: context.schema['TalkGroup'])
             ..description = "List of talk gropus in use",
           "ipp": context.schema['Location']..description = "Initial planning point",
           "meetup": context.schema['Location']..description = "On scene meeting point",
           "objectives": APISchemaObject.array(ofSchema: context.schema['Objective'])
             ..description = "List of Operation objectives",
-          "missions": APISchemaObject.array(ofType: APIType.string)
-            ..description = "List of uuid of Missions executed by this operation"
-            ..format = 'uuid',
-          "units": APISchemaObject.array(ofType: APIType.string)
-            ..description = "List of uuid of Units mobilized for this operation"
-            ..format = 'uuid',
-          "commander": APISchemaObject.array(ofType: APIType.string)
-            ..description = "Uuid of personnel in command"
-            ..format = 'uuid',
-          "personnels": APISchemaObject.array(ofType: APIType.string)
-            ..description = "List of uuid of Personnels mobilized for this operation"
-            ..format = 'uuid',
+          "missions": APISchemaObject.array(ofSchema: context.schema['UUID'])
+            ..description = "List of uuid of Missions executed by this operation",
+          "units": APISchemaObject.array(ofSchema: context.schema['UUID'])
+            ..description = "List of uuid of Units mobilized for this operation",
+          "personnels": APISchemaObject.array(ofSchema: context.schema['UUID'])
+            ..description = "List of uuid of Personnels mobilized for this operation",
           "passcodes": context.schema['PassCodes']..description = "Passcodes for Operation access rights",
         },
       )
@@ -62,11 +73,8 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
         // POST only
         ..required = [
           'uuid',
-          'incidentUuid',
           'name',
           'type',
-          'ipp',
-          'meetup',
           'justification',
         ];
 
@@ -93,7 +101,6 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
 
   @override
   Map<String, APISchemaObject> documentEntities(APIDocumentContext context) => {
-        "Position": documentPosition(),
         "Address": documentAddress(),
         "Location": documentLocation(context),
       };
@@ -125,8 +132,8 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
   /// Location - Value object
   APISchemaObject documentLocation(APIDocumentContext context) => APISchemaObject.object(
         {
-          "position": APISchemaObject.array(ofSchema: context.schema['Position'])..description = "Location position",
-          "address": APISchemaObject.array(ofSchema: context.schema['Address'])..description = "Location address",
+          "position": context.schema['Position']..description = "Location position",
+          "address": context.schema['Address']..description = "Location address",
           "description": APISchemaObject.string()..description = "Location description",
         },
       )
@@ -135,37 +142,6 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
         ..required = [
           'position',
         ];
-
-  /// Point - Value object
-  APISchemaObject documentPosition() => APISchemaObject.object(
-        {
-          "lat": APISchemaObject.number()..description = "Latitude in decimal degrees",
-          "lon": APISchemaObject.number()..description = "Longitude in decimal degrees",
-          "alt": APISchemaObject.number()..description = "Altitude above sea level in meters",
-          "acc": APISchemaObject.number()..description = "Accuracy in meters",
-          "timestamp": APISchemaObject.string()
-            ..description = "Timestamp in ISO8601 Date Time String Format"
-            ..format = "date-time",
-          "type": documentPositionType(),
-        },
-      )
-        ..description = "Position Schema (value object)"
-        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
-        ..required = [
-          'lat',
-          'lon',
-        ];
-
-  APISchemaObject documentPositionType() => APISchemaObject.string()
-    ..description = "Position type"
-    ..defaultValue = "manual"
-    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
-    ..enumerated = [
-      'manual',
-      'device',
-      'personnel',
-      'aggregated',
-    ];
 
   /// Address - Value object
   APISchemaObject documentAddress() => APISchemaObject.object(
@@ -178,11 +154,12 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
           "countryCode": APISchemaObject.string()..description = "ISO 3166 country code",
         },
       )
-        ..description = "Position Schema (value object)"
+        ..description = "Address Schema (value object)"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
-          'lat',
-          'lon',
-          'timestamp',
+          'lines',
+          'city',
+          'postalCode',
+          'countryCode',
         ];
 }

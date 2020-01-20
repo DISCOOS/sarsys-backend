@@ -1,5 +1,6 @@
-import 'package:sarsys_app_server/controllers/eventsource/aggregate_controller.dart';
+import 'package:sarsys_app_server/controllers/eventsource/controllers.dart';
 import 'package:sarsys_app_server/domain/incident/incident.dart';
+import 'package:sarsys_app_server/domain/operation/operation.dart' as sar;
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 
@@ -26,9 +27,7 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
   @override
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object(
         {
-          "uuid": APISchemaObject.string(format: 'uuid')
-            ..format = 'uuid'
-            ..description = "Unique incident id",
+          "uuid": context.schema['UUID']..description = "Unique incident id",
           "name": APISchemaObject.string()..description = "Name of incident scene",
           "summary": APISchemaObject.string()..description = "Situation summary",
           "type": documentType(),
@@ -40,12 +39,10 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
             ..format = 'date-time',
           "clues": APISchemaObject.array(ofSchema: context.schema['Clue'])
             ..description = "List of Clues for planning and response",
-          "subjects": APISchemaObject.array(ofType: APIType.string)
-            ..description = "List of uuids of Subjects impacted by this Incident"
-            ..format = 'uuid',
-          "operations": APISchemaObject.array(ofType: APIType.string)
-            ..description = "List of uuids of Operations responding to this Incident"
-            ..format = 'uuid',
+          "subjects": APISchemaObject.array(ofSchema: context.schema['UUID'])
+            ..description = "List of uuids of Subjects impacted by this Incident",
+          "operations": APISchemaObject.array(ofSchema: context.schema['UUID'])
+            ..description = "List of uuids of Operations responding to this Incident",
         },
       )
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
@@ -102,4 +99,24 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
       'duplicate',
       'resolved',
     ];
+}
+
+/// Implement controller for field `operations` in [Incident]
+class IncidentOperationsController
+    extends AggregateListController<sar.OperationCommand, sar.Operation, IncidentCommand, Incident> {
+  IncidentOperationsController(
+    String field,
+    IncidentRepository primary,
+    sar.OperationRepository foreign,
+    RequestValidator validator,
+  ) : super(field, primary, foreign, validator);
+
+  @override
+  sar.RegisterOperation onCreate(String uuid, Map<String, dynamic> data) => sar.RegisterOperation(data);
+
+  @override
+  AddOperationToIncident onCreated(Incident aggregate, String foreignUuid) => AddOperationToIncident(
+        aggregate,
+        foreignUuid,
+      );
 }

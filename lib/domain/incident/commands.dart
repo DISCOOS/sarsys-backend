@@ -1,5 +1,6 @@
 import 'package:sarsys_app_server/eventsource/eventsource.dart';
 
+import 'aggregate.dart';
 import 'events.dart';
 
 abstract class IncidentCommand<T extends DomainEvent> extends Command<T> {
@@ -24,6 +25,28 @@ class UpdateIncidentInformation extends IncidentCommand<IncidentInformationUpdat
   UpdateIncidentInformation(
     Map<String, dynamic> data,
   ) : super(Action.update, data: data);
+}
+
+class AddOperationToIncident extends IncidentCommand<OperationAddedToIncident> {
+  AddOperationToIncident(
+    Incident incident,
+    String operationUuid,
+  ) : super(
+          Action.update,
+          uuid: incident.uuid,
+          data: Command.addToList<String>(incident.data, 'operations', operationUuid),
+        );
+}
+
+class RemoveOperationFromIncident extends IncidentCommand<OperationRemovedFromIncident> {
+  RemoveOperationFromIncident(
+    Incident incident,
+    String operationUuid,
+  ) : super(
+          Action.update,
+          uuid: incident.uuid,
+          data: Command.removeFromList<String>(incident.data, 'operations', operationUuid),
+        );
 }
 
 class DeleteIncident extends IncidentCommand<IncidentDeleted> {

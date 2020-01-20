@@ -113,7 +113,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       }
       final aggregate = data ?? {};
       aggregate[repository.uuidFieldName] = uuid;
-      final events = await repository.execute(onDelete(validate(aggregate)));
+      final events = await repository.execute(onDelete(aggregate));
       return events.isEmpty ? Response.noContent() : Response.noContent();
     } on AggregateNotFound catch (e) {
       return Response.notFound(body: e.message);
@@ -196,6 +196,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     final responses = {
       "401": context.responses.getObject("401"),
       "403": context.responses.getObject("403"),
+      "503": context.responses.getObject("503"),
     };
     switch (operation.method) {
       case "GET":
@@ -217,8 +218,6 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
           "201": context.responses.getObject("201"),
           "400": context.responses.getObject("400"),
           "409": context.responses.getObject("409"),
-          "409": context.responses.getObject("409"),
-          "503": context.responses.getObject("503"),
         });
         break;
       case "PATCH":
@@ -226,7 +225,6 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
           "204": context.responses.getObject("204"),
           "400": context.responses.getObject("400"),
           "409": context.responses.getObject("409"),
-          "503": context.responses.getObject("503"),
         });
         break;
     }
@@ -239,9 +237,8 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       case "GET":
         if (operation.pathVariables.isEmpty) {
           return [
-            APIParameter.query('offset')
-              ..description = 'Start with [${_toName()}] number equal to offset. Default is 0.',
-            APIParameter.query('limit')..description = 'Maximum number of [${_toName()}] to fetch. Default is 20.',
+            APIParameter.query('offset')..description = 'Start with ${_toName()} number equal to offset. Default is 0.',
+            APIParameter.query('limit')..description = 'Maximum number of ${_toName()} to fetch. Default is 20.',
           ];
         }
         break;

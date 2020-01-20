@@ -202,7 +202,7 @@ class EventStore {
       );
     }
 
-    // TODO: Read events as string - implement readEventsAsStream
+    // TODO: Read events as stream - implement readEventsAsStream
     final result = await connection.readAllEvents(
       stream: canonicalStream,
       number: head,
@@ -244,7 +244,7 @@ class EventStore {
             // NOTE: event numbers in a projected stream is not
             // monotone, but event order is stable so just do
             // a 0-based increment. Since EventNumber.none.value
-            // equals -1, this vil account for the first event
+            // equals -1, this will account for the first event
             // when adding event.length to it.
             ? events.length
             // Event numbers in instance streams SHOULD ALWAYS

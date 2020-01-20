@@ -118,15 +118,16 @@ class SarSysAppServerChannel extends ApplicationChannel {
             manager.get<IncidentRepository>(),
             requestValidator,
           ))
-      ..route('/api/incidents/:uuid/subjects').link(() => LookupController<Subject>(
+      ..route('/api/incidents/:uuid/subjects').link(() => AggregateLookupController<Subject>(
             'subjects',
             manager.get<IncidentRepository>(),
             manager.get<SubjectRepository>(),
           ))
-      ..route('/api/incidents/:uuid/operations').link(() => LookupController<sar.Operation>(
+      ..route('/api/incidents/:uuid/operations').link(() => IncidentOperationsController(
             'operations',
             manager.get<IncidentRepository>(),
             manager.get<sar.OperationRepository>(),
+            requestValidator,
           ))
       ..route('/api/subjects[/:uuid]').link(() => SubjectController(
             manager.get<SubjectRepository>(),
@@ -172,7 +173,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
             manager.get<OrganisationRepository>(),
             requestValidator,
           ))
-      ..route('/api/organisation/:uuid/divisions').link(() => LookupController<Division>(
+      ..route('/api/organisation/:uuid/divisions').link(() => AggregateLookupController<Division>(
             'divisions',
             manager.get<OrganisationRepository>(),
             manager.get<DivisionRepository>(),
@@ -181,7 +182,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
             manager.get<DivisionRepository>(),
             requestValidator,
           ))
-      ..route('/api/divisions/:uuid/departments').link(() => LookupController<Department>(
+      ..route('/api/divisions/:uuid/departments').link(() => AggregateLookupController<Department>(
             'departments',
             manager.get<DivisionRepository>(),
             manager.get<DepartmentRepository>(),
@@ -267,20 +268,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
     );
   }
 
-  // TODO MessageChannel
-  void _buildMessageChannel() {
-    messages.register<AppConfigCreated>(manager.bus);
-    messages.register<AppConfigUpdated>(manager.bus);
-    messages.register<IncidentRegistered>(manager.bus);
-    messages.register<IncidentInformationUpdated>(manager.bus);
-    messages.register<IncidentRespondedTo>(manager.bus);
-    messages.register<IncidentCancelled>(manager.bus);
-    messages.register<IncidentResolved>(manager.bus);
-    // TODO: MessageChannel - Add Operation events
-    // TODO: MessageChannel - Add Unit events
-    messages.build();
-  }
-
   void _buildRepos(Stopwatch stopwatch) {
     // Register repositories
     manager.register<AppConfig>((manager) => AppConfigRepository(manager));
@@ -315,6 +302,20 @@ class SarSysAppServerChannel extends ApplicationChannel {
     await Future.delayed(const Duration(seconds: 2), () => _buildReposWithRetries(stopwatch));
   }
 
+  // TODO MessageChannel
+  void _buildMessageChannel() {
+    messages.register<AppConfigCreated>(manager.bus);
+    messages.register<AppConfigUpdated>(manager.bus);
+    messages.register<IncidentRegistered>(manager.bus);
+    messages.register<IncidentInformationUpdated>(manager.bus);
+    messages.register<IncidentRespondedTo>(manager.bus);
+    messages.register<IncidentCancelled>(manager.bus);
+    messages.register<IncidentResolved>(manager.bus);
+    // TODO: MessageChannel - Add Operation events
+    // TODO: MessageChannel - Add Unit events
+    messages.build();
+  }
+
   void _setResponseFromEnv(String name, String header) {
     if (Platform.environment.containsKey(name)) {
       server.server.defaultResponseHeaders.add(
@@ -347,47 +348,12 @@ class SarSysAppServerChannel extends ApplicationChannel {
   //////////////////////////////////
 
   @override
-  void documentComponents(APIDocumentContext registry) {
-    documentResponses(registry);
-    registry.schema.register('PassCodes', documentPassCodes());
-    registry.securitySchemes
-      ..register(
-        "id.discoos.org",
-        APISecurityScheme.openID(
-          Uri.parse("https://id.discoos.io/auth/realms/DISCOOS/.well-known/openid-configuration"),
-        )..description = "This endpoint requires an identity token issed from https://id.discoos.io passed as a "
-            "[Bearer token](https://swagger.io/docs/specification/authentication/bearer-authentication/) issued by "
-            "in an [Authorization header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Authorization).",
-      )
-      ..register(
-        "Passcode",
-        APISecurityScheme.apiKey(
-          'X-Passcode',
-          APIParameterLocation.header,
-        )..description = "Authenticed users with an admin role is granted access to all "
-            "objects and all available fields in each of these objects regardless of any "
-            "affiliation or 'X-Passcode' given. All other roles are only granted access to "
-            "objects if 'X-Passcode' is valid. Requests without header 'X-Passcode' or an invalid "
-            "passcode will receive response `403 Forbidden`. Brute-force attacks are banned "
-            "for a lmitied time without any feedback. When banned, all request will receive "
-            "response `403 Forbidden` regardless of the value in 'X-Passcode'.",
-      );
-    super.documentComponents(registry);
+  void documentComponents(APIDocumentContext context) {
+    documentResponses(context);
+    documentSchemas(context);
+    documentSecuritySchemas(context);
+    super.documentComponents(context);
   }
-
-  // TODO: Use https://pub.dev/packages/password to hash pass codes in streams?
-  APISchemaObject documentPassCodes() => APISchemaObject.object(
-        {
-          "commander": APISchemaObject.string()..description = "Passcode for access with Commander rights",
-          "personnel": APISchemaObject.string()..description = "Passcode for access with Personnel rights",
-        },
-      )
-        ..description = "Pass codes for access rights to spesific Incident instance"
-        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
-        ..required = [
-          'commander',
-          'personnel',
-        ];
 
   APIComponentCollection<APIResponse> documentResponses(APIDocumentContext registry) {
     return registry.responses
@@ -437,4 +403,251 @@ class SarSysAppServerChannel extends ApplicationChannel {
             "Common causes are a server that is down for maintenance or that is overloaded.",
           ));
   }
+
+  void documentSecuritySchemas(APIDocumentContext context) => context.securitySchemes
+    ..register(
+      "id.discoos.org",
+      APISecurityScheme.openID(
+        Uri.parse("https://id.discoos.io/auth/realms/DISCOOS/.well-known/openid-configuration"),
+      )..description = "This endpoint requires an identity token issed from https://id.discoos.io passed as a "
+          "[Bearer token](https://swagger.io/docs/specification/authentication/bearer-authentication/) issued by "
+          "in an [Authorization header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Authorization).",
+    )
+    ..register(
+      "Passcode",
+      APISecurityScheme.apiKey(
+        'X-Passcode',
+        APIParameterLocation.header,
+      )..description = "Authenticed users with an admin role is granted access to all "
+          "objects and all available fields in each of these objects regardless of any "
+          "affiliation or 'X-Passcode' given. All other roles are only granted access to "
+          "objects if 'X-Passcode' is valid. Requests without header 'X-Passcode' or an invalid "
+          "passcode will receive response `403 Forbidden`. Brute-force attacks are banned "
+          "for a lmitied time without any feedback. When banned, all request will receive "
+          "response `403 Forbidden` regardless of the value in 'X-Passcode'.",
+    );
+
+  void documentSchemas(APIDocumentContext context) => context.schema
+    ..register('UUID', documentUUID())
+    ..register('PassCodes', documentPassCodes())
+    ..register('Coordinates', documentCoordinates(context))
+    ..register('Geometry', documentGeometry(context))
+    ..register("Point", documentPoint(context))
+    ..register("LineString", documentLineString(context))
+    ..register("Polygon", documentPolygon(context))
+    ..register("MultiPoint", documentMultiPoint(context))
+    ..register("MultiLineString", documentMultiLineString(context))
+    ..register("MultiPolygon", documentMultiPolygon(context))
+    ..register("GeometryCollection", documentGeometryCollection(context))
+    ..register("Feature", documentFeature(context))
+    ..register("FeatureCollection", documentFeatureCollection(context))
+    ..register("Circle", documentCircle(context))
+    ..register("Rectangle", documentRectangle(context))
+    ..register("Position", documentPosition(context));
+
+  APISchemaObject documentUUID() => APISchemaObject.string()
+    ..format = "uuid"
+    ..description = "A [universally unique identifier](https://en.wikipedia.org/wiki/Universally_unique_identifier).";
+
+  // TODO: Use https://pub.dev/packages/password to hash pass codes in streams?
+  APISchemaObject documentPassCodes() => APISchemaObject.object(
+        {
+          "commander": APISchemaObject.string()..description = "Passcode for access with Commander rights",
+          "personnel": APISchemaObject.string()..description = "Passcode for access with Personnel rights",
+        },
+      )
+        ..description = "Pass codes for access rights to spesific Incident instance"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+        ..required = [
+          'commander',
+          'personnel',
+        ];
+
+  //////////////////////////////////
+  // GeoJSON documentation
+  //////////////////////////////////
+
+  /// Geometry - Value Object
+  APISchemaObject documentGeometry(APIDocumentContext context) => APISchemaObject.object({
+        "type": APISchemaObject.string()
+          ..description = "GeoJSON Geometry type"
+          ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+          ..enumerated = [
+            'Point',
+            'LineString',
+            'Polygon',
+            'MultiPoint',
+            'MultiLineString',
+            'MultiPolygon',
+          ]
+      })
+        ..description = "GeoJSon geometry"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
+
+  APISchemaObject documentGeometryType(String type, APISchemaObject coordinates) => APISchemaObject.object({
+        "type": APISchemaObject.string()
+          ..description = "GeoJSON Geometry type"
+          ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+          ..enumerated = [
+            type,
+          ],
+        "coordinates": coordinates,
+      })
+        ..description = "GeoJSon $type type"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
+
+  /// Coordinates - Value Object
+  APISchemaObject documentCoordinates(APIDocumentContext context) => APISchemaObject.array(ofType: APIType.number)
+    ..description = "GeoJSON coordinate. There MUST be two or more elements. "
+        "The first two elements are longitude and latitude, or easting and northing, "
+        "precisely in that order and using decimal numbers. Altitude or elevation MAY "
+        "be included as an optional third element."
+    ..minItems = 2 // Longitude, Latitude
+    ..maxItems = 3 // Longitude, Latitude, Altitude
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
+
+  /// Point - Value Object
+  APISchemaObject documentPoint(APIDocumentContext context) => documentGeometryType(
+        'Point',
+        context.schema['Coordinates'],
+      )..description = "GeoJSON Point";
+
+  /// LineString - Value Object
+  APISchemaObject documentLineString(APIDocumentContext context) => documentGeometryType(
+        'LineString',
+        APISchemaObject.array(
+          ofSchema: context.schema['Coordinates'],
+        ),
+      )..description = "GeoJSON LineString";
+
+  /// Polygon - Value Object
+  APISchemaObject documentPolygon(APIDocumentContext context) => documentGeometryType(
+        'Polygon',
+        APISchemaObject.array(
+          ofSchema: APISchemaObject.array(
+            ofSchema: context.schema['Coordinates'],
+          ),
+        ),
+      )..description = "GeoJSON Polygon";
+
+  /// MultiPoint - Value Object
+  APISchemaObject documentMultiPoint(APIDocumentContext context) => documentGeometryType(
+        'MultiPoint',
+        APISchemaObject.array(
+          ofSchema: documentCoordinates(context),
+        ),
+      )..description = "GeoJSON MultiPoint";
+
+  /// MultiLineString - Value Object
+  APISchemaObject documentMultiLineString(APIDocumentContext context) => documentGeometryType(
+        'MultiLineString',
+        APISchemaObject.array(
+          ofSchema: APISchemaObject.array(
+            ofSchema: context.schema['Coordinates'],
+          ),
+        ),
+      )..description = "GeoJSON MultiLineString";
+
+  /// MultiPolygon - Value Object
+  APISchemaObject documentMultiPolygon(APIDocumentContext context) => documentGeometryType(
+        'MultiPolygon',
+        APISchemaObject.array(
+          ofSchema: APISchemaObject.array(
+            ofSchema: APISchemaObject.array(
+              ofSchema: context.schema['Coordinates'],
+            ),
+          ),
+        ),
+      )..description = "GeoJSON MultiPolygon";
+
+  /// GeometryCollection - Value Object
+  APISchemaObject documentGeometryCollection(APIDocumentContext context) => APISchemaObject.object({
+        "type": APISchemaObject.string()
+          ..description = "GeoJSON Geometry type"
+          ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+          ..enumerated = [
+            'GeometryCollection',
+          ],
+        "geometries": APISchemaObject.array(ofSchema: documentGeometry(context))
+      })
+        ..description = "GeoJSON GeometryCollection";
+
+  /// Feature - Value Object
+  APISchemaObject documentFeature(
+    APIDocumentContext context, {
+    APISchemaObject geometry,
+    Map<String, APISchemaObject> properties = const {},
+  }) =>
+      APISchemaObject.object({
+        "type": APISchemaObject.string()
+          ..description = "GeoJSON Feature type"
+          ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+          ..enumerated = [
+            'Feature',
+          ],
+        "geometry": geometry ?? documentGeometry(context),
+        "properties": APISchemaObject.object({
+          "name": APISchemaObject.string()..description = "Feature name",
+          "description": APISchemaObject.string()..description = "Feature description",
+        }..addAll(properties))
+      })
+        ..description = "GeoJSON Feature"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
+
+  /// FeatureCollection - Value Object
+  APISchemaObject documentFeatureCollection(APIDocumentContext context) => APISchemaObject.object({
+        "type": APISchemaObject.string()
+          ..description = "GeoJSON Feature type"
+          ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+          ..enumerated = [
+            'FeatureCollection',
+          ],
+        "features": APISchemaObject.array(ofSchema: context.schema['Feature']),
+      })
+        ..description = "GeoJSON FeatureCollection";
+
+  //////////////////////////////////
+  // GeoJSON features documentation
+  //////////////////////////////////
+
+  /// Rectangle - Value Object
+  /// Based on https://medium.com/geoman-blog/how-to-handle-circles-in-geojson-d04dcd6cb2e6
+  APISchemaObject documentRectangle(APIDocumentContext context) => documentFeature(
+        context,
+        geometry: APISchemaObject.array(ofSchema: context.schema['Point'])
+          ..minItems = 2
+          ..maxItems = 2,
+      )..description = "Rectangle feature described by two GeoJSON points forming upper left and lower right corners";
+
+  /// Circle - Value Object
+  /// Based on https://medium.com/geoman-blog/how-to-handle-circles-in-geojson-d04dcd6cb2e6
+  APISchemaObject documentCircle(APIDocumentContext context) =>
+      documentFeature(context, geometry: context.schema['Point'], properties: {
+        "radius": APISchemaObject.number()..description = "Circle radius i meters",
+      })
+        ..description = "Circle feature described by a GeoJSON point in center and a radius as an property"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
+
+  /// Position - Value object
+  APISchemaObject documentPosition(APIDocumentContext context) =>
+      documentFeature(context, geometry: context.schema['Point'], properties: {
+        "accuracy": APISchemaObject.number()..description = "Position accuracy",
+        "timestamp": APISchemaObject.string()
+          ..description = "Timestamp in ISO8601 Date Time String Format"
+          ..format = "date-time",
+        "type": documentPositionType(),
+      })
+        ..description = "Position feature described by a GeoJSON point with accuracy, point type and timestamp"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
+
+  APISchemaObject documentPositionType() => APISchemaObject.string()
+    ..description = "Position type"
+    ..defaultValue = "manual"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+    ..enumerated = [
+      'manual',
+      'device',
+      'personnel',
+      'aggregated',
+    ];
 }

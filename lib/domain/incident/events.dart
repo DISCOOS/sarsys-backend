@@ -31,6 +31,32 @@ class IncidentInformationUpdated extends DomainEvent {
         );
 }
 
+class OperationAddedToIncident extends DomainEvent {
+  OperationAddedToIncident({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$OperationAddedToIncident",
+          created: created,
+          data: data,
+        );
+}
+
+class OperationRemovedFromIncident extends DomainEvent {
+  OperationRemovedFromIncident({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$OperationRemovedFromIncident",
+          created: created,
+          data: data,
+        );
+}
+
 class IncidentRespondedTo extends DomainEvent {
   IncidentRespondedTo({
     @required String uuid,

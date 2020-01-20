@@ -33,16 +33,17 @@ class RequestValidator {
     return data != null;
   }
 
-  void validateBody(String schema, dynamic data) {
-    if (!has("#/components/schemas/$schema")) {
-      throw SchemaException("Schema $schema does not exist");
+  void validateBody(String type, dynamic data) {
+    if (!has("#/components/schemas/$type")) {
+      throw SchemaException("Schema $type does not exist");
     }
-    final errors = withSchema().validateWithErrors(data)
+    final schema = withSchema().resolvePath("#/components/schemas/$type");
+    final errors = schema.validateWithErrors(data)
       ..removeWhere(
         (error) => error.message == 'uuid not supported as format',
       );
     if (errors.isNotEmpty) {
-      throw SchemaException("Schema $schema has ${errors.length} errors: $errors");
+      throw SchemaException("Schema $type has ${errors.length} errors: $errors");
     }
   }
 }

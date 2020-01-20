@@ -145,6 +145,21 @@ abstract class Command<T extends DomainEvent> extends Message {
   /// Get [DomainEvent] type emitted after command is executed
   Type get emits => typeOf<T>();
 
+  /// Add value to list in given field
+  static Map<String, dynamic> addToList<T>(Map<String, dynamic> data, String field, T value) => Map.from(data)
+    ..update(
+      field,
+      (operations) => List<T>.from(operations as List)..add(value),
+      ifAbsent: () => [value],
+    );
+
+  /// Remove value from list in given field
+  static Map<String, dynamic> removeFromList<T>(Map<String, dynamic> data, String field, T value) => Map.from(data)
+    ..update(
+      field,
+      (operations) => List<T>.from(operations as List)..remove(value),
+    );
+
   @override
   String toString() {
     return '$runtimeType{uuid: $uuid, action: $action}';

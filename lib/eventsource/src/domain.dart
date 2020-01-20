@@ -159,7 +159,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   /// Parameter [uuidFieldName] defines the name of the
   /// required field in [AggregateRoot.data] that contains a
   /// [Universally unique identifier](https://en.wikipedia.org/wiki/Universally_unique_identifier)
-  /// for each [AggregateRoot] instance. Default value is 'uui'.
+  /// for each [AggregateRoot] instance. Default value is 'uuid'.
   ///
   Repository({
     @required this.store,
@@ -188,6 +188,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
 
   /// Map of aggregate roots
   final Map<String, T> _aggregates = {};
+  Iterable<T> get aggregates => List.unmodifiable(_aggregates.values);
 
   /// Get number of aggregates
   int get count => _aggregates.length;
@@ -211,8 +212,12 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
       logger.info("Repository loaded with ${_aggregates.length} aggregates");
     }
     store.subscribe(this);
+    willStartProcessingEvents();
     _ready = true;
   }
+
+  /// Called after [build()] is completed.
+  void willStartProcessingEvents() => {};
 
   /// Get domain event from given event
   DomainEvent toDomainEvent(Event event) {
@@ -474,7 +479,10 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     Map<String, dynamic> data, {
     this.uuidFieldName = 'uuid',
     this.entityIdFieldName = 'id',
+    DateTime created,
   }) : _processors = Map.unmodifiable(processors) {
+    _createdWhen = created ?? DateTime.now();
+    _changedWhen = _createdWhen;
     _change(
       data,
       ops,
@@ -670,6 +678,11 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
       );
     }
 
+    // Already applied?
+    if (_applied.contains(event.uuid)) {
+      return event;
+    }
+
     // Set timestamps
     if (_applied.isEmpty || isNew) {
       _createdWhen = event.created;
@@ -700,8 +713,23 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     return event;
   }
 
+  /// Get array of value objects
+  List<T> asValueArray<T>(String field) => List<T>.from(data[field] as List);
+
   /// Get array of [EntityObject]
   EntityArray asEntityArray(String field) => EntityArray.from(field, this);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is AggregateRoot && runtimeType == other.runtimeType && uuid == other.uuid;
+
+  @override
+  int get hashCode => uuid.hashCode;
+
+  @override
+  String toString() {
+    return '$runtimeType{$uuidFieldName: $uuid}';
+  }
 }
 
 /// This class implements validated entity object array operations
@@ -721,7 +749,6 @@ class EntityArray {
   final String aggregateField;
   final String entityIdFieldName;
   final Map<String, dynamic> data;
-//  final AggregateRoot root;
 
   /// Check if id exists
   bool contains(int id) => _asArray().any((data) => _toId(data) == id);
@@ -840,6 +867,13 @@ class EntityObject {
 
   /// Entity object data (weak schema)
   Map<String, dynamic> data;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is EntityObject && runtimeType == other.runtimeType && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
 }
 
 extension IterableX<T> on Iterable<T> {
