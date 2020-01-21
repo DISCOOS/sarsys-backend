@@ -395,17 +395,22 @@ String enumName(Object o) => o.toString().split('.').last;
 Type typeOf<T>() => T;
 
 extension TypeX on Type {
-  /// Convert [Type] string into colon delimited lower case string
+  /// Convert [Type] into lower case string
+  String toLowerCase() {
+    return "${this}".toLowerCase();
+  }
+
+  /// Convert [Type] into colon delimited lower case string
   String toColonCase() {
     return "${this}".toColonCase();
   }
 
-  /// Convert [Type] string into kebab case string
+  /// Convert [Type] into kebab case string
   String toKebabCase() {
     return "${this}".toKebabCase();
   }
 
-  /// Convert [Type] string into delimited lower case string
+  /// Convert [Type] into delimited lower case string
   String toDelimiterCase(String delimiter) {
     return "${this}".toDelimiterCase(delimiter);
   }

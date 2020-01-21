@@ -145,10 +145,85 @@ class RepositoryManager {
   }
 }
 
+/// [Message] type name to [DomainEvent] processor method
 typedef Process = DomainEvent Function(Message message);
 
+/// [Message] type name to [DomainEvent] processor method
+typedef Enforcer = Command Function(AggregateRoot root, DomainEvent event);
+
+/// Create invariant for given [repository]
+typedef CreateInvariant<T extends Repository> = Invariant<T> Function(T repository);
+
+/// Interface for invariant execution
+abstract class Invariant<T extends Repository> {
+  Invariant(this.field, this.enforcer, this.repository);
+  final String field;
+  final Enforcer enforcer;
+  final T repository;
+
+  Type get aggregateType => repository.aggregateType;
+
+  void call(DomainEvent event);
+}
+
+/// Invariant for foreign uuids in list with name [field]
+class AggregateListInvariant<T extends Repository> extends Invariant<T> {
+  AggregateListInvariant(
+    String field,
+    Enforcer enforcer,
+    T repository, {
+    this.multiple = false,
+  }) : super(field, enforcer, repository);
+
+  final bool multiple;
+
+  @override
+  void call(DomainEvent event) async => toUuids(event)
+      .where(
+        repository.contains,
+      )
+      .forEach(
+        (uuid) async => await repository.execute(
+          enforcer(repository.get(uuid), event),
+        ),
+      );
+
+  Iterable<String> toUuids(DomainEvent event) {
+    final uuids = <String>[];
+    final reference = event.data[aggregateType.toLowerCase()];
+    if (reference is Map<String, dynamic>) {
+      if (reference.containsKey('uuid')) {
+        uuids.add(reference['uuid'] as String);
+      }
+    }
+    if (uuids.isEmpty || multiple) {
+      // TODO: Implement test that fails when number of open aggregates are above threshold
+      // Do a full search for foreign id. This will be efficient
+      // as long as number of incidents are reasonable low
+      final foreign = event.data[repository.uuidFieldName] as String;
+      uuids.addAll(
+        repository.aggregates
+            .where(
+              (aggregate) => !aggregate.isDeleted,
+            )
+            .where(
+              (aggregate) => aggregate.data[field] is List,
+            )
+            .where(
+              (aggregate) => List<String>.unmodifiable(aggregate.data[field] as List).contains(foreign),
+            )
+            .map(
+              (aggregate) => aggregate.uuid,
+            ),
+      );
+    }
+    return uuids;
+  }
+}
+
 /// Repository or [AggregateRoot]s as the single responsible for all transactions on each aggregate
-abstract class Repository<S extends Command, T extends AggregateRoot> implements CommandHandler<S> {
+abstract class Repository<S extends Command, T extends AggregateRoot>
+    implements CommandHandler<S>, MessageHandler<DomainEvent> {
   /// Repository constructor
   ///
   /// Parameter [store] is required.
@@ -175,6 +250,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
   final Logger logger;
   final EventStore store;
   final String uuidFieldName;
+
+  /// Get [AggregateRoot] type
+  Type get aggregateType => typeOf<T>();
 
   /// Flag indicating that [build] succeeded
   bool _ready = false;
@@ -229,6 +307,34 @@ abstract class Repository<S extends Command, T extends AggregateRoot> implements
       return process(event);
     }
     throw InvalidOperation("Message ${event.type} not recognized");
+  }
+
+  /// [DomainEvent] type to constraint definitions
+  final Map<Type, CreateInvariant> _constraints = {};
+
+  /// Register invariant for given DomainEvent [E]
+  void constraint<E extends DomainEvent>(CreateInvariant creator, {bool unique = true}) {
+    final type = typeOf<E>();
+    if (unique && _constraints.containsKey(type)) {
+      throw InvalidOperation("Invariant for event $type already registered");
+    }
+    store.bus.register<E>(this);
+    _constraints.putIfAbsent(type, () => creator);
+  }
+
+  @override
+  void handle(DomainEvent message) async {
+    if (_constraints.isNotEmpty) {
+      try {
+        final creator = _constraints[message.runtimeType];
+        if (creator != null) {
+          final invariant = creator(this);
+          invariant(message);
+        }
+      } on Exception catch (e) {
+        logger.severe("Failed to enforce invariant for $message, failed with: $e");
+      }
+    }
   }
 
   /// Execute command on given aggregate root.

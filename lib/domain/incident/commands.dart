@@ -49,6 +49,28 @@ class RemoveOperationFromIncident extends IncidentCommand<OperationRemovedFromIn
         );
 }
 
+class AddSubjectToIncident extends IncidentCommand<SubjectAddedToIncident> {
+  AddSubjectToIncident(
+    Incident incident,
+    String operationUuid,
+  ) : super(
+          Action.update,
+          uuid: incident.uuid,
+          data: Command.addToList<String>(incident.data, 'subjects', operationUuid),
+        );
+}
+
+class RemoveSubjectFromIncident extends IncidentCommand<SubjectRemovedFromIncident> {
+  RemoveSubjectFromIncident(
+    Incident incident,
+    String operationUuid,
+  ) : super(
+          Action.update,
+          uuid: incident.uuid,
+          data: Command.removeFromList<String>(incident.data, 'subjects', operationUuid),
+        );
+}
+
 class DeleteIncident extends IncidentCommand<IncidentDeleted> {
   DeleteIncident(
     Map<String, dynamic> data,

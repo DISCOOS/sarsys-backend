@@ -78,6 +78,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     _buildValidators();
     _buildRepoManager();
     _buildRepos(stopwatch);
+    _buildInvariants();
     _buildMessageChannel();
 
     if (stopwatch.elapsed.inSeconds > isolateStartupTimeout * 0.8) {
@@ -118,13 +119,12 @@ class SarSysAppServerChannel extends ApplicationChannel {
             manager.get<IncidentRepository>(),
             requestValidator,
           ))
-      ..route('/api/incidents/:uuid/subjects').link(() => AggregateLookupController<Subject>(
-            'subjects',
+      ..route('/api/incidents/:uuid/subjects').link(() => IncidentSubjectController(
             manager.get<IncidentRepository>(),
             manager.get<SubjectRepository>(),
+            requestValidator,
           ))
       ..route('/api/incidents/:uuid/operations').link(() => IncidentOperationsController(
-            'operations',
             manager.get<IncidentRepository>(),
             manager.get<sar.OperationRepository>(),
             requestValidator,
@@ -302,7 +302,26 @@ class SarSysAppServerChannel extends ApplicationChannel {
     await Future.delayed(const Duration(seconds: 2), () => _buildReposWithRetries(stopwatch));
   }
 
-  // TODO MessageChannel
+  void _buildInvariants() {
+    manager.get<IncidentRepository>()
+      ..constraint<sar.OperationDeleted>((repository) => AggregateListInvariant<IncidentRepository>(
+            'operations',
+            (aggregate, event) => RemoveOperationFromIncident(
+              aggregate as Incident,
+              repository.toAggregateUuid(event),
+            ),
+            repository as IncidentRepository,
+          ))
+      ..constraint<SubjectDeleted>((repository) => AggregateListInvariant<IncidentRepository>(
+            'subjects',
+            (aggregate, event) => RemoveSubjectFromIncident(
+              aggregate as Incident,
+              repository.toAggregateUuid(event),
+            ),
+            repository as IncidentRepository,
+          ));
+  }
+
   void _buildMessageChannel() {
     messages.register<AppConfigCreated>(manager.bus);
     messages.register<AppConfigUpdated>(manager.bus);

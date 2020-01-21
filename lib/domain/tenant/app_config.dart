@@ -55,6 +55,12 @@ class UpdateAppConfig extends AppConfigCommand<AppConfigUpdated> {
   ) : super(Action.update, data: data);
 }
 
+class DeleteAppConfig extends AppConfigCommand<AppConfigDeleted> {
+  DeleteAppConfig(
+    Map<String, dynamic> data,
+  ) : super(Action.update, data: data);
+}
+
 //////////////////////////////////////
 // AppConfig Domain Events
 //////////////////////////////////////

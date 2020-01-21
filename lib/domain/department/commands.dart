@@ -29,5 +29,5 @@ class UpdateDepartment extends DepartmentCommand<DepartmentUpdated> {
 class DeleteDepartment extends DepartmentCommand<DepartmentDeleted> {
   DeleteDepartment(
     Map<String, dynamic> data,
-  ) : super(Action.update, data: data);
+  ) : super(Action.delete, data: data);
 }

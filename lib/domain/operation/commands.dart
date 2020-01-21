@@ -29,7 +29,7 @@ class UpdateOperationInformation extends OperationCommand<OperationInformationUp
 class DeleteOperation extends OperationCommand<OperationDeleted> {
   DeleteOperation(
     Map<String, dynamic> data,
-  ) : super(Action.update, data: data);
+  ) : super(Action.delete, data: data);
 }
 
 //////////////////////////////////

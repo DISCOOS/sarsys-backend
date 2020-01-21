@@ -15,6 +15,9 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
   @override
   AppConfigCommand onUpdate(Map<String, dynamic> data) => UpdateAppConfig(data);
 
+  @override
+  AppConfigCommand onDelete(Map<String, dynamic> data) => DeleteAppConfig(data);
+
   //////////////////////////////////
   // Documentation
   //////////////////////////////////

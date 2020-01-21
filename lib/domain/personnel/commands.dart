@@ -41,5 +41,5 @@ class RetirePersonnel extends PersonnelCommand<PersonnelRetired> {
 class DeletePersonnel extends PersonnelCommand<PersonnelDeployed> {
   DeletePersonnel(
     Map<String, dynamic> data,
-  ) : super(Action.update, data: data);
+  ) : super(Action.delete, data: data);
 }

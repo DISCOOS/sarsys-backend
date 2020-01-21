@@ -29,5 +29,5 @@ class UpdateDivisionInformation extends DivisionCommand<DivisionInformationUpdat
 class DeleteDivision extends DivisionCommand<DivisionDeleted> {
   DeleteDivision(
     Map<String, dynamic> data,
-  ) : super(Action.update, data: data);
+  ) : super(Action.delete, data: data);
 }

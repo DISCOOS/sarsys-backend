@@ -57,6 +57,32 @@ class OperationRemovedFromIncident extends DomainEvent {
         );
 }
 
+class SubjectAddedToIncident extends DomainEvent {
+  SubjectAddedToIncident({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$SubjectAddedToIncident",
+          created: created,
+          data: data,
+        );
+}
+
+class SubjectRemovedFromIncident extends DomainEvent {
+  SubjectRemovedFromIncident({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$SubjectRemovedFromIncident",
+          created: created,
+          data: data,
+        );
+}
+
 class IncidentRespondedTo extends DomainEvent {
   IncidentRespondedTo({
     @required String uuid,

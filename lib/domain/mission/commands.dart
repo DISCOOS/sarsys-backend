@@ -29,7 +29,7 @@ class UpdateMissionInformation extends MissionCommand<MissionInformationUpdated>
 class DeleteMission extends MissionCommand<MissionAssigned> {
   DeleteMission(
     Map<String, dynamic> data,
-  ) : super(Action.update, data: data);
+  ) : super(Action.delete, data: data);
 }
 
 //////////////////////////////////

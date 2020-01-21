@@ -29,5 +29,5 @@ class UpdateOrganisation extends OrganisationCommand<OrganisationUpdated> {
 class DeleteOrganisation extends OrganisationCommand<OrganisationDeleted> {
   DeleteOrganisation(
     Map<String, dynamic> data,
-  ) : super(Action.update, data: data);
+  ) : super(Action.delete, data: data);
 }
