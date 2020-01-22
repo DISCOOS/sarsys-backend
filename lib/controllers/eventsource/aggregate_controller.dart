@@ -186,6 +186,9 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       case "PATCH":
         summary = "Update ${_toName()}";
         break;
+      case "DELETE":
+        summary = "Delete ${_toName()}";
+        break;
     }
     return summary;
   }

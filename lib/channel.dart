@@ -1,11 +1,11 @@
 import 'dart:convert';
 
 import 'package:http/http.dart';
-import 'package:sarsys_app_server/controllers/document_controller.dart';
 
 import 'auth/oidc.dart';
 import 'controllers/domain/controllers.dart';
 import 'controllers/eventsource/controllers.dart';
+import 'controllers/system/controllers.dart';
 import 'controllers/tenant/controllers.dart';
 import 'controllers/websocket_controller.dart';
 import 'domain/department/department.dart';
