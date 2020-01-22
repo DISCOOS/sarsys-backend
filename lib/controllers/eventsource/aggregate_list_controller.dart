@@ -16,8 +16,9 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
     String field,
     this.primary,
     Repository<R, S> foreign,
-    this.validator,
-  ) : super(field, primary, foreign);
+    this.validator, {
+    String tag,
+  }) : super(field, primary, foreign, tag: tag);
   @override
   final Repository<T, U> primary;
   final RequestValidator validator;

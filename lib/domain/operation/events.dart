@@ -31,6 +31,58 @@ class OperationInformationUpdated extends DomainEvent {
         );
 }
 
+class MissionAddedToOperation extends DomainEvent {
+  MissionAddedToOperation({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$MissionAddedToOperation",
+          created: created,
+          data: data,
+        );
+}
+
+class MissionRemovedFromOperation extends DomainEvent {
+  MissionRemovedFromOperation({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$MissionRemovedFromOperation",
+          created: created,
+          data: data,
+        );
+}
+
+class UnitAddedToOperation extends DomainEvent {
+  UnitAddedToOperation({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$UnitAddedToOperation",
+          created: created,
+          data: data,
+        );
+}
+
+class UnitRemovedFromOperation extends DomainEvent {
+  UnitRemovedFromOperation({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$UnitRemovedFromOperation",
+          created: created,
+          data: data,
+        );
+}
+
 class OperationStarted extends DomainEvent {
   OperationStarted({
     @required String uuid,

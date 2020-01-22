@@ -4,9 +4,10 @@ import 'package:strings/strings.dart';
 
 /// A basic ResourceController for ReadModel requests
 class AggregateLookupController<T extends AggregateRoot> extends ResourceController {
-  AggregateLookupController(this.field, this.primary, this.foreign);
-  final Repository primary;
+  AggregateLookupController(this.field, this.primary, this.foreign, {this.tag});
+  final String tag;
   final String field;
+  final Repository primary;
   final Repository<Command, T> foreign;
 
   Type get aggregateType => typeOf<T>();
@@ -67,7 +68,7 @@ class AggregateLookupController<T extends AggregateRoot> extends ResourceControl
 
   @override
   List<String> documentOperationTags(APIDocumentContext context, Operation operation) {
-    return [parentType];
+    return [tag ?? parentType];
   }
 
   String get parentType => "${primary.runtimeType}".replaceAll("Repository", "");

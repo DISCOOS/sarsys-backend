@@ -9,7 +9,7 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// [/api/incidents/{uuid}/Clues](http://localhost/api/client.html#/Clue) requests
 class ClueController extends EntityController<IncidentCommand, Incident> {
   ClueController(IncidentRepository repository, RequestValidator validator)
-      : super(repository, "Clue", "clues", validator: validator);
+      : super(repository, "Clue", "clues", validator: validator, tag: "Incidents");
 
   @override
   IncidentCommand onCreate(String uuid, String type, Map<String, dynamic> data) => AddClue(uuid, data);

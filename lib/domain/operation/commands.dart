@@ -1,6 +1,7 @@
 import 'package:sarsys_app_server/eventsource/eventsource.dart';
 
 import 'events.dart';
+import 'operation.dart';
 
 abstract class OperationCommand<T extends DomainEvent> extends Command<T> {
   OperationCommand(
@@ -24,6 +25,50 @@ class UpdateOperationInformation extends OperationCommand<OperationInformationUp
   UpdateOperationInformation(
     Map<String, dynamic> data,
   ) : super(Action.update, data: data);
+}
+
+class AddMissionToOperation extends OperationCommand<MissionAddedToOperation> {
+  AddMissionToOperation(
+    Operation operation,
+    String operationUuid,
+  ) : super(
+          Action.update,
+          uuid: operation.uuid,
+          data: Command.addToList<String>(operation.data, 'missions', operationUuid),
+        );
+}
+
+class RemoveMissionFromOperation extends OperationCommand<MissionRemovedFromOperation> {
+  RemoveMissionFromOperation(
+    Operation incident,
+    String operationUuid,
+  ) : super(
+          Action.update,
+          uuid: incident.uuid,
+          data: Command.removeFromList<String>(incident.data, 'missions', operationUuid),
+        );
+}
+
+class AddUnitToOperation extends OperationCommand<UnitAddedToOperation> {
+  AddUnitToOperation(
+    Operation operation,
+    String operationUuid,
+  ) : super(
+          Action.update,
+          uuid: operation.uuid,
+          data: Command.addToList<String>(operation.data, 'missions', operationUuid),
+        );
+}
+
+class RemoveUnitFromOperation extends OperationCommand<UnitRemovedFromOperation> {
+  RemoveUnitFromOperation(
+    Operation incident,
+    String operationUuid,
+  ) : super(
+          Action.update,
+          uuid: incident.uuid,
+          data: Command.removeFromList<String>(incident.data, 'missions', operationUuid),
+        );
 }
 
 class DeleteOperation extends OperationCommand<OperationDeleted> {

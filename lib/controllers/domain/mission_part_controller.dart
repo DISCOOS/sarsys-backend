@@ -7,7 +7,7 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// [/api/incidents/{uuid}/MissionParts](http://localhost/api/client.html#/MissionPart) requests
 class MissionPartController extends EntityController<MissionCommand, Mission> {
   MissionPartController(MissionRepository repository, RequestValidator validator)
-      : super(repository, "MissionPart", "parts", validator: validator);
+      : super(repository, "MissionPart", "parts", validator: validator, tag: 'Missions');
 
   @override
   MissionCommand onCreate(String uuid, String type, Map<String, dynamic> data) => AddMissionPart(uuid, data);

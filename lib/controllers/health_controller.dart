@@ -5,4 +5,9 @@ class HealthController extends ResourceController {
   Future<Response> check() async {
     return Response.ok("Status OK");
   }
+
+  @override
+  List<String> documentOperationTags(APIDocumentContext context, Operation operation) {
+    return ['System'];
+  }
 }

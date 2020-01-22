@@ -10,7 +10,7 @@ class IncidentSubjectController extends AggregateListController<SubjectCommand, 
     IncidentRepository primary,
     SubjectRepository foreign,
     RequestValidator validator,
-  ) : super('subjects', primary, foreign, validator);
+  ) : super('subjects', primary, foreign, validator, tag: "Incidents");
 
   @override
   RegisterSubject onCreate(String uuid, Map<String, dynamic> data) => RegisterSubject(data);

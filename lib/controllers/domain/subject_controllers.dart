@@ -6,7 +6,8 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// A ResourceController that handles
 /// [/api/incidents/{uuid}/subjects](http://localhost/api/client.html#/Subject) requests
 class SubjectController extends AggregateController<SubjectCommand, Subject> {
-  SubjectController(SubjectRepository repository, RequestValidator validator) : super(repository, validator: validator);
+  SubjectController(SubjectRepository repository, RequestValidator validator)
+      : super(repository, validator: validator, readOnly: const ['incident'], tag: 'Subjects');
 
   @override
   SubjectCommand onCreate(Map<String, dynamic> data) => RegisterSubject(data);

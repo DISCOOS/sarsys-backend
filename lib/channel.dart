@@ -1,12 +1,12 @@
 import 'dart:convert';
 
 import 'package:http/http.dart';
+import 'package:sarsys_app_server/controllers/document_controller.dart';
 
 import 'auth/oidc.dart';
-import 'controllers/app_config_controller.dart';
 import 'controllers/domain/controllers.dart';
 import 'controllers/eventsource/controllers.dart';
-import 'controllers/health_controller.dart';
+import 'controllers/tenant/controllers.dart';
 import 'controllers/websocket_controller.dart';
 import 'domain/department/department.dart';
 import 'domain/division/division.dart';
@@ -99,11 +99,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     return Router()
       ..route('/').link(() => authorizer)
       ..route('/api/*').link(
-        () => FileController("web")
-          ..addCachePolicy(
-            const CachePolicy(preventCaching: true),
-            (p) => p.endsWith("client.html"),
-          ),
+        () => DocumentController(),
       )
       ..route('/api/healthz').link(
         () => HealthController(),
@@ -147,6 +143,16 @@ class SarSysAppServerChannel extends ApplicationChannel {
           ))
       ..route('/api/operations/:uuid/talkgroups[/:id]').link(() => TalkGroupController(
             manager.get<sar.OperationRepository>(),
+            requestValidator,
+          ))
+      ..route('/api/operations/:uuid/missions').link(() => OperationMissionController(
+            manager.get<sar.OperationRepository>(),
+            manager.get<MissionRepository>(),
+            requestValidator,
+          ))
+      ..route('/api/operations/:uuid/units').link(() => OperationUnitController(
+            manager.get<sar.OperationRepository>(),
+            manager.get<UnitRepository>(),
             requestValidator,
           ))
       ..route('/api/missions[/:uuid]').link(() => MissionController(

@@ -8,7 +8,7 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// [/api/operations](http://localhost/api/client.html#/Operation) requests
 class OperationController extends AggregateController<sar.OperationCommand, sar.Operation> {
   OperationController(OperationRepository repository, RequestValidator validator)
-      : super(repository, validator: validator);
+      : super(repository, validator: validator, readOnly: const ['incident'], tag: 'Operations');
 
   @override
   sar.OperationCommand onCreate(Map<String, dynamic> data) => sar.RegisterOperation(data);
@@ -18,15 +18,6 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
 
   @override
   sar.OperationCommand onDelete(Map<String, dynamic> data) => sar.DeleteOperation(data);
-
-  @override
-  Map<String, dynamic> validate(Map<String, dynamic> data) {
-    // TODO: Refactor read-only checks into RequestValidator
-    if (data.containsKey('incident')) {
-      throw SchemaException("Schema $aggregateType has 1 errors: /incident/uuid: is read only");
-    }
-    return super.validate(data);
-  }
 
   //////////////////////////////////
   // Documentation

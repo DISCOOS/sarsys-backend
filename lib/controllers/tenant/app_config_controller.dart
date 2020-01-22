@@ -7,7 +7,7 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// [/api/app-config](http://localhost/api/client.html#/AppConfig) [Request]s
 class AppConfigController extends AggregateController<AppConfigCommand, AppConfig> {
   AppConfigController(AppConfigRepository repository, RequestValidator validator)
-      : super(repository, validator: validator);
+      : super(repository, validator: validator, tag: 'Tenant');
 
   @override
   AppConfigCommand onCreate(Map<String, dynamic> data) => CreateAppConfig(data);

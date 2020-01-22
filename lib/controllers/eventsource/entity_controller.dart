@@ -4,7 +4,8 @@ import 'package:sarsys_app_server/validation/validation.dart';
 
 /// A basic CRUD ResourceController for [AggregateRoot] entity requests
 abstract class EntityController<S extends Command, T extends AggregateRoot> extends ResourceController {
-  EntityController(this.repository, this.entityType, this.aggregateField, {this.validator});
+  EntityController(this.repository, this.entityType, this.aggregateField, {this.validator, this.tag});
+  final String tag;
   final String entityType;
   final String aggregateField;
   final RequestValidator validator;
@@ -167,6 +168,10 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
   //////////////////////////////////
   // Documentation
   //////////////////////////////////
+
+  @override
+  List<String> documentOperationTags(APIDocumentContext context, Operation operation) =>
+      tag == null ? super.documentOperationTags(context, operation) : [tag];
 
   @override
   String documentOperationSummary(APIDocumentContext context, Operation operation) {

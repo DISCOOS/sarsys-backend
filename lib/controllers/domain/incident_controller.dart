@@ -1,8 +1,5 @@
 import 'package:sarsys_app_server/controllers/eventsource/controllers.dart';
 import 'package:sarsys_app_server/domain/incident/incident.dart';
-import 'package:sarsys_app_server/domain/operation/operation.dart' as sar;
-import 'package:sarsys_app_server/domain/subject/commands.dart';
-import 'package:sarsys_app_server/domain/subject/subject.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 
@@ -10,7 +7,7 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// [/api/incidents](http://localhost/api/client.html#/Incident) requests
 class IncidentController extends AggregateController<IncidentCommand, Incident> {
   IncidentController(IncidentRepository repository, RequestValidator validator)
-      : super(repository, validator: validator);
+      : super(repository, tag: "Incidents", validator: validator);
 
   @override
   IncidentCommand onCreate(Map<String, dynamic> data) => RegisterIncident(data);

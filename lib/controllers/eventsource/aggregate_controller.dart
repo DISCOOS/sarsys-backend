@@ -6,9 +6,11 @@ import 'package:sarsys_app_server/validation/validation.dart';
 
 /// A basic CRUD ResourceController for [AggregateRoot] requests
 abstract class AggregateController<S extends Command, T extends AggregateRoot> extends ResourceController {
-  AggregateController(this.repository, {this.validator});
+  AggregateController(this.repository, {this.tag, this.validator, this.readOnly = const []});
   final RequestValidator validator;
   final Repository<S, T> repository;
+  final List<String> readOnly;
+  final String tag;
 
   Type get aggregateType => typeOf<T>();
 
@@ -18,6 +20,37 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       : serviceUnavailable(
           body: "Repository ${repository.runtimeType} is unavailable: build pending",
         );
+
+  Map<String, dynamic> validate(Map<String, dynamic> data) {
+    // TODO: Refactor read-only checks into RequestValidator
+    final errors = readOnly.where((field) => _hasField(data, field)).map(
+          (field) => "${field.startsWith('/') ? field : "/$field"}/uuid: is read only",
+        );
+    if (errors.isNotEmpty) {
+      throw SchemaException("Schema $aggregateType has ${errors.length} errors: ${errors.join(",")}");
+    }
+    if (validator != null) {
+      validator.validateBody("$aggregateType", data);
+    }
+    return data;
+  }
+
+  bool _hasField(Map<String, dynamic> data, String field) {
+    final parts = field.split('/');
+    if (parts.isNotEmpty) {
+      final found = parts.skip(1).fold(data, (parent, name) {
+        if (parent is Map<String, dynamic>) {
+          if (parent.containsKey(name)) {
+            return parent[name] is Map<String, dynamic> ? parent[name] : true;
+          }
+          return false;
+        }
+        return false;
+      });
+      return found != false;
+    }
+    return data.containsKey(field);
+  }
 
   //////////////////////////////////
   // Aggregate Operations
@@ -135,6 +168,10 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   //////////////////////////////////
   // Documentation
   //////////////////////////////////
+
+  @override
+  List<String> documentOperationTags(APIDocumentContext context, Operation operation) =>
+      tag == null ? super.documentOperationTags(context, operation) : [tag];
 
   @override
   String documentOperationSummary(APIDocumentContext context, Operation operation) {
@@ -276,11 +313,4 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
 
   Map<String, APISchemaObject> documentEntities(APIDocumentContext context) => {};
   Map<String, APISchemaObject> documentValues(APIDocumentContext context) => {};
-
-  Map<String, dynamic> validate(Map<String, dynamic> data) {
-    if (validator != null) {
-      validator.validateBody("$aggregateType", data);
-    }
-    return data;
-  }
 }

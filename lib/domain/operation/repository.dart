@@ -17,6 +17,26 @@ class OperationRepository extends Repository<OperationCommand, Operation> {
                 data: event.data,
                 created: event.created,
               ),
+          MissionAddedToOperation: (event) => OperationStarted(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          MissionRemovedFromOperation: (event) => MissionRemovedFromOperation(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          UnitAddedToOperation: (event) => UnitAddedToOperation(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          UnitRemovedFromOperation: (event) => UnitRemovedFromOperation(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
           OperationStarted: (event) => OperationStarted(
                 uuid: event.uuid,
                 data: event.data,
