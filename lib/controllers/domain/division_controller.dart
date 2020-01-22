@@ -24,14 +24,17 @@ class DivisionController extends AggregateController<DivisionCommand, Division> 
 
   @override
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object({
-        "uuid": APISchemaObject.string()
-          ..format = 'uuid'
-          ..description = "Unique Division id",
+        "uuid": context.schema['UUID']..description = "Unique division id",
+        "organisation": APISchemaObject.object({
+          "uuid": context.schema['UUID']..description = "Uuid of organisation which this division belongs to",
+        })
+          ..isReadOnly = true
+          ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
         "name": APISchemaObject.string()..description = "Division name",
         "alias": APISchemaObject.string()..description = "Division alias",
         "departments": APISchemaObject.array(
-          ofType: APIType.string,
-        )..description = "List of unique department ids",
+          ofSchema: context.schema['UUID'],
+        )..description = "List of unique department uuids",
       })
         ..description = "Division Schema (aggregate root)"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed

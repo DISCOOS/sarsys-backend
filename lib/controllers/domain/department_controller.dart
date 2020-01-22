@@ -24,9 +24,12 @@ class DepartmentController extends AggregateController<DepartmentCommand, Depart
 
   @override
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object({
-        "uuid": APISchemaObject.string()
-          ..format = 'uuid'
-          ..description = "Unique Department id",
+        "uuid": context.schema['UUID']..description = "Unique department id",
+        "division": APISchemaObject.object({
+          "uuid": context.schema['UUID']..description = "Uuid of division which this department belongs to",
+        })
+          ..isReadOnly = true
+          ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
         "name": APISchemaObject.string()..description = "Department name",
         "alias": APISchemaObject.string()..description = "Department alias",
       })

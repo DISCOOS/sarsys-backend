@@ -24,9 +24,12 @@ class MissionController extends AggregateController<MissionCommand, Mission> {
   @override
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object(
         {
-          "uuid": APISchemaObject.string()
-            ..format = 'uuid'
-            ..description = "Unique Mission id",
+          "uuid": context.schema['UUID']..description = "Unique mission id",
+          "operation": APISchemaObject.object({
+            "uuid": context.schema['UUID']..description = "Operation uuid which this mission belongs to",
+          })
+            ..isReadOnly = true
+            ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
           "description": APISchemaObject.string()..description = "Mission description",
           "type": documentType(),
           "status": documentStatus(),
@@ -37,9 +40,7 @@ class MissionController extends AggregateController<MissionCommand, Mission> {
             ..description = "Points, linestrings, rectangles and circles describing mission parts",
           "results": APISchemaObject.array(ofSchema: context.schema["MissionResult"])
             ..description = "Points, linestrings, rectangles and circles describing the results",
-          "assignedTo": APISchemaObject.string()
-            ..format = 'uuid'
-            ..description = "Uuid of unit assigned to mission",
+          "assignedTo": context.schema['UUID']..description = "Uuid of unit assigned to mission",
         },
       )
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed

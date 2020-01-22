@@ -36,13 +36,9 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
   @override
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object(
         {
-          "uuid": APISchemaObject.string()
-            ..format = 'uuid'
-            ..description = "Unique Operation id",
+          "uuid": context.schema['UUID']..description = "Unique operation id",
           "incident": APISchemaObject.object({
-            "uuid": APISchemaObject.string()
-              ..format = 'uuid'
-              ..description = "Incident uuid which this operation responds to"
+            "uuid": context.schema['UUID']..description = "Incident uuid which this operation responds to",
           })
             ..isReadOnly = true
             ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,

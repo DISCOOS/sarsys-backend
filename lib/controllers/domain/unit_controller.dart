@@ -24,9 +24,12 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
   @override
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object(
         {
-          "uuid": APISchemaObject.string()
-            ..format = 'uuid'
-            ..description = "Unique Personnel id",
+          "uuid": context.schema['UUID']..description = "Unique unit id",
+          "operation": APISchemaObject.object({
+            "uuid": context.schema['UUID']..description = "Operation uuid which this unit belongs to",
+          })
+            ..isReadOnly = true
+            ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
           "type": documentType(),
           "number": APISchemaObject.integer()..description = "Unit number",
           "affiliation": context.schema["Affiliation"],

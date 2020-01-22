@@ -28,17 +28,15 @@ class OrganisationController extends AggregateController<OrganisationCommand, Or
   @override
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object(
         {
-          "uuid": APISchemaObject.string()
-            ..format = 'uuid'
-            ..description = "Unique Organisation id",
+          "uuid": context.schema['UUID']..description = "Unique Organisation id",
           "name": APISchemaObject.string()..description = "Organisation name",
           "alias": APISchemaObject.string()..description = "Organisation alias",
           "icon": APISchemaObject.string()
             ..format = "uri"
             ..description = "Organisation icon",
           "divisions": APISchemaObject.array(
-            ofType: APIType.string,
-          )..description = "List of division ids"
+            ofSchema: context.schema['UUID'],
+          )..description = "List of division uuids"
         },
       )
         ..description = "Organisation Schema (aggregate root)"

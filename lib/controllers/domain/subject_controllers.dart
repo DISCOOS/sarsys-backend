@@ -24,9 +24,14 @@ class SubjectController extends AggregateController<SubjectCommand, Subject> {
   @override
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object(
         {
-          "uuid": APISchemaObject.string()
-            ..format = 'uuid'
-            ..description = "Unique Subject id",
+          "uuid": context.schema['UUID']..description = "Unique subject id",
+          "incident": APISchemaObject.object({
+            "uuid": APISchemaObject.string()
+              ..format = 'uuid'
+              ..description = "Uuid of incident which this subject is affected by"
+          })
+            ..isReadOnly = true
+            ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
           // TODO: Subject - replace name with reference to PII
           "name": APISchemaObject.string()..description = "Subject name",
           "situation": APISchemaObject.string()..description = "Subject situation",
