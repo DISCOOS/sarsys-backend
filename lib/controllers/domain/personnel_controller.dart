@@ -72,12 +72,13 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
   @override
   Map<String, APISchemaObject> documentValues(APIDocumentContext context) => {
         "Affiliation": APISchemaObject.object({
-          "organisation": context.schema["Organisation"],
-          "division": context.schema["Division"],
-          "department": context.schema["Department"],
+          "organisation": APISchemaObject.object({'uuid': context.schema["UUID"]}),
+          "division": APISchemaObject.object({'uuid': context.schema["UUID"]}),
+          "department": APISchemaObject.object({'uuid': context.schema["UUID"]}),
         })
           ..isReadOnly = true
           ..description = "Affiliation information"
+          ..required = ['organisation']
           ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
       };
 }
