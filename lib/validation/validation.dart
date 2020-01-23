@@ -26,9 +26,9 @@ class RequestValidator {
         if (parent.containsKey(name)) {
           return parent[name];
         }
-        throw SchemaException("Specification $parent does not contain part $name");
+        throw SchemaException("Specification does not contain part $name");
       }
-      throw SchemaException("Specification $parent is not a object map");
+      throw SchemaException("Specification is not a object map");
     });
     return data != null;
   }

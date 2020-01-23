@@ -20,6 +20,7 @@ Map<String, dynamic> toAggregateData(AggregateRoot aggregate) => {
       "type": "${aggregate.runtimeType}",
       "created": aggregate.createdWhen.toIso8601String(),
       "changed": aggregate.changedWhen.toIso8601String(),
+      if (aggregate.isDeleted) "deleted": aggregate.deletedWhen.toIso8601String(),
       "data": aggregate.data,
     };
 

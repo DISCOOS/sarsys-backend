@@ -18,14 +18,14 @@ class OrganisationCreated extends DomainEvent {
         );
 }
 
-class OrganisationUpdated extends DomainEvent {
-  OrganisationUpdated({
+class OrganisationInfomationUpdated extends DomainEvent {
+  OrganisationInfomationUpdated({
     @required String uuid,
     @required DateTime created,
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$OrganisationUpdated",
+          type: "$OrganisationInfomationUpdated",
           created: created,
           data: data,
         );

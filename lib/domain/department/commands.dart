@@ -20,7 +20,7 @@ class CreateDepartment extends DepartmentCommand<DepartmentCreated> {
   ) : super(Action.create, data: data);
 }
 
-class UpdateDepartment extends DepartmentCommand<DepartmentUpdated> {
+class UpdateDepartment extends DepartmentCommand<DepartmentInformationUpdated> {
   UpdateDepartment(
     Map<String, dynamic> data,
   ) : super(Action.update, data: data);

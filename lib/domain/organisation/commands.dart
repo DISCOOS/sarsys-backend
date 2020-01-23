@@ -21,7 +21,7 @@ class CreateOrganisation extends OrganisationCommand<OrganisationCreated> {
   ) : super(Action.create, data: data);
 }
 
-class UpdateOrganisation extends OrganisationCommand<OrganisationUpdated> {
+class UpdateOrganisation extends OrganisationCommand<OrganisationInfomationUpdated> {
   UpdateOrganisation(
     Map<String, dynamic> data,
   ) : super(Action.update, data: data);

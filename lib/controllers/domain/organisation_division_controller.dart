@@ -11,7 +11,7 @@ class OrganisationDivisionController
     OrganisationRepository primary,
     DivisionRepository foreign,
     RequestValidator validator,
-  ) : super('divisions', primary, foreign, validator, tag: 'Affiliations');
+  ) : super('divisions', primary, foreign, validator, tag: 'Organisations');
 
   @override
   CreateDivision onCreate(String uuid, Map<String, dynamic> data) => CreateDivision(data);

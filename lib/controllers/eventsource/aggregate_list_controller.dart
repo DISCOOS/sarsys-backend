@@ -3,6 +3,8 @@ import 'package:sarsys_app_server/eventsource/eventsource.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 
+import 'mixins.dart';
+
 /// A basic ResourceController for aggregate list requests:
 ///
 /// * [R] - [AggregateRoot] type managed by [foreign] repository
@@ -11,17 +13,24 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// * [U] - [Command] type returned by [onCreated] executed by [primary] repository
 ///
 abstract class AggregateListController<R extends Command, S extends AggregateRoot, T extends Command,
-    U extends AggregateRoot> extends AggregateLookupController<S> {
+    U extends AggregateRoot> extends AggregateLookupController<S> with RequestValidatorMixin {
   AggregateListController(
     String field,
     this.primary,
     Repository<R, S> foreign,
     this.validator, {
     String tag,
+    this.readOnly = const [],
   }) : super(field, primary, foreign, tag: tag);
+
+  @override
+  final List<String> readOnly;
+
+  @override
+  final RequestValidator validator;
+
   @override
   final Repository<T, U> primary;
-  final RequestValidator validator;
 
   //////////////////////////////////
   // Aggregate Operations
@@ -34,11 +43,11 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
   ) async {
     try {
       if (!primary.contains(uuid)) {
-        return Response.notFound(body: "$aggregateType $uuid not found");
+        return Response.notFound(body: "$primaryType $uuid not found");
       }
       final aggregate = primary.get(uuid);
       final managedUuid = data[foreign.uuidFieldName] as String;
-      await foreign.execute(onCreate(managedUuid, validate(data)..addAll(_toParentRef(uuid))));
+      await foreign.execute(onCreate(managedUuid, validate(typeOf<S>(), data)..addAll(_toParentRef(uuid))));
       await primary.execute(onCreated(aggregate, managedUuid));
       return Response.created("${toLocation(request)}/$managedUuid");
     } on AggregateExists catch (e) {
@@ -57,24 +66,13 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
   }
 
   Map<String, dynamic> _toParentRef(String uuid) => {
-        "$parentType".toLowerCase(): {
+        "$primaryType".toLowerCase(): {
           "${primary.uuidFieldName}": uuid,
         },
       };
 
   R onCreate(String uuid, Map<String, dynamic> data);
   T onCreated(U aggregate, String foreignUuid);
-
-  Map<String, dynamic> validate(Map<String, dynamic> data) {
-    // TODO: Refactor read-only checks into RequestValidator
-    if (data.containsKey('incident')) {
-      throw SchemaException("Schema $aggregateType has 1 errors: /incident/uuid: read only");
-    }
-    if (validator != null) {
-      validator.validateBody("$aggregateType", data);
-    }
-    return data;
-  }
 
   //////////////////////////////////
   // Documentation
@@ -84,7 +82,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
   String documentOperationSummary(APIDocumentContext context, Operation operation) {
     switch (operation.method) {
       case "POST":
-        return "Create ${_toName()} and add uuid to $field in $parentType";
+        return "Create ${_toName()} and add uuid to $field in $primaryType";
     }
     return super.documentOperationSummary(context, operation);
   }
@@ -122,7 +120,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       case "POST":
         return [
           APIParameter.path('uuid')
-            ..description = '$parentType uuid'
+            ..description = '$primaryType uuid'
             ..isRequired = true,
         ];
     }

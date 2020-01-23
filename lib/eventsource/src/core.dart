@@ -56,7 +56,7 @@ class Event extends Message {
       );
 
   /// Test if `data['deleted'] == 'true'`
-  bool get isDeleted => data['deleted'] == 'true';
+  bool get isDeleted => data['deleted'] == true;
 
   /// Get list of JSON Patch methods from `data['patches']`
   List<Map<String, dynamic>> get patches => List<Map<String, dynamic>>.from(data['patches'] as List<dynamic>);

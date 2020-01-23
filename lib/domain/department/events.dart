@@ -18,14 +18,14 @@ class DepartmentCreated extends DomainEvent {
         );
 }
 
-class DepartmentUpdated extends DomainEvent {
-  DepartmentUpdated({
+class DepartmentInformationUpdated extends DomainEvent {
+  DepartmentInformationUpdated({
     @required String uuid,
     @required DateTime created,
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$DepartmentUpdated",
+          type: "$DepartmentInformationUpdated",
           created: created,
           data: data,
         );

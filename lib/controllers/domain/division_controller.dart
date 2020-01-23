@@ -7,7 +7,7 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// [/api/incidents/{uuid}/Divisions](http://localhost/api/client.html#/Division) requests
 class DivisionController extends AggregateController<DivisionCommand, Division> {
   DivisionController(DivisionRepository repository, RequestValidator validator)
-      : super(repository, validator: validator, tag: "Affiliations");
+      : super(repository, validator: validator, tag: "Divisions");
 
   @override
   DivisionCommand onCreate(Map<String, dynamic> data) => CreateDivision(data);
@@ -39,7 +39,7 @@ class DivisionController extends AggregateController<DivisionCommand, Division> 
         ..description = "Division Schema (aggregate root)"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
-          'id',
+          'uuid',
           'name',
         ];
 }

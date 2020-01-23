@@ -7,7 +7,7 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// [/api/incidents/{uuid}/Departments](http://localhost/api/client.html#/Department) requests
 class DepartmentController extends AggregateController<DepartmentCommand, Department> {
   DepartmentController(DepartmentRepository repository, RequestValidator validator)
-      : super(repository, validator: validator, tag: "Affiliations");
+      : super(repository, validator: validator, tag: "Departments");
 
   @override
   DepartmentCommand onCreate(Map<String, dynamic> data) => CreateDepartment(data);
@@ -36,7 +36,7 @@ class DepartmentController extends AggregateController<DepartmentCommand, Depart
         ..description = "Department Schema (aggregate root)"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
-          'id',
+          'uuid',
           'name',
         ];
 }

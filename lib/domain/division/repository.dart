@@ -17,6 +17,16 @@ class DivisionRepository extends Repository<DivisionCommand, Division> {
                 data: event.data,
                 created: event.created,
               ),
+          DepartmentAddedToDivision: (event) => DepartmentAddedToDivision(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          DepartmentRemovedFromDivision: (event) => DepartmentRemovedFromDivision(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
           DivisionStarted: (event) => DivisionStarted(
                 uuid: event.uuid,
                 data: event.data,

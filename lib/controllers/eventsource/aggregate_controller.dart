@@ -2,15 +2,23 @@ import 'package:sarsys_app_server/eventsource/eventsource.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 
+import 'mixins.dart';
+
 // TODO: Add support for entities as query-param to limit default response to only value objects
 
 /// A basic CRUD ResourceController for [AggregateRoot] requests
-abstract class AggregateController<S extends Command, T extends AggregateRoot> extends ResourceController {
+abstract class AggregateController<S extends Command, T extends AggregateRoot> extends ResourceController
+    with RequestValidatorMixin {
   AggregateController(this.repository, {this.tag, this.validator, this.readOnly = const []});
-  final RequestValidator validator;
-  final Repository<S, T> repository;
-  final List<String> readOnly;
+
   final String tag;
+  final Repository<S, T> repository;
+
+  @override
+  final List<String> readOnly;
+
+  @override
+  final RequestValidator validator;
 
   Type get aggregateType => typeOf<T>();
 
@@ -20,37 +28,6 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       : serviceUnavailable(
           body: "Repository ${repository.runtimeType} is unavailable: build pending",
         );
-
-  Map<String, dynamic> validate(Map<String, dynamic> data) {
-    // TODO: Refactor read-only checks into RequestValidator
-    final errors = readOnly.where((field) => _hasField(data, field)).map(
-          (field) => "${field.startsWith('/') ? field : "/$field"}/uuid: is read only",
-        );
-    if (errors.isNotEmpty) {
-      throw SchemaException("Schema $aggregateType has ${errors.length} errors: ${errors.join(",")}");
-    }
-    if (validator != null) {
-      validator.validateBody("$aggregateType", data);
-    }
-    return data;
-  }
-
-  bool _hasField(Map<String, dynamic> data, String field) {
-    final parts = field.split('/');
-    if (parts.isNotEmpty) {
-      final found = parts.skip(1).fold(data, (parent, name) {
-        if (parent is Map<String, dynamic>) {
-          if (parent.containsKey(name)) {
-            return parent[name] is Map<String, dynamic> ? parent[name] : true;
-          }
-          return false;
-        }
-        return false;
-      });
-      return found != false;
-    }
-    return data.containsKey(field);
-  }
 
   //////////////////////////////////
   // Aggregate Operations
@@ -90,7 +67,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   @Operation.post()
   Future<Response> create(@Bind.body() Map<String, dynamic> data) async {
     try {
-      await repository.execute(onCreate(validate(data)));
+      await repository.execute(onCreate(validate(aggregateType, data)));
       return Response.created("${toLocation(request)}/${data[repository.uuidFieldName]}");
     } on AggregateExists catch (e) {
       return Response.conflict(body: e.message);
@@ -116,7 +93,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
       data[repository.uuidFieldName] = uuid;
-      final events = await repository.execute(onUpdate(validate(data)));
+      final events = await repository.execute(onUpdate(validate(aggregateType, data)));
       return events.isEmpty ? Response.noContent() : Response.noContent();
     } on AggregateNotFound catch (e) {
       return Response.notFound(body: e.message);

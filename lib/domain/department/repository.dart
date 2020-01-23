@@ -12,7 +12,7 @@ class DepartmentRepository extends Repository<DepartmentCommand, Department> {
                 data: event.data,
                 created: event.created,
               ),
-          DepartmentUpdated: (event) => DepartmentUpdated(
+          DepartmentInformationUpdated: (event) => DepartmentInformationUpdated(
                 uuid: event.uuid,
                 data: event.data,
                 created: event.created,

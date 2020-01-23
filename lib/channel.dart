@@ -6,7 +6,6 @@ import 'package:sarsys_app_server/controllers/domain/organisation_division_contr
 
 import 'auth/oidc.dart';
 import 'controllers/domain/controllers.dart';
-import 'controllers/eventsource/controllers.dart';
 import 'controllers/system/controllers.dart';
 import 'controllers/tenant/controllers.dart';
 import 'controllers/websocket_controller.dart';
@@ -311,6 +310,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
   }
 
   void _buildInvariants() {
+    // IncidentRepository constraints
     manager.get<IncidentRepository>()
       ..constraint<sar.OperationDeleted>((repository) => AggregateListInvariant<IncidentRepository>(
             'operations',
@@ -327,6 +327,44 @@ class SarSysAppServerChannel extends ApplicationChannel {
               repository.toAggregateUuid(event),
             ),
             repository as IncidentRepository,
+          ));
+
+    // OperationRepository constraints
+    manager.get<sar.OperationRepository>()
+      ..constraint<MissionDeleted>((repository) => AggregateListInvariant<sar.OperationRepository>(
+            'missions',
+            (aggregate, event) => sar.RemoveMissionFromOperation(
+              aggregate as sar.Operation,
+              repository.toAggregateUuid(event),
+            ),
+            repository as sar.OperationRepository,
+          ))
+      ..constraint<UnitDeleted>((repository) => AggregateListInvariant<sar.OperationRepository>(
+            'units',
+            (aggregate, event) => sar.RemoveUnitFromOperation(
+              aggregate as sar.Operation,
+              repository.toAggregateUuid(event),
+            ),
+            repository as sar.OperationRepository,
+          ));
+
+    // OrganisationRepository constraints
+    manager.get<OrganisationRepository>()
+      ..constraint<DivisionDeleted>((repository) => AggregateListInvariant<OrganisationRepository>(
+            'divisions',
+            (aggregate, event) => RemoveDivisionFromOrganisation(
+              aggregate as Organisation,
+              repository.toAggregateUuid(event),
+            ),
+            repository as OrganisationRepository,
+          ))
+      ..constraint<DepartmentDeleted>((repository) => AggregateListInvariant<DivisionRepository>(
+            'departments',
+            (aggregate, event) => RemoveDepartmentFromDivision(
+              aggregate as Division,
+              repository.toAggregateUuid(event),
+            ),
+            repository as DivisionRepository,
           ));
   }
 

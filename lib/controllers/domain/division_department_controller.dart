@@ -11,7 +11,7 @@ class DivisionDepartmentController
     DivisionRepository primary,
     DepartmentRepository foreign,
     RequestValidator validator,
-  ) : super('departments', primary, foreign, validator, tag: 'Affiliations');
+  ) : super('departments', primary, foreign, validator, tag: 'Divisions');
 
   @override
   CreateDepartment onCreate(String uuid, Map<String, dynamic> data) => CreateDepartment(data);

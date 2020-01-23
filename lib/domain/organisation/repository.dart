@@ -12,7 +12,17 @@ class OrganisationRepository extends Repository<OrganisationCommand, Organisatio
                 data: event.data,
                 created: event.created,
               ),
-          OrganisationUpdated: (event) => OrganisationUpdated(
+          OrganisationInfomationUpdated: (event) => OrganisationInfomationUpdated(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          DivisionAddedToOrganisation: (event) => DivisionAddedToOrganisation(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          DivisionRemovedFromOrganisation: (event) => DivisionRemovedFromOrganisation(
                 uuid: event.uuid,
                 data: event.data,
                 created: event.created,

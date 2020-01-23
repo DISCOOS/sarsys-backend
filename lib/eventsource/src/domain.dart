@@ -613,7 +613,8 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   final Map<String, Process> _processors;
 
   /// Aggregate root data (weak schema)
-  final Map<String, dynamic> data = {};
+  final Map<String, dynamic> _data = {};
+  Map<String, dynamic> get data => Map.unmodifiable(_data);
 
   /// Local uncommitted changes
   final _pending = <DomainEvent>[];
@@ -641,6 +642,10 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   DateTime get changedWhen => _changedWhen;
   DateTime _changedWhen;
 
+  /// Get [DateTime] of when this [AggregateRoot] was deleted
+  DateTime get deletedWhen => _deletedWhen;
+  DateTime _deletedWhen;
+
   /// Check if uncommitted changes exists
   bool get isDeleted => _isDeleted;
   bool _isDeleted = false;
@@ -653,6 +658,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   AggregateRoot loadFromHistory(Iterable<DomainEvent> events) {
     // Only clear if history exist, otherwise keep the event from construction
     if (events.isNotEmpty) {
+      _data.clear();
       _pending.clear();
       _applied.clear();
     }
@@ -686,7 +692,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     DateTime timestamp,
     bool isNew,
   ) {
-    final patches = JsonPatch.diff(this.data, data);
+    final patches = JsonPatch.diff(_data, data);
     final willChange = patches.where((diff) => ops.contains(diff['op'])).isNotEmpty;
     // Remove read-only fields
     return willChange
@@ -706,7 +712,6 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   // TODO: Add support for detecting tombstone (delete) events
   /// Delete aggregate root
   DomainEvent delete() {
-    data.clear();
     return _apply(_deleted(), true, false);
   }
 
@@ -799,14 +804,14 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
 
     // Applying events in order is REQUIRED for this to work!
     if (event.isDeleted) {
-      data.clear();
       _isDeleted = true;
+      _deletedWhen = event.created;
     } else {
       final patches = event.patches;
       if (patches.isNotEmpty) {
-        final next = JsonPatch.apply(data, patches) as Map<String, dynamic>;
-        data.clear();
-        data.addAll(next);
+        final next = JsonPatch.apply(_data, patches) as Map<String, dynamic>;
+        _data.clear();
+        _data.addAll(next);
       }
     }
     if (isChanged) {

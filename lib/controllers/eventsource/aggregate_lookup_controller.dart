@@ -11,6 +11,7 @@ class AggregateLookupController<T extends AggregateRoot> extends ResourceControl
   final Repository<Command, T> foreign;
 
   Type get aggregateType => typeOf<T>();
+  Type get primaryType => primary.aggregateType;
 
   @override
   FutureOr<RequestOrResponse> willProcessRequest(Request req) => primary.ready && foreign.ready
@@ -31,7 +32,7 @@ class AggregateLookupController<T extends AggregateRoot> extends ResourceControl
   }) async {
     try {
       if (!primary.contains(uuid)) {
-        return Response.notFound(body: "$aggregateType $uuid not found");
+        return Response.notFound(body: "$primaryType $uuid not found");
       }
       final aggregate = primary.get(uuid);
       // Foreign uuids that exists
@@ -68,10 +69,8 @@ class AggregateLookupController<T extends AggregateRoot> extends ResourceControl
 
   @override
   List<String> documentOperationTags(APIDocumentContext context, Operation operation) {
-    return [tag ?? parentType];
+    return [tag ?? "$primaryType"];
   }
-
-  String get parentType => "${primary.runtimeType}".replaceAll("Repository", "");
 
   @override
   Map<String, APIOperation> documentOperations(APIDocumentContext context, String route, APIPath path) {
@@ -131,7 +130,7 @@ class AggregateLookupController<T extends AggregateRoot> extends ResourceControl
       case "GET":
         return [
           APIParameter.path('uuid')
-            ..description = '$parentType uuid'
+            ..description = '$primaryType uuid'
             ..isRequired = true,
           APIParameter.query('offset')..description = 'Start with ${_toName()} number equal to offset. Default is 0.',
           APIParameter.query('limit')..description = 'Maximum number of ${_toName()} to fetch. Default is 20.',
