@@ -1,5 +1,6 @@
 import 'package:sarsys_app_server/eventsource/eventsource.dart';
 
+import 'aggregate.dart';
 import 'events.dart';
 
 abstract class OrganisationCommand<T extends DomainEvent> extends Command<T> {
@@ -24,6 +25,28 @@ class UpdateOrganisation extends OrganisationCommand<OrganisationUpdated> {
   UpdateOrganisation(
     Map<String, dynamic> data,
   ) : super(Action.update, data: data);
+}
+
+class AddDivisionToOrganisation extends OrganisationCommand<DivisionAddedToOrganisation> {
+  AddDivisionToOrganisation(
+    Organisation organisation,
+    String operationUuid,
+  ) : super(
+          Action.update,
+          uuid: organisation.uuid,
+          data: Command.addToList<String>(organisation.data, 'divisions', operationUuid),
+        );
+}
+
+class RemoveDivisionFromOrganisation extends OrganisationCommand<DivisionRemovedFromOrganisation> {
+  RemoveDivisionFromOrganisation(
+    Organisation organisation,
+    String operationUuid,
+  ) : super(
+          Action.update,
+          uuid: organisation.uuid,
+          data: Command.removeFromList<String>(organisation.data, 'divisions', operationUuid),
+        );
 }
 
 class DeleteOrganisation extends OrganisationCommand<OrganisationDeleted> {

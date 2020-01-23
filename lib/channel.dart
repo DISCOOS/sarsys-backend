@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart';
+import 'package:sarsys_app_server/controllers/domain/organisation_division_controller.dart';
 
 import 'auth/oidc.dart';
 import 'controllers/domain/controllers.dart';
@@ -179,10 +180,10 @@ class SarSysAppServerChannel extends ApplicationChannel {
             manager.get<OrganisationRepository>(),
             requestValidator,
           ))
-      ..route('/api/organisation/:uuid/divisions').link(() => AggregateLookupController<Division>(
-            'divisions',
+      ..route('/api/organisation/:uuid/divisions').link(() => OrganisationDivisionController(
             manager.get<OrganisationRepository>(),
             manager.get<DivisionRepository>(),
+            requestValidator,
           ))
       ..route('/api/divisions[/:uuid]').link(() => DivisionController(
             manager.get<DivisionRepository>(),
