@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart';
+import 'package:sarsys_app_server/controllers/domain/division_department_controller.dart';
 import 'package:sarsys_app_server/controllers/domain/organisation_division_controller.dart';
 
 import 'auth/oidc.dart';
@@ -189,10 +190,10 @@ class SarSysAppServerChannel extends ApplicationChannel {
             manager.get<DivisionRepository>(),
             requestValidator,
           ))
-      ..route('/api/divisions/:uuid/departments').link(() => AggregateLookupController<Department>(
-            'departments',
+      ..route('/api/divisions/:uuid/departments').link(() => DivisionDepartmentController(
             manager.get<DivisionRepository>(),
             manager.get<DepartmentRepository>(),
+            requestValidator,
           ))
 
       /// TODO: Implement move between divisions

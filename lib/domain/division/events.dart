@@ -31,6 +31,32 @@ class DivisionInformationUpdated extends DomainEvent {
         );
 }
 
+class DepartmentAddedToDivision extends DomainEvent {
+  DepartmentAddedToDivision({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$DepartmentAddedToDivision",
+          created: created,
+          data: data,
+        );
+}
+
+class DepartmentRemovedFromDivision extends DomainEvent {
+  DepartmentRemovedFromDivision({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$DepartmentRemovedFromDivision",
+          created: created,
+          data: data,
+        );
+}
+
 class DivisionStarted extends DomainEvent {
   DivisionStarted({
     @required String uuid,
