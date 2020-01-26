@@ -697,7 +697,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   }) =>
       _change(data, ops, type, timestamp, false);
 
-  static const ops = ['add', 'remove', 'replace', 'move'];
+  static const ops = ['add', 'replace', 'move'];
 
   DomainEvent _change(
     Map<String, dynamic> data,
@@ -706,10 +706,9 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     DateTime timestamp,
     bool isNew,
   ) {
-    final patches = JsonPatch.diff(_data, data);
-    final willChange = patches.where((diff) => ops.contains(diff['op'])).isNotEmpty;
-    // Remove read-only fields
-    return willChange
+    // Remove all unsupported operations
+    final patches = JsonPatch.diff(_data, data)..removeWhere((diff) => !ops.contains(diff['op']));
+    return patches.isNotEmpty
         ? _apply(
             _changed(
               data,
