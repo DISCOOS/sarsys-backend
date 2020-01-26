@@ -2,16 +2,32 @@ import 'package:sarsys_app_server/eventsource/eventsource.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 
+import 'mixins.dart';
+
 /// A basic CRUD ResourceController for [AggregateRoot] entity requests
-abstract class EntityController<S extends Command, T extends AggregateRoot> extends ResourceController {
-  EntityController(this.repository, this.entityType, this.aggregateField, {this.validator, this.tag});
+abstract class EntityController<S extends Command, T extends AggregateRoot> extends ResourceController
+    with RequestValidatorMixin {
+  EntityController(
+    this.repository,
+    this.entityType,
+    this.aggregateField, {
+    this.validator,
+    this.tag,
+    this.readOnly = const [],
+  });
   final String tag;
   final String entityType;
   final String aggregateField;
-  final RequestValidator validator;
   final Repository<S, T> repository;
 
+  /// Get aggregate [Type]
   Type get aggregateType => typeOf<T>();
+
+  @override
+  final List<String> readOnly;
+
+  @override
+  final RequestValidator validator;
 
   @override
   FutureOr<RequestOrResponse> willProcessRequest(Request req) => repository.ready
@@ -78,7 +94,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
         return Response.notFound(body: "$aggregateType $uuid exists");
       }
       final aggregate = repository.get(uuid);
-      await repository.execute(onCreate(uuid, entityType, validate(data)));
+      await repository.execute(onCreate(uuid, entityType, validate(entityType, data)));
       return Response.created("${toLocation(request)}/${data[aggregate.entityIdFieldName]}");
     } on AggregateExists catch (e) {
       return Response.conflict(body: e.message);
@@ -109,7 +125,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       }
       final aggregate = repository.get(uuid);
       data[aggregate.entityIdFieldName] = id;
-      final events = await repository.execute(onUpdate(uuid, entityType, validate(data)));
+      final events = await repository.execute(onUpdate(uuid, entityType, validate(entityType, data, isPatch: true)));
       return events.isEmpty ? Response.noContent() : Response.noContent();
     } on EntityNotFound catch (e) {
       return Response.notFound(body: e.message);
@@ -139,7 +155,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       final aggregate = repository.get(uuid);
       final entity = data ?? {};
       entity[aggregate.entityIdFieldName] = id;
-      final events = await repository.execute(onDelete(uuid, entityType, validate(entity)));
+      final events = await repository.execute(onDelete(uuid, entityType, validate(entityType, entity)));
       return events.isEmpty ? Response.noContent() : Response.noContent();
     } on AggregateNotFound catch (e) {
       return Response.notFound(body: e.message);
@@ -157,13 +173,6 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
   }
 
   S onDelete(String uuid, String type, Map<String, dynamic> data) => throw UnsupportedError("Remove not implemented");
-
-  Map<String, dynamic> validate(Map<String, dynamic> data) {
-    if (validator != null) {
-      validator.validateBody("$entityType", data);
-    }
-    return data;
-  }
 
   //////////////////////////////////
   // Documentation

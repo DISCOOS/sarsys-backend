@@ -33,7 +33,7 @@ class RequestValidator {
     return data != null;
   }
 
-  void validateBody(String type, dynamic data) {
+  void validateBody(String type, dynamic data, {bool isPatch = false}) {
     if (!has("#/components/schemas/$type")) {
       throw SchemaException("Schema $type does not exist");
     }
@@ -42,6 +42,9 @@ class RequestValidator {
       ..removeWhere(
         (error) => error.message == 'uuid not supported as format',
       );
+    if (isPatch) {
+      errors.removeWhere((error) => error.message.contains('required prop missing:'));
+    }
     if (errors.isNotEmpty) {
       throw SchemaException("Schema $type has ${errors.length} errors: $errors");
     }

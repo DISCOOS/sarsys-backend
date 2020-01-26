@@ -47,7 +47,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       }
       final aggregate = primary.get(uuid);
       final managedUuid = data[foreign.uuidFieldName] as String;
-      await foreign.execute(onCreate(managedUuid, validate(typeOf<S>(), data)..addAll(_toParentRef(uuid))));
+      await foreign.execute(onCreate(managedUuid, validate("${typeOf<S>()}", data)..addAll(_toParentRef(uuid))));
       await primary.execute(onCreated(aggregate, managedUuid));
       return Response.created("${toLocation(request)}/$managedUuid");
     } on AggregateExists catch (e) {

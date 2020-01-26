@@ -5,16 +5,16 @@ mixin RequestValidatorMixin {
   List<String> readOnly;
   RequestValidator validator;
 
-  Map<String, dynamic> validate(Type aggregateType, Map<String, dynamic> data) {
+  Map<String, dynamic> validate(String type, Map<String, dynamic> data, {bool isPatch = false}) {
     // TODO: Refactor read-only checks into RequestValidator
     final errors = readOnly.where((field) => hasField(data, field)).map(
           (field) => "${field.startsWith('/') ? field : "/$field"}/uuid: is read only",
         );
     if (errors.isNotEmpty) {
-      throw SchemaException("Schema $aggregateType has ${errors.length} errors: ${errors.join(",")}");
+      throw SchemaException("Schema $type has ${errors.length} errors: ${errors.join(",")}");
     }
     if (validator != null) {
-      validator.validateBody("$aggregateType", data);
+      validator.validateBody("$type", data, isPatch: isPatch);
     }
     return data;
   }
