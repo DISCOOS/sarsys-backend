@@ -33,8 +33,7 @@ class ClueController extends EntityController<IncidentCommand, Incident> {
           "description": APISchemaObject.string()..description = "Clue description",
           "type": documentType(),
           "quality": documentQuality(),
-          "location": APISchemaObject.array(ofSchema: context.schema['Location'])
-            ..description = "Rescue or assitance location",
+          "location": context.schema['Location']..description = "Rescue or assitance location",
         },
       )
         ..description = "Objective Schema"
