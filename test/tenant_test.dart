@@ -10,16 +10,6 @@ Future main() async {
     ..withEventStoreMock()
     ..install(restartForEachTest: true);
 
-  test("GET /api/app-configs returns status code 200 with empty body", () async {
-    harness.eventStoreMockServer.withStream(typeOf<AppConfig>().toColonCase());
-    await harness.channel.manager.get<AppConfigRepository>().readyAsync();
-    expectResponse(
-      await harness.agent.get("/api/app-configs"),
-      200,
-      body: {'total': 0, 'offset': 0, 'limit': 20, 'entries': []},
-    );
-  });
-
   test("POST /api/app-configs/ returns status code 201 with empty body", () async {
     harness.eventStoreMockServer.withStream(typeOf<AppConfig>().toColonCase());
     await harness.channel.manager.get<AppConfigRepository>().readyAsync();
@@ -48,14 +38,19 @@ Future main() async {
     expectResponse(await harness.agent.delete("/api/app-configs/$uuid"), 204);
   });
 
-  test("GET /api/app-configs returns status code 200 with 0 app-config in entries", () async {
+  test("GET /api/app-configs returns status code 200 with offset=1 and limit=2", () async {
     harness.eventStoreMockServer.withStream(typeOf<AppConfig>().toColonCase());
     await harness.channel.manager.get<AppConfigRepository>().readyAsync();
-    expectResponse(
-      await harness.agent.get("/api/app-configs"),
-      200,
-      body: {'total': 0, 'offset': 0, 'limit': 20, 'entries': []},
-    );
+    await harness.agent.post("/api/app-configs", body: _appConfig(Uuid().v4()));
+    await harness.agent.post("/api/app-configs", body: _appConfig(Uuid().v4()));
+    await harness.agent.post("/api/app-configs", body: _appConfig(Uuid().v4()));
+    await harness.agent.post("/api/app-configs", body: _appConfig(Uuid().v4()));
+    final response = expectResponse(await harness.agent.get("/api/app-configs?offset=1&limit=2"), 200);
+    final actual = await response.body.decode();
+    expect(actual['total'], equals(4));
+    expect(actual['offset'], equals(1));
+    expect(actual['limit'], equals(2));
+    expect(actual['entries'].length, equals(2));
   });
 }
 
