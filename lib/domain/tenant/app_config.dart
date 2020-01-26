@@ -14,6 +14,11 @@ class AppConfigRepository extends Repository<AppConfigCommand, AppConfig> {
                 data: event.data,
                 created: event.created,
               ),
+          AppConfigDeleted: (event) => AppConfigDeleted(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
         });
 
   @override
