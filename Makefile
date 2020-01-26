@@ -30,7 +30,7 @@ commit:
 	if [[ `git status --porcelain` ]]; then git commit -am "Generated OpenAPI document"; fi
 
 test:
-	pub run test
+	pub run test -j 1
 
 serve:
 	pub run aqueduct:aqueduct serve --port 80 --isolates 1
