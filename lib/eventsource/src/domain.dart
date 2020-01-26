@@ -258,6 +258,20 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   bool _ready = false;
   bool get ready => _ready;
 
+  Future<bool> readyAsync() async {
+    final callback = Completer<bool>();
+    _awaitReady(callback);
+    return callback.future;
+  }
+
+  void _awaitReady(Completer<bool> completer) async {
+    if (_ready == false) {
+      Future.delayed(const Duration(milliseconds: 100), () => _awaitReady(completer));
+    } else {
+      completer.complete();
+    }
+  }
+
   /// Maximum backoff duration between reconnect attempts
   final Duration maxBackoffTime;
 

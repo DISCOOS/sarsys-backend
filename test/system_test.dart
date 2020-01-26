@@ -1,7 +1,9 @@
 import 'harness/app.dart';
 
 Future main() async {
-  final harness = Harness()..install();
+  final harness = Harness()
+    ..withEventStoreMock()
+    ..install();
 
   test("GET /api/client.html returns status code 200", () async {
     expectResponse(await harness.agent.get("/api/client.html"), 200);
