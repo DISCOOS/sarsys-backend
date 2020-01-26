@@ -62,31 +62,33 @@ Future main() async {
 
     // Test that subjects are added
     var subjects = {
-      "subjects": ["string1"]
+      "subjects": ["string1"],
+      "operations": ["string1"]
     };
     expectResponse(await harness.agent.execute("PATCH", "/api/incidents/$uuid", body: subjects), 204, body: null);
     var response = expectResponse(await harness.agent.get("/api/incidents/$uuid"), 200);
     var actual = await response.body.decode();
     body.addAll(subjects);
-    expect(actual['data'], equals(body), reason: "Subjects was not added");
+    expect(actual['data'], equals(body), reason: "List was not appended");
 
     // Test that subjects are replaced
     subjects = {
-      "subjects": ["string2"]
+      "subjects": ["string2"],
+      "operations": ["string2"]
     };
     expectResponse(await harness.agent.execute("PATCH", "/api/incidents/$uuid", body: subjects), 204, body: null);
     response = expectResponse(await harness.agent.get("/api/incidents/$uuid"), 200);
     actual = await response.body.decode();
     body.addAll(subjects);
-    expect(actual['data'], equals(body), reason: "Subjects was not replaced");
+    expect(actual['data'], equals(body), reason: "List was not replaced");
 
     // Test that subjects are removed
-    subjects = {"subjects": []};
+    subjects = {"subjects": [], "operations": []};
     expectResponse(await harness.agent.execute("PATCH", "/api/incidents/$uuid", body: subjects), 204, body: null);
     response = expectResponse(await harness.agent.get("/api/incidents/$uuid"), 200);
     actual = await response.body.decode();
     body.addAll(subjects);
-    expect(actual['data'], equals(body), reason: "Subjects was not removed");
+    expect(actual['data'], equals(body), reason: "List was not cleared");
   });
 
   test("DELETE /api/incidents/{uuid} returns status code 204", () async {
@@ -123,34 +125,34 @@ Map<String, Object> _createData(String uuid) => {
       "resolution": "unresolved",
       "occurred": DateTime.now().toIso8601String(),
       "clues": [
-        {
-          "id": 0,
-          "name": "string",
-          "description": "string",
-          "type": "find",
-          "quality": "confirmed",
-          "location": [
-            {
-              "position": {
-                "type": "Feature",
-                "geometry": {
-                  "type": "Point",
-                  "coordinates": [0.0, 0.0]
-                },
-                "properties": {
-                  "name": "string",
-                  "description": "string",
-                  "accuracy": 0,
-                  "timestamp": DateTime.now().toIso8601String(),
-                  "type": "manual"
-                }
-              },
-              "address": {"lines": "string", "city": "string", "postalCode": "string", "countryCode": "string"},
-              "description": "string"
-            }
-          ]
-        }
+        _createClue(0),
       ],
       "subjects": ["string"],
       "operations": ["string"]
+    };
+
+Map<String, dynamic> _createClue(int id) => {
+      "id": id,
+      "name": "string",
+      "description": "string",
+      "type": "find",
+      "quality": "confirmed",
+      "location": {
+        "position": {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [0.0, 0.0]
+          },
+          "properties": {
+            "name": "string",
+            "description": "string",
+            "accuracy": 0,
+            "timestamp": DateTime.now().toIso8601String(),
+            "type": "manual"
+          }
+        },
+        "address": {"lines": "string", "city": "string", "postalCode": "string", "countryCode": "string"},
+        "description": "string"
+      }
     };
