@@ -1,4 +1,4 @@
-import 'harness/app.dart';
+import 'harness.dart';
 
 Future main() async {
   final harness = Harness()

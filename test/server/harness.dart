@@ -1,7 +1,7 @@
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:aqueduct_test/aqueduct_test.dart';
 
-import '../evenstore/mock_server.dart';
+import '../eventsource/eventstore_mock_server.dart';
 
 export 'package:sarsys_app_server/sarsys_app_server.dart';
 export 'package:aqueduct_test/aqueduct_test.dart';

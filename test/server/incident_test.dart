@@ -3,7 +3,7 @@ import 'package:sarsys_app_server/eventsource/eventsource.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 
-import 'harness/app.dart';
+import 'harness.dart';
 
 Future main() async {
   final harness = Harness()
