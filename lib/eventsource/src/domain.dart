@@ -268,7 +268,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     if (_ready == false) {
       Future.delayed(const Duration(milliseconds: 100), () => _awaitReady(completer));
     } else {
-      completer.complete();
+      completer.complete(true);
     }
   }
 
@@ -384,7 +384,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           aggregate = get(command.uuid, data: data);
           break;
         case Action.update:
-          aggregate = get(command.uuid)..patch(data, type: command.emits, timestamp: command.created);
+          aggregate = get(command.uuid)..patch(data, emits: command.emits, timestamp: command.created);
           break;
         case Action.delete:
           aggregate = get(command.uuid)..delete();
@@ -394,7 +394,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       }
       return aggregate.isChanged ? await push(aggregate) : [];
     } on WrongExpectedEventVersion catch (e, stacktrace) {
-      // TODO: Detect and reconcile merge conflicts
       // Try again?
       if (attempt < max) {
         return _executeWithRetry(command, max, attempt + 1);
@@ -448,10 +447,20 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     } on WrongExpectedEventVersion {
       // Are the other aggregates with uncommitted changes?
       _assertSingleAggregateChanged(aggregate);
-      // Rollback all changes, catch up with stream and rethrow error
-      rollback(aggregate);
+
+      // Rollback all changes and catch up with stream
+      final changed = aggregate.data;
+      final events = rollback(aggregate);
+      final previous = aggregate.data;
       final count = await store.catchUp(this);
+      final current = aggregate.data;
       logger.info("Caught up with $count events from ${store.canonicalStream}");
+
+      // TODO: Detect and reconcile merge conflicts
+      final head = JsonPatch.diff(previous, current);
+      final branch = JsonPatch.diff(changed, previous);
+      final merge = JsonPatch.diff(changed, current);
+
       rethrow;
     }
   }
@@ -604,7 +613,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     _createdWhen = created ?? DateTime.now();
     _changedWhen = _createdWhen;
     _change(
-      data,
+      data ?? {},
       ops,
       typeOf<C>(),
       DateTime.now(),
@@ -640,7 +649,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   bool isApplied(Event event) => _applied.contains(event.uuid);
 
   /// Get changed not committed to store
-  Iterable<DomainEvent> getUncommittedChanges() => _pending;
+  Iterable<DomainEvent> getUncommittedChanges() => List.unmodifiable(_pending);
 
   /// Check if uncommitted changes exists
   bool get isNew => _applied.isEmpty;
@@ -691,28 +700,28 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// Returns a [DomainEvent] if data was changed, null otherwise.
   DomainEvent patch(
     Map<String, dynamic> data, {
-    List<String> ops = ops,
-    Type type,
+    @required Type emits,
     DateTime timestamp,
+    List<String> ops = ops,
   }) =>
-      _change(data, ops, type, timestamp, false);
+      _change(data, ops, emits, timestamp, isNew);
 
   static const ops = ['add', 'replace', 'move'];
 
   DomainEvent _change(
     Map<String, dynamic> data,
     List<String> ops,
-    Type type,
+    Type emits,
     DateTime timestamp,
     bool isNew,
   ) {
     // Remove all unsupported operations
     final patches = JsonPatch.diff(_data, data)..removeWhere((diff) => !ops.contains(diff['op']));
-    return patches.isNotEmpty
+    return isNew || patches.isNotEmpty
         ? _apply(
             _changed(
               data,
-              type: type,
+              emits: emits,
               patches: patches,
               timestamp: timestamp,
             ),
@@ -732,6 +741,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   Iterable<DomainEvent> commit() {
     final changes = _pending.toList();
     _pending.clear();
+    _applied.addAll(changes.map((e) => e.uuid));
     return changes;
   }
 
@@ -741,13 +751,13 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   @protected
   DomainEvent _changed(
     Map<String, dynamic> data, {
-    Type type,
+    Type emits,
     DateTime timestamp,
     List<Map<String, dynamic>> patches = const [],
   }) =>
       _process(
         uuid,
-        type,
+        emits,
         _asDataPatch(
           patches: patches,
         ),
@@ -775,17 +785,22 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         'deleted': deleted,
       };
 
-  DomainEvent _process(String uuid, Type type, Map<String, dynamic> data, DateTime timestamp) {
-    final process = _processors["$type"];
+  DomainEvent _process(
+    String uuid,
+    Type emits,
+    Map<String, dynamic> data,
+    DateTime timestamp,
+  ) {
+    final process = _processors["$emits"];
     if (process != null) {
       return process(Message(
         uuid: Uuid().v4(),
-        type: "$type",
+        type: "$emits",
         data: data,
         created: timestamp,
       ));
     }
-    throw InvalidOperation("Message ${type} not recognized");
+    throw InvalidOperation("Message ${emits} not recognized");
   }
 
   /// Apply change to [data].

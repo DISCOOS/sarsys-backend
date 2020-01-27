@@ -19,8 +19,11 @@ class EventStoreMockServer {
   /// Eventstore stream prefix
   final String prefix;
 
-  /// EventStore routes
-  final Map<String, _Route> _router = <String, _Route>{};
+  /// EventStore test routes
+  final Map<String, TestRoute> _router = <String, TestRoute>{};
+
+  /// EventStore test streams
+  final Map<String, TestStream> _streams = <String, TestStream>{};
 
   /// The underlying [HttpServer] listening for requests.
   HttpServer _server;
@@ -47,12 +50,13 @@ class EventStoreMockServer {
 
   void clear() {
     _router.clear();
+    _streams.clear();
   }
 
   EventStoreMockServer withProjection(String name) {
     _router.putIfAbsent(
       name,
-      () => _Route(
+      () => TestRoute(
         '/projection/\$$name',
         (request) => request.response
           ..statusCode = HttpStatus.ok
@@ -69,13 +73,24 @@ class EventStoreMockServer {
   EventStoreMockServer withStream(String name, {bool useInstanceStreams = true}) {
     _router.putIfAbsent(
       name,
-      () => _Route(
+      () => TestRoute(
         '/streams/$tenant:$prefix:$name',
-        _Stream('$tenant:$prefix:$name', useInstanceStreams: useInstanceStreams),
+        _addStream(name, useInstanceStreams),
       ),
     );
     return this;
   }
+
+  TestStream _addStream(String name, bool useInstanceStreams) => _streams.putIfAbsent(
+        name,
+        () => TestStream(
+          '$tenant:$prefix:$name',
+          useInstanceStreams: useInstanceStreams,
+        ),
+      );
+
+  TestRoute getRoute(String name) => _router[name];
+  TestStream getStream(String name) => _streams[name];
 
   /// Shuts down the server listening for HTTP requests.
   Future close() {
@@ -83,19 +98,19 @@ class EventStoreMockServer {
   }
 }
 
-class _Route {
-  _Route(this.path, this.handle);
+class TestRoute {
+  TestRoute(this.path, this.handle);
   final String path;
   final FutureOr Function(HttpRequest request) handle;
 
   bool isMatch(HttpRequest request) => request.uri.path.startsWith(path);
 }
 
-class _Stream {
-  _Stream(this.name, {this.useInstanceStreams = true});
+class TestStream {
+  TestStream(this.name, {this.useInstanceStreams = true});
   final String name;
   final bool useInstanceStreams;
-  final List<Map<String, Map<String, dynamic>>> events = [];
+  final List<Map<String, Map<String, dynamic>>> _instances = [];
 
   void call(HttpRequest request) async {
     switch (request.method) {
@@ -107,7 +122,7 @@ class _Stream {
         final content = await utf8.decoder.bind(request).join();
         final data = json.decode(content);
         final list = data is List ? List<Map<String, dynamic>>.from(data) : [data as Map<String, dynamic>];
-        final events = _toEvents(path);
+        final events = _toEventsFromPath(path);
         events.addEntries(list.map((event) => MapEntry(event['eventId'] as String, event)));
         request.response
           ..headers.add('location', '$path/${events.length - 1}')
@@ -119,19 +134,22 @@ class _Stream {
     }
   }
 
-  Map<String, Map<String, dynamic>> _toEvents(String path) {
-    if (events.isEmpty) {
-      events.add(LinkedHashMap.from({}));
+  Map<String, Map<String, dynamic>> _toEventsFromPath(String path) {
+    if (_instances.isEmpty) {
+      _instances.add(LinkedHashMap.from({}));
     }
     if (useInstanceStreams) {
       final id = int.tryParse(path.split('-').last);
-      if (id >= events.length) {
-        events.insert(id, LinkedHashMap.from({}));
+      if (id >= _instances.length) {
+        _instances.insert(id, LinkedHashMap.from({}));
       }
-      return events.elementAt(id);
+      return _instances.elementAt(id);
     }
-    return events.first;
+    return _instances.first;
   }
+
+  Map<String, Map<String, dynamic>> toEvents({int id}) =>
+      _instances.isEmpty ? {} : (useInstanceStreams ? _instances.elementAt(id ?? 0) : _instances.first);
 
   void handleGet(HttpRequest request) {
     final path = request.uri.path;

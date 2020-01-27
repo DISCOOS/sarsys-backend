@@ -170,7 +170,7 @@ class EventStore {
     try {
       bus.replayStarted();
 
-      _store.clear();
+      _reset();
 
       // Fetch all events
       final count = await _catchUp(
@@ -182,6 +182,12 @@ class EventStore {
     } finally {
       bus.replayEnded();
     }
+  }
+
+  void _reset() {
+    _store.clear();
+    _current.clear();
+    _current[canonicalStream] = EventNumber.none;
   }
 
   /// Catch up with stream
@@ -265,7 +271,7 @@ class EventStore {
       events.map(repository.toDomainEvent).forEach(
             (event) => aggregate.patch(
               event.data,
-              type: event.runtimeType,
+              emits: event.runtimeType,
             ),
           );
     }
