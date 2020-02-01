@@ -1,7 +1,7 @@
 import 'harness.dart';
 
 Future main() async {
-  final harness = Harness()
+  final harness = SarSysHarness()
     ..withEventStoreMock()
     ..install();
 

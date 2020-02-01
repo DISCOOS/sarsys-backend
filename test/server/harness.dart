@@ -21,7 +21,7 @@ export 'package:aqueduct/aqueduct.dart';
 ///           });
 ///         }
 ///
-class Harness extends TestHarness<SarSysAppServerChannel> {
+class SarSysHarness extends TestHarness<SarSysAppServerChannel> {
   EventStoreMockServer eventStoreMockServer;
 
   EventStoreMockServer withEventStoreMock() => eventStoreMockServer = EventStoreMockServer(
