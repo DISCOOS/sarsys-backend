@@ -227,13 +227,9 @@ class EventStore {
       // Hydrate store with events
       eventsPerAggregate.forEach(
         (uuid, events) {
-          _store.update(
-            uuid,
-            (events) => events..addAll(events),
-            ifAbsent: () => events.toList(),
-          );
+          _update(uuid, events);
           _apply(repository, uuid, events);
-          _publish(events);
+          _publish(events.map(repository.toDomainEvent));
         },
       );
 
@@ -243,6 +239,12 @@ class EventStore {
     }
     return result.events.length;
   }
+
+  List<Event> _update(String uuid, Iterable<Event> events) => _store.update(
+        uuid,
+        (events) => List.from(events)..addAll(events),
+        ifAbsent: () => events.toList(),
+      );
 
   EventNumber _getCanonicalNumber(Iterable<SourceEvent> events) {
     return current() +
@@ -291,10 +293,9 @@ class EventStore {
 
     // Do not save during replay
     if (bus.replaying == false && events.isNotEmpty) {
-      _store.update(
+      _update(
         aggregate.uuid,
-        (stored) => List.from(stored)..addAll(events),
-        ifAbsent: events.toList,
+        events,
       );
       _setEventNumber(aggregate, events);
       _publish(events);
@@ -308,8 +309,13 @@ class EventStore {
         : EventNumber.none + events.length;
   }
 
-  /// Publish events to [bus]
-  void _publish(Iterable<Event> events) => events.forEach(bus.publish);
+  /// Publish events to [bus] and [asStream]
+  void _publish(Iterable<DomainEvent> events) {
+    events.forEach(bus.publish);
+    if (_streamController != null) {
+      events.forEach(_streamController.add);
+    }
+  }
 
   /// Get name of aggregate instance stream for [AggregateRoot.uuid].
   String toInstanceStream(String uuid) {
@@ -432,20 +438,22 @@ class EventStore {
       );
 
       if (process) {
-        // Get and commit changes
-        final aggregate = repository.get(
-          repository.toAggregateUuid(event),
-          patches: event.patches,
-        );
-        if (aggregate.isChanged == false) {
-          if (aggregate.isApplied(event) == false) {
-            aggregate.apply(
-              repository.toDomainEvent(event),
-            );
-          }
+        final uuid = repository.toAggregateUuid(event);
+
+        // IMPORTANT: append to store before applying to repository
+        // This ensures that the event added to an aggregate during
+        // construction is overwritten with the remote actual
+        // received here.
+        _update(uuid, [event]);
+
+        // Catch up with stream
+        final aggregate = repository.get(uuid);
+        if (aggregate.isApplied(event) == false) {
+          aggregate.apply(
+            repository.toDomainEvent(event),
+          );
         }
         if (aggregate.isChanged) {
-          // This will catch up with stream
           final events = commit(aggregate);
           if (events.length > 1) {
             throw InvalidOperation("One source event produced ${events.length} domain events");
@@ -455,6 +463,8 @@ class EventStore {
           _current[canonicalStream] = _getCanonicalNumber([event]);
           // Update last number in canonical stream
           _current[stream] = event.number;
+          // Notify listeners
+          _publish([repository.toDomainEvent(event)]);
         }
         logger.fine(
           "${repository.runtimeType}: _onSubscriptionEvent: Processed $event",
@@ -512,11 +522,22 @@ class EventStore {
     }
   }
 
+  /// This stream will only contain [DomainEvent] pushed to remote stream
+  StreamController<Event> _streamController;
+
+  /// Get remote [Event] stream.
+  ///
+  Stream<Event> asStream() {
+    _streamController ??= StreamController.broadcast();
+    return _streamController.stream;
+  }
+
   /// Clear events in store and close connection
   void dispose() {
     _store.clear();
     _subscriptions.values.forEach((state) => state.dispose());
     _subscriptions.clear();
+    _streamController?.close();
     _disposed = true;
   }
 
@@ -940,7 +961,7 @@ class EventStoreConnection {
       ),
     )) {
       final feed = await request;
-      if (feed.statusCode == 200) {
+      if (feed.isOK) {
         final result = await readEventsInFeed(feed);
         if (result.isOK) {
           for (var e in result.events) {
