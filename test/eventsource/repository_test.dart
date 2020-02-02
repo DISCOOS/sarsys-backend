@@ -5,11 +5,13 @@ import 'foo.dart';
 import 'harness.dart';
 
 Future main() async {
-  final harness = Harness()
+  final harness = EventSourceHarness()
     ..withTenant()
     ..withPrefix()
     ..withProjection()
     ..withRepository<Foo>((store) => FooRepository(store))
+    ..add(port: 4000)
+    ..add(port: 4001)
     ..install();
 
   test("Repository should support build operation", () async {
@@ -31,7 +33,7 @@ Future main() async {
     expect(foo.isNew, equals(true), reason: "Foo should be flagged as 'New'");
     expect(foo.isChanged, equals(true), reason: "Foo should be flagged as 'Changed'");
     expect(foo.isDeleted, equals(false), reason: "Foo should not be flagged as 'Deleted'");
-    final stream = harness.server.getStream(repository.store.aggregate);
+    final stream = harness.server().getStream(repository.store.aggregate);
     expect(stream.toEvents().isEmpty, equals(true), reason: "Events should not be commited yet");
 
     // Assert patch operation
@@ -56,5 +58,113 @@ Future main() async {
       ),
       reason: "Stream should only contain events returned by push",
     );
+  });
+
+  test("Repository should only apply operations [add, replace, move] when patching local changes", () async {
+    // Arrange
+    final repository = harness.get<FooRepository>();
+    await repository.readyAsync();
+
+    // Act
+    final uuid = Uuid().v4();
+    final foo = repository.get(uuid, data: {
+      "property1": "value1",
+      "property2": "value2",
+      "list1": ["item1", "item2"],
+      "object1": {
+        "member1": "value1",
+        "member2": "value2",
+      }
+    });
+    foo.patch({
+      "property3": "value3",
+      "property2": "value4",
+      "list1": ["item3"],
+      "object1": {
+        "member2": "value4",
+        "member3": "value3",
+      }
+    }, emits: FooUpdated);
+
+    // Assert
+    expect(foo.data, containsPair("property1", "value1")); // keep
+    expect(foo.data, containsPair("property3", "value3")); // add value
+    expect(foo.data, containsPair("property2", "value4")); // replace value
+    expect(foo.data, containsPair("list1", ["item3"])); // replace list of values
+    expect(
+        foo.data,
+        containsPair("object1", {
+          "member1": "value1",
+          "member2": "value4",
+          "member3": "value3",
+        }));
+  });
+
+  test("Repository should only apply operations [add, replace, move] when patching remote changes", () async {
+    // Arrange
+    final repo1 = harness.get<FooRepository>(port: 4000);
+    final repo2 = harness.get<FooRepository>(port: 4001);
+    await repo1.readyAsync();
+    await repo2.readyAsync();
+
+    // Act
+    final uuid = Uuid().v4();
+    final foo1 = repo1.get(uuid, data: {
+      "property1": "value1",
+      "property2": "value2",
+      "list1": ["item1", "item2"],
+      "object1": {
+        "member1": "value1",
+        "member2": "value2",
+      }
+    });
+    await repo1.push(foo1);
+    await repo2.store.asStream().first;
+    final foo2 = repo2.get(uuid);
+    foo2.patch({
+      "property3": "value3",
+      "property2": "value4",
+      "list1": ["item3"],
+      "object1": {
+        "member2": "value4",
+        "member3": "value3",
+      }
+    }, emits: FooUpdated);
+    await repo2.push(foo2);
+    await repo1.store.asStream().first;
+
+    // Assert
+    expect(foo1.data, containsPair("property1", "value1")); // keep
+    expect(foo1.data, containsPair("property3", "value3")); // add value
+    expect(foo1.data, containsPair("property2", "value4")); // replace value
+    expect(foo1.data, containsPair("list1", ["item3"])); // replace list of values
+    expect(
+        foo1.data,
+        containsPair("object1", {
+          "member1": "value1",
+          "member2": "value4",
+          "member3": "value3",
+        })); // keep, add and replace member values
+  });
+
+  test("Repository should catch-up to head of events in remote stream", () async {
+    // Arrange
+    final repo1 = harness.get<FooRepository>(port: 4000);
+    final repo2 = harness.get<FooRepository>(port: 4001);
+    await repo1.readyAsync();
+    await repo2.readyAsync();
+
+    // Act
+    final uuid = Uuid().v4();
+    final foo1 = repo1.get(uuid, data: {"property1": "value1"});
+    final events = await repo1.push(foo1);
+    final remote = await repo2.store.asStream().first;
+    final foo2 = repo2.get(uuid);
+
+    // Assert catch-up event from repo1
+    expect(repo2.count, equals(1));
+    expect([remote], containsAll(events));
+    expect(foo1.data, containsPair("property1", "value1"));
+    expect(foo2.data, containsPair("property1", "value1"));
   });
 }
