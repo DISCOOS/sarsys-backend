@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 import 'package:uuid/uuid.dart';
@@ -15,17 +16,40 @@ class Message {
     String type,
     this.data,
   }) : _type = type;
+
+  /// Massage
   final String uuid;
+
+  /// Message creation time
+  ///
+  /// *NOTE*: Not stable until read from remote stream
   final DateTime created;
+
+  /// Message data
   final Map<String, dynamic> data;
 
-  final String _type;
+  /// Message type
   String get type => _type ?? "$runtimeType";
+  final String _type;
 
   @override
   String toString() {
     return '$runtimeType{uuid: $uuid, type: $type}';
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is Message && runtimeType == other.runtimeType && uuid == other.uuid;
+  /* &&
+          // DO NOT COMPARE - equality is guaranteed by type and uuid
+          // data == other.data &&
+          // _type == other._type &&
+          // DO NOT COMPARE - is not stable until read from remote stream
+          // created == other.created;
+   */
+
+  @override
+  int get hashCode => uuid.hashCode; /* ^ data.hashCode ^ _type.hashCode ^ created.hashCode; */
 }
 
 /// Event class
@@ -63,7 +87,7 @@ class Event extends Message {
 
   @override
   String toString() {
-    return '$runtimeType{uuid: $uuid, type: $type}';
+    return '$runtimeType{uuid: $uuid, type: $type, created: $created}';
   }
 }
 
@@ -83,7 +107,7 @@ class DomainEvent extends Event {
 
   @override
   String toString() {
-    return '$runtimeType{uuid: $uuid, type: $type, data: $data}';
+    return '$runtimeType{uuid: $uuid, type: $type, created: $created, data: $data}';
   }
 }
 
