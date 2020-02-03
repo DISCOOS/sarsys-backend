@@ -387,7 +387,7 @@ class WrongExpectedEventVersion extends InvalidOperation {
 
   @override
   String toString() {
-    return 'WrongExpectedEventVersion{expected: ${expected.value}actual: ${actual.value}, message: $message}';
+    return 'WrongExpectedEventVersion{expected: ${expected.value}, actual: ${actual.value}, message: $message}';
   }
 }
 

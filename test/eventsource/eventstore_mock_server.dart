@@ -3,7 +3,9 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:json_patch/json_patch.dart';
 import 'package:sarsys_app_server/eventsource/eventsource.dart';
+import 'package:uuid/uuid.dart';
 
 typedef Replicate = void Function(
   int port,
@@ -156,6 +158,7 @@ class TestStream {
     this.replicate, {
     this.useInstanceStreams = true,
   });
+
   final int port;
   final String tenant;
   final String prefix;
@@ -165,6 +168,31 @@ class TestStream {
   final Map<String, Map<String, dynamic>> _canonical = {};
   final Map<String, List<Map<String, dynamic>>> _cached = {};
   final List<Map<String, Map<String, dynamic>>> _instances = [];
+
+  /// Get [SourceEvent] as JSON compatible object with aggregate [uuid], type [T], [oldData], [newData] and legal [operations]
+  static Map<String, dynamic> asSourceEvent<T>(
+    String uuid,
+    Map<String, dynamic> oldData,
+    Map<String, dynamic> newData, {
+    DateTime updated,
+    bool deleted = false,
+    List<String> operations = AggregateRoot.ops,
+  }) =>
+      {
+        'eventId': Uuid().v4(),
+        'eventType': '${typeOf<T>()}',
+        'updated': (updated ?? DateTime.now()).toIso8601String(),
+        'data': {
+          'uuid': uuid,
+          'patches': JsonPatch.diff(
+            oldData,
+            newData,
+          )..removeWhere(
+              (diff) => !operations.contains(diff['op']),
+            ),
+          'deleted': deleted,
+        },
+      };
 
   String get canonicalStream => useInstanceStreams ? '\$ce-$instanceStream' : instanceStream;
   String get instanceStream => EventStore.toCanonical([
@@ -183,16 +211,33 @@ class TestStream {
         final content = await utf8.decoder.bind(request).join();
         final data = json.decode(content);
         final list = _toEventsWithUpdatedField(data);
-        final events = append(path, list);
-        request.response
-          ..headers.add('location', '$path/${events.length - 1}')
-          ..statusCode = HttpStatus.created;
-        _notify(path, list);
+        if (_checkEventNumber(request, path)) {
+          final events = append(path, list);
+          request.response
+            ..headers.add('location', '$path/${events.length - 1}')
+            ..statusCode = HttpStatus.created;
+          _notify(path, list);
+        }
         break;
       default:
         request.response.statusCode = HttpStatus.forbidden;
         break;
     }
+  }
+
+  bool _checkEventNumber(HttpRequest request, String path) {
+    final expectedNumber = int.tryParse(request.headers.value('ES-ExpectedVersion'));
+    if (expectedNumber != null && expectedNumber >= 0) {
+      final number = _toEventsFromPath(path).length - 1;
+      if (number != expectedNumber) {
+        request.response
+          ..statusCode = HttpStatus.badRequest
+          ..headers.add('ES-CurrentVersion', number)
+          ..reasonPhrase = 'Wrong expected eventnumber';
+        return false;
+      }
+    }
+    return true;
   }
 
   List<Map<String, dynamic>> _toEventsWithUpdatedField(data) =>
@@ -237,6 +282,7 @@ class TestStream {
     }
   }
 
+  /// Append [list] of data objects to [path]
   Map<String, Map<String, dynamic>> append(String path, List<Map<String, dynamic>> list) {
     final events = _toEventsFromPath(path);
     events.addEntries(list.map((event) => MapEntry(

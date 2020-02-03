@@ -269,18 +269,14 @@ class EventStore {
   void _apply(Repository repository, String uuid, List<SourceEvent> events) {
     final exists = repository.contains(uuid);
     final aggregate = repository.get(uuid);
+    final domainEvents = events.map(repository.toDomainEvent);
     if (exists) {
-      events.map(repository.toDomainEvent).forEach(
-            (event) => aggregate.patch(
-              event.data,
-              emits: event.runtimeType,
-            ),
-          );
+      domainEvents.forEach(aggregate.apply);
     }
     // Commit remote changes
     aggregate.commit();
     // Catch up with last event in stream
-    _setEventNumber(aggregate, events);
+    _setEventNumber(aggregate, domainEvents);
   }
 
   /// Get events for given [AggregateRoot.uuid]
@@ -304,9 +300,14 @@ class EventStore {
   }
 
   void _setEventNumber(AggregateRoot aggregate, Iterable<Event> events) {
-    _current[toInstanceStream(aggregate.uuid)] = _current.containsKey(toInstanceStream(aggregate.uuid))
-        ? _current[toInstanceStream(aggregate.uuid)] + events.length
-        : EventNumber.none + events.length;
+    final stream = toInstanceStream(aggregate.uuid);
+    if (_current.containsKey(stream)) {
+      final applied = _store[aggregate.uuid];
+      final unique = events.toList()..removeWhere(applied.contains);
+      _current[stream] += unique.length;
+    } else {
+      _current[stream] = EventNumber.none + events.length;
+    }
   }
 
   /// Publish events to [bus] and [asStream]

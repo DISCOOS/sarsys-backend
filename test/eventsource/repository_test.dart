@@ -1,6 +1,9 @@
+import 'package:json_patch/json_patch.dart';
+import 'package:sarsys_app_server/eventsource/eventsource.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
+import 'eventstore_mock_server.dart';
 import 'foo.dart';
 import 'harness.dart';
 
@@ -23,7 +26,9 @@ Future main() async {
   });
 
   test("Repository should support create -> patch -> push operations", () async {
+    // Arrange
     final repository = harness.get<FooRepository>();
+    final stream = harness.server().getStream(repository.store.aggregate);
     await repository.readyAsync();
 
     // Assert create operation
@@ -33,7 +38,6 @@ Future main() async {
     expect(foo.isNew, equals(true), reason: "Foo should be flagged as 'New'");
     expect(foo.isChanged, equals(true), reason: "Foo should be flagged as 'Changed'");
     expect(foo.isDeleted, equals(false), reason: "Foo should not be flagged as 'Deleted'");
-    final stream = harness.server().getStream(repository.store.aggregate);
     expect(stream.toEvents().isEmpty, equals(true), reason: "Events should not be commited yet");
 
     // Assert patch operation
@@ -166,5 +170,39 @@ Future main() async {
     expect([remote], containsAll(events));
     expect(foo1.data, containsPair("property1", "value1"));
     expect(foo2.data, containsPair("property1", "value1"));
+  });
+
+  test("Repository should resolve conflicts on push", () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    final stream = harness.server().getStream(repo.store.aggregate);
+    await repo.readyAsync();
+
+    // Act - Simulate conflict by manually updating remote stream
+    final uuid = Uuid().v4();
+    final foo = repo.get(uuid, data: {"property1": "value1"});
+    await repo.push(foo);
+    stream.append('${stream.instanceStream}-0', [
+      TestStream.asSourceEvent<FooUpdated>(
+        uuid,
+        {"property1": "value1"},
+        {"property2": "value2"},
+      )
+    ]);
+    foo.patch({"property3": "value3"}, emits: FooUpdated);
+
+    // Assert conflict occurred - will rollback changes
+    expect(() => repo.push(foo), throwsA(const TypeMatcher<WrongExpectedEventVersion>()));
+
+    // Act - retry
+    await repo.store.asStream().take(2).first;
+    foo.patch({"property3": "value3"}, emits: FooUpdated);
+    await repo.push(foo);
+
+    // Assert conflict resolved
+    expect(repo.count, equals(1));
+    expect(foo.data, containsPair("property1", "value1"));
+    expect(foo.data, containsPair("property2", "value2"));
+    expect(foo.data, containsPair("property3", "value3"));
   });
 }
