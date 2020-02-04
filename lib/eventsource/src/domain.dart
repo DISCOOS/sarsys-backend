@@ -357,68 +357,44 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   ///
   /// Throws an [InvalidOperation] exception if [prepare] on [command] fails.
   ///
+  /// Throws an [MultipleAggregatesWithChanges] if other aggregates have changes.
+  /// This failure is recoverable, but with side effect of losing data.
+  ///
   /// Throws an [WrongExpectedEventVersion] if [EventStore.current] event number is not
   /// equal to the last event number in  [EventStore.canonicalStream]. This failure is
-  /// recoverable when the store has caught up with [EventStore.canonicalStream].
+  /// recoverable when the store has caught up with [EventStore.canonicalStream]. Push
+  /// will attempt to catchup to head of stream [maxAttempts] before giving up by
+  /// throwing [WrongExpectedEventVersion].
+  ///
+  /// Throws an [ConflictNotReconcilable] if concurrent changes was made on same
+  /// [AggregateRoot.data], which implies a manual merge must be performed.
+  /// This failure is not recoverable.
   ///
   /// Throws an [SocketException] failure if calls on [EventStore.connection] fails.
   /// This failure is not recoverable.
   ///
-  /// Throws an [MultipleAggregatesWithChanges] if other aggregates have changes.
-  /// This failure is recoverable, but with side effect of losing data.
-  ///
   /// Throws [WriteFailed] for all other failures. This failure is not recoverable.
   @override
-  FutureOr<Iterable<Event>> execute(S command) async => _executeWithRetry(command, 10, 0);
+  FutureOr<Iterable<Event>> execute(S command, {int maxAttempts = 10}) async {
+    final data = prepare(command);
+    final isEntity = command is EntityCommand;
+    final action = isEntity ? Action.update : command.action;
 
-  /// Execute command on given aggregate given times before giving up
-  ///
-  FutureOr<Iterable<Event>> _executeWithRetry(S command, int max, int attempt) async {
     T aggregate;
-    try {
-      final data = prepare(command);
-      final isEntity = command is EntityCommand;
-      final action = isEntity ? Action.update : command.action;
-      switch (action) {
-        case Action.create:
-          aggregate = get(command.uuid, data: data);
-          break;
-        case Action.update:
-          aggregate = get(command.uuid)..patch(data, emits: command.emits, timestamp: command.created);
-          break;
-        case Action.delete:
-          aggregate = get(command.uuid)..delete();
-          break;
-        case Action.custom:
-          aggregate = custom(command);
-      }
-      return aggregate.isChanged ? await push(aggregate) : [];
-    } on WrongExpectedEventVersion catch (e, stacktrace) {
-      // Try again?
-      if (attempt < max) {
-        return _executeWithRetry(command, max, attempt + 1);
-      }
-      logger.warning("Aborted execution of $command after $max retries: $e with stacktrace: $stacktrace");
-      rethrow;
-    } on MultipleAggregatesWithChanges catch (e, stacktrace) {
-      // This will remove all pending changes
-      final events = rollback(aggregate);
-      logger.severe("Rolled back ${events.length} uncommitted events: $e with stacktrace: $stacktrace");
-      // Try again?
-      if (attempt < max) {
-        return _executeWithRetry(command, max, attempt + 1);
-      }
-      logger.warning("Aborted execution of $command after $max retries: $e");
-      rethrow;
-    } catch (e, stacktrace) {
-      if (aggregate != null) {
-        final events = rollback(aggregate);
-        logger.severe(
-          "Failed to execute $command. ${events.length} events rolled back: $e with stacktrace: $stacktrace",
-        );
-      }
-      rethrow;
+    switch (action) {
+      case Action.create:
+        aggregate = get(command.uuid, data: data);
+        break;
+      case Action.update:
+        aggregate = get(command.uuid)..patch(data, emits: command.emits, timestamp: command.created);
+        break;
+      case Action.delete:
+        aggregate = get(command.uuid)..delete();
+        break;
+      case Action.custom:
+        aggregate = custom(command);
     }
+    return aggregate.isChanged ? await push(aggregate, maxAttempts: maxAttempts) : [];
   }
 
   /// Check if this [Repository] contains any aggregates with [AggregateRoot.isChanged]
@@ -433,37 +409,81 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   ///
   /// Returns pushed events is saved, empty list otherwise
   ///
+  /// Throws an [MultipleAggregatesWithChanges] if other aggregates have changes.
+  /// This failure is recoverable, but with side effect of losing data.
+  ///
   /// Throws an [WrongExpectedEventVersion] if [EventStore.current] event number is not
   /// equal to the last event number in  [EventStore.canonicalStream]. This failure is
-  /// recoverable when the store has caught up with [EventStore.canonicalStream].
+  /// recoverable when the store has caught up with [EventStore.canonicalStream]. Push
+  /// will attempt to catchup to head of stream [maxAttempts] before giving up by
+  /// throwing [WrongExpectedEventVersion].
+  ///
+  /// Throws an [ConflictNotReconcilable] if concurrent changes was made on same
+  /// [AggregateRoot.data], which implies a manual merge must be performed.
+  /// This failure is not recoverable.
   ///
   /// Throws an [SocketException] failure if calls on [EventStore.connection] fails.
   /// This failure is not recoverable.
   ///
   /// Throws [WriteFailed] for all other failures. This failure is not recoverable.
-  Future<Iterable<Event>> push(T aggregate) async {
+  Future<Iterable<Event>> push(T aggregate, {int maxAttempts = 10}) async {
+    // Are the other aggregates with uncommitted changes?
+    _assertSingleAggregateChanged(aggregate);
+
     try {
       return aggregate.isChanged ? await store.push(aggregate) : [];
     } on WrongExpectedEventVersion {
-      // Are the other aggregates with uncommitted changes?
-      _assertSingleAggregateChanged(aggregate);
+      // Attempt catchup to head and automatic merge until maximum attempts
+      return await _reconcile(aggregate, maxAttempts);
+    }
+  }
 
-      // Rollback all changes and catch up with stream
-      final changed = aggregate.data;
+  // TODO: Refactor conflict reconciliation into a MergeStrategy class
+  Future<Iterable<Event>> _reconcile(T aggregate, int max) => _reconcileWithRetry(aggregate, max, 1);
+  Future<Iterable<Event>> _reconcileWithRetry(T aggregate, int max, int attempt) async {
+    try {
+      // Keep local state and rollback
+      final local = aggregate.data;
       final events = rollback(aggregate);
-      final previous = aggregate.data;
+
+      // Keep base state and catchup to remote state
+      final base = aggregate.data;
       final count = await store.catchUp(this);
-      final current = aggregate.data;
       logger.info("Caught up with $count events from ${store.canonicalStream}");
 
-      // TODO: Detect and reconcile merge conflicts
-      final head = JsonPatch.diff(previous, current);
-      final branch = JsonPatch.diff(changed, previous);
-      final merge = JsonPatch.diff(changed, current);
+      // Get local and remote patches
+      final remote = aggregate.data;
+      final head = JsonPatch.diff(base, remote);
+      final mine = JsonPatch.diff(local, base);
+      final yours = head.map((patch) => patch['path']);
+      final conflicts = mine.where((patch) => yours.contains(patch['path']));
 
+      // Automatic merge not possible?
+      if (conflicts.isNotEmpty) {
+        throw ConflictNotReconcilable(
+          'Unable to reconsile ${conflicts.length} conflicts',
+          local: conflicts,
+          remote: head,
+        );
+      }
+
+      // Reapply events as local changes
+      events.forEach((event) => aggregate._apply(event, true, false));
+      return push(aggregate);
+    } on WrongExpectedEventVersion catch (e, stacktrace) {
+      // Try again?
+      if (attempt < max) {
+        return _reconcileWithRetry(aggregate, max, attempt + 1);
+      }
+      logger.warning("Aborted automatic merge after $max retries: $e with stacktrace: $stacktrace");
       rethrow;
     }
   }
+
+  /// Rollback all changes
+  Iterable<Function> rollbackAll() => _aggregates.values.where((aggregate) => aggregate.isChanged).map(
+        (aggregate) => rollback,
+      );
 
   /// Assert that only a given [AggregateRoot] has changes.
   ///
@@ -844,8 +864,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     }
     if (isChanged) {
       _pending.add(event);
-    }
-    if (!isNew) {
+    } else {
       _applied.add(event.uuid);
     }
 

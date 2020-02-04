@@ -387,7 +387,23 @@ class WrongExpectedEventVersion extends InvalidOperation {
 
   @override
   String toString() {
-    return 'WrongExpectedEventVersion{expected: ${expected.value}, actual: ${actual.value}, message: $message}';
+    return '$runtimeType{expected: ${expected.value}, actual: ${actual.value}, message: $message}';
+  }
+}
+
+/// Thrown when automatic merge resolution is not possible
+class ConflictNotReconcilable extends InvalidOperation {
+  const ConflictNotReconcilable(
+    String message, {
+    @required this.local,
+    @required this.remote,
+  }) : super(message);
+  final Iterable<Map<String, dynamic>> local;
+  final Iterable<Map<String, dynamic>> remote;
+
+  @override
+  String toString() {
+    return '$runtimeType{local: $local, remote: $remote}';
   }
 }
 
