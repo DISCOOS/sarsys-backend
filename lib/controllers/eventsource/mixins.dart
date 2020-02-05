@@ -22,7 +22,7 @@ mixin RequestValidatorMixin {
   bool hasField(Map<String, dynamic> data, String field) {
     final parts = field.split('/');
     if (parts.isNotEmpty) {
-      final found = parts.skip(1).fold(data, (parent, name) {
+      final found = parts.skip(parts.first.isEmpty ? 1 : 0).fold(data, (parent, name) {
         if (parent is Map<String, dynamic>) {
           if (parent.containsKey(name)) {
             return parent[name] is Map<String, dynamic> ? parent[name] : true;
@@ -31,7 +31,7 @@ mixin RequestValidatorMixin {
         }
         return false;
       });
-      return found != false;
+      return !(found == false || found == data);
     }
     return data.containsKey(field);
   }

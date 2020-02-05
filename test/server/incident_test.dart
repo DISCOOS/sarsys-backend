@@ -60,34 +60,34 @@ Future main() async {
     final body = _createData(uuid);
     expectResponse(await harness.agent.post("/api/incidents", body: body), 201, body: null);
 
-    // Test that subjects are added
-    var subjects = {
+    // Test that entities are added to lists
+    var lists = {
       "subjects": ["string1"],
       "operations": ["string1"]
     };
-    expectResponse(await harness.agent.execute("PATCH", "/api/incidents/$uuid", body: subjects), 204, body: null);
+    expectResponse(await harness.agent.execute("PATCH", "/api/incidents/$uuid", body: lists), 204, body: null);
     var response = expectResponse(await harness.agent.get("/api/incidents/$uuid"), 200);
     var actual = await response.body.decode();
-    body.addAll(subjects);
+    body.addAll(lists);
     expect(actual['data'], equals(body), reason: "List was not appended");
 
-    // Test that subjects are replaced
-    subjects = {
+    // Test that entities are removed from lists
+    lists = {
       "subjects": ["string2"],
       "operations": ["string2"]
     };
-    expectResponse(await harness.agent.execute("PATCH", "/api/incidents/$uuid", body: subjects), 204, body: null);
+    expectResponse(await harness.agent.execute("PATCH", "/api/incidents/$uuid", body: lists), 204, body: null);
     response = expectResponse(await harness.agent.get("/api/incidents/$uuid"), 200);
     actual = await response.body.decode();
-    body.addAll(subjects);
+    body.addAll(lists);
     expect(actual['data'], equals(body), reason: "List was not replaced");
 
     // Test that subjects are removed
-    subjects = {"subjects": [], "operations": []};
-    expectResponse(await harness.agent.execute("PATCH", "/api/incidents/$uuid", body: subjects), 204, body: null);
+    lists = {"subjects": [], "operations": []};
+    expectResponse(await harness.agent.execute("PATCH", "/api/incidents/$uuid", body: lists), 204, body: null);
     response = expectResponse(await harness.agent.get("/api/incidents/$uuid"), 200);
     actual = await response.body.decode();
-    body.addAll(subjects);
+    body.addAll(lists);
     expect(actual['data'], equals(body), reason: "List was not cleared");
   });
 
