@@ -216,3 +216,11 @@ Map<String, Object> createMissionResult(int id) => {
         ]
       }
     };
+
+Map<String, Object> createPersonnel(String uuid) => {
+      "uuid": "$uuid",
+      "fname": "string",
+      "lname": "string",
+      "phone": "string",
+      "status": "mobilized",
+    };

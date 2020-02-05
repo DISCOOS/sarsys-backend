@@ -7,7 +7,7 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// [/api/incidents/{uuid}/personnels](http://localhost/api/client.html#/Personnel) requests
 class PersonnelController extends AggregateController<PersonnelCommand, Personnel> {
   PersonnelController(PersonnelRepository repository, RequestValidator validator)
-      : super(repository, validator: validator, tag: 'Personnels');
+      : super(repository, validator: validator, readOnly: const ['operation'], tag: 'Personnels');
 
   @override
   PersonnelCommand onCreate(Map<String, dynamic> data) => CreatePersonnel(data);
@@ -26,6 +26,11 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object(
         {
           "uuid": context.schema['UUID']..description = "Unique Personnel id",
+          "operation": APISchemaObject.object({
+            "uuid": context.schema['UUID']..description = "Operation uuid which this mission belongs to",
+          })
+            ..isReadOnly = true
+            ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
           "fname": APISchemaObject.string()..description = "First name",
           "lname": APISchemaObject.string()..description = "Last name",
           "phone": APISchemaObject.string()..description = "Phone number",
