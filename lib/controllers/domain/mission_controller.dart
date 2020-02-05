@@ -7,7 +7,7 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// [/api/incidents/{uuid}/personnels](http://localhost/api/client.html#/Mission) requests
 class MissionController extends AggregateController<MissionCommand, Mission> {
   MissionController(MissionRepository repository, RequestValidator validator)
-      : super(repository, validator: validator, tag: 'Missions');
+      : super(repository, validator: validator, readOnly: const ['operation'], tag: 'Missions');
 
   @override
   MissionCommand onCreate(Map<String, dynamic> data) => CreateMission(data);

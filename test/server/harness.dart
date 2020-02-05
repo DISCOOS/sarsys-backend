@@ -166,3 +166,53 @@ Map<String, Object> createLocation() => {
       "address": createAddress(),
       "description": "string",
     };
+
+Map<String, Object> createMission(String uuid) => {
+      "uuid": "$uuid",
+      "description": "string",
+      "type": "search",
+      "status": "created",
+      "priority": "medium",
+      "resolution": "unresolved",
+      "parts": [
+        createMissionPart(0),
+        createMissionPart(1),
+      ],
+      "results": [
+        createMissionResult(0),
+        createMissionResult(1),
+      ],
+      "assignedTo": "string"
+    };
+
+Map<String, Object> createMissionPart(int id) => {
+      "id": id,
+      "name": "string",
+      "description": "string",
+      "data": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "geometry": {"type": "Point"},
+            "properties": {"name": "string", "description": "string"}
+          }
+        ]
+      }
+    };
+
+Map<String, Object> createMissionResult(int id) => {
+      "id": id,
+      "name": "string",
+      "description": "string",
+      "data": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "geometry": {"type": "Point"},
+            "properties": {"name": "string", "description": "string"}
+          }
+        ]
+      }
+    };
