@@ -18,7 +18,7 @@ Future main() async {
     expectResponse(await harness.agent.post("/api/units", body: body), 201, body: null);
   });
 
-  test("POST /api/units/ returns status code 400 when 'incident/uuid' is given", () async {
+  test("POST /api/units/ returns status code 400 when 'operation/uuid' is given", () async {
     harness.eventStoreMockServer.withStream(typeOf<Unit>().toColonCase());
     await harness.channel.manager.get<UnitRepository>().readyAsync();
     final uuid = Uuid().v4();

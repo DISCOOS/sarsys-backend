@@ -249,3 +249,9 @@ Map<String, Object> createDivision(String uuid) => {
       "alias": "string",
       "departments": ["string"],
     };
+
+Map<String, Object> createDepartment(String uuid) => {
+      "uuid": "$uuid",
+      "name": "string",
+      "alias": "string",
+    };

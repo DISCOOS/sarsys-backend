@@ -349,23 +349,28 @@ class SarSysAppServerChannel extends ApplicationChannel {
           ));
 
     // OrganisationRepository constraints
-    manager.get<OrganisationRepository>()
-      ..constraint<DivisionDeleted>((repository) => AggregateListInvariant<OrganisationRepository>(
-            'divisions',
-            (aggregate, event) => RemoveDivisionFromOrganisation(
-              aggregate as Organisation,
-              repository.toAggregateUuid(event),
-            ),
-            repository as OrganisationRepository,
-          ))
-      ..constraint<DepartmentDeleted>((repository) => AggregateListInvariant<DivisionRepository>(
-            'departments',
-            (aggregate, event) => RemoveDepartmentFromDivision(
-              aggregate as Division,
-              repository.toAggregateUuid(event),
-            ),
-            repository as DivisionRepository,
-          ));
+    manager
+        .get<OrganisationRepository>()
+        .constraint<DivisionDeleted>((repository) => AggregateListInvariant<OrganisationRepository>(
+              'divisions',
+              (aggregate, event) => RemoveDivisionFromOrganisation(
+                aggregate as Organisation,
+                repository.toAggregateUuid(event),
+              ),
+              repository as OrganisationRepository,
+            ));
+
+    // DivisionRepository constraints
+    manager
+        .get<DivisionRepository>()
+        .constraint<DepartmentDeleted>((repository) => AggregateListInvariant<DivisionRepository>(
+              'departments',
+              (aggregate, event) => RemoveDepartmentFromDivision(
+                aggregate as Division,
+                repository.toAggregateUuid(event),
+              ),
+              repository as DivisionRepository,
+            ));
   }
 
   void _buildMessageChannel() {
