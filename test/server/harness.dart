@@ -224,3 +224,13 @@ Map<String, Object> createPersonnel(String uuid) => {
       "phone": "string",
       "status": "mobilized",
     };
+
+Map<String, Object> createUnit(String uuid) => {
+      "uuid": "$uuid",
+      "type": "team",
+      "number": 0,
+      "phone": "string",
+      "callsign": "string",
+      "status": "mobilized",
+      "personnels": ["string"],
+    };

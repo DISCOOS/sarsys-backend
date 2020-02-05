@@ -7,7 +7,7 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// [/api/incidents/{uuid}/units](http://localhost/api/client.html#/Unit) requests
 class UnitController extends AggregateController<UnitCommand, Unit> {
   UnitController(UnitRepository repository, RequestValidator validator)
-      : super(repository, validator: validator, tag: 'Units');
+      : super(repository, validator: validator, readOnly: const ['operation'], tag: 'Units');
 
   @override
   UnitCommand onCreate(Map<String, dynamic> data) => CreateUnit(data);
@@ -38,9 +38,8 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
           "callsign": APISchemaObject.string()..description = "Unit callsign",
           "status": documentStatus(),
           "transitions": documentTransitions(),
-          "personnels": APISchemaObject.array(ofType: APIType.string)
-            ..description = "List of uuid of Unit assigned to this unit"
-            ..format = 'uuid',
+          "personnels": APISchemaObject.array(ofSchema: context.schema['UUID'])
+            ..description = "List of uuid of Personnels mobilized for this operation",
           /* TODO: Make Tracking an Value Object in ReadModel - manage tracking uuid internally
           "tracking": APISchemaObject.string()
             ..format = 'uuid'
