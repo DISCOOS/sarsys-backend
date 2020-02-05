@@ -18,6 +18,21 @@ Future main() async {
     expectResponse(await harness.agent.post("/api/operations", body: body), 201, body: null);
   });
 
+  test("POST /api/operations/ returns status code 400 when 'incident/uuid' is given", () async {
+    harness.eventStoreMockServer.withStream(typeOf<Operation>().toColonCase());
+    await harness.channel.manager.get<sar.OperationRepository>().readyAsync();
+    final uuid = Uuid().v4();
+    final body = _createData(uuid)
+      ..addAll({
+        'incident': {'uuid': 'string'}
+      });
+    expectResponse(
+      await harness.agent.post("/api/operations", body: body),
+      400,
+      body: 'Schema Operation has 1 errors: /incident/uuid: is read only',
+    );
+  });
+
   test("GET /api/operations/{uuid} returns status code 200", () async {
     harness.eventStoreMockServer.withStream(typeOf<Operation>().toColonCase());
     await harness.channel.manager.get<sar.OperationRepository>().readyAsync();
