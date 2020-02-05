@@ -234,3 +234,11 @@ Map<String, Object> createUnit(String uuid) => {
       "status": "mobilized",
       "personnels": ["string"],
     };
+
+Map<String, Object> createOrganisation(String uuid) => {
+      "uuid": "$uuid",
+      "name": "string",
+      "alias": "string",
+      "icon": "https://icon.com",
+      "divisions": ["string"],
+    };
