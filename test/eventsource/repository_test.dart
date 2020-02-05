@@ -185,7 +185,11 @@ Future main() async {
       TestStream.asSourceEvent<FooUpdated>(
         uuid,
         {"property1": "value1"},
-        {"property2": "value2"},
+        {
+          "property1": "value1",
+          "property2": "value2",
+          "property3": "value3",
+        },
       )
     ]);
     foo.patch({"property3": "value3"}, emits: FooUpdated);
@@ -215,6 +219,7 @@ Future main() async {
         uuid,
         {"property1": "value1"},
         {
+          "property1": "value1",
           "property2": "value2",
           "property3": "value3",
         },

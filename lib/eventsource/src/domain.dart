@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:collection/collection.dart';
 import 'package:json_patch/json_patch.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
@@ -454,21 +455,36 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       // Get local and remote patches
       final remote = aggregate.data;
       final head = JsonPatch.diff(base, remote);
-      final mine = JsonPatch.diff(local, base);
-      final yours = head.map((patch) => patch['path']);
-      final conflicts = mine.where((patch) => yours.contains(patch['path']));
+      final mine = JsonPatch.diff(base, local);
+      final yours = head.map((op) => op['path']);
+      final concurrent = mine.where((op) => yours.contains(op['path']));
 
       // Automatic merge not possible?
-      if (conflicts.isNotEmpty) {
-        throw ConflictNotReconcilable(
-          'Unable to reconsile ${conflicts.length} conflicts',
-          local: conflicts,
-          remote: head,
+      if (concurrent.isNotEmpty) {
+        // Check if operations are the same on both sides
+        final eq = const MapEquality().equals;
+        final conflicts = concurrent.where(
+          (op1) => head.where((op2) => op2['path'] == op1['path'] && !eq(op1, op2)).isNotEmpty,
         );
+        // Conflicting operations found?
+        if (conflicts.isNotEmpty) {
+          throw ConflictNotReconcilable(
+            'Unable to reconcile ${conflicts.length} conflicts',
+            local: conflicts.map((op) => op['path']).map((path) => head.firstWhere((op) => op['path'] == path)),
+            remote: conflicts,
+          );
+        }
       }
 
       // Reapply events as local changes
-      events.forEach((event) => aggregate._apply(event, true, false));
+      events.forEach((event) => aggregate._apply(
+            event,
+            isChanged: true,
+            isNew: false,
+            // JsonPatch strict mode = false allows
+            // same concurrent change to be applied twice
+            strict: false,
+          ));
       return push(aggregate);
     } on WrongExpectedEventVersion catch (e, stacktrace) {
       // Try again?
@@ -705,7 +721,12 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
       _pending.clear();
       _applied.clear();
     }
-    events?.forEach((event) => _apply(event, false, false));
+    events?.forEach((event) => _apply(
+          event,
+          isChanged: false,
+          isNew: false,
+          strict: true,
+        ));
     return this;
   }
 
@@ -745,17 +766,21 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
               patches: patches,
               timestamp: timestamp,
             ),
-            true,
-            isNew,
+            isChanged: true,
+            isNew: isNew,
+            strict: true,
           )
         : null;
   }
 
   // TODO: Add support for detecting tombstone (delete) events
   /// Delete aggregate root
-  DomainEvent delete() {
-    return _apply(_deleted(), true, false);
-  }
+  DomainEvent delete() => _apply(
+        _deleted(),
+        isChanged: true,
+        isNew: false,
+        strict: true,
+      );
 
   /// Get uncommitted changes and clear internal cache
   Iterable<DomainEvent> commit() {
@@ -826,10 +851,20 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// Apply change to [data].
   ///
   /// This will be applied directly.
-  void apply(DomainEvent event) => _apply(event, false, false);
+  void apply(DomainEvent event) => _apply(
+        event,
+        isChanged: false,
+        isNew: false,
+        strict: true,
+      );
 
   // Apply implementation for internal use
-  DomainEvent _apply(DomainEvent event, bool isChanged, bool isNew) {
+  DomainEvent _apply(
+    DomainEvent event, {
+    bool isChanged,
+    bool isNew,
+    bool strict,
+  }) {
     if (toAggregateUuid(event) != uuid) {
       throw InvalidOperation(
         "Aggregate has $uuid, "
@@ -857,7 +892,11 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     } else {
       final patches = event.patches;
       if (patches.isNotEmpty) {
-        final next = JsonPatch.apply(_data, patches) as Map<String, dynamic>;
+        final next = JsonPatch.apply(
+          _data,
+          patches,
+          strict: strict,
+        ) as Map<String, dynamic>;
         _data.clear();
         _data.addAll(next);
       }
