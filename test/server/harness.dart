@@ -242,3 +242,10 @@ Map<String, Object> createOrganisation(String uuid) => {
       "icon": "https://icon.com",
       "divisions": ["string"],
     };
+
+Map<String, Object> createDivision(String uuid) => {
+      "uuid": "$uuid",
+      "name": "string",
+      "alias": "string",
+      "departments": ["string"],
+    };
