@@ -10,7 +10,7 @@ class OperationUnitController extends AggregateListController<UnitCommand, Unit,
     sar.OperationRepository primary,
     UnitRepository foreign,
     RequestValidator validator,
-  ) : super('missions', primary, foreign, validator, tag: 'Operations');
+  ) : super('units', primary, foreign, validator, tag: 'Operations');
 
   @override
   CreateUnit onCreate(String uuid, Map<String, dynamic> data) => CreateUnit(data);

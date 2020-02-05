@@ -56,7 +56,7 @@ class AddUnitToOperation extends OperationCommand<UnitAddedToOperation> {
   ) : super(
           Action.update,
           uuid: operation.uuid,
-          data: Command.addToList<String>(operation.data, 'missions', operationUuid),
+          data: Command.addToList<String>(operation.data, 'units', operationUuid),
         );
 }
 
@@ -67,7 +67,7 @@ class RemoveUnitFromOperation extends OperationCommand<UnitRemovedFromOperation>
   ) : super(
           Action.update,
           uuid: incident.uuid,
-          data: Command.removeFromList<String>(incident.data, 'missions', operationUuid),
+          data: Command.removeFromList<String>(incident.data, 'units', operationUuid),
         );
 }
 

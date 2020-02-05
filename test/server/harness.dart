@@ -61,9 +61,9 @@ class SarSysHarness extends TestHarness<SarSysAppServerChannel> {
   }
 }
 
-// =====================
+//////////////////////////////////
 // Common assertions
-// =====================
+//////////////////////////////////
 
 Future expectAggregateInList(
   SarSysHarness harness, {
@@ -102,9 +102,9 @@ Future expectAggregateReference(
   );
 }
 
-// =====================
+//////////////////////////////////
 // Common domain objects
-// =====================
+//////////////////////////////////
 
 Map<String, Object> createIncident(String uuid) => {
       "uuid": "$uuid",
