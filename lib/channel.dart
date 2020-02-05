@@ -126,12 +126,12 @@ class SarSysAppServerChannel extends ApplicationChannel {
             manager.get<sar.OperationRepository>(),
             requestValidator,
           ))
-      ..route('/api/subjects[/:uuid]').link(() => SubjectController(
-            manager.get<SubjectRepository>(),
-            requestValidator,
-          ))
       ..route('/api/incidents/:uuid/clues[/:id]').link(() => ClueController(
             manager.get<IncidentRepository>(),
+            requestValidator,
+          ))
+      ..route('/api/subjects[/:uuid]').link(() => SubjectController(
+            manager.get<SubjectRepository>(),
             requestValidator,
           ))
       ..route('/api/operations[/:uuid]').link(() => OperationController(

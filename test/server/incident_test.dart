@@ -116,43 +116,4 @@ Future main() async {
   });
 }
 
-Map<String, Object> _createData(String uuid) => {
-      "uuid": "$uuid",
-      "name": "string",
-      "summary": "string",
-      "type": "lost",
-      "status": "registered",
-      "resolution": "unresolved",
-      "occurred": DateTime.now().toIso8601String(),
-      "clues": [
-        _createClue(0),
-      ],
-      "subjects": ["string"],
-      "operations": ["string"]
-    };
-
-Map<String, dynamic> _createClue(int id) => {
-      "id": id,
-      "name": "string",
-      "description": "string",
-      "type": "find",
-      "quality": "confirmed",
-      "location": {
-        "position": {
-          "type": "Feature",
-          "geometry": {
-            "type": "Point",
-            "coordinates": [0.0, 0.0]
-          },
-          "properties": {
-            "name": "string",
-            "description": "string",
-            "accuracy": 0,
-            "timestamp": DateTime.now().toIso8601String(),
-            "type": "manual"
-          }
-        },
-        "address": {"lines": "string", "city": "string", "postalCode": "string", "countryCode": "string"},
-        "description": "string"
-      }
-    };
+Map<String, Object> _createData(String uuid) => createIncident(uuid);

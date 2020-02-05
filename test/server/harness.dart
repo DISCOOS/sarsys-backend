@@ -59,3 +59,110 @@ class SarSysHarness extends TestHarness<SarSysAppServerChannel> {
     return super.stop();
   }
 }
+
+// =====================
+// Common domain objects
+// =====================
+
+Map<String, Object> createIncident(String uuid) => {
+      "uuid": "$uuid",
+      "name": "string",
+      "summary": "string",
+      "type": "lost",
+      "status": "registered",
+      "resolution": "unresolved",
+      "occurred": DateTime.now().toIso8601String(),
+      "clues": [
+        createClue(0),
+      ],
+      "subjects": ["string"],
+      "operations": ["string"]
+    };
+
+Map<String, dynamic> createClue(int id) => {
+      "id": id,
+      "name": "string",
+      "description": "string",
+      "type": "find",
+      "quality": "confirmed",
+      "location": {
+        "position": createPoint(),
+        "address": createAddress(),
+        "description": "string",
+      }
+    };
+
+Map<String, dynamic> createSubject(String uuid) => {
+      "uuid": "$uuid",
+      "name": "string",
+      "situation": "string",
+      "type": "person",
+      "location": createLocation(),
+    };
+
+Map<String, Object> createPoint() => {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [0.0, 0.0]
+      },
+      "properties": {
+        "name": "string",
+        "description": "string",
+        "accuracy": 0,
+        "timestamp": DateTime.now().toIso8601String(),
+        "type": "manual"
+      }
+    };
+
+Map<String, String> createAddress() => {
+      "lines": "string",
+      "city": "string",
+      "postalCode": "string",
+      "countryCode": "string",
+    };
+
+Map<String, Object> createOperation(String uuid) => {
+      "uuid": "$uuid",
+      "name": "string",
+      "type": "search",
+      "status": "planned",
+      "resolution": "unresolved",
+      "reference": "string",
+      "justification": "string",
+      "commander": "string",
+      "talkgroups": [
+        {"id": 0, "name": true, "type": "tetra"}
+      ],
+      "ipp": createLocation(),
+      "meetup": createLocation(),
+      "objectives": [
+        createObjective(0),
+        createObjective(1),
+      ],
+      "missions": ["string"],
+      "units": ["string"],
+      "personnels": ["string"],
+      "passcodes": {"commander": "string", "personnel": "string"},
+    };
+
+Map<String, Object> createObjective(int id) => {
+      "id": id,
+      "name": "string",
+      "description": "string",
+      "type": "locate",
+      "location": [
+        {
+          "position": createPoint(),
+          "address": createAddress(),
+          "description": "string",
+        }
+      ],
+      "resolution": "unresolved"
+    };
+
+Map<String, Object> createLocation() => {
+      "position": createPoint(),
+      "address": createAddress(),
+      "description": "string",
+    };
