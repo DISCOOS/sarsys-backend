@@ -376,7 +376,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   ///
   /// Throws [WriteFailed] for all other failures. This failure is not recoverable.
   @override
-  FutureOr<Iterable<Event>> execute(S command, {int maxAttempts = 10}) async {
+  FutureOr<Iterable<DomainEvent>> execute(S command, {int maxAttempts = 10}) async {
     final data = prepare(command);
     final isEntity = command is EntityCommand;
     final action = isEntity ? Action.update : command.action;
@@ -427,7 +427,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// This failure is not recoverable.
   ///
   /// Throws [WriteFailed] for all other failures. This failure is not recoverable.
-  Future<Iterable<Event>> push(T aggregate, {int maxAttempts = 10}) async {
+  Future<Iterable<DomainEvent>> push(T aggregate, {int maxAttempts = 10}) async {
     // Are the other aggregates with uncommitted changes?
     _assertSingleAggregateChanged(aggregate);
 
@@ -439,62 +439,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     }
   }
 
-  // TODO: Refactor conflict reconciliation into a MergeStrategy class
-  Future<Iterable<Event>> _reconcile(T aggregate, int max) => _reconcileWithRetry(aggregate, max, 1);
-  Future<Iterable<Event>> _reconcileWithRetry(T aggregate, int max, int attempt) async {
-    try {
-      // Keep local state and rollback
-      final local = aggregate.data;
-      final events = rollback(aggregate);
-
-      // Keep base state and catchup to remote state
-      final base = aggregate.data;
-      final count = await store.catchUp(this);
-      logger.info("Caught up with $count events from ${store.canonicalStream}");
-
-      // Get local and remote patches
-      final remote = aggregate.data;
-      final head = JsonPatch.diff(base, remote);
-      final mine = JsonPatch.diff(base, local);
-      final yours = head.map((op) => op['path']);
-      final concurrent = mine.where((op) => yours.contains(op['path']));
-
-      // Automatic merge not possible?
-      if (concurrent.isNotEmpty) {
-        // Check if operations are the same on both sides
-        final eq = const MapEquality().equals;
-        final conflicts = concurrent.where(
-          (op1) => head.where((op2) => op2['path'] == op1['path'] && !eq(op1, op2)).isNotEmpty,
-        );
-        // Conflicting operations found?
-        if (conflicts.isNotEmpty) {
-          throw ConflictNotReconcilable(
-            'Unable to reconcile ${conflicts.length} conflicts',
-            local: conflicts.map((op) => op['path']).map((path) => head.firstWhere((op) => op['path'] == path)),
-            remote: conflicts,
-          );
-        }
-      }
-
-      // Reapply events as local changes
-      events.forEach((event) => aggregate._apply(
-            event,
-            isChanged: true,
-            isNew: false,
-            // JsonPatch strict mode = false allows
-            // same concurrent change to be applied twice
-            strict: false,
-          ));
-      return push(aggregate);
-    } on WrongExpectedEventVersion catch (e, stacktrace) {
-      // Try again?
-      if (attempt < max) {
-        return _reconcileWithRetry(aggregate, max, attempt + 1);
-      }
-      logger.warning("Aborted automatic merge after $max retries: $e with stacktrace: $stacktrace");
-      rethrow;
-    }
-  }
+  /// Attempts to reconcile conflicts between concurrent modifications
+  Future<Iterable<DomainEvent>> _reconcile(T aggregate, int max) => ThreeWayMerge(this).reconcile(aggregate, max);
 
   /// Rollback all changes
   Iterable<Function> rollbackAll() => _aggregates.values.where((aggregate) => aggregate.isChanged).map(
@@ -1086,5 +1032,78 @@ extension IterableX<T> on Iterable<T> {
       return toList();
     }
     return skip(offset).take(limit);
+  }
+}
+
+/// Class for implementing a strategy for merging concurrent modifications
+abstract class MergeStrategy<T extends AggregateRoot> {
+  MergeStrategy(this.repository);
+  Repository<Command, T> repository;
+
+  Future<Iterable<DomainEvent>> merge(T aggregate);
+  Future<Iterable<DomainEvent>> reconcile(T aggregate, int max) => _reconcileWithRetry(aggregate, max, 1);
+  Future<Iterable<DomainEvent>> _reconcileWithRetry(T aggregate, int max, int attempt) async {
+    try {
+      // Keep local state and rollback
+      final events = await merge(aggregate);
+      // Reapply events as local changes
+      events.forEach((event) => aggregate._apply(
+            event,
+            isChanged: true,
+            isNew: false,
+            // JsonPatch strict mode = false allows
+            // same concurrent change to be applied twice
+            strict: false,
+          ));
+      return repository.push(aggregate);
+    } on WrongExpectedEventVersion catch (e, stacktrace) {
+      // Try again?
+      if (attempt < max) {
+        return _reconcileWithRetry(aggregate, max, attempt + 1);
+      }
+      repository.logger.warning("Aborted automatic merge after $max retries: $e with stacktrace: $stacktrace");
+      rethrow;
+    }
+  }
+}
+
+/// Implements a three-way merge algorithm of concurrent modifications
+class ThreeWayMerge<T extends AggregateRoot> extends MergeStrategy<T> {
+  ThreeWayMerge(Repository<Command<DomainEvent>, T> repository) : super(repository);
+
+  @override
+  Future<Iterable<DomainEvent>> merge(T aggregate) async {
+    final local = aggregate.data;
+    final events = repository.rollback(aggregate);
+
+    // Keep base state and catchup to remote state
+    final base = aggregate.data;
+    final count = await repository.store.catchUp(repository);
+    repository.logger.info("Caught up with $count events from ${repository.store.canonicalStream}");
+
+    // Get local and remote patches
+    final remote = aggregate.data;
+    final head = JsonPatch.diff(base, remote);
+    final mine = JsonPatch.diff(base, local);
+    final yours = head.map((op) => op['path']);
+    final concurrent = mine.where((op) => yours.contains(op['path']));
+
+    // Automatic merge not possible?
+    if (concurrent.isNotEmpty) {
+      // Check if operations are the same on both sides
+      final eq = const MapEquality().equals;
+      final conflicts = concurrent.where(
+        (op1) => head.where((op2) => op2['path'] == op1['path'] && !eq(op1, op2)).isNotEmpty,
+      );
+      // Conflicting operations found?
+      if (conflicts.isNotEmpty) {
+        throw ConflictNotReconcilable(
+          'Unable to reconcile ${conflicts.length} conflicts',
+          local: conflicts.map((op) => op['path']).map((path) => head.firstWhere((op) => op['path'] == path)),
+          remote: conflicts,
+        );
+      }
+    }
+    return events;
   }
 }

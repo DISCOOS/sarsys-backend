@@ -337,7 +337,7 @@ class EventStore {
   ///
   /// Throws an [WriteFailed] for all other failures. This failure
   /// is not recoverable.
-  Future<Iterable<Event>> push(AggregateRoot aggregate) async {
+  Future<Iterable<DomainEvent>> push(AggregateRoot aggregate) async {
     _assertState();
     if (aggregate.isChanged == false) {
       return [];
