@@ -18,6 +18,21 @@ Future main() async {
     expectResponse(await harness.agent.post("/api/subjects", body: body), 201, body: null);
   });
 
+  test("POST /api/subjects/ returns status code 400 when 'incident/uuid' is given", () async {
+    harness.eventStoreMockServer.withStream(typeOf<Subject>().toColonCase());
+    await harness.channel.manager.get<SubjectRepository>().readyAsync();
+    final uuid = Uuid().v4();
+    final body = _createData(uuid)
+      ..addAll({
+        'incident': {'uuid': 'string'}
+      });
+    expectResponse(
+      await harness.agent.post("/api/subjects", body: body),
+      400,
+      body: 'Schema Subject has 1 errors: /incident/uuid: is read only',
+    );
+  });
+
   test("GET /api/subjects/{uuid} returns status code 200", () async {
     harness.eventStoreMockServer.withStream(typeOf<Subject>().toColonCase());
     await harness.channel.manager.get<SubjectRepository>().readyAsync();
