@@ -1,5 +1,6 @@
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:aqueduct_test/aqueduct_test.dart';
+import 'package:test/test.dart';
 
 import '../eventsource/eventstore_mock_server.dart';
 
@@ -58,6 +59,47 @@ class SarSysHarness extends TestHarness<SarSysAppServerChannel> {
     }
     return super.stop();
   }
+}
+
+// =====================
+// Common assertions
+// =====================
+
+Future expectAggregateInList(
+  SarSysHarness harness, {
+  String uri,
+  String uuid,
+  Map<String, Object> data,
+  String listField,
+  List<String> uuids,
+}) async {
+  final response = expectResponse(await harness.agent.get("$uri/$uuid"), 200);
+  final actual = await response.body.decode();
+  expect(
+    actual['data'],
+    equals(data..addAll({listField: uuids})),
+  );
+}
+
+Future expectAggregateReference(
+  SarSysHarness harness, {
+  String uri,
+  String childUuid,
+  Map<String, Object> child,
+  String parentField,
+  String parentUuid,
+}) async {
+  final response = expectResponse(await harness.agent.get("$uri/$childUuid"), 200);
+  final actual = await response.body.decode();
+  expect(
+    actual['data'],
+    equals(child
+      ..addAll({
+        '$parentField': {
+          'uuid': parentUuid,
+        }
+      })),
+  );
 }
 
 // =====================
