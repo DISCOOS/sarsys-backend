@@ -170,15 +170,8 @@ Map<String, Object> createOperation(String uuid) => {
       "reference": "string",
       "justification": "string",
       "commander": "string",
-      "talkgroups": [
-        {"id": 0, "name": true, "type": "tetra"}
-      ],
       "ipp": createLocation(),
       "meetup": createLocation(),
-      "objectives": [
-        createObjective(0),
-        createObjective(1),
-      ],
       "missions": ["string"],
       "units": ["string"],
       "personnels": ["string"],

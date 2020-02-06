@@ -28,7 +28,7 @@ class ClueController extends EntityController<IncidentCommand, Incident> {
   @override
   APISchemaObject documentEntityObject(APIDocumentContext context) => APISchemaObject.object(
         {
-          "id": context.schema['ID'],
+          "id": context.schema['ID']..description = "Clue id (unique in Incident only)",
           "name": APISchemaObject.string()..description = "Clue name",
           "description": APISchemaObject.string()..description = "Clue description",
           "type": documentType(),

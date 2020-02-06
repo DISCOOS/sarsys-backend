@@ -8,7 +8,12 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// [/api/operations](http://localhost/api/client.html#/Operation) requests
 class OperationController extends AggregateController<sar.OperationCommand, sar.Operation> {
   OperationController(OperationRepository repository, RequestValidator validator)
-      : super(repository, validator: validator, readOnly: const ['incident'], tag: 'Operations');
+      : super(
+          repository,
+          validator: validator,
+          readOnly: const ['incident', 'objectives', 'talkgroups'],
+          tag: 'Operations',
+        );
 
   @override
   sar.OperationCommand onCreate(Map<String, dynamic> data) => sar.RegisterOperation(data);
