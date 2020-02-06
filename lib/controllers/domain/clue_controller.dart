@@ -28,7 +28,7 @@ class ClueController extends EntityController<IncidentCommand, Incident> {
   @override
   APISchemaObject documentEntityObject(APIDocumentContext context) => APISchemaObject.object(
         {
-          "id": APISchemaObject.integer()..description = "Clue id (unique in Incident only)",
+          "id": context.schema['ID'],
           "name": APISchemaObject.string()..description = "Clue name",
           "description": APISchemaObject.string()..description = "Clue description",
           "type": documentType(),
@@ -39,6 +39,7 @@ class ClueController extends EntityController<IncidentCommand, Incident> {
         ..description = "Objective Schema"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
+          'id',
           'name',
           'type',
           'quality',

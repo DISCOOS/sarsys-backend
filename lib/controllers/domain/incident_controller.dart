@@ -7,7 +7,7 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// [/api/incidents](http://localhost/api/client.html#/Incident) requests
 class IncidentController extends AggregateController<IncidentCommand, Incident> {
   IncidentController(IncidentRepository repository, RequestValidator validator)
-      : super(repository, tag: "Incidents", validator: validator);
+      : super(repository, tag: "Incidents", readOnly: const ['clues'], validator: validator);
 
   @override
   IncidentCommand onCreate(Map<String, dynamic> data) => RegisterIncident(data);
@@ -37,7 +37,8 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
             ..description = "When Incident occurred"
             ..format = 'date-time',
           "clues": APISchemaObject.array(ofSchema: context.schema['Clue'])
-            ..description = "List of Clues for planning and response",
+            ..description = "List of Clues for planning and response"
+            ..isReadOnly = true,
           "subjects": APISchemaObject.array(ofSchema: context.schema['UUID'])
             ..description = "List of uuids of Subjects impacted by this Incident",
           "operations": APISchemaObject.array(ofSchema: context.schema['UUID'])

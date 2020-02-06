@@ -68,14 +68,14 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
       final aggregate = repository.get(uuid);
-      final data = aggregate.data[aggregateField] as List;
-      if (data.isEmpty || data.length - 1 < id) {
+      final array = aggregate.asEntityArray(aggregateField);
+      if (!array.contains(id)) {
         return Response.notFound(body: "Entity $id not found");
       }
       return okEntity<T>(
         uuid,
         entityType,
-        data.elementAt(id) as Map<String, dynamic>,
+        array[id].data,
       );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
@@ -90,14 +90,12 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     @Bind.body() Map<String, dynamic> data,
   ) async {
     try {
-      if (repository.contains(uuid)) {
-        return Response.notFound(body: "$aggregateType $uuid exists");
+      if (!repository.contains(uuid)) {
+        return Response.notFound(body: "$aggregateType $uuid does not exists");
       }
       final aggregate = repository.get(uuid);
       await repository.execute(onCreate(uuid, entityType, validate(entityType, data)));
       return Response.created("${toLocation(request)}/${data[aggregate.entityIdFieldName]}");
-    } on AggregateExists catch (e) {
-      return Response.conflict(body: e.message);
     } on EntityExists catch (e) {
       return Response.conflict(body: e.message);
     } on InvalidOperation catch (e) {

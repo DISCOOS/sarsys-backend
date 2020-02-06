@@ -549,7 +549,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     switch (command.action) {
       case Action.create:
         if (array.contains(command.entityId)) {
-          throw EntityNotFound("Entity ${command.entityId} exists");
+          throw EntityExists("Entity ${command.entityId} exists");
         }
         data[command.aggregateField] = array.patch(command.data).toList();
         break;
@@ -860,7 +860,12 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   List<T> asValueArray<T>(String field) => List<T>.from(data[field] as List);
 
   /// Get array of [EntityObject]
-  EntityArray asEntityArray(String field) => EntityArray.from(field, this);
+  EntityArray asEntityArray(String field) => EntityArray.from(field, _ensureList(field));
+
+  AggregateRoot _ensureList(String field) {
+    _data.putIfAbsent(field, () => []);
+    return this;
+  }
 
   @override
   bool operator ==(Object other) =>
@@ -892,6 +897,10 @@ class EntityArray {
   final String aggregateField;
   final String entityIdFieldName;
   final Map<String, dynamic> data;
+
+  int get length => _asArray().length;
+  bool get isEmpty => _asArray().isEmpty;
+  bool get isNotEmpty => _asArray().isNotEmpty;
 
   /// Check if id exists
   bool contains(int id) => _asArray().any((data) => _toId(data) == id);
@@ -948,6 +957,9 @@ class EntityArray {
     root[aggregateField] = array;
     return EntityArray(aggregateField, entityIdFieldName, root);
   }
+
+  /// Get [EntityObject] with given [id]
+  EntityObject elementAt(int id) => this[id];
 
   /// Set entity object with given [id]
   void operator []=(int id, EntityObject entity) {

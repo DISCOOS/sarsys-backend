@@ -114,9 +114,6 @@ Map<String, Object> createIncident(String uuid) => {
       "status": "registered",
       "resolution": "unresolved",
       "occurred": DateTime.now().toIso8601String(),
-      "clues": [
-        createClue(0),
-      ],
       "subjects": ["string"],
       "operations": ["string"]
     };

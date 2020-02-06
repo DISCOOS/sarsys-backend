@@ -498,6 +498,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     );
 
   void documentSchemas(APIDocumentContext context) => context.schema
+    ..register('ID', documentID())
     ..register('UUID', documentUUID())
     ..register('PassCodes', documentPassCodes())
     ..register('Coordinates', documentCoordinates(context))
@@ -514,6 +515,8 @@ class SarSysAppServerChannel extends ApplicationChannel {
     ..register("Circle", documentCircle(context))
     ..register("Rectangle", documentRectangle(context))
     ..register("Position", documentPosition(context));
+
+  APISchemaObject documentID() => APISchemaObject.integer()..description = "An id unique in current collection";
 
   APISchemaObject documentUUID() => APISchemaObject.string()
     ..format = "uuid"

@@ -53,14 +53,14 @@ Future main() async {
     expect(actual['data'], equals(body));
   });
 
-  test("PATCH /api/incidents/{uuid} on lists supports add, remove and replace", () async {
+  test("PATCH /api/incidents/{uuid} on value object lists supports add, remove and replace", () async {
     harness.eventStoreMockServer.withStream(typeOf<Incident>().toColonCase());
     await harness.channel.manager.get<IncidentRepository>().readyAsync();
     final uuid = Uuid().v4();
     final body = _createData(uuid);
     expectResponse(await harness.agent.post("/api/incidents", body: body), 201, body: null);
 
-    // Test that entities are added to lists
+    // Test that value objects are added to lists
     var lists = {
       "subjects": ["string1"],
       "operations": ["string1"]
@@ -71,7 +71,7 @@ Future main() async {
     body.addAll(lists);
     expect(actual['data'], equals(body), reason: "List was not appended");
 
-    // Test that entities are removed from lists
+    // Test that value objects are removed from lists
     lists = {
       "subjects": ["string2"],
       "operations": ["string2"]
