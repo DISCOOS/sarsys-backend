@@ -671,7 +671,6 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
           event,
           isChanged: false,
           isNew: false,
-          strict: true,
         ));
     return this;
   }
@@ -714,7 +713,6 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
             ),
             isChanged: true,
             isNew: isNew,
-            strict: true,
           )
         : null;
   }
@@ -725,7 +723,6 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         _deleted(),
         isChanged: true,
         isNew: false,
-        strict: true,
       );
 
   /// Get uncommitted changes and clear internal cache
@@ -801,7 +798,6 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         event,
         isChanged: false,
         isNew: false,
-        strict: true,
       );
 
   // Apply implementation for internal use
@@ -809,7 +805,6 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     DomainEvent event, {
     bool isChanged,
     bool isNew,
-    bool strict,
   }) {
     if (toAggregateUuid(event) != uuid) {
       throw InvalidOperation(
@@ -841,7 +836,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         final next = JsonPatch.apply(
           _data,
           patches,
-          strict: strict,
+          strict: false,
         ) as Map<String, dynamic>;
         _data.clear();
         _data.addAll(next);
@@ -1063,9 +1058,6 @@ abstract class MergeStrategy<T extends AggregateRoot> {
             event,
             isChanged: true,
             isNew: false,
-            // JsonPatch strict mode = false allows
-            // same concurrent change to be applied twice
-            strict: false,
           ));
       return repository.push(aggregate);
     } on WrongExpectedEventVersion catch (e, stacktrace) {

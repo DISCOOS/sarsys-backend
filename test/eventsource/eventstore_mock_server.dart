@@ -334,7 +334,7 @@ class TestStream {
       _toAtomFeedResponse(request, asForward(stream), path);
     } else if (RegExp(asUuid(stream)).hasMatch(path)) {
       // Fetch events with given uuid
-      final data = _canonical[toUuid(stream, path)];
+      // final data = _canonical[toUuid(stream, path)];
     } else if (RegExp(asNumber(stream)).hasMatch(path)) {
       // Fetch events with given canonical event number
       final number = toNumber(stream, path);
