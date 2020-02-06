@@ -47,11 +47,13 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
           "justification": APISchemaObject.string()..description = "Justification for responding",
           "commander": context.schema['UUID']..description = "Uuid of personnel in command",
           "talkgroups": APISchemaObject.array(ofSchema: context.schema['TalkGroup'])
-            ..description = "List of talk gropus in use",
+            ..description = "List of talk gropus in use"
+            ..isReadOnly = true,
           "ipp": context.schema['Location']..description = "Initial planning point",
           "meetup": context.schema['Location']..description = "On scene meeting point",
           "objectives": APISchemaObject.array(ofSchema: context.schema['Objective'])
-            ..description = "List of Operation objectives",
+            ..description = "List of Operation objectives"
+            ..isReadOnly = true,
           "missions": APISchemaObject.array(ofSchema: context.schema['UUID'])
             ..description = "List of uuid of Missions executed by this operation",
           "units": APISchemaObject.array(ofSchema: context.schema['UUID'])

@@ -212,14 +212,6 @@ Map<String, dynamic> createMission(String uuid) => {
       "status": "created",
       "priority": "medium",
       "resolution": "unresolved",
-      "parts": [
-        createMissionPart(0),
-        createMissionPart(1),
-      ],
-      "results": [
-        createMissionResult(0),
-        createMissionResult(1),
-      ],
       "assignedTo": "string"
     };
 

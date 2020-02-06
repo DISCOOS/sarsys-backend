@@ -32,6 +32,36 @@ class MissionRepository extends Repository<MissionCommand, Mission> {
                 data: event.data,
                 created: event.created,
               ),
+          MissionPartAdded: (event) => MissionPartAdded(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          MissionPartUpdated: (event) => MissionPartUpdated(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          MissionPartRemoved: (event) => MissionPartRemoved(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          MissionResultAdded: (event) => MissionResultAdded(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          MissionResultUpdated: (event) => MissionResultUpdated(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          MissionResultRemoved: (event) => MissionResultRemoved(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
           MissionDeleted: (event) => MissionDeleted(
                 uuid: event.uuid,
                 data: event.data,
