@@ -69,7 +69,7 @@ Future expectAggregateInList(
   SarSysHarness harness, {
   String uri,
   String uuid,
-  Map<String, Object> data,
+  Map<String, dynamic> data,
   String listField,
   List<String> uuids,
 }) async {
@@ -85,7 +85,7 @@ Future expectAggregateReference(
   SarSysHarness harness, {
   String uri,
   String childUuid,
-  Map<String, Object> child,
+  Map<String, dynamic> child,
   String parentField,
   String parentUuid,
 }) async {
@@ -106,7 +106,7 @@ Future expectAggregateReference(
 // Common domain objects
 //////////////////////////////////
 
-Map<String, Object> createIncident(String uuid) => {
+Map<String, dynamic> createIncident(String uuid) => {
       "uuid": "$uuid",
       "name": "string",
       "summary": "string",
@@ -139,7 +139,7 @@ Map<String, dynamic> createSubject(String uuid) => {
       "location": createLocation(),
     };
 
-Map<String, Object> createPoint() => {
+Map<String, dynamic> createPoint() => {
       "type": "Feature",
       "geometry": {
         "type": "Point",
@@ -161,7 +161,7 @@ Map<String, String> createAddress() => {
       "countryCode": "string",
     };
 
-Map<String, Object> createOperation(String uuid) => {
+Map<String, dynamic> createOperation(String uuid) => {
       "uuid": "$uuid",
       "name": "string",
       "type": "search",
@@ -178,7 +178,7 @@ Map<String, Object> createOperation(String uuid) => {
       "passcodes": {"commander": "string", "personnel": "string"},
     };
 
-Map<String, Object> createObjective(int id) => {
+Map<String, dynamic> createObjective(int id) => {
       "id": id,
       "name": "string",
       "description": "string",
@@ -193,13 +193,19 @@ Map<String, Object> createObjective(int id) => {
       "resolution": "unresolved"
     };
 
-Map<String, Object> createLocation() => {
+Map<String, dynamic> createTalkGroup(int id) => {
+      "id": id,
+      "name": true,
+      "type": "tetra",
+    };
+
+Map<String, dynamic> createLocation() => {
       "position": createPoint(),
       "address": createAddress(),
       "description": "string",
     };
 
-Map<String, Object> createMission(String uuid) => {
+Map<String, dynamic> createMission(String uuid) => {
       "uuid": "$uuid",
       "description": "string",
       "type": "search",
@@ -217,7 +223,7 @@ Map<String, Object> createMission(String uuid) => {
       "assignedTo": "string"
     };
 
-Map<String, Object> createMissionPart(int id) => {
+Map<String, dynamic> createMissionPart(int id) => {
       "id": id,
       "name": "string",
       "description": "string",
@@ -233,7 +239,7 @@ Map<String, Object> createMissionPart(int id) => {
       }
     };
 
-Map<String, Object> createMissionResult(int id) => {
+Map<String, dynamic> createMissionResult(int id) => {
       "id": id,
       "name": "string",
       "description": "string",
@@ -249,7 +255,7 @@ Map<String, Object> createMissionResult(int id) => {
       }
     };
 
-Map<String, Object> createPersonnel(String uuid) => {
+Map<String, dynamic> createPersonnel(String uuid) => {
       "uuid": "$uuid",
       "fname": "string",
       "lname": "string",
@@ -257,7 +263,7 @@ Map<String, Object> createPersonnel(String uuid) => {
       "status": "mobilized",
     };
 
-Map<String, Object> createUnit(String uuid) => {
+Map<String, dynamic> createUnit(String uuid) => {
       "uuid": "$uuid",
       "type": "team",
       "number": 0,
@@ -267,7 +273,7 @@ Map<String, Object> createUnit(String uuid) => {
       "personnels": ["string"],
     };
 
-Map<String, Object> createOrganisation(String uuid) => {
+Map<String, dynamic> createOrganisation(String uuid) => {
       "uuid": "$uuid",
       "name": "string",
       "alias": "string",
@@ -275,14 +281,14 @@ Map<String, Object> createOrganisation(String uuid) => {
       "divisions": ["string"],
     };
 
-Map<String, Object> createDivision(String uuid) => {
+Map<String, dynamic> createDivision(String uuid) => {
       "uuid": "$uuid",
       "name": "string",
       "alias": "string",
       "departments": ["string"],
     };
 
-Map<String, Object> createDepartment(String uuid) => {
+Map<String, dynamic> createDepartment(String uuid) => {
       "uuid": "$uuid",
       "name": "string",
       "alias": "string",
