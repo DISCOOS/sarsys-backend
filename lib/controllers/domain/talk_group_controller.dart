@@ -8,7 +8,7 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// A ResourceController that handles
 /// [/api/incidents/{uuid}/subjects](http://localhost/api/client.html#/TalkGroup) requests
 class TalkGroupController extends EntityController<OperationCommand, sar.Operation> {
-  TalkGroupController(OperationRepository repository, RequestValidator validator)
+  TalkGroupController(OperationRepository repository, JsonValidation validator)
       : super(repository, "TalkGroup", "talkgroups", validator: validator, tag: 'Operations');
 
   @override

@@ -10,7 +10,7 @@ class OrganisationDivisionController
   OrganisationDivisionController(
     OrganisationRepository primary,
     DivisionRepository foreign,
-    RequestValidator validator,
+    JsonValidation validator,
   ) : super('divisions', primary, foreign, validator, tag: 'Organisations');
 
   @override

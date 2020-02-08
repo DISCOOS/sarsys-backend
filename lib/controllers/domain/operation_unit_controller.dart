@@ -9,7 +9,7 @@ class OperationUnitController extends AggregateListController<UnitCommand, Unit,
   OperationUnitController(
     sar.OperationRepository primary,
     UnitRepository foreign,
-    RequestValidator validator,
+    JsonValidation validator,
   ) : super('units', primary, foreign, validator, tag: 'Operations');
 
   @override

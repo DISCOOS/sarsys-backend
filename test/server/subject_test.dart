@@ -29,7 +29,7 @@ Future main() async {
     expectResponse(
       await harness.agent.post("/api/subjects", body: body),
       400,
-      body: 'Schema Subject has 1 errors: /incident/uuid: is read only',
+      body: 'Schema Subject has 1 errors: [/incident: is read only]',
     );
   });
 

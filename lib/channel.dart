@@ -58,7 +58,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
   SarSysConfig config;
 
   /// Validates requests against current open api specification
-  RequestValidator requestValidator;
+  JsonValidation requestValidator;
 
   /// Manages an [Repository] for each registered [AggregateRoot]
   RepositoryManager manager;
@@ -258,7 +258,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     final file = File(apiSpecPath);
     final spec = file.readAsStringSync();
     final data = json.decode(spec.isEmpty ? '{}' : spec);
-    requestValidator = RequestValidator(data as Map<String, dynamic>);
+    requestValidator = JsonValidation(data as Map<String, dynamic>);
   }
 
   void _buildRepoManager() {

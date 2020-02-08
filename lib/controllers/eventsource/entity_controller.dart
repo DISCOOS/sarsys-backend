@@ -27,7 +27,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
   final List<String> readOnly;
 
   @override
-  final RequestValidator validator;
+  final JsonValidation validator;
 
   @override
   FutureOr<RequestOrResponse> willProcessRequest(Request req) => repository.ready

@@ -8,7 +8,7 @@ import 'package:sarsys_app_server/validation/validation.dart';
 class OrganisationController extends AggregateController<OrganisationCommand, Organisation> {
   OrganisationController(
     OrganisationRepository organisations,
-    RequestValidator validator,
+    JsonValidation validator,
   ) : super(organisations, validator: validator, tag: 'Organisations');
 
   @override

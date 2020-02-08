@@ -1,16 +1,18 @@
 import 'package:json_schema/json_schema.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 
-typedef Validator = List<ValidationError> Function(String type, dynamic data);
-
-class RequestValidator {
-  RequestValidator(this.specification, {List<Validator> validators}) : validators = validators ?? [];
+class JsonValidation {
+  JsonValidation(this.specification, {List<Validator> validators}) : validators = validators ?? [];
   final Map<String, dynamic> specification;
   final Map<String, JsonSchema> validating = {};
   final List<Validator> validators;
 
+  /// Get [JsonValidation] with given [validators]
+  JsonValidation withValidations(List<Validator> validators) =>
+      JsonValidation(specification, validators: validators)..validating.addAll(validating);
+
   /// Validate OpenAPI schemas
-  JsonSchema withSchema() {
+  JsonSchema schemas() {
     if (!validating.containsKey('schemas')) {
       validating['schemas'] = JsonSchema.createSchema({
         "components": {"schemas": specification["components"]["schemas"]}
@@ -36,11 +38,11 @@ class RequestValidator {
     return data != null;
   }
 
-  void validateBody(String type, dynamic data, {bool isPatch = false}) {
+  void validateBody(String type, dynamic data, {bool isPatch = false, List<Validator> validators = const []}) {
     if (!has("#/components/schemas/$type")) {
       throw SchemaException("Schema $type does not exist");
     }
-    final schema = withSchema().resolvePath("#/components/schemas/$type");
+    final schema = schemas().resolvePath("#/components/schemas/$type");
     // Validate Json Schema
     final errors = schema.validateWithErrors(data)
       ..removeWhere(
@@ -49,7 +51,13 @@ class RequestValidator {
 
     // Validate with custom validators
     errors.addAll(
-      validators.fold([], (errors, validator) => List.of(errors)..addAll(validator(type, data))),
+      List<Validator>.from(validators).fold(
+        [],
+        (errors, validator) => List.of(errors)
+          ..addAll(
+            validator(type, data, this),
+          ),
+      ),
     );
 
     if (isPatch) {
@@ -59,4 +67,61 @@ class RequestValidator {
       throw SchemaException("Schema $type has ${errors.length} errors: $errors");
     }
   }
+}
+
+abstract class Validator {
+  List<ValidationError> call(String type, dynamic data, JsonValidation validation);
+  bool hasField(Map<String, dynamic> data, String field) {
+    final parts = field.split('/');
+    if (parts.isNotEmpty) {
+      final found = parts.skip(parts.first.isEmpty ? 1 : 0).fold(data, (parent, name) {
+        if (parent is Map<String, dynamic>) {
+          if (parent.containsKey(name)) {
+            return parent[name] is Map<String, dynamic> ? parent[name] : true;
+          }
+          return false;
+        }
+        return false;
+      });
+      return !(found == false || found == data);
+    }
+    return data.containsKey(field);
+  }
+}
+
+class ReadOnlyValidator extends Validator {
+  ReadOnlyValidator(List<String> readOnly) : _readOnly = List.from(readOnly);
+  final List<String> _readOnly;
+
+  @override
+  List<ValidationError> call(String type, dynamic data, JsonValidation validation) {
+    final errors = <_ValidationError>[];
+    if (data is Map<String, dynamic>) {
+      errors.addAll(
+        _readOnly.where((field) => hasField(data, field)).map(
+              (field) => _ValidationError(
+                "${field.startsWith('/') ? field : '/$field'}",
+                "is read only",
+                "#/components/schemas/$type",
+              ),
+            ),
+      );
+    }
+    return errors;
+  }
+}
+
+class _ValidationError implements ValidationError {
+  _ValidationError(this.instancePath, this.message, this.schemaPath);
+  @override
+  String instancePath;
+
+  @override
+  String message;
+
+  @override
+  String schemaPath;
+
+  @override
+  String toString() => '${instancePath.isEmpty ? '# (root)' : instancePath}: $message';
 }

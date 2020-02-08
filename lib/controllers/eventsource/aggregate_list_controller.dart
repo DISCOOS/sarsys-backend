@@ -27,7 +27,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
   final List<String> readOnly;
 
   @override
-  final RequestValidator validator;
+  final JsonValidation validator;
 
   @override
   final Repository<T, U> primary;

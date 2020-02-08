@@ -8,7 +8,7 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// A ResourceController that handles
 /// [/api/incidents/{uuid}/Clues](http://localhost/api/client.html#/Clue) requests
 class ClueController extends EntityController<IncidentCommand, Incident> {
-  ClueController(IncidentRepository repository, RequestValidator validator)
+  ClueController(IncidentRepository repository, JsonValidation validator)
       : super(repository, "Clue", "clues", validator: validator, tag: "Incidents");
 
   @override

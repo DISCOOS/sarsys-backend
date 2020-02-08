@@ -9,7 +9,7 @@ class IncidentOperationsController
   IncidentOperationsController(
     IncidentRepository primary,
     sar.OperationRepository foreign,
-    RequestValidator validator,
+    JsonValidation validator,
   ) : super('operations', primary, foreign, validator, tag: "Incidents");
 
   @override

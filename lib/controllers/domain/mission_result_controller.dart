@@ -6,7 +6,7 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// A ResourceController that handles
 /// [/api/incidents/{uuid}/MissionResults](http://localhost/api/client.html#/MissionResult) requests
 class MissionResultController extends EntityController<MissionCommand, Mission> {
-  MissionResultController(MissionRepository repository, RequestValidator validator)
+  MissionResultController(MissionRepository repository, JsonValidation validator)
       : super(repository, "MissionResult", "results", validator: validator, tag: 'Missions');
 
   @override

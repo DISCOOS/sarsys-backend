@@ -10,7 +10,7 @@ class DivisionDepartmentController
   DivisionDepartmentController(
     DivisionRepository primary,
     DepartmentRepository foreign,
-    RequestValidator validator,
+    JsonValidation validator,
   ) : super('departments', primary, foreign, validator, tag: 'Divisions');
 
   @override

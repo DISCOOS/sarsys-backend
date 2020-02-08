@@ -29,7 +29,7 @@ Future main() async {
 //    expectResponse(
 //      await harness.agent.post("/api/trackings", body: body),
 //      400,
-//      body: 'Schema Tracking has 1 errors: /division/uuid: is read only',
+//      body: 'Schema Tracking has 1 errors: [/division: is read only]',
 //    );
 //  });
 //

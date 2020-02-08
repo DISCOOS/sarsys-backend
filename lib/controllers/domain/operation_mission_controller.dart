@@ -11,7 +11,7 @@ class OperationMissionController
   OperationMissionController(
     sar.OperationRepository primary,
     MissionRepository foreign,
-    RequestValidator validator,
+    JsonValidation validator,
   ) : super('missions', primary, foreign, validator, tag: 'Operations');
 
   @override

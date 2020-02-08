@@ -9,7 +9,7 @@ class IncidentSubjectController extends AggregateListController<SubjectCommand, 
   IncidentSubjectController(
     IncidentRepository primary,
     SubjectRepository foreign,
-    RequestValidator validator,
+    JsonValidation validator,
   ) : super('subjects', primary, foreign, validator, tag: "Incidents");
 
   @override

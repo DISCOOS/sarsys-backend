@@ -8,7 +8,7 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// A ResourceController that handles
 /// [/api/incidents/{uuid}/objectives](http://localhost/api/client.html#/Objective) requests
 class ObjectiveController extends EntityController<OperationCommand, sar.Operation> {
-  ObjectiveController(OperationRepository repository, RequestValidator validator)
+  ObjectiveController(OperationRepository repository, JsonValidation validator)
       : super(repository, "Objective", "objectives", validator: validator, tag: 'Operations');
 
   @override

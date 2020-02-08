@@ -29,7 +29,7 @@ Future main() async {
     expectResponse(
       await harness.agent.post("/api/divisions", body: body),
       400,
-      body: 'Schema Division has 1 errors: /organisation/uuid: is read only',
+      body: 'Schema Division has 1 errors: [/organisation: is read only]',
     );
   });
 

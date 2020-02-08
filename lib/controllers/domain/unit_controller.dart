@@ -6,7 +6,7 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// A ResourceController that handles
 /// [/api/incidents/{uuid}/units](http://localhost/api/client.html#/Unit) requests
 class UnitController extends AggregateController<UnitCommand, Unit> {
-  UnitController(UnitRepository repository, RequestValidator validator)
+  UnitController(UnitRepository repository, JsonValidation validator)
       : super(repository, validator: validator, readOnly: const ['operation'], tag: 'Units');
 
   @override

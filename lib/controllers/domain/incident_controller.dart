@@ -6,7 +6,7 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// A ResourceController that handles
 /// [/api/incidents](http://localhost/api/client.html#/Incident) requests
 class IncidentController extends AggregateController<IncidentCommand, Incident> {
-  IncidentController(IncidentRepository repository, RequestValidator validator)
+  IncidentController(IncidentRepository repository, JsonValidation validator)
       : super(repository, tag: "Incidents", readOnly: const ['clues'], validator: validator);
 
   @override
