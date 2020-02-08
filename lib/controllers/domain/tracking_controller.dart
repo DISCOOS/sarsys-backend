@@ -7,15 +7,25 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// [/api/incidents/{uuid}/Trackings](http://localhost/api/client.html#/Tracking) requests
 class TrackingController extends AggregateController<TrackingCommand, Tracking> {
   TrackingController(TrackingRepository repository, JsonValidation validation)
-      : super(repository,
-            validation: validation,
-            readOnly: const [
-              'devices',
-              'aggregates',
-              'history',
-              'tracks',
-            ],
-            tag: "Tracking");
+      : super(
+          repository,
+          validation: validation,
+          readOnly: const [
+            'devices',
+            'aggregates',
+            'history',
+            'tracks',
+          ],
+          validators: [
+            ValueValidator(
+              '/position/properties/type',
+              [
+                'manual',
+              ],
+            )
+          ],
+          tag: "Tracking",
+        );
 
   @override
   TrackingCommand onCreate(Map<String, dynamic> data) => CreateTracking(data);
