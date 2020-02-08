@@ -6,9 +6,9 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// A ResourceController that handles
 /// [/api/incidents/{uuid}/Trackings](http://localhost/api/client.html#/Tracking) requests
 class TrackingController extends AggregateController<TrackingCommand, Tracking> {
-  TrackingController(TrackingRepository repository, JsonValidation validator)
+  TrackingController(TrackingRepository repository, JsonValidation validation)
       : super(repository,
-            validation: validator,
+            validation: validation,
             readOnly: const [
               'devices',
               'aggregates',

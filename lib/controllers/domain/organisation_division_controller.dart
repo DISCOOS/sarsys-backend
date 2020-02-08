@@ -10,8 +10,8 @@ class OrganisationDivisionController
   OrganisationDivisionController(
     OrganisationRepository primary,
     DivisionRepository foreign,
-    JsonValidation validator,
-  ) : super('divisions', primary, foreign, validator, tag: 'Organisations');
+    JsonValidation validation,
+  ) : super('divisions', primary, foreign, validation, tag: 'Organisations');
 
   @override
   CreateDivision onCreate(String uuid, Map<String, dynamic> data) => CreateDivision(data);

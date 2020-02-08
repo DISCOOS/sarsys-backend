@@ -7,10 +7,10 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// A ResourceController that handles
 /// [/api/operations](http://localhost/api/client.html#/Operation) requests
 class OperationController extends AggregateController<sar.OperationCommand, sar.Operation> {
-  OperationController(OperationRepository repository, JsonValidation validator)
+  OperationController(OperationRepository repository, JsonValidation validation)
       : super(
           repository,
-          validation: validator,
+          validation: validation,
           readOnly: const ['incident', 'objectives', 'talkgroups'],
           tag: 'Operations',
         );

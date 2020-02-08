@@ -6,8 +6,8 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// A ResourceController that handles
 /// [/api/incidents](http://localhost/api/client.html#/Incident) requests
 class IncidentController extends AggregateController<IncidentCommand, Incident> {
-  IncidentController(IncidentRepository repository, JsonValidation validator)
-      : super(repository, tag: "Incidents", readOnly: const ['clues'], validation: validator);
+  IncidentController(IncidentRepository repository, JsonValidation validation)
+      : super(repository, tag: "Incidents", readOnly: const ['clues'], validation: validation);
 
   @override
   IncidentCommand onCreate(Map<String, dynamic> data) => RegisterIncident(data);

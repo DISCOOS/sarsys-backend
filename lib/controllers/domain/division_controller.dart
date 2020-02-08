@@ -6,8 +6,8 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// A ResourceController that handles
 /// [/api/incidents/{uuid}/Divisions](http://localhost/api/client.html#/Division) requests
 class DivisionController extends AggregateController<DivisionCommand, Division> {
-  DivisionController(DivisionRepository repository, JsonValidation validator)
-      : super(repository, validation: validator, readOnly: const ['organisation'], tag: "Divisions");
+  DivisionController(DivisionRepository repository, JsonValidation validation)
+      : super(repository, validation: validation, readOnly: const ['organisation'], tag: "Divisions");
 
   @override
   DivisionCommand onCreate(Map<String, dynamic> data) => CreateDivision(data);

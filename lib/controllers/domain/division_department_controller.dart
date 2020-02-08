@@ -10,8 +10,8 @@ class DivisionDepartmentController
   DivisionDepartmentController(
     DivisionRepository primary,
     DepartmentRepository foreign,
-    JsonValidation validator,
-  ) : super('departments', primary, foreign, validator, tag: 'Divisions');
+    JsonValidation validation,
+  ) : super('departments', primary, foreign, validation, tag: 'Divisions');
 
   @override
   CreateDepartment onCreate(String uuid, Map<String, dynamic> data) => CreateDepartment(data);

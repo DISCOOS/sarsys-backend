@@ -79,13 +79,31 @@ abstract class Validator {
           if (parent.containsKey(name)) {
             return parent[name] is Map<String, dynamic> ? parent[name] : true;
           }
-          return false;
         }
         return false;
       });
       return !(found == false || found == data);
     }
     return data.containsKey(field);
+  }
+
+  dynamic getValue(dynamic data, String ref) {
+    dynamic found;
+    final parts = ref.split('/');
+    if (data is Map<String, dynamic>) {
+      found = parts.skip(parts.first.isEmpty ? 1 : 0).fold(data, (parent, name) {
+        if (parent is Map<String, dynamic>) {
+          if (parent.containsKey(name)) {
+            return parent[name];
+          }
+        }
+        return parent[name];
+      });
+    }
+    if (found == null) {
+      throw SchemaException("Path $ref not found");
+    }
+    return found;
   }
 }
 
@@ -108,6 +126,18 @@ class ReadOnlyValidator extends Validator {
       );
     }
     return errors;
+  }
+}
+
+class ValueValidator extends Validator {
+  ValueValidator(this.path, this.values);
+  final String path;
+  final List<dynamic> values;
+
+  @override
+  List<ValidationError> call(String type, dynamic data, JsonValidation validation) {
+    final found = getValue(data, path);
+    return values.contains(found) ? [] : [_ValidationError(path, 'illegal value: $found, accepts: $values', path)];
   }
 }
 

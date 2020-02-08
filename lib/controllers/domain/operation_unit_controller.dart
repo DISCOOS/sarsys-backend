@@ -9,8 +9,8 @@ class OperationUnitController extends AggregateListController<UnitCommand, Unit,
   OperationUnitController(
     sar.OperationRepository primary,
     UnitRepository foreign,
-    JsonValidation validator,
-  ) : super('units', primary, foreign, validator, tag: 'Operations');
+    JsonValidation validation,
+  ) : super('units', primary, foreign, validation, tag: 'Operations');
 
   @override
   CreateUnit onCreate(String uuid, Map<String, dynamic> data) => CreateUnit(data);

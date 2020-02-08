@@ -6,10 +6,10 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// A ResourceController that handles
 /// [/api/incidents/{uuid}/personnels](http://localhost/api/client.html#/Mission) requests
 class MissionController extends AggregateController<MissionCommand, Mission> {
-  MissionController(MissionRepository repository, JsonValidation validator)
+  MissionController(MissionRepository repository, JsonValidation validation)
       : super(
           repository,
-          validation: validator,
+          validation: validation,
           readOnly: const ['operation', 'parts', 'results'],
           tag: 'Missions',
         );
