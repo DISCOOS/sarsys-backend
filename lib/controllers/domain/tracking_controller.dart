@@ -8,7 +8,7 @@ import 'package:sarsys_app_server/validation/validation.dart';
 class TrackingController extends AggregateController<TrackingCommand, Tracking> {
   TrackingController(TrackingRepository repository, JsonValidation validator)
       : super(repository,
-            validator: validator,
+            validation: validator,
             readOnly: const [
               'devices',
               'aggregates',

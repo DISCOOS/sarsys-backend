@@ -7,7 +7,7 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// [/api/incidents/{uuid}/Departments](http://localhost/api/client.html#/Department) requests
 class DepartmentController extends AggregateController<DepartmentCommand, Department> {
   DepartmentController(DepartmentRepository repository, JsonValidation validator)
-      : super(repository, validator: validator, readOnly: const ['division'], tag: "Departments");
+      : super(repository, validation: validator, readOnly: const ['division'], tag: "Departments");
 
   @override
   DepartmentCommand onCreate(Map<String, dynamic> data) => CreateDepartment(data);

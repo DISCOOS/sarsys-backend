@@ -7,7 +7,7 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// [/api/incidents/{uuid}/personnels](http://localhost/api/client.html#/Personnel) requests
 class PersonnelController extends AggregateController<PersonnelCommand, Personnel> {
   PersonnelController(PersonnelRepository repository, JsonValidation validator)
-      : super(repository, validator: validator, readOnly: const ['operation'], tag: 'Personnels');
+      : super(repository, validation: validator, readOnly: const ['operation'], tag: 'Personnels');
 
   @override
   PersonnelCommand onCreate(Map<String, dynamic> data) => CreatePersonnel(data);

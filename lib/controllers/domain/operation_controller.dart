@@ -10,7 +10,7 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
   OperationController(OperationRepository repository, JsonValidation validator)
       : super(
           repository,
-          validator: validator,
+          validation: validator,
           readOnly: const ['incident', 'objectives', 'talkgroups'],
           tag: 'Operations',
         );

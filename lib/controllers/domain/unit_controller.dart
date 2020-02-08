@@ -7,7 +7,7 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// [/api/incidents/{uuid}/units](http://localhost/api/client.html#/Unit) requests
 class UnitController extends AggregateController<UnitCommand, Unit> {
   UnitController(UnitRepository repository, JsonValidation validator)
-      : super(repository, validator: validator, readOnly: const ['operation'], tag: 'Units');
+      : super(repository, validation: validator, readOnly: const ['operation'], tag: 'Units');
 
   @override
   UnitCommand onCreate(Map<String, dynamic> data) => CreateUnit(data);

@@ -18,7 +18,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
     String field,
     this.primary,
     Repository<R, S> foreign,
-    this.validator, {
+    this.validation, {
     String tag,
     this.readOnly = const [],
   }) : super(field, primary, foreign, tag: tag);
@@ -27,7 +27,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
   final List<String> readOnly;
 
   @override
-  final JsonValidation validator;
+  final JsonValidation validation;
 
   @override
   final Repository<T, U> primary;

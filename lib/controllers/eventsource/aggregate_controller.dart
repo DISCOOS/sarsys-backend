@@ -9,7 +9,13 @@ import 'mixins.dart';
 /// A basic CRUD ResourceController for [AggregateRoot] requests
 abstract class AggregateController<S extends Command, T extends AggregateRoot> extends ResourceController
     with RequestValidatorMixin {
-  AggregateController(this.repository, {this.tag, this.validator, this.readOnly = const []});
+  AggregateController(
+    this.repository, {
+    this.tag,
+    this.validation,
+    this.readOnly = const [],
+    this.validators = const [],
+  });
 
   final String tag;
   final Repository<S, T> repository;
@@ -18,7 +24,10 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   final List<String> readOnly;
 
   @override
-  final JsonValidation validator;
+  final List<Validator> validators;
+
+  @override
+  final JsonValidation validation;
 
   Type get aggregateType => typeOf<T>();
 

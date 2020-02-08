@@ -9,7 +9,7 @@ class OrganisationController extends AggregateController<OrganisationCommand, Or
   OrganisationController(
     OrganisationRepository organisations,
     JsonValidation validator,
-  ) : super(organisations, validator: validator, tag: 'Organisations');
+  ) : super(organisations, validation: validator, tag: 'Organisations');
 
   @override
   OrganisationCommand onCreate(Map<String, dynamic> data) => CreateOrganisation(data);

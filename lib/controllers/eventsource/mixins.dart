@@ -2,13 +2,14 @@ import 'package:sarsys_app_server/validation/validation.dart';
 
 mixin RequestValidatorMixin {
   List<String> readOnly;
-  JsonValidation validator;
-  List<ReadOnlyValidator> _validators;
+  JsonValidation validation;
+  List<Validator> validators;
+  List<Validator> _actual;
 
   Map<String, dynamic> validate(String type, Map<String, dynamic> data, {bool isPatch = false}) {
-    if (validator != null) {
-      _validators ??= [ReadOnlyValidator(readOnly)];
-      validator.validateBody("$type", data, isPatch: isPatch, validators: _validators);
+    if (validation != null) {
+      _actual ??= [ReadOnlyValidator(readOnly)]..addAll(validators ?? []);
+      validation.validateBody("$type", data, isPatch: isPatch, validators: _actual);
     }
     return data;
   }

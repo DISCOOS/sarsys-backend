@@ -9,7 +9,7 @@ class MissionController extends AggregateController<MissionCommand, Mission> {
   MissionController(MissionRepository repository, JsonValidation validator)
       : super(
           repository,
-          validator: validator,
+          validation: validator,
           readOnly: const ['operation', 'parts', 'results'],
           tag: 'Missions',
         );
