@@ -11,6 +11,7 @@ import 'controllers/system/controllers.dart';
 import 'controllers/tenant/controllers.dart';
 import 'controllers/websocket_controller.dart';
 import 'domain/department/department.dart';
+import 'domain/device/device.dart';
 import 'domain/division/division.dart';
 import 'domain/incident/incident.dart';
 import 'domain/messages.dart';
@@ -197,14 +198,16 @@ class SarSysAppServerChannel extends ApplicationChannel {
             manager.get<DepartmentRepository>(),
             requestValidator,
           ))
-
-      /// TODO: Implement move between divisions
       ..route('/api/departments[/:uuid]').link(() => DepartmentController(
             manager.get<DepartmentRepository>(),
             requestValidator,
           ))
       ..route('/api/trackings[/:uuid]').link(() => TrackingController(
             manager.get<TrackingRepository>(),
+            requestValidator,
+          ))
+      ..route('/api/devices[/:uuid]').link(() => DeviceController(
+            manager.get<DeviceRepository>(),
             requestValidator,
           ));
   }
@@ -295,6 +298,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     manager.register<Division>((manager) => DivisionRepository(manager));
     manager.register<sar.Operation>((manager) => sar.OperationRepository(manager));
     manager.register<Tracking>((manager) => TrackingRepository(manager));
+    manager.register<Device>((manager) => DeviceRepository(manager));
 
     // Defer repository builds so that isolates are not killed on eventstore connection timeouts
     Future.delayed(

@@ -295,3 +295,11 @@ Map<String, Object> createPosition() => {
         "type": "manual"
       }
     };
+
+Map<String, dynamic> createDevice(String uuid) => {
+      "uuid": "$uuid",
+      "name": "string",
+      "alias": "string",
+      "number": "string",
+      "position": createPosition(),
+    };

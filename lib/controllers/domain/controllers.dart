@@ -1,5 +1,6 @@
 export 'clue_controller.dart';
 export 'department_controller.dart';
+export 'device_controller.dart';
 export 'division_controller.dart';
 export 'incident_controller.dart';
 export 'incident_operation_controller.dart';
