@@ -125,7 +125,7 @@ Map<String, dynamic> createClue(int id) => {
       "type": "find",
       "quality": "confirmed",
       "location": {
-        "position": createPoint(),
+        "point": createPoint(),
         "address": createAddress(),
         "description": "string",
       }
@@ -140,18 +140,8 @@ Map<String, dynamic> createSubject(String uuid) => {
     };
 
 Map<String, dynamic> createPoint() => {
-      "type": "Feature",
-      "geometry": {
-        "type": "Point",
-        "coordinates": [0.0, 0.0]
-      },
-      "properties": {
-        "name": "string",
-        "description": "string",
-        "accuracy": 0,
-        "timestamp": DateTime.now().toIso8601String(),
-        "type": "manual"
-      }
+      "type": "Point",
+      "coordinates": [0.0, 0.0]
     };
 
 Map<String, String> createAddress() => {
@@ -185,7 +175,7 @@ Map<String, dynamic> createObjective(int id) => {
       "type": "locate",
       "location": [
         {
-          "position": createPoint(),
+          "point": createPoint(),
           "address": createAddress(),
           "description": "string",
         }
@@ -200,7 +190,7 @@ Map<String, dynamic> createTalkGroup(int id) => {
     };
 
 Map<String, dynamic> createLocation() => {
-      "position": createPoint(),
+      "point": createPoint(),
       "address": createAddress(),
       "description": "string",
     };
@@ -284,4 +274,24 @@ Map<String, dynamic> createDepartment(String uuid) => {
       "uuid": "$uuid",
       "name": "string",
       "alias": "string",
+    };
+
+Map<String, dynamic> createTracking(String uuid) => {
+      "uuid": "$uuid",
+      "position": createPosition(),
+    };
+
+Map<String, Object> createPosition() => {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [0.0, 0.0]
+      },
+      "properties": {
+        "name": "string",
+        "description": "string",
+        "accuracy": 0,
+        "timestamp": DateTime.now().toIso8601String(),
+        "type": "manual"
+      }
     };

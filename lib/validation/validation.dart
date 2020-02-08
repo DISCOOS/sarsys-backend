@@ -1,10 +1,13 @@
 import 'package:json_schema/json_schema.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 
+typedef Validator = List<ValidationError> Function(String type, dynamic data);
+
 class RequestValidator {
-  RequestValidator(this.specification);
+  RequestValidator(this.specification, {List<Validator> validators}) : validators = validators ?? [];
   final Map<String, dynamic> specification;
   final Map<String, JsonSchema> validating = {};
+  final List<Validator> validators;
 
   /// Validate OpenAPI schemas
   JsonSchema withSchema() {
@@ -38,10 +41,17 @@ class RequestValidator {
       throw SchemaException("Schema $type does not exist");
     }
     final schema = withSchema().resolvePath("#/components/schemas/$type");
+    // Validate Json Schema
     final errors = schema.validateWithErrors(data)
       ..removeWhere(
         (error) => error.message == 'uuid not supported as format',
       );
+
+    // Validate with custom validators
+    errors.addAll(
+      validators.fold([], (errors, validator) => List.of(errors)..addAll(validator(type, data))),
+    );
+
     if (isPatch) {
       errors.removeWhere((error) => error.message.contains('required prop missing:'));
     }

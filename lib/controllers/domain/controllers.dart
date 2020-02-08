@@ -15,4 +15,5 @@ export 'organisation_controller.dart';
 export 'personnel_controller.dart';
 export 'subject_controllers.dart';
 export 'talk_group_controller.dart';
+export 'tracking_controller.dart';
 export 'unit_controller.dart';

@@ -126,7 +126,7 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
   /// Location - Value object
   APISchemaObject documentLocation(APIDocumentContext context) => APISchemaObject.object(
         {
-          "position": context.schema['Position']..description = "Location position",
+          "point": context.schema['Point']..description = "Location point",
           "address": context.schema['Address']..description = "Location address",
           "description": APISchemaObject.string()..description = "Location description",
         },
@@ -134,7 +134,7 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
         ..description = "Location Schema (value object)"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
-          'position',
+          'point',
         ];
 
   /// Address - Value object
