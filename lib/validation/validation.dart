@@ -55,7 +55,7 @@ class JsonValidation {
         [],
         (errors, validator) => List.of(errors)
           ..addAll(
-            validator(type, data, this),
+            validator(type, data, this, isPatch: isPatch),
           ),
       ),
     );
@@ -70,7 +70,7 @@ class JsonValidation {
 }
 
 abstract class Validator {
-  List<ValidationError> call(String type, dynamic data, JsonValidation validation);
+  List<ValidationError> call(String type, dynamic data, JsonValidation validation, {bool isPatch});
   bool hasField(Map<String, dynamic> data, String field) {
     final parts = field.split('/');
     if (parts.isNotEmpty) {
@@ -97,11 +97,8 @@ abstract class Validator {
             return parent[name];
           }
         }
-        return parent[name];
+        return (parent ?? {})[name];
       });
-    }
-    if (found == null) {
-      throw SchemaException("Path $ref not found");
     }
     return found;
   }
@@ -112,7 +109,7 @@ class ReadOnlyValidator extends Validator {
   final List<String> _readOnly;
 
   @override
-  List<ValidationError> call(String type, dynamic data, JsonValidation validation) {
+  List<ValidationError> call(String type, dynamic data, JsonValidation validation, {bool isPatch}) {
     final errors = <_ValidationError>[];
     if (data is Map<String, dynamic>) {
       errors.addAll(
@@ -130,14 +127,17 @@ class ReadOnlyValidator extends Validator {
 }
 
 class ValueValidator extends Validator {
-  ValueValidator(this.path, this.values);
+  ValueValidator(this.path, this.values, {this.required = true});
   final String path;
+  final bool required;
   final List<dynamic> values;
 
   @override
-  List<ValidationError> call(String type, dynamic data, JsonValidation validation) {
+  List<ValidationError> call(String type, dynamic data, JsonValidation validation, {bool isPatch}) {
     final found = getValue(data, path);
-    return values.contains(found) ? [] : [_ValidationError(path, 'illegal value: $found, accepts: $values', path)];
+    return isPatch || !(required && found == null) && values.contains(found)
+        ? []
+        : [_ValidationError(path, 'illegal value: $found, accepts: $values', path)];
   }
 }
 

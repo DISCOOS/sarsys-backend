@@ -19,9 +19,7 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
           validators: [
             ValueValidator(
               '/position/properties/type',
-              [
-                'manual',
-              ],
+              ['manual'],
             )
           ],
           tag: "Tracking",
