@@ -1,4 +1,5 @@
 import 'package:sarsys_app_server/controllers/eventsource/entity_controller.dart';
+import 'package:sarsys_app_server/domain/device/device.dart';
 import 'package:sarsys_app_server/domain/incident/incident.dart';
 import 'package:sarsys_app_server/domain/mission/mission.dart';
 import 'package:sarsys_app_server/domain/operation/operation.dart' as sar;
@@ -120,6 +121,30 @@ class UnitMessageController extends EntityController<UnitCommand, Unit> {
 
   @override
   UnitCommand onDelete(String uuid, String type, Map<String, dynamic> data) => RemoveUnitMessage(uuid, data);
+
+  //////////////////////////////////
+  // Documentation
+  //////////////////////////////////
+
+  /// Message - Entity object
+  @override
+  APISchemaObject documentEntityObject(APIDocumentContext context) => context.schema[entityType];
+}
+
+/// A ResourceController that handles
+/// [/api/devices/{uuid}/messages](http://localhost/api/client.html#/Message) requests
+class DeviceMessageController extends EntityController<DeviceCommand, Device> {
+  DeviceMessageController(DeviceRepository repository, JsonValidation validation)
+      : super(repository, "Message", "messages", validation: validation, tag: "Devices > Messages");
+
+  @override
+  DeviceCommand onCreate(String uuid, String type, Map<String, dynamic> data) => AddDeviceMessage(uuid, data);
+
+  @override
+  DeviceCommand onUpdate(String uuid, String type, Map<String, dynamic> data) => UpdateDeviceMessage(uuid, data);
+
+  @override
+  DeviceCommand onDelete(String uuid, String type, Map<String, dynamic> data) => RemoveDeviceMessage(uuid, data);
 
   //////////////////////////////////
   // Documentation

@@ -43,3 +43,46 @@ class DeviceDeleted extends DomainEvent {
           data: data,
         );
 }
+
+//////////////////////////////////
+// Device Message Domain Events
+//////////////////////////////////
+
+class DeviceMessageAdded extends DomainEvent {
+  DeviceMessageAdded({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$DeviceMessageAdded",
+          created: created,
+          data: data,
+        );
+}
+
+class DeviceMessageUpdated extends DomainEvent {
+  DeviceMessageUpdated({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$DeviceMessageUpdated",
+          created: created,
+          data: data,
+        );
+}
+
+class DeviceMessageRemoved extends DomainEvent {
+  DeviceMessageRemoved({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$DeviceMessageRemoved",
+          created: created,
+          data: data,
+        );
+}

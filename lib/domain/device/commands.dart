@@ -31,3 +31,45 @@ class DeleteDevice extends DeviceCommand<DeviceDeleted> {
     Map<String, dynamic> data,
   ) : super(Action.delete, data: data);
 }
+
+//////////////////////////////////
+// Device Message entity commands
+//////////////////////////////////
+
+class DeviceMessageCommand<T extends DomainEvent> extends DeviceCommand<T> implements EntityCommand<T> {
+  DeviceMessageCommand(
+    Action action,
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(action, uuid: uuid, data: data);
+
+  @override
+  String get aggregateField => "messages";
+
+  @override
+  int get entityId => data[entityIdFieldName] as int;
+
+  @override
+  String get entityIdFieldName => 'id';
+}
+
+class AddDeviceMessage extends DeviceMessageCommand<DeviceMessageAdded> {
+  AddDeviceMessage(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.create, uuid, data);
+}
+
+class UpdateDeviceMessage extends DeviceMessageCommand<DeviceMessageUpdated> {
+  UpdateDeviceMessage(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.update, uuid, data);
+}
+
+class RemoveDeviceMessage extends DeviceMessageCommand<DeviceMessageRemoved> {
+  RemoveDeviceMessage(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.delete, uuid, data);
+}

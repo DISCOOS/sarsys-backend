@@ -229,6 +229,10 @@ class SarSysAppServerChannel extends ApplicationChannel {
       ..route('/api/devices[/:uuid]').link(() => DeviceController(
             manager.get<DeviceRepository>(),
             requestValidator,
+          ))
+      ..route('/api/devices/:uuid/messages[/:id]').link(() => DeviceMessageController(
+            manager.get<DeviceRepository>(),
+            requestValidator,
           ));
   }
 

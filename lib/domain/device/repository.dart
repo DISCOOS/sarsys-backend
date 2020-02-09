@@ -22,6 +22,21 @@ class DeviceRepository extends Repository<DeviceCommand, Device> {
                 data: event.data,
                 created: event.created,
               ),
+          DeviceMessageAdded: (event) => DeviceMessageAdded(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          DeviceMessageUpdated: (event) => DeviceMessageUpdated(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          DeviceMessageRemoved: (event) => DeviceMessageRemoved(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
         });
 
   @override
