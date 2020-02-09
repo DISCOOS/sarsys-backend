@@ -300,6 +300,7 @@ Map<String, dynamic> createDevice(String uuid) => {
       "uuid": "$uuid",
       "name": "string",
       "alias": "string",
-      "number": "string",
+      "network": "string",
+      "networkId": "string",
       "position": createPosition(),
     };
