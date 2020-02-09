@@ -30,6 +30,7 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
           "name": APISchemaObject.string()..description = "Name of incident scene",
           "summary": APISchemaObject.string()..description = "Situation summary",
           "type": documentType(),
+          "exercise": APISchemaObject.boolean()..description = "Exercise flag",
           "status": documentStatus(),
           "resolution": documentResolution(),
           "transitions": documentTransitions(),
