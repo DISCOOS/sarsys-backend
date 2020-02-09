@@ -82,3 +82,46 @@ class PersonnelDeleted extends DomainEvent {
           data: data,
         );
 }
+
+//////////////////////////////////
+// Personnel Message Domain Events
+//////////////////////////////////
+
+class PersonnelMessageAdded extends DomainEvent {
+  PersonnelMessageAdded({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$PersonnelMessageAdded",
+          created: created,
+          data: data,
+        );
+}
+
+class PersonnelMessageUpdated extends DomainEvent {
+  PersonnelMessageUpdated({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$PersonnelMessageUpdated",
+          created: created,
+          data: data,
+        );
+}
+
+class PersonnelMessageRemoved extends DomainEvent {
+  PersonnelMessageRemoved({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$PersonnelMessageRemoved",
+          created: created,
+          data: data,
+        );
+}

@@ -37,6 +37,21 @@ class PersonnelRepository extends Repository<PersonnelCommand, Personnel> {
                 data: event.data,
                 created: event.created,
               ),
+          PersonnelMessageAdded: (event) => PersonnelMessageAdded(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          PersonnelMessageUpdated: (event) => PersonnelMessageUpdated(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          PersonnelMessageRemoved: (event) => PersonnelMessageRemoved(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
         });
 
   @override

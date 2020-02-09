@@ -43,3 +43,45 @@ class DeletePersonnel extends PersonnelCommand<PersonnelDeployed> {
     Map<String, dynamic> data,
   ) : super(Action.delete, data: data);
 }
+
+//////////////////////////////////
+// Personnel Message entity commands
+//////////////////////////////////
+
+class PersonnelMessageCommand<T extends DomainEvent> extends PersonnelCommand<T> implements EntityCommand<T> {
+  PersonnelMessageCommand(
+    Action action,
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(action, uuid: uuid, data: data);
+
+  @override
+  String get aggregateField => "messages";
+
+  @override
+  int get entityId => data[entityIdFieldName] as int;
+
+  @override
+  String get entityIdFieldName => 'id';
+}
+
+class AddPersonnelMessage extends PersonnelMessageCommand<PersonnelMessageAdded> {
+  AddPersonnelMessage(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.create, uuid, data);
+}
+
+class UpdatePersonnelMessage extends PersonnelMessageCommand<PersonnelMessageUpdated> {
+  UpdatePersonnelMessage(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.update, uuid, data);
+}
+
+class RemovePersonnelMessage extends PersonnelMessageCommand<PersonnelMessageRemoved> {
+  RemovePersonnelMessage(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.delete, uuid, data);
+}
