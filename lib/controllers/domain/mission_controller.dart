@@ -87,7 +87,8 @@ class MissionController extends AggregateController<MissionCommand, Mission> {
       'created',
       'planned',
       'assigned',
-      'executed',
+      'inprogress',
+      'completed',
     ];
 
   /// Mission Priority - Value Object
