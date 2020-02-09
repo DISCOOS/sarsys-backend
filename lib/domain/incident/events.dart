@@ -177,3 +177,46 @@ class ClueRemoved extends DomainEvent {
           data: data,
         );
 }
+
+//////////////////////////////////
+// Incident Message Domain Events
+//////////////////////////////////
+
+class IncidentMessageAdded extends DomainEvent {
+  IncidentMessageAdded({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$IncidentMessageAdded",
+          created: created,
+          data: data,
+        );
+}
+
+class IncidentMessageUpdated extends DomainEvent {
+  IncidentMessageUpdated({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$IncidentMessageUpdated",
+          created: created,
+          data: data,
+        );
+}
+
+class IncidentMessageRemoved extends DomainEvent {
+  IncidentMessageRemoved({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$IncidentMessageRemoved",
+          created: created,
+          data: data,
+        );
+}

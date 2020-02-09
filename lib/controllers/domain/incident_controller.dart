@@ -7,7 +7,14 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// [/api/incidents](http://localhost/api/client.html#/Incident) requests
 class IncidentController extends AggregateController<IncidentCommand, Incident> {
   IncidentController(IncidentRepository repository, JsonValidation validation)
-      : super(repository, tag: "Incidents", readOnly: const ['clues'], validation: validation);
+      : super(repository,
+            tag: "Incidents",
+            readOnly: const [
+              'clues',
+              'messages',
+              'transitions',
+            ],
+            validation: validation);
 
   @override
   IncidentCommand onCreate(Map<String, dynamic> data) => RegisterIncident(data);
@@ -44,6 +51,9 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
             ..description = "List of uuids of Subjects impacted by this Incident",
           "operations": APISchemaObject.array(ofSchema: context.schema['UUID'])
             ..description = "List of uuids of Operations responding to this Incident",
+          "messages": APISchemaObject.array(ofSchema: context.schema['Message'])
+            ..isReadOnly = true
+            ..description = "List of messages added to Incident",
         },
       )
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed

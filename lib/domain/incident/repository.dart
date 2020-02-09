@@ -66,6 +66,21 @@ class IncidentRepository extends Repository<IncidentCommand, Incident> implement
                 uuid: event.uuid,
                 data: event.data,
                 created: event.created,
+              ),
+          IncidentMessageAdded: (event) => IncidentMessageAdded(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          IncidentMessageUpdated: (event) => IncidentMessageUpdated(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          IncidentMessageRemoved: (event) => IncidentMessageRemoved(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
               )
         });
 

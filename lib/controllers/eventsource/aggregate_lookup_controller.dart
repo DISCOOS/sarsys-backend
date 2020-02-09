@@ -77,12 +77,15 @@ class AggregateLookupController<T extends AggregateRoot> extends ResourceControl
     final operations = super.documentOperations(context, route, path);
     return operations.map((key, method) => MapEntry(
           key,
-          APIOperation("${method.id}${capitalize(field)}", method.responses,
-              summary: method.summary,
-              description: method.description,
-              parameters: method.parameters,
-              requestBody: method.requestBody,
-              tags: method.tags),
+          APIOperation(
+            "${method.id}${capitalize(field)}",
+            method.responses,
+            summary: method.summary,
+            description: method.description,
+            parameters: method.parameters,
+            requestBody: method.requestBody,
+            tags: method.tags,
+          ),
         ));
   }
 

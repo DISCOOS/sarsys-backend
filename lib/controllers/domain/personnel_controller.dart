@@ -7,7 +7,14 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// [/api/incidents/{uuid}/personnels](http://localhost/api/client.html#/Personnel) requests
 class PersonnelController extends AggregateController<PersonnelCommand, Personnel> {
   PersonnelController(PersonnelRepository repository, JsonValidation validation)
-      : super(repository, validation: validation, readOnly: const ['operation'], tag: 'Personnels');
+      : super(repository,
+            validation: validation,
+            readOnly: const [
+              'operation',
+              'messages',
+              'transitions',
+            ],
+            tag: 'Personnels');
 
   @override
   PersonnelCommand onCreate(Map<String, dynamic> data) => CreatePersonnel(data);
@@ -37,11 +44,10 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
           "affiliation": context.schema["Affiliation"],
           "status": documentStatus(),
           "transitions": documentTransitions(),
-          /* TODO: Make Tracking an Value Object in ReadModel - manage tracking uuid internally
-          "tracking": APISchemaObject.string()
-            ..format = 'uuid'
-            ..description = "Tracking Uuid of this unit",
-           */
+          "tracking": context.schema['UUID'],
+          "messages": APISchemaObject.array(ofSchema: context.schema['Message'])
+            ..isReadOnly = true
+            ..description = "List of messages added to Personnel",
         },
       )
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed

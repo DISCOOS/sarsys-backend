@@ -304,3 +304,10 @@ Map<String, dynamic> createDevice(String uuid) => {
       "networkId": "string",
       "position": createPosition(),
     };
+
+Map<String, dynamic> createMessage(int id) => {
+      "id": id,
+      "type": "clue",
+      "subject": "string",
+      "body": {"additionalProp1": {}}
+    };

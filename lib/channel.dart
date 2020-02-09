@@ -125,13 +125,17 @@ class SarSysAppServerChannel extends ApplicationChannel {
             manager.get<SubjectRepository>(),
             requestValidator,
           ))
+      ..route('/api/incidents/:uuid/clues[/:id]').link(() => ClueController(
+            manager.get<IncidentRepository>(),
+            requestValidator,
+          ))
+      ..route('/api/incidents/:uuid/messages[/:id]').link(() => IncidentMessageController(
+            manager.get<IncidentRepository>(),
+            requestValidator,
+          ))
       ..route('/api/incidents/:uuid/operations').link(() => IncidentOperationsController(
             manager.get<IncidentRepository>(),
             manager.get<sar.OperationRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/incidents/:uuid/clues[/:id]').link(() => ClueController(
-            manager.get<IncidentRepository>(),
             requestValidator,
           ))
       ..route('/api/subjects[/:uuid]').link(() => SubjectController(
@@ -158,6 +162,10 @@ class SarSysAppServerChannel extends ApplicationChannel {
       ..route('/api/operations/:uuid/units').link(() => OperationUnitController(
             manager.get<sar.OperationRepository>(),
             manager.get<UnitRepository>(),
+            requestValidator,
+          ))
+      ..route('/api/operations/:uuid/messages[/:id]').link(() => OperationMessageController(
+            manager.get<sar.OperationRepository>(),
             requestValidator,
           ))
       ..route('/api/missions[/:uuid]').link(() => MissionController(
@@ -526,5 +534,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
     ..register("FeatureCollection", documentFeatureCollection(context))
     ..register("Circle", documentCircle(context))
     ..register("Rectangle", documentRectangle(context))
-    ..register("Position", documentPosition(context));
+    ..register("Position", documentPosition(context))
+    ..register("Message", documentMessage(context));
 }

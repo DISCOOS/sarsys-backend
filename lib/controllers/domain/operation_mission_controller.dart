@@ -12,7 +12,7 @@ class OperationMissionController
     sar.OperationRepository primary,
     MissionRepository foreign,
     JsonValidation validation,
-  ) : super('missions', primary, foreign, validation, tag: 'Operations');
+  ) : super('missions', primary, foreign, validation, tag: 'Operations > Missions');
 
   @override
   CreateMission onCreate(String uuid, Map<String, dynamic> data) => CreateMission(data);

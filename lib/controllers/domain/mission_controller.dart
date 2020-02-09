@@ -10,7 +10,13 @@ class MissionController extends AggregateController<MissionCommand, Mission> {
       : super(
           repository,
           validation: validation,
-          readOnly: const ['operation', 'parts', 'results'],
+          readOnly: const [
+            'operation',
+            'parts',
+            'results',
+            'transitions',
+            'messages',
+          ],
           tag: 'Missions',
         );
 
@@ -49,6 +55,9 @@ class MissionController extends AggregateController<MissionCommand, Mission> {
             ..description = "Points, linestrings, rectangles and circles describing the results"
             ..isReadOnly = true,
           "assignedTo": context.schema['UUID']..description = "Uuid of unit assigned to mission",
+          "messages": APISchemaObject.array(ofSchema: context.schema['Message'])
+            ..isReadOnly = true
+            ..description = "List of messages added to Mission",
         },
       )
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed

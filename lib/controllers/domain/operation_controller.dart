@@ -11,7 +11,13 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
       : super(
           repository,
           validation: validation,
-          readOnly: const ['incident', 'objectives', 'talkgroups'],
+          readOnly: const [
+            'incident',
+            'objectives',
+            'talkgroups',
+            'messages',
+            'transitions',
+          ],
           tag: 'Operations',
         );
 
@@ -61,6 +67,9 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
           "personnels": APISchemaObject.array(ofSchema: context.schema['UUID'])
             ..description = "List of uuid of Personnels mobilized for this operation",
           "passcodes": context.schema['PassCodes']..description = "Passcodes for Operation access rights",
+          "messages": APISchemaObject.array(ofSchema: context.schema['Message'])
+            ..isReadOnly = true
+            ..description = "List of messages added to Operation",
         },
       )
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed

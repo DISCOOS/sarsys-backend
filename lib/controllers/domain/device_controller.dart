@@ -1,3 +1,4 @@
+import 'package:sarsys_app_server/controllers/domain/schemas.dart';
 import 'package:sarsys_app_server/controllers/eventsource/aggregate_controller.dart';
 import 'package:sarsys_app_server/domain/device/device.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
@@ -7,7 +8,14 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// [/api/incidents/{uuid}/Devices](http://localhost/api/client.html#/Device) requests
 class DeviceController extends AggregateController<DeviceCommand, Device> {
   DeviceController(DeviceRepository repository, JsonValidation validation)
-      : super(repository, validation: validation, readOnly: const ['division'], tag: "Devices");
+      : super(repository,
+            validation: validation,
+            readOnly: const [
+              'division',
+              'messages',
+              'transitions',
+            ],
+            tag: "Devices");
 
   @override
   DeviceCommand onCreate(Map<String, dynamic> data) => CreateDevice(data);
@@ -33,24 +41,16 @@ class DeviceController extends AggregateController<DeviceCommand, Device> {
         "networkId": APISchemaObject.string()..description = "Device identifier on network",
         "position": context.schema['Position']..description = "Current position",
         "assignedTo": context.schema['UUID']..description = "Uuid of unit assigned to mission",
-        "transitions": documentTransition(),
+        "transitions": documentTransitions(),
+        "messages": APISchemaObject.array(ofSchema: context.schema['Message'])
+          ..isReadOnly = true
+          ..description = "List of messages added to Device",
       })
         ..description = "Device Schema (aggregate root)"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
           'uuid',
         ];
-
-  APISchemaObject documentTransition() => APISchemaObject.array(ofType: APIType.object)
-    ..items = APISchemaObject.object({
-      "status": documentStatus(),
-      "timestamp": APISchemaObject.string()
-        ..description = "When transition occured"
-        ..format = 'date-time',
-    })
-    ..isReadOnly = true
-    ..description = "State transitions (read only)"
-    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
 
   /// DeviceStatus - Value Object
   APISchemaObject documentStatus() => APISchemaObject.string()
@@ -75,4 +75,16 @@ class DeviceController extends AggregateController<DeviceCommand, Device> {
       'spot',
       'inreach',
     ];
+
+  /// Device transitions - Value Object
+  APISchemaObject documentTransitions() => APISchemaObject.array(ofType: APIType.object)
+    ..items = APISchemaObject.object({
+      "status": documentStatus(),
+      "timestamp": APISchemaObject.string()
+        ..description = "When transition occured"
+        ..format = 'date-time',
+    })
+    ..isReadOnly = true
+    ..description = "State transitions (read only)"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
 }

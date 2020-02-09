@@ -1,6 +1,7 @@
 import 'package:sarsys_app_server/eventsource/eventsource.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
+import 'package:strings/strings.dart';
 
 import 'mixins.dart';
 
@@ -276,6 +277,23 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
         break;
     }
     return responses;
+  }
+
+  @override
+  Map<String, APIOperation> documentOperations(APIDocumentContext context, String route, APIPath path) {
+    final operations = super.documentOperations(context, route, path);
+    return operations.map((key, method) => MapEntry(
+          key,
+          APIOperation(
+            "${method.id}${capitalize(entityType)}",
+            method.responses,
+            summary: method.summary,
+            description: method.description,
+            parameters: method.parameters,
+            requestBody: method.requestBody,
+            tags: method.tags,
+          ),
+        ));
   }
 
   @override

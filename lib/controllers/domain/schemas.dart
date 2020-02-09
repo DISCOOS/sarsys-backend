@@ -211,3 +211,24 @@ APISchemaObject documentPositionType() => APISchemaObject.string()
     'personnel',
     'aggregated',
   ];
+
+APISchemaObject documentMessage(APIDocumentContext context) => APISchemaObject.object({
+      "id": context.schema['ID']..description = "Message id (unique in aggregate only)",
+      "type": documentMessageType(),
+      "subject": APISchemaObject.string()..description = "Message subject",
+      "body": APISchemaObject.freeForm()..description = "Message body",
+    })
+      ..description = "GeoJSON FeatureCollection";
+
+APISchemaObject documentMessageType() => APISchemaObject.string()
+  ..description = "Message type"
+  ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+  ..enumerated = [
+    'clue',
+    'general',
+    'objective',
+    'personnel',
+    'device',
+    'subject',
+    'unit',
+  ];

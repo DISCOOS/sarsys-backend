@@ -160,3 +160,45 @@ class RemoveTalkGroup extends TalkGroupCommand<TalkGroupRemoved> {
     Map<String, dynamic> data,
   ) : super(Action.delete, uuid, data);
 }
+
+//////////////////////////////////
+// Incident Message entity commands
+//////////////////////////////////
+
+class OperationMessageCommand<T extends DomainEvent> extends OperationCommand<T> implements EntityCommand<T> {
+  OperationMessageCommand(
+    Action action,
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(action, uuid: uuid, data: data);
+
+  @override
+  String get aggregateField => "messages";
+
+  @override
+  int get entityId => data[entityIdFieldName] as int;
+
+  @override
+  String get entityIdFieldName => 'id';
+}
+
+class AddOperationMessage extends OperationMessageCommand<OperationMessageAdded> {
+  AddOperationMessage(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.create, uuid, data);
+}
+
+class UpdateOperationMessage extends OperationMessageCommand<OperationMessageUpdated> {
+  UpdateOperationMessage(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.update, uuid, data);
+}
+
+class RemoveOperationMessage extends OperationMessageCommand<OperationMessageRemoved> {
+  RemoveOperationMessage(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.delete, uuid, data);
+}

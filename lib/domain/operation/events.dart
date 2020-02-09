@@ -220,3 +220,46 @@ class TalkGroupRemoved extends DomainEvent {
           data: data,
         );
 }
+
+//////////////////////////////////
+// Operation Message Domain Events
+//////////////////////////////////
+
+class OperationMessageAdded extends DomainEvent {
+  OperationMessageAdded({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$OperationMessageAdded",
+          created: created,
+          data: data,
+        );
+}
+
+class OperationMessageUpdated extends DomainEvent {
+  OperationMessageUpdated({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$OperationMessageUpdated",
+          created: created,
+          data: data,
+        );
+}
+
+class OperationMessageRemoved extends DomainEvent {
+  OperationMessageRemoved({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$OperationMessageRemoved",
+          created: created,
+          data: data,
+        );
+}

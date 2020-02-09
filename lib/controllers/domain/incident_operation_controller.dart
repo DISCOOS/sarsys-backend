@@ -10,7 +10,7 @@ class IncidentOperationsController
     IncidentRepository primary,
     sar.OperationRepository foreign,
     JsonValidation validation,
-  ) : super('operations', primary, foreign, validation, tag: "Incidents");
+  ) : super('operations', primary, foreign, validation, tag: "Incidents > Operations");
 
   @override
   sar.RegisterOperation onCreate(String uuid, Map<String, dynamic> data) => sar.RegisterOperation(data);

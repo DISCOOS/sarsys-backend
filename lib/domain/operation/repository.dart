@@ -87,6 +87,21 @@ class OperationRepository extends Repository<OperationCommand, Operation> {
                 data: event.data,
                 created: event.created,
               ),
+          OperationMessageAdded: (event) => OperationMessageAdded(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          OperationMessageUpdated: (event) => OperationMessageUpdated(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          OperationMessageRemoved: (event) => OperationMessageRemoved(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
         });
 
   @override
