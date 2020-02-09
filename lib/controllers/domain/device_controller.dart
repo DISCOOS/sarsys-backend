@@ -32,23 +32,35 @@ class DeviceController extends AggregateController<DeviceCommand, Device> {
         "network": APISchemaObject.string()..description = "Device network name",
         "networkId": APISchemaObject.string()..description = "Device identifier on network",
         "position": context.schema['Position']..description = "Current position",
+        "assignedTo": context.schema['UUID']..description = "Uuid of unit assigned to mission",
+        "transitions": documentTransition(),
       })
         ..description = "Device Schema (aggregate root)"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
           'uuid',
-          'name',
         ];
+
+  APISchemaObject documentTransition() => APISchemaObject.array(ofType: APIType.object)
+    ..items = APISchemaObject.object({
+      "status": documentStatus(),
+      "timestamp": APISchemaObject.string()
+        ..description = "When transition occured"
+        ..format = 'date-time',
+    })
+    ..isReadOnly = true
+    ..description = "State transitions (read only)"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
 
   /// DeviceStatus - Value Object
   APISchemaObject documentStatus() => APISchemaObject.string()
     ..description = "Device status"
-    ..defaultValue = "none"
+    ..defaultValue = "unavailable"
     ..isReadOnly = true
     ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
     ..enumerated = [
-      'attached',
-      'detached',
+      'available',
+      'unavailable',
     ];
 
   /// DeviceType - Value Object
