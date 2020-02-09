@@ -168,3 +168,46 @@ class MissionResultRemoved extends DomainEvent {
           data: data,
         );
 }
+
+//////////////////////////////////
+// Mission Message Domain Events
+//////////////////////////////////
+
+class MissionMessageAdded extends DomainEvent {
+  MissionMessageAdded({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$MissionMessageAdded",
+          created: created,
+          data: data,
+        );
+}
+
+class MissionMessageUpdated extends DomainEvent {
+  MissionMessageUpdated({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$MissionMessageUpdated",
+          created: created,
+          data: data,
+        );
+}
+
+class MissionMessageRemoved extends DomainEvent {
+  MissionMessageRemoved({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$MissionMessageRemoved",
+          created: created,
+          data: data,
+        );
+}

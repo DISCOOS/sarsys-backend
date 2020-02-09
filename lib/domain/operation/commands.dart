@@ -162,7 +162,7 @@ class RemoveTalkGroup extends TalkGroupCommand<TalkGroupRemoved> {
 }
 
 //////////////////////////////////
-// Incident Message entity commands
+// Operation Message entity commands
 //////////////////////////////////
 
 class OperationMessageCommand<T extends DomainEvent> extends OperationCommand<T> implements EntityCommand<T> {

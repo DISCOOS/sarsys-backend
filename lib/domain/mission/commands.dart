@@ -115,3 +115,45 @@ class RemoveMissionResult extends MissionResultCommand<MissionResultRemoved> {
     Map<String, dynamic> data,
   ) : super(Action.delete, uuid, data);
 }
+
+//////////////////////////////////
+// Mission Message entity commands
+//////////////////////////////////
+
+class MissionMessageCommand<T extends DomainEvent> extends MissionCommand<T> implements EntityCommand<T> {
+  MissionMessageCommand(
+    Action action,
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(action, uuid: uuid, data: data);
+
+  @override
+  String get aggregateField => "messages";
+
+  @override
+  int get entityId => data[entityIdFieldName] as int;
+
+  @override
+  String get entityIdFieldName => 'id';
+}
+
+class AddMissionMessage extends MissionMessageCommand<MissionMessageAdded> {
+  AddMissionMessage(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.create, uuid, data);
+}
+
+class UpdateMissionMessage extends MissionMessageCommand<MissionMessageUpdated> {
+  UpdateMissionMessage(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.update, uuid, data);
+}
+
+class RemoveMissionMessage extends MissionMessageCommand<MissionMessageRemoved> {
+  RemoveMissionMessage(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.delete, uuid, data);
+}

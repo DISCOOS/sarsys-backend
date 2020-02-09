@@ -67,6 +67,21 @@ class MissionRepository extends Repository<MissionCommand, Mission> {
                 data: event.data,
                 created: event.created,
               ),
+          MissionMessageAdded: (event) => MissionMessageAdded(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          MissionMessageUpdated: (event) => MissionMessageUpdated(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          MissionMessageRemoved: (event) => MissionMessageRemoved(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
         });
 
   @override

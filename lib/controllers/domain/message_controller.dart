@@ -1,5 +1,6 @@
 import 'package:sarsys_app_server/controllers/eventsource/entity_controller.dart';
 import 'package:sarsys_app_server/domain/incident/incident.dart';
+import 'package:sarsys_app_server/domain/mission/mission.dart';
 import 'package:sarsys_app_server/domain/operation/operation.dart' as sar;
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
@@ -29,7 +30,7 @@ class IncidentMessageController extends EntityController<IncidentCommand, Incide
 }
 
 /// A ResourceController that handles
-/// [/api/incidents/{uuid}/messages](http://localhost/api/client.html#/Message) requests
+/// [/api/operations/{uuid}/messages](http://localhost/api/client.html#/Message) requests
 class OperationMessageController extends EntityController<sar.OperationCommand, sar.Operation> {
   OperationMessageController(sar.OperationRepository repository, JsonValidation validation)
       : super(repository, "Message", "messages", validation: validation, tag: "Operations > Messages");
@@ -45,6 +46,30 @@ class OperationMessageController extends EntityController<sar.OperationCommand, 
   @override
   sar.OperationCommand onDelete(String uuid, String type, Map<String, dynamic> data) =>
       sar.RemoveOperationMessage(uuid, data);
+
+  //////////////////////////////////
+  // Documentation
+  //////////////////////////////////
+
+  /// Message - Entity object
+  @override
+  APISchemaObject documentEntityObject(APIDocumentContext context) => context.schema[entityType];
+}
+
+/// A ResourceController that handles
+/// [/api/missions/{uuid}/messages](http://localhost/api/client.html#/Message) requests
+class MissionMessageController extends EntityController<MissionCommand, Mission> {
+  MissionMessageController(MissionRepository repository, JsonValidation validation)
+      : super(repository, "Message", "messages", validation: validation, tag: "Missions > Messages");
+
+  @override
+  MissionCommand onCreate(String uuid, String type, Map<String, dynamic> data) => AddMissionMessage(uuid, data);
+
+  @override
+  MissionCommand onUpdate(String uuid, String type, Map<String, dynamic> data) => UpdateMissionMessage(uuid, data);
+
+  @override
+  MissionCommand onDelete(String uuid, String type, Map<String, dynamic> data) => RemoveMissionMessage(uuid, data);
 
   //////////////////////////////////
   // Documentation
