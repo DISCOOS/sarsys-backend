@@ -82,3 +82,46 @@ class UnitDeleted extends DomainEvent {
           data: data,
         );
 }
+
+//////////////////////////////////
+// Unit Message Domain Events
+//////////////////////////////////
+
+class UnitMessageAdded extends DomainEvent {
+  UnitMessageAdded({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$UnitMessageAdded",
+          created: created,
+          data: data,
+        );
+}
+
+class UnitMessageUpdated extends DomainEvent {
+  UnitMessageUpdated({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$UnitMessageUpdated",
+          created: created,
+          data: data,
+        );
+}
+
+class UnitMessageRemoved extends DomainEvent {
+  UnitMessageRemoved({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: "$UnitMessageRemoved",
+          created: created,
+          data: data,
+        );
+}

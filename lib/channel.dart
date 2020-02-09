@@ -196,6 +196,10 @@ class SarSysAppServerChannel extends ApplicationChannel {
             manager.get<UnitRepository>(),
             requestValidator,
           ))
+      ..route('/api/units/:uuid/messages[/:id]').link(() => UnitMessageController(
+            manager.get<UnitRepository>(),
+            requestValidator,
+          ))
       ..route('/api/organisations[/:uuid]').link(() => OrganisationController(
             manager.get<OrganisationRepository>(),
             requestValidator,

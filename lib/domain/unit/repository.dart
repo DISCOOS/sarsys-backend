@@ -37,6 +37,21 @@ class UnitRepository extends Repository<UnitCommand, Unit> {
                 data: event.data,
                 created: event.created,
               ),
+          UnitMessageAdded: (event) => UnitMessageAdded(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          UnitMessageUpdated: (event) => UnitMessageUpdated(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          UnitMessageRemoved: (event) => UnitMessageRemoved(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
         });
 
   @override

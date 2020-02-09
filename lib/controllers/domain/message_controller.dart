@@ -3,6 +3,7 @@ import 'package:sarsys_app_server/domain/incident/incident.dart';
 import 'package:sarsys_app_server/domain/mission/mission.dart';
 import 'package:sarsys_app_server/domain/operation/operation.dart' as sar;
 import 'package:sarsys_app_server/domain/personnel/personnel.dart';
+import 'package:sarsys_app_server/domain/unit/unit.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 
@@ -95,6 +96,30 @@ class PersonnelMessageController extends EntityController<PersonnelCommand, Pers
 
   @override
   PersonnelCommand onDelete(String uuid, String type, Map<String, dynamic> data) => RemovePersonnelMessage(uuid, data);
+
+  //////////////////////////////////
+  // Documentation
+  //////////////////////////////////
+
+  /// Message - Entity object
+  @override
+  APISchemaObject documentEntityObject(APIDocumentContext context) => context.schema[entityType];
+}
+
+/// A ResourceController that handles
+/// [/api/units/{uuid}/messages](http://localhost/api/client.html#/Message) requests
+class UnitMessageController extends EntityController<UnitCommand, Unit> {
+  UnitMessageController(UnitRepository repository, JsonValidation validation)
+      : super(repository, "Message", "messages", validation: validation, tag: "Units > Messages");
+
+  @override
+  UnitCommand onCreate(String uuid, String type, Map<String, dynamic> data) => AddUnitMessage(uuid, data);
+
+  @override
+  UnitCommand onUpdate(String uuid, String type, Map<String, dynamic> data) => UpdateUnitMessage(uuid, data);
+
+  @override
+  UnitCommand onDelete(String uuid, String type, Map<String, dynamic> data) => RemoveUnitMessage(uuid, data);
 
   //////////////////////////////////
   // Documentation
