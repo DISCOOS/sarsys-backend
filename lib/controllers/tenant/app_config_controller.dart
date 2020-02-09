@@ -55,7 +55,7 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
             ..defaultValue = true,
           "demoRole": APISchemaObject.string()
             ..description = "Role of logged in user in demo-mode"
-            ..defaultValue = "Commander"
+            ..defaultValue = "commander"
             ..enumerated = [
               'commander',
               'unitleader',
