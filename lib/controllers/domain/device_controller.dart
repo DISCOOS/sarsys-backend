@@ -29,7 +29,8 @@ class DeviceController extends AggregateController<DeviceCommand, Device> {
         "status": documentStatus()..isReadOnly = true,
         "name": APISchemaObject.string()..description = "Device name",
         "alias": APISchemaObject.string()..description = "Device alias",
-        "number": APISchemaObject.string()..description = "Device number",
+        "network": APISchemaObject.string()..description = "Device network name",
+        "networkId": APISchemaObject.string()..description = "Device identifier on network",
         "position": context.schema['Position']..description = "Current position",
       })
         ..description = "Device Schema (aggregate root)"
@@ -59,5 +60,7 @@ class DeviceController extends AggregateController<DeviceCommand, Device> {
       'app',
       'aprs',
       'ais',
+      'spot',
+      'inreach',
     ];
 }
