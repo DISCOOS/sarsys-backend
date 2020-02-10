@@ -1,0 +1,17 @@
+version: '3'
+services:
+  eventstore:
+    image: eventstore/eventstore
+    ports:
+      - "1113:1113"
+      - "2113:2113"
+  sarsys-app-server:
+    build: ..
+    image: discoos/sarsys_app_server:latest
+    ports:
+      - "80:8082"
+    environment:
+      - EVENTSTORE_HOST=http://127.0.0.1
+      - EVENTSTORE_PORT=2113
+      - EVENTSTORE_LOGIN=admin
+      - EVENTSTORE_PASSWORD=changeit

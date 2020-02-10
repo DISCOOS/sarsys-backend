@@ -1,0 +1,13 @@
+level: INFO
+debug: true
+prefix: test
+tenant: discoos
+eventstore:
+  # Eventstore:
+  # host: http://127.0.0.1
+  # port: 2113
+  # MockHTTPServer
+  host: http://localhost
+  port: 4000
+  login: admin
+  password: changeit
