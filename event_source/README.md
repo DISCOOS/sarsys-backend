@@ -7,4 +7,4 @@ TBD
 
 Please file feature requests and bugs at the [issue tracker][tracker].
 
-[tracker]: https://github.com/DISCOOS/sarsys-app-server/issues
+[tracker]: https://github.com/DISCOOS/sarsys-backend/issues
