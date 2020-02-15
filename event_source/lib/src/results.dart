@@ -60,6 +60,7 @@ class FeedResult extends StreamResult {
     String eTag,
     this.number,
     this.direction,
+    this.subscription,
     this.atomFeed,
   }) : super(
           stream: stream,
@@ -69,10 +70,11 @@ class FeedResult extends StreamResult {
         );
 
   factory FeedResult.from({
-    String stream,
-    EventNumber number,
-    Direction direction,
-    Response response,
+    @required String stream,
+    @required EventNumber number,
+    @required Response response,
+    String subscription,
+    Direction direction = Direction.forward,
   }) {
     switch (response.statusCode) {
       case 200:
@@ -100,6 +102,9 @@ class FeedResult extends StreamResult {
 
   /// Event traversal direction
   final Direction direction;
+
+  /// Persistent subscription group
+  final String subscription;
 
   /// Atom feed data
   final AtomFeed atomFeed;
@@ -237,7 +242,7 @@ class WriteResult extends StreamResult {
           stream: stream,
           statusCode: response.statusCode,
           reasonPhrase: response.reasonPhrase,
-          number: EventNumber(int.tryParse(response.headers['es-currentversion']) ?? EventNumber.none.value),
+          number: EventNumber(int.tryParse(response.headers['es-currentversion'] ?? '${EventNumber.none.value}')),
           version: version,
         );
       default:

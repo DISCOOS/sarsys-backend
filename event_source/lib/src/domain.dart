@@ -308,6 +308,28 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     _ready = true;
   }
 
+  /// Subscribe this [repository] to compete for changes from [store]
+  void compete({
+    int consume = 20,
+    ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
+    Duration maxBackoffTime = const Duration(seconds: 10),
+  }) =>
+      store.compete(
+        this,
+        consume: consume,
+        strategy: strategy,
+        maxBackoffTime: maxBackoffTime,
+      );
+
+  /// Subscribe this [repository] to receive all changes from [store]
+  void subscribe({
+    Duration maxBackoffTime = const Duration(seconds: 10),
+  }) =>
+      store.subscribe(
+        this,
+        maxBackoffTime: maxBackoffTime,
+      );
+
   /// Called after [build()] is completed.
   void willStartProcessingEvents() => {};
 

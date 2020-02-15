@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:event_source/event_source.dart';
 import 'package:json_patch/json_patch.dart';
+import 'package:logging/logging.dart';
 import 'package:uuid/uuid.dart';
 
 typedef Replicate = void Function(
@@ -20,6 +21,8 @@ class EventStoreMockServer {
     this.prefix,
     this.port, {
     this.replicate,
+    this.verbose = true,
+    this.logger,
   });
 
   /// Port to listen on.
@@ -39,6 +42,12 @@ class EventStoreMockServer {
 
   final Replicate replicate;
 
+  /// Verbose logging flag
+  final bool verbose;
+
+  /// Logger instance
+  final Logger logger;
+
   /// The underlying [HttpServer] listening for requests.
   HttpServer _server;
 
@@ -56,10 +65,13 @@ class EventStoreMockServer {
       if (route == null) {
         request.response.statusCode = HttpStatus.notFound;
       } else {
-        final response = route.handle(request);
-        if (response is Future) {
-          await response;
-        }
+        await route.handle(request);
+      }
+      if (verbose && logger != null) {
+        logger.info(
+          'Ports ${request.connectionInfo.remotePort} > ${request.connectionInfo.localPort}: '
+          '${request.method} ${request.uri.path} > ${request.response.statusCode} ${request.response.reasonPhrase}',
+        );
       }
       await request.response.close();
     });
@@ -110,6 +122,8 @@ class EventStoreMockServer {
     return this;
   }
 
+  TestStream getStream(String name) => _streams[name];
+
   TestStream _addStream(String name, bool useInstanceStreams) => _streams.putIfAbsent(
         name,
         () => TestStream(
@@ -122,7 +136,21 @@ class EventStoreMockServer {
         ),
       );
 
-  TestStream getStream(String name) => _streams[name];
+  EventStoreMockServer withSubscription(String name) {
+    final stream = _streams[name];
+    if (stream == null) {
+      throw ArgumentError('Stream $name not found');
+    }
+    final path = '/subscriptions/${stream.canonicalStream}';
+    _router.putIfAbsent(
+      path,
+      () => TestRoute(
+        path,
+        stream,
+      ),
+    );
+    return this;
+  }
 
   /// Shuts down the server listening for HTTP requests.
   Future close() {
@@ -157,6 +185,7 @@ class TestStream {
     this.aggregate,
     this.replicate, {
     this.useInstanceStreams = true,
+    this.strategy = ConsumerStrategy.RoundRobin,
   });
 
   final int port;
@@ -165,6 +194,8 @@ class TestStream {
   final String aggregate;
   final Replicate replicate;
   final bool useInstanceStreams;
+  final ConsumerStrategy strategy;
+  final Map<String, TestSubscription> _groups = {};
   final Map<String, Map<String, dynamic>> _canonical = {};
   final Map<String, List<Map<String, dynamic>>> _cached = {};
   final List<Map<String, Map<String, dynamic>>> _instances = [];
@@ -194,7 +225,8 @@ class TestStream {
         },
       };
 
-  String get canonicalStream => useInstanceStreams ? '\$ce-$instanceStream' : instanceStream;
+  String get canonicalStream => useInstanceStreams ? categoryStream : instanceStream;
+  String get categoryStream => '\$ce-$instanceStream';
   String get instanceStream => EventStore.toCanonical([
         tenant,
         prefix,
@@ -204,26 +236,83 @@ class TestStream {
   void call(HttpRequest request) async {
     switch (request.method) {
       case 'GET':
-        handleGet(request);
+        handleGET(request);
+        break;
+      case 'PUT':
+        await handlePUT(request);
         break;
       case 'POST':
-        final path = request.uri.path;
-        final content = await utf8.decoder.bind(request).join();
-        final data = json.decode(content);
-        final list = _toEventsWithUpdatedField(data);
-        if (_checkEventNumber(request, path)) {
-          final events = append(path, list);
-          request.response
-            ..headers.add('location', '$path/${events.length - 1}')
-            ..statusCode = HttpStatus.created;
-          _notify(path, list);
-        }
+        await handlePOST(request);
         break;
       default:
         request.response.statusCode = HttpStatus.forbidden;
         break;
     }
   }
+
+  Future handlePUT(HttpRequest request) async {
+    final path = request.uri.path;
+    final pattern = RegExp(TestSubscription.asSubscription(RegExp.escape(canonicalStream)));
+    if (!pattern.hasMatch(path)) {
+      _unsupported(request, path);
+    } else {
+      final content = await utf8.decoder.bind(request).join();
+      final data = json.decode(content);
+      final offset = data['startFrom'] ?? 0;
+      final strategy = data['namedConsumerStrategy'] as String ?? enumName(ConsumerStrategy.RoundRobin);
+      final type = ConsumerStrategy.values.firstWhere(
+        (value) => enumName(value).toLowerCase() == strategy.toLowerCase(),
+        orElse: () => null,
+      );
+      if (type == null) {
+        request.response
+          ..statusCode = HttpStatus.badRequest
+          ..reasonPhrase = 'Consumer strategy $strategy not suppored';
+      } else {
+        final group = pattern.firstMatch(path).group(1);
+        if (_groups.containsKey(group)) {
+          request.response
+            ..statusCode = HttpStatus.conflict
+            ..reasonPhrase = 'Already exists';
+        } else {
+          _groups[group] = TestSubscription(
+            canonicalStream,
+            group,
+            type,
+            offset,
+          );
+          request.response..statusCode = HttpStatus.created;
+        }
+      }
+    }
+  }
+
+  HttpResponse _unsupported(HttpRequest request, String path) {
+    return request.response
+      ..statusCode = HttpStatus.badRequest
+      ..reasonPhrase = 'Request ${request.method} $path not supported';
+  }
+
+  Future handlePOST(HttpRequest request) async {
+    final path = request.uri.path;
+    final stream = RegExp.escape(instanceStream);
+    if (!RegExp(asStream(stream)).hasMatch(path)) {
+      _unsupported(request, path);
+    } else {
+      final content = await utf8.decoder.bind(request).join();
+      final data = json.decode(content);
+      final list = _toEventsWithUpdatedField(data);
+      if (_checkEventNumber(request, path)) {
+        final events = append(path, list);
+        request.response
+          ..headers.add('location', '$path/${events.length - 1}')
+          ..statusCode = HttpStatus.created;
+        _notify(path, list);
+      }
+    }
+  }
+
+  String asStream(String stream) => '/streams/$stream';
 
   bool _checkEventNumber(HttpRequest request, String path) {
     final expectedNumber = int.tryParse(request.headers.value('ES-ExpectedVersion'));
@@ -320,7 +409,7 @@ class TestStream {
   Map<String, Map<String, dynamic>> toEvents({int id}) =>
       _instances.isEmpty ? {} : (useInstanceStreams ? _instances.elementAt(id ?? 0) : _instances.first);
 
-  void handleGet(HttpRequest request) {
+  void handleGET(HttpRequest request) {
     final path = request.uri.path;
     final stream = RegExp.escape(canonicalStream);
     if (RegExp(asHead(stream)).hasMatch(path)) {
@@ -332,49 +421,47 @@ class TestStream {
     } else if (RegExp(asForward(stream)).hasMatch(path)) {
       // Fetch events from given number and forwards
       _toAtomFeedResponse(request, asForward(stream), path);
-    } else if (RegExp(asUuid(stream)).hasMatch(path)) {
-      // Fetch events with given uuid
-      // final data = _canonical[toUuid(stream, path)];
     } else if (RegExp(asNumber(stream)).hasMatch(path)) {
       // Fetch events with given canonical event number
       final number = toNumber(stream, path);
       final data = _canonical[_canonical.keys.elementAt(number)];
       _toAtomItemContentResponse(request, number, data);
+    } else if (RegExp(TestSubscription.asSubscription(stream)).hasMatch(path)) {
+      // Fetch next events from subscription group for given consumer
+      _toCompetingAtomFeedResponse(request, TestSubscription.asSubscription(stream), path);
+    } else if (RegExp(asUuid(stream)).hasMatch(path)) {
+      // Fetch events with given uuid
+      // final data = _canonical[toUuid(stream, path)];
     } else {
       request.response.statusCode = HttpStatus.notFound;
     }
   }
 
-  String _toSelfUrl(String stream) {
-    return 'http://localhost:$port/streams/$stream';
-  }
+  String toHost() => 'http://localhost:$port';
+  String toSelfURL(String stream) => '${toHost()}/streams/$stream';
 
   String asHead(String stream) => '/streams/$stream/head/backward/(\\d+)';
   String asForward(String stream) => '/streams/$stream/(\\d+)/forward/(\\d+)';
   String asBackward(String stream) => '/streams/$stream/(\\d+)/backward/(\\d+)';
 
-  String asUuid(String stream) => '/streams/$stream/(\\s+)';
-  String toUuid(String stream, String path) => RegExp('/streams/$stream/(\\s+)').firstMatch(path)?.group(1);
+  String asUuid(String stream) => '/streams/$stream/(\\w+)';
+  String toUuid(String stream, String path) => RegExp('/streams/$stream/(\\w+)').firstMatch(path)?.group(1);
 
   String asNumber(String stream) => '/streams/$stream/(\\d+)';
   int toNumber(String stream, String path) => int.parse(RegExp('/streams/$stream/(\\d+)').firstMatch(path)?.group(1));
-
-  Map<String, String> _toAtomAuthor() => {
-        'name': '${typeOf<EventStoreMockServer>()}',
-      };
 
   void _toAtomItemContentResponse(HttpRequest request, int number, Map<String, dynamic> data) {
     if (request.headers.value('accept')?.contains('application/vnd.eventstore.atom+json') != true) {
       request.response
         ..statusCode = HttpStatus.badRequest
-        ..write(
-          'TestStream only supports Accept:application/vnd.eventstore.atom+json',
-        );
+        ..reasonPhrase = 'TestStream only supports Accept:application/vnd.eventstore.atom+json';
     } else {
-      final selfUrl = _toSelfUrl(canonicalStream);
+      final selfUrl = toSelfURL(canonicalStream);
       request.response
         ..statusCode = HttpStatus.ok
         ..write(json.encode(_toAtomItem(
+          toHost(),
+          canonicalStream,
           number,
           selfUrl,
           data,
@@ -390,110 +477,225 @@ class TestStream {
     if (request.headers.value('accept')?.contains('application/vnd.eventstore.atom+json') != true) {
       request.response
         ..statusCode = HttpStatus.badRequest
-        ..write(
-          'TestStream only supports Accept:application/vnd.eventstore.atom+json',
-        );
+        ..reasonPhrase = 'TestStream only supports Accept:application/vnd.eventstore.atom+json';
     } else if (offset < 0 || count < 0 || offset > _canonical.length) {
       request.response.statusCode = HttpStatus.notFound;
     } else if (offset == 0 && count == 0) {
       request.response.statusCode = HttpStatus.ok;
     } else {
-      final selfUrl = _toSelfUrl(canonicalStream);
+      final selfUrl = toSelfURL(canonicalStream);
       final events = _canonical.values.skip(offset).take(count).toList();
+      final data = _toAtomFeed(
+        toHost(),
+        selfUrl,
+        canonicalStream,
+        offset,
+        events,
+      );
       request.response
         ..statusCode = HttpStatus.ok
-        ..write(json.encode(_toAtomFeed(selfUrl, offset, events)));
+        ..write(json.encode(data));
     }
   }
 
-  AtomFeed _toAtomFeed(String selfUrl, int offset, List<Map<String, dynamic>> events) => AtomFeed(
-        id: selfUrl, // Dummy
-        title: 'Event stream $canonicalStream',
-        author: AtomAuthor(name: '${typeOf<EventStoreMockServer>()}'),
-        updated: _lastUpdated(events),
-        eTag: '26;-2060438500', // Dummy
-        // streamId: canonicalStream,
-        headOfStream: true,
-        selfUrl: selfUrl,
-        links: [
-          AtomLink(uri: selfUrl, relation: 'self'),
-          AtomLink(uri: '$selfUrl/head/backward/20', relation: 'first'),
-          AtomLink(uri: '$selfUrl/1/forward/20', relation: 'previous'),
-          AtomLink(uri: '$selfUrl/metadata', relation: 'meta'),
-        ],
-        entries: _toAtomItems(events, offset, selfUrl),
-      );
-
-  String _lastUpdated(List<Map<String, dynamic>> events) {
-    return events.isEmpty
-        ? null
-        : events.fold<DateTime>(DateTime.parse(events.first['updated'] as String), (updated, event) {
-            var next = DateTime.parse(event['updated'] as String);
-            if (next.difference(updated).inMilliseconds > 0) {
-              next = updated;
-            }
-            return next;
-          })?.toIso8601String();
+  void _toCompetingAtomFeedResponse(HttpRequest request, String pattern, String path) {
+    if (request.headers.value('accept')?.contains('application/vnd.eventstore.competingatom+json') != true) {
+      request.response
+        ..statusCode = HttpStatus.badRequest
+        ..reasonPhrase = 'TestSubscription only supports application/vnd.eventstore.competingatom+json';
+    } else {
+      final match = RegExp(pattern).firstMatch(path);
+      final group = match.group(1);
+      if (!_groups.containsKey(group)) {
+        request.response
+          ..statusCode = HttpStatus.notFound
+          ..reasonPhrase = 'Not found';
+      } else {
+        _groups[group].consume(this, request);
+      }
+    }
   }
-
-  List<AtomItem> _toAtomItems(
-    List<Map<String, dynamic>> events,
-    int offset,
-    String selfUrl, {
-    bool withContent = false,
-  }) {
-    final entries = <AtomItem>[];
-    var i = 0;
-    events.forEach((event) {
-      final number = offset + (i++);
-      entries.add(
-        AtomItem.fromJson(Map.from(event)
-          ..addAll(_toAtomItem(
-            number,
-            selfUrl,
-            event,
-            withContent: withContent,
-          ))),
-      );
-    });
-    return entries;
-  }
-
-  Map<String, dynamic> _toAtomItem(
-    int number,
-    String selfUrl,
-    Map<String, dynamic> data, {
-    bool withContent = false,
-  }) =>
-      {
-        'id': '$selfUrl/$number',
-        'title': '$number@$canonicalStream',
-        'author': _toAtomAuthor(),
-        'updated': data['updated'],
-        'summary': data['eventType'],
-        if (!withContent) 'eventNumber': number,
-        if (!withContent) 'streamId': canonicalStream,
-        if (!withContent) 'isJSON': true,
-        if (!withContent) 'isMetaData': false,
-        if (!withContent) 'isLinkMetaData': false,
-        if (withContent)
-          'content': {
-            'eventStreamId': canonicalStream,
-            'eventNumber': number,
-            'eventId': data['eventId'],
-            'eventType': data['eventType'],
-            'data': data['data'],
-            'metadata': '',
-          },
-        'links': [
-          {
-            'uri': '$selfUrl/$number',
-            'relation': 'edit',
-          },
-          {
-            'uri': '$selfUrl/$number',
-            'relation': 'alternate',
-          }
-        ]
-      };
 }
+
+class TestSubscription {
+  TestSubscription(
+    this.stream,
+    this.group,
+    this.strategy,
+    int offset,
+  )   : _offset = offset,
+        pattern = RegExp(
+          asGroup(
+            RegExp.escape(stream),
+            RegExp.escape(group),
+          ),
+        );
+
+  final String stream;
+  final String group;
+  final RegExp pattern;
+  final ConsumerStrategy strategy;
+
+  int _offset = 0;
+  int get offset => _offset;
+
+  void consume(TestStream stream, HttpRequest request) {
+    final path = request.uri.path;
+    final match = RegExp(asCount(RegExp.escape(this.stream), RegExp.escape(group))).firstMatch(path);
+    final count = int.parse(match.group(1) ?? '1');
+    final selfUrl = '${stream.toHost()}/${asGroup(this.stream, group)}';
+    final events = stream._canonical.values.skip(_offset).take(count).toList();
+    final data = _toAtomFeed(
+      stream.toHost(),
+      selfUrl,
+      this.stream,
+      offset,
+      events,
+      group: group,
+      consume: count,
+      isSubscription: true,
+    );
+    request.response
+      ..statusCode = HttpStatus.ok
+      ..write(json.encode(data));
+    // consume events
+    _offset += events.length;
+  }
+
+  static String asSubscription(String stream) => 'subscriptions/$stream/(\\w+)';
+  static String asGroup(String stream, String group) => 'subscriptions/$stream/$group';
+  static String asCount(String stream, String group) => 'subscriptions/$stream/$group/(\\d+)';
+}
+
+String _lastUpdated(List<Map<String, dynamic>> events) {
+  return events.isEmpty
+      ? null
+      : events.fold<DateTime>(DateTime.parse(events.first['updated'] as String), (updated, event) {
+          var next = DateTime.parse(event['updated'] as String);
+          if (next.difference(updated).inMilliseconds > 0) {
+            next = updated;
+          }
+          return next;
+        })?.toIso8601String();
+}
+
+AtomFeed _toAtomFeed(
+  String host,
+  String selfUrl,
+  String stream,
+  int offset,
+  List<Map<String, dynamic>> events, {
+  int consume,
+  String group,
+  bool isSubscription = false,
+}) {
+  final ids = events.map((event) => event['eventId'] as String).join(',');
+
+  return AtomFeed(
+    id: selfUrl, // Dummy
+    title: 'Event stream $stream',
+    author: AtomAuthor(name: '${typeOf<EventStoreMockServer>()}'),
+    updated: _lastUpdated(events),
+    eTag: '26;-2060438500', // Dummy
+    // streamId: canonicalStream,
+    headOfStream: true,
+    selfUrl: selfUrl,
+    links: [
+      AtomLink(uri: selfUrl, relation: 'self'),
+      if (!isSubscription) AtomLink(uri: '$selfUrl/head/backward/20', relation: 'first'),
+      if (!isSubscription) AtomLink(uri: '$selfUrl/1/forward/20', relation: 'previous'),
+      if (!isSubscription) AtomLink(uri: '$selfUrl/metadata', relation: 'meta'),
+      if (isSubscription) AtomLink(uri: '$selfUrl/?ack?ids=$ids', relation: 'ackAll'),
+      if (isSubscription) AtomLink(uri: '$selfUrl/?nack?ids=$ids', relation: 'nackAll'),
+      if (isSubscription) AtomLink(uri: '$selfUrl/$consume', relation: 'previous'),
+    ],
+    entries: _toAtomItems(
+      host,
+      stream,
+      events,
+      offset,
+      selfUrl,
+      group: group,
+      isSubscription: isSubscription,
+    ),
+  );
+}
+
+List<AtomItem> _toAtomItems(
+  String host,
+  String stream,
+  List<Map<String, dynamic>> events,
+  int offset,
+  String selfUrl, {
+  String group,
+  bool withContent = false,
+  bool isSubscription = false,
+}) {
+  final entries = <AtomItem>[];
+  var i = 0;
+  events.forEach((event) {
+    final number = offset + (i++);
+    entries.add(
+      AtomItem.fromJson(Map.from(event)
+        ..addAll(_toAtomItem(
+          host,
+          stream,
+          number,
+          selfUrl,
+          event,
+          group: group,
+          withContent: withContent,
+          isSubscription: isSubscription,
+        ))),
+    );
+  });
+  return entries;
+}
+
+Map<String, dynamic> _toAtomItem(
+  String host,
+  String stream,
+  int number,
+  String selfUrl,
+  Map<String, dynamic> data, {
+  String group,
+  bool withContent = false,
+  bool isSubscription = false,
+}) =>
+    {
+      'id': '${isSubscription ? "$host/streams/$stream" : selfUrl}/$number',
+      'title': '$number@$stream',
+      'author': _toAtomAuthor(),
+      'updated': data['updated'],
+      'summary': data['eventType'],
+      if (!withContent) 'eventNumber': number,
+      if (!withContent) 'streamId': stream,
+      if (!withContent) 'isJSON': true,
+      if (!withContent) 'isMetaData': false,
+      if (!withContent) 'isLinkMetaData': false,
+      if (withContent)
+        'content': {
+          'eventStreamId': stream,
+          'eventNumber': number,
+          'eventId': data['eventId'],
+          'eventType': data['eventType'],
+          'data': data['data'],
+          'metadata': '',
+        },
+      'links': [
+        {
+          'uri': '${isSubscription ? "$host/streams/$stream" : selfUrl}/$number',
+          'relation': 'edit',
+        },
+        {
+          'uri': '${isSubscription ? "$host/streams/$stream" : selfUrl}/$number',
+          'relation': 'alternate',
+        },
+        if (isSubscription) {'uri': '$selfUrl/ack/${data['eventId']}', 'relation': 'ack'},
+        if (isSubscription) {'uri': '$selfUrl/nack/${data['eventId']}', 'relation': 'nack'},
+      ]
+    };
+
+Map<String, String> _toAtomAuthor() => {
+      'name': '${typeOf<EventStoreMockServer>()}',
+    };

@@ -9,8 +9,9 @@ Future main() async {
   final harness = EventSourceHarness()
     ..withTenant()
     ..withPrefix()
+    ..withLogger()
     ..withProjection()
-    ..withRepository<Foo>((store) => FooRepository(store))
+    ..withRepository<Foo>((store) => FooRepository(store), instances: 2)
     ..add(port: 4000)
     ..add(port: 4001)
     ..install();
@@ -234,5 +235,44 @@ Future main() async {
     expect(foo.data, containsPair('property1', 'value1'));
     expect(foo.data, containsPair('property2', 'value2'));
     expect(foo.data, containsPair('property3', 'value3'));
+  });
+
+  test('Repository should consume events with stategy RoundRobin', () async {
+    // Arrange
+    final repo1 = harness.get<FooRepository>(instance: 0)..compete(consume: 1);
+    final repo2 = harness.get<FooRepository>(instance: 1)..compete(consume: 1);
+    harness.server().withSubscription(repo1.store.aggregate);
+    final stream = harness.server().getStream(repo1.store.aggregate);
+    await repo1.readyAsync();
+    await repo2.readyAsync();
+
+    // Act
+    final uuid1 = Uuid().v4();
+    stream.append('${stream.instanceStream}-0', [
+      TestStream.asSourceEvent<FooCreated>(
+        uuid1,
+        {},
+        {'property1': 'value1'},
+      )
+    ]);
+    final uuid2 = Uuid().v4();
+    stream.append('${stream.instanceStream}-1', [
+      TestStream.asSourceEvent<FooCreated>(
+        uuid2,
+        {},
+        {'property2': 'value2'},
+      )
+    ]);
+
+    // Assert
+    await repo1.store.asStream().first;
+    final foo1 = repo1.get(uuid1);
+    expect(repo1.count, equals(1));
+    expect(foo1.data, containsPair('property1', 'value1'));
+
+    await repo2.store.asStream().first;
+    final foo2 = repo2.get(uuid2);
+    expect(repo2.count, equals(1));
+    expect(foo2.data, containsPair('property2', 'value2'));
   });
 }

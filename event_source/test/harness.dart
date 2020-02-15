@@ -1,4 +1,6 @@
 import 'package:event_source/event_source.dart';
+import 'package:logging/logging.dart';
+
 import 'package:meta/meta.dart';
 import 'package:test/test.dart';
 
@@ -37,11 +39,13 @@ class EventSourceHarness {
 
   EventSourceHarness withRepository<T extends AggregateRoot>(
     Repository<Command, T> Function(EventStore) create, {
+    int instances = 1,
     bool useInstanceStreams = true,
   }) {
     _builders.putIfAbsent(
       typeOf<T>(),
       () => _RepositoryBuilder<T>(
+        instances,
         create,
         useInstanceStreams: useInstanceStreams,
       ),
@@ -49,17 +53,36 @@ class EventSourceHarness {
     return this;
   }
 
-  final Map<Type, _RepositoryBuilder> _builders = {};
-  Repository get<T extends Repository>({int port = 4000}) => _managers[port].get<T>();
+  Logger _logger;
+  EventSourceHarness withLogger() {
+    _logger = Logger('$runtimeType');
+    _logger.onRecord.listen((rec) {
+      print(
+        '${rec.time}: ${rec.level.name}: '
+        '${rec.message} ${rec.error ?? ''} ${rec.stackTrace ?? ''}',
+      );
+    });
+    return this;
+  }
 
-  final Map<int, RepositoryManager> _managers = {};
+  final Map<Type, _RepositoryBuilder> _builders = {};
+  Repository get<T extends Repository>({int port = 4000, int instance = 0}) => _managers[port][instance].get<T>();
+
+  final Map<int, List<RepositoryManager>> _managers = {};
 
   void add({
     @required int port,
   }) {
     _servers.putIfAbsent(
       port,
-      () => EventStoreMockServer(_tenant, _prefix, port, replicate: replicate),
+      () => EventStoreMockServer(
+        _tenant,
+        _prefix,
+        port,
+        replicate: replicate,
+        logger: _logger,
+        verbose: _logger != null,
+      ),
     );
   }
 
@@ -106,29 +129,37 @@ class EventSourceHarness {
     if (_projection?.isNotEmpty == true) {
       server.withProjection('by_category');
     }
-    _managers[port] = RepositoryManager(
-      _bus,
-      _connections[port],
-      prefix: EventStore.toCanonical([
-        _tenant,
-        _prefix,
-      ]),
-    );
+    final list = _managers.putIfAbsent(port, () => []);
     _builders.values.forEach((builder) {
-      builder(_managers[port]);
+      for (var i = 0; i < builder.instances; i++) {
+        final manager = RepositoryManager(
+          _bus,
+          _connections[port],
+          prefix: EventStore.toCanonical([
+            _tenant,
+            _prefix,
+          ]),
+        );
+        builder(manager);
+        list.add(manager);
+      }
       server.withStream(builder.stream);
     });
-    await _managers[port].build();
+    await Future.wait(list.map((manager) => manager.build()));
   }
 
   void _clear(int port, EventStoreMockServer server) {
     server.clear();
-    _managers[port]?.dispose();
+    _managers[port]
+      ..forEach((manager) => manager.dispose())
+      ..clear();
   }
 
   void _close(int port, EventStoreMockServer server) async {
     await server.close();
-    _managers[port]?.dispose();
+    _managers[port]
+      ..forEach((manager) => manager.dispose())
+      ..clear();
     _connections[port]?.close();
   }
 
@@ -148,9 +179,11 @@ class EventSourceHarness {
 
 class _RepositoryBuilder<T extends AggregateRoot> {
   _RepositoryBuilder(
+    this.instances,
     _Creator<T> create, {
     @required this.useInstanceStreams,
   }) : _create = create;
+  final int instances;
   final _Creator<T> _create;
   final bool useInstanceStreams;
   String get stream => typeOf<T>().toColonCase();

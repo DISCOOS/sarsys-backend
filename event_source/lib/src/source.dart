@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:http/http.dart';
@@ -313,9 +314,8 @@ class EventStore {
   /// Publish events to [bus] and [asStream]
   void _publish(Iterable<DomainEvent> events) {
     events.forEach(bus.publish);
-    if (_streamController != null) {
-      events.forEach(_streamController.add);
-    }
+    _streamController ??= StreamController.broadcast();
+    events.forEach(_streamController.add);
   }
 
   /// Get name of aggregate instance stream for [AggregateRoot.uuid].
@@ -376,6 +376,54 @@ class EventStore {
   /// subscribing to events from [canonicalStream]
   final _subscriptions = <Type, _SubscriptionController>{};
 
+  /// Subscribe given [repository] to compete for changes from [canonicalStream]
+  ///
+  /// This will create a
+  /// [persistent subscription group](https://eventstore.com/docs/http-api/competing-consumers/index.html)
+  /// of repositories with same [Repository.aggregateType], where the
+  /// name of the group is [Repository.aggregateType].
+  ///
+  ///
+  /// Throws an [InvalidOperation] if [Repository.store] is not this [EventStore]
+  /// Throws an [InvalidOperation] if [Repository] is already subscribing to events
+  void compete(
+    Repository repository, {
+    int consume = 20,
+    ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
+    Duration maxBackoffTime = const Duration(seconds: 10),
+  }) {
+    // Sanity checks
+    _assertState();
+    _assertRepository(repository);
+
+    // Dispose current subscription if exists
+    _subscriptions[repository.runtimeType]?.dispose();
+
+    _subscriptions.update(
+      repository.runtimeType,
+      (controller) => _subscribe(
+        controller,
+        repository,
+        competing: true,
+        consume: consume,
+        strategy: strategy,
+      ),
+      ifAbsent: () => _subscribe(
+        _SubscriptionController(
+          logger: logger,
+          onDone: _onSubscriptionDone,
+          onEvent: _onSubscriptionEvent,
+          onError: _onSubscriptionError,
+          maxBackoffTime: maxBackoffTime,
+        ),
+        repository,
+        competing: true,
+        consume: consume,
+        strategy: strategy,
+      ),
+    );
+  }
+
   /// Subscribe given [repository] to receive changes from [canonicalStream]
   ///
   /// Throws an [InvalidOperation] if [Repository.store] is not this [EventStore]
@@ -388,31 +436,52 @@ class EventStore {
     _assertState();
     _assertRepository(repository);
 
+    // Dispose current subscription if exists
+    _subscriptions[repository.runtimeType]?.dispose();
+
     _subscriptions.update(
       repository.runtimeType,
-      (controller) => _subscribe(controller, repository),
+      (controller) => _subscribe(
+        controller,
+        repository,
+        competing: false,
+      ),
       ifAbsent: () => _subscribe(
-          _SubscriptionController(
-            logger: logger,
-            onDone: _onSubscriptionDone,
-            onEvent: _onSubscriptionEvent,
-            onError: _onSubscriptionError,
-            maxBackoffTime: maxBackoffTime,
-          ),
-          repository),
+        _SubscriptionController(
+          logger: logger,
+          onDone: _onSubscriptionDone,
+          onEvent: _onSubscriptionEvent,
+          onError: _onSubscriptionError,
+          maxBackoffTime: maxBackoffTime,
+        ),
+        repository,
+        competing: false,
+      ),
     );
   }
 
   _SubscriptionController _subscribe(
     _SubscriptionController controller,
-    Repository<Command, AggregateRoot> repository,
-  ) =>
-      controller.subscribe(
-        repository,
-        current() + 1,
-        connection,
-        canonicalStream,
-      );
+    Repository<Command, AggregateRoot> repository, {
+    int consume = 20,
+    bool competing = false,
+    ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
+  }) =>
+      competing
+          ? controller.compete(
+              repository,
+              current() + 1,
+              connection,
+              canonicalStream,
+              consume,
+              strategy,
+            )
+          : controller.subscribe(
+              repository,
+              current() + 1,
+              connection,
+              canonicalStream,
+            );
 
   /// Handle event from subscriptions
   void _onSubscriptionEvent(Repository repository, SourceEvent event) {
@@ -488,8 +557,10 @@ class EventStore {
   }
 
   /// Handle subscription errors
-  void _onSubscriptionError(Repository repository, error) {
-    logger.severe('${repository.runtimeType}: subscription failed with: $error');
+  void _onSubscriptionError(Repository repository, dynamic error, StackTrace stackTrace) {
+    logger.severe(
+      '${repository.runtimeType}: subscription failed with: $error. stactrace: $stackTrace',
+    );
     if (!_disposed) {
       _subscriptions[repository.runtimeType].reconnect(
         repository,
@@ -551,6 +622,7 @@ class EventStore {
   }
 }
 
+/// Internal class for handling subscriptions
 class _SubscriptionController {
   _SubscriptionController({
     this.logger,
@@ -565,7 +637,7 @@ class _SubscriptionController {
 
   final void Function(Repository repository) onDone;
   final void Function(Repository repository, SourceEvent event) onEvent;
-  final void Function(Repository repository, dynamic error) onError;
+  final void Function(Repository repository, dynamic error, StackTrace stackTrace) onError;
 
   /// Maximum backoff duration between reconnect attempts
   final Duration maxBackoffTime;
@@ -597,7 +669,36 @@ class _SubscriptionController {
         .listen(
           (event) => onEvent(repository, event),
           onDone: () => onDone(repository),
-          onError: (error) => onError(repository, error),
+          onError: (error, trace) => onError(repository, error, trace),
+        );
+    logger.fine('${repository.runtimeType}: Subscribed to stream $stream from event number $current');
+    return this;
+  }
+
+  /// Compete for events from given stream.
+  ///
+  /// Cancels previous subscriptions if exists
+  _SubscriptionController compete(
+    Repository repository,
+    EventNumber current,
+    EventStoreConnection connection,
+    String stream,
+    int consume,
+    ConsumerStrategy strategy,
+  ) {
+    _subscription?.cancel();
+    _subscription = connection
+        .compete(
+          stream: stream,
+          group: '${repository.aggregateType}',
+          number: current,
+          consume: consume,
+          strategy: strategy,
+        )
+        .listen(
+          (event) => onEvent(repository, event),
+          onDone: () => onDone(repository),
+          onError: (error, trace) => onError(repository, error, trace),
         );
     logger.fine('${repository.runtimeType}: Subscribed to stream $stream from event number $current');
     return this;
@@ -982,6 +1083,128 @@ class EventStoreConnection {
     }
   }
 
+  /// Compete for [SourceEvent]s from given [stream]
+  Stream<SourceEvent> compete({
+    @required String stream,
+    @required String group,
+    int consume = 20,
+    EventNumber number = EventNumber.last,
+    ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
+    Duration pullEvery = const Duration(milliseconds: 500),
+  }) async* {
+    _assertState();
+    var current = number;
+
+    // Catch-up subscription?
+    if (false == current.isLast) {
+      _logger.fine('Stream $stream catch up from event number $current');
+      FeedResult feed;
+      do {
+        feed = await getSubscriptionFeed(
+          stream: stream,
+          group: group,
+          number: current,
+          consume: consume,
+        );
+        if (feed.isOK) {
+          final result = await readEventsInFeed(feed);
+          if (result.isOK) {
+            for (var e in result.events) {
+              yield e;
+            }
+            current = result.number + 1;
+          }
+        }
+      } while (feed.isOK && !feed.atomFeed.headOfStream);
+
+      if (number < current) {
+        _logger.fine('Subscription $stream/$group caught up from $number to $current');
+      }
+    }
+
+    _logger.fine('Listen for events in subscription $stream/$group starting from number $current');
+
+    // Continues until StreamSubscription.cancel() is invoked
+    await for (var request in Stream.periodic(
+      pullEvery,
+      (_) => getSubscriptionFeed(
+        stream: stream,
+        group: group,
+        number: current,
+      ),
+    )) {
+      final feed = await request;
+      if (feed.isOK) {
+        final result = await readEventsInFeed(feed);
+        if (result.isOK) {
+          for (var e in result.events) {
+            yield e;
+          }
+          final next = result.number + 1;
+          _logger.fine('Subscription $stream/$group caught up to event $current, listening for $next');
+          current = next;
+        } else if (!result.isNotFound) {
+          throw SubscriptionFailed(
+            'Failed to read head of subscription $stream/$group: ${result.statusCode} ${result.reasonPhrase}',
+          );
+        }
+      }
+    }
+  }
+
+  /// Get persistent subscription feed. Will create subscription group if not found
+  Future<FeedResult> getSubscriptionFeed({
+    @required String stream,
+    @required String group,
+    @required EventNumber number,
+    int consume = 20,
+    ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
+  }) async {
+    final response = await _getSubscriptionGroup(stream, group, consume);
+    switch (response.statusCode) {
+      case HttpStatus.ok:
+        return FeedResult.from(
+          stream: stream,
+          number: number,
+          subscription: group,
+          response: response,
+        );
+        break;
+      case HttpStatus.notFound:
+        final result = await client.put('$host:$port/subscriptions/$stream/$group',
+            headers: {
+              'Authorization': credentials.header,
+              'Accept': ' application/vnd.eventstore.competingatom+json',
+            },
+            body: json.encode({
+              'startFrom': number.value,
+              'namedConsumerStrategy': enumName(strategy),
+            }));
+        if (result.statusCode == HttpStatus.created || result.statusCode == HttpStatus.conflict) {
+          return FeedResult.from(
+              stream: stream,
+              number: number,
+              subscription: group,
+              response: await _getSubscriptionGroup(stream, group, consume));
+        }
+        break;
+    }
+    return FeedResult.from(
+      stream: stream,
+      number: number,
+      subscription: group,
+      response: response,
+    );
+  }
+
+  Future<Response> _getSubscriptionGroup(String stream, String group, int count) => client.get(
+        '$host:$port/subscriptions/$stream/$group/$count',
+        headers: {
+          'Authorization': credentials.header,
+          'Accept': ' application/vnd.eventstore.competingatom+json',
+        },
+      );
+
   /// Read state of projection [name]
   Future<ProjectionResult> readProjection({
     @required String name,
@@ -1080,4 +1303,20 @@ enum ProjectionCommand {
 
   /// Abort the specified projection.
   abort,
+}
+
+enum ConsumerStrategy {
+  /// Distribute events to each client in a
+  /// round robin fashion.
+  RoundRobin,
+
+//  /// Distributes events to a single client until is
+//  /// is full. Then round robin to the next client.
+//  DispatchToSingle,
+//
+//  /// Distribute events of the same streamId to the
+//  /// same client until it disconnects on a best efforts
+//  /// basis. Designed to be used with indexes such as the
+//  /// category projection.
+//  Pinned,
 }
