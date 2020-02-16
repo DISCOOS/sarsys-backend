@@ -297,15 +297,21 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Build repository from local events.
   Future build() async {
-    final events = await store.replay(this);
+    await replay();
+    subscribe();
+    willStartProcessingEvents();
+    _ready = true;
+  }
+
+  /// Replay events into this [Repository]
+  Future<int> replay() async {
+    final events = await store.replay<T>(this);
     if (events == 0) {
       logger.info("Stream '${store.canonicalStream}' is empty");
     } else {
       logger.info('Repository loaded with ${_aggregates.length} aggregates');
     }
-    store.subscribe(this);
-    willStartProcessingEvents();
-    _ready = true;
+    return events;
   }
 
   /// Subscribe this [repository] to compete for changes from [store]
@@ -484,7 +490,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Rollback all pending changes in aggregate
   Iterable<DomainEvent> rollback(T aggregate) {
-    // TODO: Roll back changes to Event.data - keep delta until commit.
     final events = aggregate.getUncommittedChanges();
     if (aggregate.isNew) {
       _aggregates.remove(aggregate.uuid);

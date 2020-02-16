@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:event_source/event_source.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:uuid/uuid.dart';
@@ -15,10 +16,13 @@ class MessageBus implements MessageNotifier, CommandSender, EventPublisher {
   final Map<Type, List<MessageHandler>> _routes = {};
 
   /// Check if messages are being replayed
-  bool get replaying => _replaying > 0;
+  bool get replaying => _replaying.values.where((count) => count > 0).isNotEmpty;
+
+  /// Check if messages are being replayed
+  bool isReplaying<T extends AggregateRoot>(T aggregateRoot) => (_replaying[aggregateRoot.runtimeType] ?? 0) > 0;
 
   /// Replay counter incremented by [ReplayStarted] and decremented by [ReplayEnded]
-  int _replaying = 0;
+  final Map<Type, int> _replaying = {};
 
   /// Register message handler
   void register<T extends Message>(MessageHandler handler) => _routes.update(
@@ -30,12 +34,12 @@ class MessageBus implements MessageNotifier, CommandSender, EventPublisher {
   /// Invoked before first event is replayed
   ///
   /// Throws [InvalidOperation] on illegal [replaying] state.
-  void replayStarted() => notify(ReplayStarted());
+  void replayStarted<T extends AggregateRoot>() => notify(ReplayStarted<T>());
 
   /// Invoked after last event is replayed
   ///
   /// Throws [InvalidOperation] on illegal [replaying] state.
-  void replayEnded() => notify(ReplayEnded());
+  void replayEnded<T extends AggregateRoot>() => notify(ReplayEnded<T>());
 
   @override
   void notify(Message message) {
@@ -66,12 +70,20 @@ class MessageBus implements MessageNotifier, CommandSender, EventPublisher {
   /// Throws [InvalidOperation] on illegal [replaying] state.
   Message _inspect(Message message) {
     if (message is ReplayStarted) {
-      _replaying++;
+      _replaying.update(
+        message.aggregateType,
+        (count) => ++count,
+        ifAbsent: () => 1,
+      );
     } else if (message is ReplayEnded) {
-      if (_replaying == 0) {
+      if (!_replaying.containsKey(message.aggregateType) || _replaying[message.aggregateType] == 0) {
         throw const InvalidOperation('Illegal state. Is not replaying events');
       }
-      _replaying--;
+      _replaying.update(
+        message.aggregateType,
+        (count) => --count,
+        ifAbsent: () => 0,
+      );
     }
     return message;
   }
@@ -99,13 +111,17 @@ class MessageBus implements MessageNotifier, CommandSender, EventPublisher {
 /// This will lead to unexpected results. Replay should only reproduce
 /// state from events. No side effects should occur during replay.
 @sealed
-class ReplayStarted extends Message {}
+class ReplayStarted<T extends AggregateRoot> extends Message {
+  Type get aggregateType => typeOf<T>();
+}
 
 /// Message indication replay has ended.
 ///
 /// Message handlers can resume sending commands after replay has ended.
 @sealed
-class ReplayEnded extends Message {}
+class ReplayEnded<T extends AggregateRoot> extends Message {
+  Type get aggregateType => typeOf<T>();
+}
 
 /// Manages messages over WebSocket connections
 class MessageChannel extends MessageHandler<Event> {

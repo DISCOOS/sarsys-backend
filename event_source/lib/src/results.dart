@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:event_source/event_source.dart';
 import 'package:http/http.dart';
 import 'package:meta/meta.dart';
 
@@ -77,7 +79,7 @@ class FeedResult extends StreamResult {
     Direction direction = Direction.forward,
   }) {
     switch (response.statusCode) {
-      case 200:
+      case HttpStatus.ok:
         return FeedResult(
           stream: stream,
           statusCode: response.statusCode,
@@ -110,7 +112,7 @@ class FeedResult extends StreamResult {
   final AtomFeed atomFeed;
 
   /// Check if 200 OK
-  bool get isOK => statusCode == 200;
+  bool get isOK => statusCode == HttpStatus.ok;
 
   /// Check if 304 Not modified
   bool get isNotModified => statusCode == 304;
@@ -161,7 +163,7 @@ class ReadResult extends FeedResult {
     Response response,
   }) {
     switch (response.statusCode) {
-      case 200:
+      case HttpStatus.ok:
         final events = json.decode(response.body) as Map<String, dynamic>;
         return ReadResult(
             stream: stream,
@@ -227,7 +229,7 @@ class WriteResult extends StreamResult {
     Response response,
   ) {
     switch (response.statusCode) {
-      case 201:
+      case HttpStatus.created:
         return WriteResult(
           stream: stream,
           statusCode: response.statusCode,
@@ -237,7 +239,7 @@ class WriteResult extends StreamResult {
           location: response.headers['location'],
           version: ExpectedVersion(_toNumber(response)),
         );
-      case 400:
+      case HttpStatus.badRequest:
         return WriteResult(
           stream: stream,
           statusCode: response.statusCode,
@@ -268,13 +270,14 @@ class WriteResult extends StreamResult {
   final String location;
 
   /// Check if 201 Created
-  bool get isCreated => statusCode == 201;
+  bool get isCreated => statusCode == HttpStatus.created;
 
   /// Check if 400 Bad request
-  bool get isBadRequest => statusCode == 400;
+  bool get isBadRequest => statusCode == HttpStatus.badRequest;
 
   /// Check if 400 Wrong expected EventNumber
-  bool get isWrongESNumber => statusCode == 400 && 'wrong expected eventnumber' == reasonPhrase.toLowerCase();
+  bool get isWrongESNumber =>
+      statusCode == HttpStatus.badRequest && 'wrong expected eventnumber' == reasonPhrase.toLowerCase();
 
   static int _toNumber(Response response) => int.parse(response.headers['location'].split('/')?.last);
 
@@ -302,7 +305,7 @@ class ProjectionResult extends Result {
     Response response,
   }) {
     switch (response.statusCode) {
-      case 200:
+      case HttpStatus.ok:
         return ProjectionResult(
           name: name,
           statusCode: response.statusCode,
@@ -327,7 +330,7 @@ class ProjectionResult extends Result {
   final Map<String, dynamic> data;
 
   /// Check if [statusCode] is 200
-  bool get isOK => statusCode == 200;
+  bool get isOK => statusCode == HttpStatus.ok;
 
   /// Check if projection is running
   bool get isRunning => (data['status'] as String)?.toLowerCase() == 'running';
@@ -335,5 +338,67 @@ class ProjectionResult extends Result {
   @override
   String toString() {
     return '$runtimeType{stream: $name, statusCode: $statusCode, reasonPhrase: $reasonPhrase, eTag: $eTag}';
+  }
+}
+
+/// Subscription result class
+class SubscriptionResult extends Result {
+  SubscriptionResult({
+    @required this.stream,
+    @required this.group,
+    @required int statusCode,
+    @required String reasonPhrase,
+    this.number,
+    this.strategy,
+  }) : super(
+          statusCode: statusCode,
+          reasonPhrase: reasonPhrase,
+        );
+
+  factory SubscriptionResult.from({
+    String stream,
+    String group,
+    EventNumber number,
+    ConsumerStrategy strategy,
+    Response response,
+  }) =>
+      SubscriptionResult(
+        stream: stream,
+        group: group,
+        statusCode: response.statusCode,
+        reasonPhrase: response.reasonPhrase,
+      );
+
+  /// Stream name
+  final String stream;
+
+  /// Subscription group name
+  final String group;
+
+  /// Current event number
+  final EventNumber number;
+
+  /// Consumer strategy applied to subscription
+  final ConsumerStrategy strategy;
+
+  /// Check if [statusCode] is 200
+  bool get isOK => statusCode == HttpStatus.ok;
+
+  /// Check if 201 Created
+  bool get isCreated => statusCode == HttpStatus.created;
+
+  /// Check if 202 Accepted
+  bool get isAccepted => statusCode == HttpStatus.accepted;
+
+  /// Check if 400 Bad request
+  bool get isBadRequest => statusCode == HttpStatus.badRequest;
+
+  /// Check if 409 Conflict
+  bool get isConflict => statusCode == HttpStatus.conflict;
+
+  @override
+  String toString() {
+    return '$runtimeType{stream: $stream, group: $group, statusCode: '
+        '$statusCode, reasonPhrase: $reasonPhrase, strategy: ${enumName(strategy)}}';
   }
 }

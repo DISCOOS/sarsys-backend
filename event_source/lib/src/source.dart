@@ -163,13 +163,13 @@ class EventStore {
   /// Replay events from stream to given repository
   ///
   /// Throws an [InvalidOperation] if [Repository.store] is not this [EventStore]
-  Future<int> replay(Repository repository) async {
+  Future<int> replay<T extends AggregateRoot>(Repository<Command, T> repository) async {
     // Sanity checks
     _assertState();
     _assertRepository(repository);
 
     try {
-      bus.replayStarted();
+      bus.replayStarted<T>();
 
       _reset();
 
@@ -181,7 +181,7 @@ class EventStore {
       logger.info("Replayed $count events from stream '${canonicalStream}'");
       return count;
     } finally {
-      bus.replayEnded();
+      bus.replayEnded<T>();
     }
   }
 
@@ -1088,6 +1088,7 @@ class EventStoreConnection {
     @required String stream,
     @required String group,
     int consume = 20,
+    bool accept = true,
     EventNumber number = EventNumber.last,
     ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
     Duration pullEvery = const Duration(milliseconds: 500),
@@ -1109,6 +1110,13 @@ class EventStoreConnection {
         if (feed.isOK) {
           final result = await readEventsInFeed(feed);
           if (result.isOK) {
+            if (accept) {
+              await _acceptEvents(
+                stream,
+                group,
+                result,
+              );
+            }
             for (var e in result.events) {
               yield e;
             }
@@ -1137,6 +1145,13 @@ class EventStoreConnection {
       if (feed.isOK) {
         final result = await readEventsInFeed(feed);
         if (result.isOK) {
+          if (accept) {
+            await _acceptEvents(
+              stream,
+              group,
+              result,
+            );
+          }
           for (var e in result.events) {
             yield e;
           }
@@ -1152,7 +1167,23 @@ class EventStoreConnection {
     }
   }
 
-  /// Get persistent subscription feed. Will create subscription group if not found
+  Future _acceptEvents(String stream, String group, ReadResult result) async {
+    final answer = await writeSubscriptionAck(
+      stream: stream,
+      group: group,
+      events: result.events,
+    );
+    if (answer.isAccepted == false) {
+      throw SubscriptionFailed(
+        'Failed to accept ${result.events.length} events in $stream/$group: '
+        '${answer.statusCode} ${answer.reasonPhrase}',
+      );
+    }
+  }
+
+  /// Get feed for persistent subscription group.
+  ///
+  /// Will attempt to create subscription group if not found.
   Future<FeedResult> getSubscriptionFeed({
     @required String stream,
     @required String group,
@@ -1171,16 +1202,13 @@ class EventStoreConnection {
         );
         break;
       case HttpStatus.notFound:
-        final result = await client.put('$host:$port/subscriptions/$stream/$group',
-            headers: {
-              'Authorization': credentials.header,
-              'Accept': ' application/vnd.eventstore.competingatom+json',
-            },
-            body: json.encode({
-              'startFrom': number.value,
-              'namedConsumerStrategy': enumName(strategy),
-            }));
-        if (result.statusCode == HttpStatus.created || result.statusCode == HttpStatus.conflict) {
+        final result = await createSubscription(
+          stream,
+          group,
+          number: number,
+          strategy: strategy,
+        );
+        if (result.isCreated || result.isConflict) {
           return FeedResult.from(
               stream: stream,
               number: number,
@@ -1197,6 +1225,36 @@ class EventStoreConnection {
     );
   }
 
+  /// Create a persistent subscription.
+  ///
+  /// Before interacting with a subscription group, you need to create one.
+  /// You will receive an error if you attempt to create a subscription group more than once.
+  Future<SubscriptionResult> createSubscription(
+    String stream,
+    String group, {
+    EventNumber number = EventNumber.first,
+    Duration timeout = const Duration(microseconds: 10000),
+    ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
+  }) async {
+    final result = await client.put('$host:$port/subscriptions/$stream/$group',
+        headers: {
+          'Authorization': credentials.header,
+          'Accept': ' application/vnd.eventstore.competingatom+json',
+        },
+        body: json.encode({
+          'startFrom': number.value,
+          'namedConsumerStrategy': enumName(strategy),
+          'messageTimeoutMilliseconds': timeout.inMilliseconds,
+        }));
+    return SubscriptionResult.from(
+      stream: stream,
+      group: group,
+      number: number,
+      strategy: strategy,
+      response: result,
+    );
+  }
+
   Future<Response> _getSubscriptionGroup(String stream, String group, int count) => client.get(
         '$host:$port/subscriptions/$stream/$group/$count',
         headers: {
@@ -1205,19 +1263,53 @@ class EventStoreConnection {
         },
       );
 
-  /// Read state of projection [name]
-  Future<ProjectionResult> readProjection({
-    @required String name,
+  /// Acknowledge multiple messages
+  ///
+  /// Clients must acknowledge (or not acknowledge) messages in the competing consumer model.
+  /// If the client fails to respond in the given timeout period, the message will be retried.
+  Future<SubscriptionResult> writeSubscriptionAck({
+    @required String stream,
+    @required String group,
+    @required List<SourceEvent> events,
+  }) async =>
+      await _writeSubscriptionAnswer(stream, group, events, nack: false);
+
+  /// Negative acknowledge multiple messages
+  ///
+  /// Clients must acknowledge (or not acknowledge) messages in the competing consumer model.
+  /// If the client fails to respond in the given timeout period, the message will be retried.
+  Future<SubscriptionResult> writeSubscriptionNack({
+    @required String stream,
+    @required String group,
+    @required List<SourceEvent> events,
+    SubscriptionAction action = SubscriptionAction.Retry,
+  }) async =>
+      await _writeSubscriptionAnswer(stream, group, events, nack: true);
+
+  /// Negative acknowledge multiple messages
+  ///
+  /// Clients must acknowledge (or not acknowledge) messages in the competing consumer model.
+  /// If the client fails to respond in the given timeout period, the message will be retried.
+  Future<SubscriptionResult> _writeSubscriptionAnswer(
+    String stream,
+    String group,
+    List<SourceEvent> events, {
+    bool nack = false,
+    SubscriptionAction action = SubscriptionAction.Retry,
   }) async {
-    final result = await client.get(
-      '$host:$port/projection/$name',
+    final answer = nack ? 'nack' : 'ack';
+    final ids = events.map((event) => event.uuid).join(',');
+    final nackAction = nack ? '?action=${enumName(action)}' : '';
+    final url = '$host:$port/subscriptions/$stream/$group/$answer?ids=$ids$nackAction';
+    final result = await client.post(
+      url,
       headers: {
         'Authorization': credentials.header,
-        'Accept': 'application/json',
       },
     );
-    return ProjectionResult.from(
-      name: name,
+    return SubscriptionResult.from(
+      stream: stream,
+      group: group,
       response: result,
     );
   }
@@ -1230,6 +1322,23 @@ class EventStoreConnection {
     final url = '$host:$port/projection/$name/command/${enumName(command)}';
     final result = await client.post(
       url,
+      headers: {
+        'Authorization': credentials.header,
+        'Accept': 'application/json',
+      },
+    );
+    return ProjectionResult.from(
+      name: name,
+      response: result,
+    );
+  }
+
+  /// Read state of projection [name]
+  Future<ProjectionResult> readProjection({
+    @required String name,
+  }) async {
+    final result = await client.get(
+      '$host:$port/projection/$name',
       headers: {
         'Authorization': credentials.header,
         'Accept': 'application/json',
@@ -1305,6 +1414,7 @@ enum ProjectionCommand {
   abort,
 }
 
+/// EventStore supported consumer strategies for use with persistent subscriptions.
 enum ConsumerStrategy {
   /// Distribute events to each client in a
   /// round robin fashion.
@@ -1319,4 +1429,19 @@ enum ConsumerStrategy {
 //  /// basis. Designed to be used with indexes such as the
 //  /// category projection.
 //  Pinned,
+}
+
+/// Subscription actions when not accepting consumed events from a subscription
+enum SubscriptionAction {
+  /// Retry the message on next incoming consumption
+  Retry,
+
+//  /// Don't retry the message, park it until a request is sent to reply the parked messages
+//  Park,
+//
+//  /// Discard the message for all consumers
+//  Skip,
+//
+//  /// Stop the subscription for all consumers
+//  Stop
 }

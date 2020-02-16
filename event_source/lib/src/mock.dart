@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:event_source/event_source.dart';
 import 'package:json_patch/json_patch.dart';
@@ -70,7 +71,9 @@ class EventStoreMockServer {
       if (verbose && logger != null) {
         logger.info(
           'Ports ${request.connectionInfo.remotePort} > ${request.connectionInfo.localPort}: '
-          '${request.method} ${request.uri.path} > ${request.response.statusCode} ${request.response.reasonPhrase}',
+          '${request.method} ${request.uri.path}'
+          '${request.uri.queryParameters.isNotEmpty ? '?${request.uri.query}' : ''} '
+          '> ${request.response.statusCode} ${request.response.reasonPhrase}',
         );
       }
       await request.response.close();
@@ -245,74 +248,92 @@ class TestStream {
         await handlePOST(request);
         break;
       default:
-        request.response.statusCode = HttpStatus.forbidden;
+        _unsupported(request);
         break;
     }
   }
 
   Future handlePUT(HttpRequest request) async {
+    RegExp pattern;
     final path = request.uri.path;
-    final pattern = RegExp(TestSubscription.asSubscription(RegExp.escape(canonicalStream)));
-    if (!pattern.hasMatch(path)) {
-      _unsupported(request, path);
+    if ((pattern = RegExp(TestSubscription.asSubscription(RegExp.escape(canonicalStream)))).hasMatch(path)) {
+      await _createSubscription(request, pattern, path);
     } else {
-      final content = await utf8.decoder.bind(request).join();
-      final data = json.decode(content);
-      final offset = data['startFrom'] ?? 0;
-      final strategy = data['namedConsumerStrategy'] as String ?? enumName(ConsumerStrategy.RoundRobin);
-      final type = ConsumerStrategy.values.firstWhere(
-        (value) => enumName(value).toLowerCase() == strategy.toLowerCase(),
-        orElse: () => null,
+      _unsupported(request);
+    }
+  }
+
+  Future _createSubscription(HttpRequest request, RegExp pattern, String path) async {
+    final content = await utf8.decoder.bind(request).join();
+    final data = json.decode(content);
+    final offset = data['startFrom'] ?? 0;
+    final strategy = data['namedConsumerStrategy'] as String ?? enumName(ConsumerStrategy.RoundRobin);
+    final type = ConsumerStrategy.values.firstWhere(
+      (value) => enumName(value).toLowerCase() == strategy.toLowerCase(),
+      orElse: () => null,
+    );
+    if (type == null) {
+      _unsupported(
+        request,
+        message: 'Consumer strategy $strategy not suppored',
       );
-      if (type == null) {
+    } else {
+      final group = pattern.firstMatch(path).group(1);
+      if (_groups.containsKey(group)) {
         request.response
-          ..statusCode = HttpStatus.badRequest
-          ..reasonPhrase = 'Consumer strategy $strategy not suppored';
+          ..statusCode = HttpStatus.conflict
+          ..reasonPhrase = 'Already exists';
       } else {
-        final group = pattern.firstMatch(path).group(1);
-        if (_groups.containsKey(group)) {
-          request.response
-            ..statusCode = HttpStatus.conflict
-            ..reasonPhrase = 'Already exists';
-        } else {
-          _groups[group] = TestSubscription(
-            canonicalStream,
-            group,
-            type,
-            offset,
-          );
-          request.response..statusCode = HttpStatus.created;
-        }
+        _groups[group] = TestSubscription(
+          canonicalStream,
+          group,
+          type,
+          offset,
+          timeout: data['messageTimeoutMilliseconds'],
+        );
+        request.response..statusCode = HttpStatus.created;
       }
     }
   }
 
-  HttpResponse _unsupported(HttpRequest request, String path) {
-    return request.response
-      ..statusCode = HttpStatus.badRequest
-      ..reasonPhrase = 'Request ${request.method} $path not supported';
-  }
-
-  Future handlePOST(HttpRequest request) async {
-    final path = request.uri.path;
-    final stream = RegExp.escape(instanceStream);
-    if (!RegExp(asStream(stream)).hasMatch(path)) {
-      _unsupported(request, path);
+  Future _ackEvents(HttpRequest request, RegExp pattern, String path) async {
+    final group = pattern.firstMatch(path).group(1);
+    if (_groups.containsKey(group)) {
+      final ids = request.uri.queryParameters['ids']?.split(',') ?? [];
+      _groups[group].ack(this, request, ids);
     } else {
-      final content = await utf8.decoder.bind(request).join();
-      final data = json.decode(content);
-      final list = _toEventsWithUpdatedField(data);
-      if (_checkEventNumber(request, path)) {
-        final events = append(path, list);
-        request.response
-          ..headers.add('location', '$path/${events.length - 1}')
-          ..statusCode = HttpStatus.created;
-        _notify(path, list);
-      }
+      _notFound(request);
     }
   }
 
   String asStream(String stream) => '/streams/$stream';
+
+  Future handlePOST(HttpRequest request) async {
+    RegExp pattern;
+    final path = request.uri.path;
+    if (RegExp(asStream(RegExp.escape(instanceStream))).hasMatch(path)) {
+      await _createStream(request, path);
+    } else if ((pattern = RegExp(TestSubscription.asAck(RegExp.escape(canonicalStream)))).hasMatch(path)) {
+      await _ackEvents(request, pattern, path);
+    } else if ((pattern = RegExp(TestSubscription.asAck(RegExp.escape(canonicalStream)))).hasMatch(path)) {
+      await _ackEvents(request, pattern, path);
+    } else {
+      _unsupported(request);
+    }
+  }
+
+  Future _createStream(HttpRequest request, String path) async {
+    final content = await utf8.decoder.bind(request).join();
+    final data = json.decode(content);
+    final list = _toEventsWithUpdatedField(data);
+    if (_checkEventNumber(request, path)) {
+      final events = append(path, list);
+      request.response
+        ..headers.add('location', '$path/${events.length - 1}')
+        ..statusCode = HttpStatus.created;
+      _notify(path, list);
+    }
+  }
 
   bool _checkEventNumber(HttpRequest request, String path) {
     final expectedNumber = int.tryParse(request.headers.value('ES-ExpectedVersion'));
@@ -370,6 +391,10 @@ class TestStream {
       );
     }
   }
+
+  HttpResponse _unsupported(HttpRequest request, {String message}) => request.response
+    ..statusCode = HttpStatus.badRequest
+    ..reasonPhrase = message ?? 'Request ${request.method} ${request.uri.path} not supported';
 
   /// Append [list] of data objects to [path]
   Map<String, Map<String, dynamic>> append(String path, List<Map<String, dynamic>> list) {
@@ -429,11 +454,11 @@ class TestStream {
     } else if (RegExp(TestSubscription.asSubscription(stream)).hasMatch(path)) {
       // Fetch next events from subscription group for given consumer
       _toCompetingAtomFeedResponse(request, TestSubscription.asSubscription(stream), path);
-    } else if (RegExp(asUuid(stream)).hasMatch(path)) {
-      // Fetch events with given uuid
-      // final data = _canonical[toUuid(stream, path)];
+//    } else if (RegExp(asUuid(stream)).hasMatch(path)) {
+//      // Fetch events with given uuid
+//      final data = _canonical[toUuid(stream, path)];
     } else {
-      request.response.statusCode = HttpStatus.notFound;
+      _unsupported(request);
     }
   }
 
@@ -452,9 +477,10 @@ class TestStream {
 
   void _toAtomItemContentResponse(HttpRequest request, int number, Map<String, dynamic> data) {
     if (request.headers.value('accept')?.contains('application/vnd.eventstore.atom+json') != true) {
-      request.response
-        ..statusCode = HttpStatus.badRequest
-        ..reasonPhrase = 'TestStream only supports Accept:application/vnd.eventstore.atom+json';
+      _unsupported(
+        request,
+        message: "TestStream only supports 'Accept:application/vnd.eventstore.atom+json'",
+      );
     } else {
       final selfUrl = toSelfURL(canonicalStream);
       request.response
@@ -475,11 +501,12 @@ class TestStream {
     final offset = int.parse(match.group(1));
     final count = int.parse(match.group(2));
     if (request.headers.value('accept')?.contains('application/vnd.eventstore.atom+json') != true) {
-      request.response
-        ..statusCode = HttpStatus.badRequest
-        ..reasonPhrase = 'TestStream only supports Accept:application/vnd.eventstore.atom+json';
+      _unsupported(
+        request,
+        message: "TestStream only supports 'Accept:application/vnd.eventstore.atom+json'",
+      );
     } else if (offset < 0 || count < 0 || offset > _canonical.length) {
-      request.response.statusCode = HttpStatus.notFound;
+      _notFound(request);
     } else if (offset == 0 && count == 0) {
       request.response.statusCode = HttpStatus.ok;
     } else {
@@ -498,18 +525,21 @@ class TestStream {
     }
   }
 
+  void _notFound(HttpRequest request) => request.response
+    ..statusCode = HttpStatus.notFound
+    ..reasonPhrase = 'Not found';
+
   void _toCompetingAtomFeedResponse(HttpRequest request, String pattern, String path) {
     if (request.headers.value('accept')?.contains('application/vnd.eventstore.competingatom+json') != true) {
-      request.response
-        ..statusCode = HttpStatus.badRequest
-        ..reasonPhrase = 'TestSubscription only supports application/vnd.eventstore.competingatom+json';
+      _unsupported(
+        request,
+        message: "TestSubscription only supports 'Accept:application/vnd.eventstore.competingatom+json'",
+      );
     } else {
       final match = RegExp(pattern).firstMatch(path);
       final group = match.group(1);
       if (!_groups.containsKey(group)) {
-        request.response
-          ..statusCode = HttpStatus.notFound
-          ..reasonPhrase = 'Not found';
+        _notFound(request);
       } else {
         _groups[group].consume(this, request);
       }
@@ -522,15 +552,18 @@ class TestSubscription {
     this.stream,
     this.group,
     this.strategy,
-    int offset,
-  )   : _offset = offset,
+    int offset, {
+    int timeout = 10000,
+  })  : _offset = offset,
         pattern = RegExp(
           asGroup(
             RegExp.escape(stream),
             RegExp.escape(group),
           ),
-        );
+        ),
+        timeout = timeout ?? 10000;
 
+  final int timeout;
   final String stream;
   final String group;
   final RegExp pattern;
@@ -538,13 +571,20 @@ class TestSubscription {
 
   int _offset = 0;
   int get offset => _offset;
+  Map<String, _Consumed> consumed = {};
+  Set<String> acknowledged = LinkedHashSet.of({});
 
   void consume(TestStream stream, HttpRequest request) {
     final path = request.uri.path;
     final match = RegExp(asCount(RegExp.escape(this.stream), RegExp.escape(group))).firstMatch(path);
     final count = int.parse(match.group(1) ?? '1');
     final selfUrl = '${stream.toHost()}/${asGroup(this.stream, group)}';
-    final events = stream._canonical.values.skip(_offset).take(count).toList();
+    final consumed = _evict(stream);
+    final events = stream._canonical.values
+        .skip(_offset)
+        .where((event) => !consumed.containsKey(event['eventId']))
+        .take(count)
+        .toList();
     final data = _toAtomFeed(
       stream.toHost(),
       selfUrl,
@@ -555,16 +595,66 @@ class TestSubscription {
       consume: count,
       isSubscription: true,
     );
+    consumed.addEntries(
+      events.map(
+        (event) => MapEntry(event['eventId'], _Consumed.from(event)),
+      ),
+    );
+    _offset += events.length;
     request.response
       ..statusCode = HttpStatus.ok
       ..write(json.encode(data));
-    // consume events
-    _offset += events.length;
+  }
+
+  Map<String, _Consumed> _evict(TestStream stream) {
+    final now = DateTime.now();
+    final evicted = consumed.keys.where(
+      (uuid) => !consumed[uuid].acknowledged && now.difference(consumed[uuid].timestamp).inMilliseconds > timeout,
+    );
+    if (evicted.isNotEmpty) {
+      _offset = evicted.fold(
+        _offset,
+        (offset, next) => min(offset, stream._canonical.keys.toList().indexOf(consumed[next].uuid)),
+      );
+      consumed.removeWhere((uuid, _) => evicted.contains(uuid));
+    }
+    return consumed;
   }
 
   static String asSubscription(String stream) => 'subscriptions/$stream/(\\w+)';
   static String asGroup(String stream, String group) => 'subscriptions/$stream/$group';
   static String asCount(String stream, String group) => 'subscriptions/$stream/$group/(\\d+)';
+  static String asAck(String stream) => 'subscriptions/$stream/(\\w+)/ack';
+  static String asNack(String stream) => 'subscriptions/$stream/(\\w+)/nack';
+
+  void ack(TestStream stream, HttpRequest request, List<String> ids) {
+    // only acknowledge known ids
+    final known = ids.toList()..removeWhere((id) => !stream._canonical.containsKey(id));
+    if (known.isNotEmpty) {
+      known.forEach((uuid) => consumed[uuid].acknowledged = false);
+    }
+    request.response..statusCode = HttpStatus.accepted;
+  }
+}
+
+class _Consumed {
+  _Consumed(this.uuid, this.timestamp);
+
+  factory _Consumed.from(Map<String, dynamic> event) => _Consumed(
+        event['eventId'] as String,
+        DateTime.now(),
+      );
+
+  final String uuid;
+  final DateTime timestamp;
+  bool acknowledged = false;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is _Consumed && runtimeType == other.runtimeType && uuid == other.uuid;
+
+  @override
+  int get hashCode => uuid.hashCode;
 }
 
 String _lastUpdated(List<Map<String, dynamic>> events) {
