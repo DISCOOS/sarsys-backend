@@ -91,7 +91,7 @@ class EventStoreMockServer {
     _router.putIfAbsent(
       name,
       () => TestRoute(
-        '/projection/\$$name',
+        '/projection/$name',
         (request) => request.response
           ..statusCode = HttpStatus.ok
           ..write(

@@ -85,38 +85,42 @@ class RepositoryManager {
   /// true and system projection
   /// [$by_category](https://eventstore.org/docs/projections/system-projections/index.html?tabs=tabid-5#by-category)
   ///  is not available.
-  Future<void> build() async {
+  Future<void> build({List<String> withProjections = const []}) async {
+    final projections = Set.from(withProjections);
     if (_stores.values.any(
       (store) => store.useInstanceStreams,
     )) {
-      await _prepare();
+      projections.add('\$by_category');
     }
+    await Future.wait(
+      projections.map((command) => _prepare(command)),
+    );
     await Future.wait(_stores.keys.map(
       (repository) => repository.build(),
     ));
   }
 
   /// Check if projections are enabled
-  Future<void> _prepare() async {
+  Future<void> _prepare(String projection) async {
     var result = await connection.readProjection(
-      name: '\$by_category',
+      name: projection,
     );
     if (result.isOK) {
       if (result.isRunning == false) {
         // Try to enable command
         result = await connection.projectionCommand(
-          name: '\$by_category',
+          name: projection,
           command: ProjectionCommand.enable,
         );
         if (result.isOK) {
           // TODO: Check projection startup progress and until complete
           const seconds = 5;
-          logger.info("Waiting $seconds seconds for projection '\$by_category' to start...");
+          logger.info("Waiting $seconds seconds for projection $projection' to start...");
           // Check status again after 5 seconds
           result = await Future.delayed(
               const Duration(seconds: seconds),
               () => connection.readProjection(
-                    name: '\$by_category',
+                    name: projection,
                   ));
         }
       }
@@ -125,8 +129,10 @@ class RepositoryManager {
     if (result.isRunning == false) {
       logger.severe('Projections are required but could not be enabled');
       throw ProjectionNotAvailable(
-        "EventStore projection '\$by_category' not ${result.isOK ? 'running' : 'found'}",
+        "EventStore projection '$projection' not ${result.isOK ? 'running' : 'found'}",
       );
+    } else {
+      logger.info("EventStore projection '$projection' is running");
     }
   }
 

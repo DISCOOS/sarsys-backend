@@ -10,8 +10,8 @@ Future main() async {
     ..withTenant()
     ..withPrefix()
     ..withLogger()
-    ..withProjection()
     ..withRepository<Foo>((store) => FooRepository(store), instances: 2)
+    ..withProjections(projections: ['\$by_category', '\$by_event_type'])
     ..add(port: 4000)
     ..add(port: 4001)
     ..install();

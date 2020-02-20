@@ -27,10 +27,10 @@ class EventSourceHarness {
     return this;
   }
 
-  String _projection;
-  String get projection => _projection;
-  EventSourceHarness withProjection() {
-    _projection = 'by_category';
+  final Set<String> _projections = {};
+  List<String> get projections => _projections.toList(growable: false);
+  EventSourceHarness withProjections({List<String> projections = const ['\$by_category']}) {
+    _projections.addAll(projections);
     return this;
   }
 
@@ -58,7 +58,7 @@ class EventSourceHarness {
     _logger = Logger('$runtimeType');
     _logger.onRecord.listen((rec) {
       print(
-        '${rec.time}: ${rec.level.name}: '
+        '${rec.time}: ${rec.level.name}: ${rec.loggerName}: '
         '${rec.message} ${rec.error ?? ''} ${rec.stackTrace ?? ''}',
       );
     });
@@ -126,9 +126,9 @@ class EventSourceHarness {
   }
 
   void _build(int port, EventStoreMockServer server) async {
-    if (_projection?.isNotEmpty == true) {
-      server.withProjection('by_category');
-    }
+    _projections.forEach(
+      (projection) => server.withProjection(projection),
+    );
     final list = _managers.putIfAbsent(port, () => []);
     _builders.values.forEach((builder) {
       for (var i = 0; i < builder.instances; i++) {
@@ -145,14 +145,20 @@ class EventSourceHarness {
       }
       server.withStream(builder.stream);
     });
-    await Future.wait(list.map((manager) => manager.build()));
+    await Future.wait(
+      list.map(
+        (manager) => manager.build(withProjections: _projections.toList()),
+      ),
+    );
   }
 
   void _clear(int port, EventStoreMockServer server) {
     server.clear();
-    _managers[port]
-      ..forEach((manager) => manager.dispose())
-      ..clear();
+    if (_managers.containsKey(port)) {
+      _managers[port]
+        ..forEach((manager) => manager.dispose())
+        ..clear();
+    }
   }
 
   void _close(int port, EventStoreMockServer server) async {
