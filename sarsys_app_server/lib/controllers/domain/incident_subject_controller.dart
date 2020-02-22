@@ -1,7 +1,5 @@
 import 'package:sarsys_app_server/controllers/eventsource/controllers.dart';
-import 'package:sarsys_app_server/domain/incident/incident.dart';
-import 'package:sarsys_app_server/domain/subject/commands.dart';
-import 'package:sarsys_app_server/domain/subject/subject.dart';
+import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 
 /// Implement controller for field `subjects` in [Incident]

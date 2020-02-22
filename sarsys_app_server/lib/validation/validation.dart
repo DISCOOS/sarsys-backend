@@ -1,5 +1,5 @@
 import 'package:json_schema/json_schema.dart';
-import 'package:sarsys_app_server/app_server.dart';
+import 'package:sarsys_app_server/sarsys_app_server.dart';
 
 class JsonValidation {
   JsonValidation(this.specification, {List<Validator> validators}) : validators = validators ?? [];

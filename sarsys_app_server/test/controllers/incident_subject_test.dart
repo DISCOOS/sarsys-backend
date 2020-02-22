@@ -1,5 +1,4 @@
-import 'package:sarsys_app_server/domain/incident/incident.dart';
-import 'package:sarsys_app_server/domain/subject/subject.dart';
+import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:event_source/event_source.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';

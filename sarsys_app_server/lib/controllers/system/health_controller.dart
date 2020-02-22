@@ -1,4 +1,4 @@
-import 'package:sarsys_app_server/app_server.dart';
+import 'package:sarsys_app_server/sarsys_app_server.dart';
 
 class HealthController extends ResourceController {
   @Operation.get()

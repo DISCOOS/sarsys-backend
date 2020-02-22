@@ -2,7 +2,7 @@
 .idea
 
 # Files and directories created by pub
-app_server/.dart_tool/
+sarsys_app_server/.dart_tool/
 .packages
 .pub/
 build/

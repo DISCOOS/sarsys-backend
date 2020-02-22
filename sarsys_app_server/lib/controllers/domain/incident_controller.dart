@@ -1,6 +1,6 @@
 import 'package:sarsys_app_server/controllers/eventsource/controllers.dart';
-import 'package:sarsys_app_server/domain/incident/incident.dart';
-import 'package:sarsys_app_server/app_server.dart';
+import 'package:sarsys_domain/sarsys_domain.dart';
+import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 
 /// A ResourceController that handles

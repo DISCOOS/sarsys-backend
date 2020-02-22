@@ -1,5 +1,5 @@
-import 'package:sarsys_app_server/domain/operation/operation.dart' as sar;
-import 'package:sarsys_app_server/domain/unit/unit.dart';
+import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
+import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
 import 'package:event_source/event_source.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
@@ -11,7 +11,7 @@ Future main() async {
     ..withEventStoreMock()
     ..install(restartForEachTest: true);
 
-  test("POST /api/operation/{uuid}/unit adds unit to aggregate list", () async {
+  test("POST /api/operations/{uuid}/unit adds unit to aggregate list", () async {
     await _install(harness);
     final operationUuid = Uuid().v4();
     final operation = createOperation(operationUuid);
@@ -44,7 +44,7 @@ Future main() async {
     );
   });
 
-  test("GET /api/operation/{uuid}/units returns status code 200 with offset=1 and limit=2", () async {
+  test("GET /api/operations/{uuid}/units returns status code 200 with offset=1 and limit=2", () async {
     await _install(harness);
     final uuid = Uuid().v4();
     final operation = createOperation(uuid);
@@ -77,8 +77,10 @@ Future main() async {
 }
 
 Future _install(SarSysHarness harness) async {
-  harness.eventStoreMockServer..withStream(typeOf<Operation>().toColonCase())..withStream(typeOf<Unit>().toColonCase());
-  await harness.channel.manager.get<sar.OperationRepository>().readyAsync();
+  harness.eventStoreMockServer
+    ..withStream(typeOf<sar.Operation>().toColonCase())
+    ..withStream(typeOf<Unit>().toColonCase());
+  await harness.channel.manager.get<OperationRepository>().readyAsync();
   await harness.channel.manager.get<UnitRepository>().readyAsync();
 }
 

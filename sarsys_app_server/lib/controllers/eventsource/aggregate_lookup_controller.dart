@@ -1,5 +1,5 @@
 import 'package:event_source/event_source.dart';
-import 'package:sarsys_app_server/app_server.dart';
+import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:strings/strings.dart';
 
 /// A basic ResourceController for ReadModel requests

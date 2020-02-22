@@ -1,4 +1,6 @@
-import 'package:sarsys_app_server/domain/operation/operation.dart' as sar;
+import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
+import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
+
 import 'package:event_source/event_source.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
@@ -12,7 +14,7 @@ Future main() async {
 
   test("POST /api/operations/ returns status code 201 with empty body", () async {
     harness.eventStoreMockServer.withStream(typeOf<Operation>().toColonCase());
-    await harness.channel.manager.get<sar.OperationRepository>().readyAsync();
+    await harness.channel.manager.get<OperationRepository>().readyAsync();
     final uuid = Uuid().v4();
     final body = _createData(uuid);
     expectResponse(await harness.agent.post("/api/operations", body: body), 201, body: null);
@@ -20,7 +22,7 @@ Future main() async {
 
   test("POST /api/operations/ returns status code 400 when 'incident/uuid' is given", () async {
     harness.eventStoreMockServer.withStream(typeOf<Operation>().toColonCase());
-    await harness.channel.manager.get<sar.OperationRepository>().readyAsync();
+    await harness.channel.manager.get<OperationRepository>().readyAsync();
     final uuid = Uuid().v4();
     final body = _createData(uuid)
       ..addAll({
@@ -35,7 +37,7 @@ Future main() async {
 
   test("GET /api/operations/{uuid} returns status code 200", () async {
     harness.eventStoreMockServer.withStream(typeOf<Operation>().toColonCase());
-    await harness.channel.manager.get<sar.OperationRepository>().readyAsync();
+    await harness.channel.manager.get<OperationRepository>().readyAsync();
     final uuid = Uuid().v4();
     final body = _createData(uuid);
     expectResponse(await harness.agent.post("/api/operations", body: body), 201, body: null);
@@ -46,7 +48,7 @@ Future main() async {
 
   test("PATCH /api/operations/{uuid} is idempotent", () async {
     harness.eventStoreMockServer.withStream(typeOf<sar.Operation>().toColonCase());
-    await harness.channel.manager.get<sar.OperationRepository>().readyAsync();
+    await harness.channel.manager.get<OperationRepository>().readyAsync();
     final uuid = Uuid().v4();
     final body = _createData(uuid);
     expectResponse(await harness.agent.post("/api/operations", body: body), 201, body: null);
@@ -58,7 +60,7 @@ Future main() async {
 
   test("PATCH /api/operations/{uuid} does not remove value objects", () async {
     harness.eventStoreMockServer.withStream(typeOf<sar.Operation>().toColonCase());
-    await harness.channel.manager.get<sar.OperationRepository>().readyAsync();
+    await harness.channel.manager.get<OperationRepository>().readyAsync();
     final uuid = Uuid().v4();
     final body = _createData(uuid);
     expectResponse(await harness.agent.post("/api/operations", body: body), 201, body: null);
@@ -70,7 +72,7 @@ Future main() async {
 
   test("PATCH /api/operations/{uuid} on value object lists supports add, remove and replace", () async {
     harness.eventStoreMockServer.withStream(typeOf<sar.Operation>().toColonCase());
-    await harness.channel.manager.get<sar.OperationRepository>().readyAsync();
+    await harness.channel.manager.get<OperationRepository>().readyAsync();
     final uuid = Uuid().v4();
     final body = _createData(uuid);
     expectResponse(await harness.agent.post("/api/operations", body: body), 201, body: null);
@@ -110,7 +112,7 @@ Future main() async {
 
   test("DELETE /api/operations/{uuid} returns status code 204", () async {
     harness.eventStoreMockServer.withStream(typeOf<sar.Operation>().toColonCase());
-    await harness.channel.manager.get<sar.OperationRepository>().readyAsync();
+    await harness.channel.manager.get<OperationRepository>().readyAsync();
     final uuid = Uuid().v4();
     final body = _createData(uuid);
     expectResponse(await harness.agent.post("/api/operations", body: body), 201, body: null);
@@ -119,7 +121,7 @@ Future main() async {
 
   test("GET /api/operations returns status code 200 with offset=1 and limit=2", () async {
     harness.eventStoreMockServer.withStream(typeOf<sar.Operation>().toColonCase());
-    await harness.channel.manager.get<sar.OperationRepository>().readyAsync();
+    await harness.channel.manager.get<OperationRepository>().readyAsync();
     await harness.agent.post("/api/operations", body: _createData(Uuid().v4()));
     await harness.agent.post("/api/operations", body: _createData(Uuid().v4()));
     await harness.agent.post("/api/operations", body: _createData(Uuid().v4()));

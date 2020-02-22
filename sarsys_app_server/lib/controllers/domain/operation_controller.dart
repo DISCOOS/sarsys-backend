@@ -1,13 +1,12 @@
 import 'package:sarsys_app_server/controllers/eventsource/controllers.dart';
-import 'package:sarsys_app_server/domain/operation/operation.dart' as sar;
-import 'package:sarsys_app_server/domain/operation/repository.dart';
-import 'package:sarsys_app_server/app_server.dart';
+import 'package:sarsys_domain/sarsys_domain.dart' as sar;
+import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 
 /// A ResourceController that handles
 /// [/api/operations](http://localhost/api/client.html#/Operation) requests
 class OperationController extends AggregateController<sar.OperationCommand, sar.Operation> {
-  OperationController(OperationRepository repository, JsonValidation validation)
+  OperationController(sar.OperationRepository repository, JsonValidation validation)
       : super(
           repository,
           validation: validation,

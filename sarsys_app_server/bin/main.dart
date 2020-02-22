@@ -1,7 +1,7 @@
 import 'dart:math';
 
 import 'package:args/args.dart';
-import 'package:sarsys_app_server/app_server.dart';
+import 'package:sarsys_app_server/sarsys_app_server.dart';
 
 Future main(List<String> args) async {
   final logger = Logger("main")

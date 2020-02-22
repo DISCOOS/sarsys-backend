@@ -1,0 +1,18 @@
+name: sarsys_domain
+description: SarSys Domain objects sourced from EventStore
+version: 0.0.1
+author: DISCO Open Source <support@discoos.org>
+homepage: https://github.com/DISCOOS/sarsys-backend
+
+environment:
+  sdk: '>=2.7.0 <3.0.0'
+
+dependencies:
+#  path: ^1.6.0
+  event_source:
+    path: ../event_source
+
+
+dev_dependencies:
+  pedantic: ^1.8.0
+  test: ^1.6.0

@@ -1,5 +1,5 @@
-import 'package:sarsys_app_server/domain/incident/incident.dart';
-import 'package:sarsys_app_server/domain/operation/operation.dart' as sar;
+import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
+import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
 import 'package:event_source/event_source.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
@@ -81,7 +81,7 @@ Future _install(SarSysHarness harness) async {
     ..withStream(typeOf<Incident>().toColonCase())
     ..withStream(typeOf<sar.Operation>().toColonCase());
   await harness.channel.manager.get<IncidentRepository>().readyAsync();
-  await harness.channel.manager.get<sar.OperationRepository>().readyAsync();
+  await harness.channel.manager.get<OperationRepository>().readyAsync();
 }
 
 Map<String, Object> _createData(String uuid) => createOperation(uuid);

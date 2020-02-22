@@ -1,24 +1,22 @@
 import 'package:sarsys_app_server/controllers/eventsource/entity_controller.dart';
-import 'package:sarsys_app_server/domain/operation/aggregate.dart' as sar;
-import 'package:sarsys_app_server/domain/operation/commands.dart';
-import 'package:sarsys_app_server/domain/operation/repository.dart';
-import 'package:sarsys_app_server/app_server.dart';
+import 'package:sarsys_domain/sarsys_domain.dart' as sar;
+import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 
 /// A ResourceController that handles
 /// [/api/incidents/{uuid}/objectives](http://localhost/api/client.html#/Objective) requests
-class ObjectiveController extends EntityController<OperationCommand, sar.Operation> {
-  ObjectiveController(OperationRepository repository, JsonValidation validation)
+class ObjectiveController extends EntityController<sar.OperationCommand, sar.Operation> {
+  ObjectiveController(sar.OperationRepository repository, JsonValidation validation)
       : super(repository, "Objective", "objectives", validation: validation, tag: 'Operations > Objectives');
 
   @override
-  OperationCommand onCreate(String uuid, String type, Map<String, dynamic> data) => AddObjective(uuid, data);
+  sar.OperationCommand onCreate(String uuid, String type, Map<String, dynamic> data) => sar.AddObjective(uuid, data);
 
   @override
-  OperationCommand onUpdate(String uuid, String type, Map<String, dynamic> data) => UpdateObjective(uuid, data);
+  sar.OperationCommand onUpdate(String uuid, String type, Map<String, dynamic> data) => sar.UpdateObjective(uuid, data);
 
   @override
-  OperationCommand onDelete(String uuid, String type, Map<String, dynamic> data) => RemoveObjective(uuid, data);
+  sar.OperationCommand onDelete(String uuid, String type, Map<String, dynamic> data) => sar.RemoveObjective(uuid, data);
 
   //////////////////////////////////
   // Documentation

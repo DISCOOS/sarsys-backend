@@ -1,7 +1,5 @@
 import 'package:sarsys_app_server/controllers/eventsource/controllers.dart';
-import 'package:sarsys_app_server/domain/division/division.dart';
-import 'package:sarsys_app_server/domain/department/commands.dart';
-import 'package:sarsys_app_server/domain/department/department.dart';
+import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 
 /// Implement controller for field `departments` in [Division]

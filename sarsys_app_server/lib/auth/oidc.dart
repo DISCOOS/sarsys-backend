@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:aqueduct/aqueduct.dart';
 import 'package:jaguar_jwt/jaguar_jwt.dart';
-import 'package:sarsys_app_server/app_server.dart';
+import 'package:sarsys_app_server/sarsys_app_server.dart';
 
 /// Validates identity tokens issued by an
 /// [OpenID Connect Identify Provider](https://connect2id.com/learn/openid-connect).

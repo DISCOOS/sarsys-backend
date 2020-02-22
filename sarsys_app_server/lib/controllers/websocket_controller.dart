@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:aqueduct/aqueduct.dart';
 import 'package:event_source/event_source.dart';
-import 'package:sarsys_app_server/app_server.dart';
+import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:uuid/uuid.dart';
 
 class WebSocketController extends Controller {

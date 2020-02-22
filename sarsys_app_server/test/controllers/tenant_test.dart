@@ -1,4 +1,4 @@
-import 'package:sarsys_app_server/domain/tenant/app_config.dart';
+import 'package:sarsys_app_server/controllers/tenant/app_config.dart';
 import 'package:event_source/event_source.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';

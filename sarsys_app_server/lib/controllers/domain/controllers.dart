@@ -6,7 +6,7 @@ export 'incident_controller.dart';
 export 'incident_objective_controller.dart';
 export 'incident_operation_controller.dart';
 export 'incident_subject_controller.dart';
-export 'incident_talk_group_controller.dart';
+export 'operation_talk_group_controller.dart';
 export 'message_controller.dart';
 export 'mission_controller.dart';
 export 'mission_part_controller.dart';

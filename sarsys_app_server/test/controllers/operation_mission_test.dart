@@ -1,5 +1,4 @@
-import 'package:sarsys_app_server/domain/operation/operation.dart' as sar;
-import 'package:sarsys_app_server/domain/mission/mission.dart';
+import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:event_source/event_source.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
@@ -80,7 +79,7 @@ Future _install(SarSysHarness harness) async {
   harness.eventStoreMockServer
     ..withStream(typeOf<Operation>().toColonCase())
     ..withStream(typeOf<Mission>().toColonCase());
-  await harness.channel.manager.get<sar.OperationRepository>().readyAsync();
+  await harness.channel.manager.get<OperationRepository>().readyAsync();
   await harness.channel.manager.get<MissionRepository>().readyAsync();
 }
 
