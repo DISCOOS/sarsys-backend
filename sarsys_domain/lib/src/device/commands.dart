@@ -44,7 +44,7 @@ class DeviceMessageCommand<T extends DomainEvent> extends DeviceCommand<T> imple
   ) : super(action, uuid: uuid, data: data);
 
   @override
-  String get aggregateField => "messages";
+  String get aggregateField => 'messages';
 
   @override
   int get entityId => data[entityIdFieldName] as int;

@@ -12,7 +12,7 @@ class DivisionRegistered extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$DivisionRegistered",
+          type: '$DivisionRegistered',
           created: created,
           data: data,
         );
@@ -25,7 +25,7 @@ class DivisionInformationUpdated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$DivisionInformationUpdated",
+          type: '$DivisionInformationUpdated',
           created: created,
           data: data,
         );
@@ -38,7 +38,7 @@ class DepartmentAddedToDivision extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$DepartmentAddedToDivision",
+          type: '$DepartmentAddedToDivision',
           created: created,
           data: data,
         );
@@ -51,7 +51,7 @@ class DepartmentRemovedFromDivision extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$DepartmentRemovedFromDivision",
+          type: '$DepartmentRemovedFromDivision',
           created: created,
           data: data,
         );
@@ -64,7 +64,7 @@ class DivisionStarted extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$DivisionStarted",
+          type: '$DivisionStarted',
           created: created,
           data: data,
         );
@@ -77,7 +77,7 @@ class DivisionCancelled extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$DivisionCancelled",
+          type: '$DivisionCancelled',
           created: created,
           data: data,
         );
@@ -90,7 +90,7 @@ class DivisionFinished extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$DivisionFinished",
+          type: '$DivisionFinished',
           created: created,
           data: data,
         );
@@ -103,7 +103,7 @@ class DivisionDeleted extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$DivisionDeleted",
+          type: '$DivisionDeleted',
           created: created,
           data: data,
         );

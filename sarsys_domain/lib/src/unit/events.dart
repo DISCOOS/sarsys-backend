@@ -12,7 +12,7 @@ class UnitCreated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$UnitCreated",
+          type: '$UnitCreated',
           created: created,
           data: data,
         );
@@ -25,7 +25,7 @@ class UnitInformationUpdated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$UnitInformationUpdated",
+          type: '$UnitInformationUpdated',
           created: created,
           data: data,
         );
@@ -38,7 +38,7 @@ class UnitMobilized extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$UnitMobilized",
+          type: '$UnitMobilized',
           created: created,
           data: data,
         );
@@ -51,7 +51,7 @@ class UnitDeployed extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$UnitDeployed",
+          type: '$UnitDeployed',
           created: created,
           data: data,
         );
@@ -64,7 +64,7 @@ class UnitRetired extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$UnitRetired",
+          type: '$UnitRetired',
           created: created,
           data: data,
         );
@@ -77,7 +77,7 @@ class UnitDeleted extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$UnitDeleted",
+          type: '$UnitDeleted',
           created: created,
           data: data,
         );
@@ -94,7 +94,7 @@ class UnitMessageAdded extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$UnitMessageAdded",
+          type: '$UnitMessageAdded',
           created: created,
           data: data,
         );
@@ -107,7 +107,7 @@ class UnitMessageUpdated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$UnitMessageUpdated",
+          type: '$UnitMessageUpdated',
           created: created,
           data: data,
         );
@@ -120,7 +120,7 @@ class UnitMessageRemoved extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$UnitMessageRemoved",
+          type: '$UnitMessageRemoved',
           created: created,
           data: data,
         );

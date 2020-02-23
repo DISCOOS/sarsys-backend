@@ -62,7 +62,7 @@ class UnitMessageCommand<T extends DomainEvent> extends UnitCommand<T> implement
   ) : super(action, uuid: uuid, data: data);
 
   @override
-  String get aggregateField => "messages";
+  String get aggregateField => 'messages';
 
   @override
   int get entityId => data[entityIdFieldName] as int;

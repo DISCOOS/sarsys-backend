@@ -12,7 +12,7 @@ class PersonnelCreated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$PersonnelCreated",
+          type: '$PersonnelCreated',
           created: created,
           data: data,
         );
@@ -25,7 +25,7 @@ class PersonnelInformationUpdated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$PersonnelInformationUpdated",
+          type: '$PersonnelInformationUpdated',
           created: created,
           data: data,
         );
@@ -38,7 +38,7 @@ class PersonnelMobilized extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$PersonnelMobilized",
+          type: '$PersonnelMobilized',
           created: created,
           data: data,
         );
@@ -51,7 +51,7 @@ class PersonnelDeployed extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$PersonnelDeployed",
+          type: '$PersonnelDeployed',
           created: created,
           data: data,
         );
@@ -64,7 +64,7 @@ class PersonnelRetired extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$PersonnelRetired",
+          type: '$PersonnelRetired',
           created: created,
           data: data,
         );
@@ -77,7 +77,7 @@ class PersonnelDeleted extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$PersonnelDeleted",
+          type: '$PersonnelDeleted',
           created: created,
           data: data,
         );
@@ -94,7 +94,7 @@ class PersonnelMessageAdded extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$PersonnelMessageAdded",
+          type: '$PersonnelMessageAdded',
           created: created,
           data: data,
         );
@@ -107,7 +107,7 @@ class PersonnelMessageUpdated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$PersonnelMessageUpdated",
+          type: '$PersonnelMessageUpdated',
           created: created,
           data: data,
         );
@@ -120,7 +120,7 @@ class PersonnelMessageRemoved extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$PersonnelMessageRemoved",
+          type: '$PersonnelMessageRemoved',
           created: created,
           data: data,
         );

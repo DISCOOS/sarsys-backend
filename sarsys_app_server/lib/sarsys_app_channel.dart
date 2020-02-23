@@ -9,7 +9,6 @@ import 'package:sarsys_app_server/controllers/messages.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
 
-import 'sarsys_app_server.dart';
 import 'auth/oidc.dart';
 import 'controllers/domain/controllers.dart';
 import 'controllers/domain/schemas.dart';
@@ -17,6 +16,7 @@ import 'controllers/system/controllers.dart';
 import 'controllers/tenant/app_config.dart';
 import 'controllers/tenant/controllers.dart';
 import 'controllers/websocket_controller.dart';
+import 'sarsys_app_server.dart';
 import 'validation/validation.dart';
 
 /// MUST BE used when bootstrapping Aqueduct

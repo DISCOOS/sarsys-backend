@@ -12,7 +12,7 @@ class OrganisationCreated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$OrganisationCreated",
+          type: '$OrganisationCreated',
           created: created,
           data: data,
         );
@@ -25,7 +25,7 @@ class OrganisationInfomationUpdated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$OrganisationInfomationUpdated",
+          type: '$OrganisationInfomationUpdated',
           created: created,
           data: data,
         );
@@ -38,7 +38,7 @@ class DivisionAddedToOrganisation extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$DivisionAddedToOrganisation",
+          type: '$DivisionAddedToOrganisation',
           created: created,
           data: data,
         );
@@ -51,7 +51,7 @@ class DivisionRemovedFromOrganisation extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$DivisionRemovedFromOrganisation",
+          type: '$DivisionRemovedFromOrganisation',
           created: created,
           data: data,
         );
@@ -64,7 +64,7 @@ class OrganisationDeleted extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$OrganisationDeleted",
+          type: '$OrganisationDeleted',
           created: created,
           data: data,
         );

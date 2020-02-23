@@ -12,7 +12,7 @@ class DepartmentCreated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$DepartmentCreated",
+          type: '$DepartmentCreated',
           created: created,
           data: data,
         );
@@ -25,7 +25,7 @@ class DepartmentInformationUpdated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$DepartmentInformationUpdated",
+          type: '$DepartmentInformationUpdated',
           created: created,
           data: data,
         );
@@ -38,7 +38,7 @@ class DepartmentDeleted extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$DepartmentDeleted",
+          type: '$DepartmentDeleted',
           created: created,
           data: data,
         );

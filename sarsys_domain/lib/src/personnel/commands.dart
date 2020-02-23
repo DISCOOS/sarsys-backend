@@ -56,7 +56,7 @@ class PersonnelMessageCommand<T extends DomainEvent> extends PersonnelCommand<T>
   ) : super(action, uuid: uuid, data: data);
 
   @override
-  String get aggregateField => "messages";
+  String get aggregateField => 'messages';
 
   @override
   int get entityId => data[entityIdFieldName] as int;

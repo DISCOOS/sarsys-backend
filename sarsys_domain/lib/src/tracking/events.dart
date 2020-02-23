@@ -12,7 +12,7 @@ class TrackingCreated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$TrackingCreated",
+          type: '$TrackingCreated',
           created: created,
           data: data,
         );
@@ -25,7 +25,7 @@ class TrackingInformationUpdated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$TrackingInformationUpdated",
+          type: '$TrackingInformationUpdated',
           created: created,
           data: data,
         );
@@ -38,7 +38,7 @@ class TrackingDeleted extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$TrackingDeleted",
+          type: '$TrackingDeleted',
           created: created,
           data: data,
         );

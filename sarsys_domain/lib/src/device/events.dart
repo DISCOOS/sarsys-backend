@@ -12,7 +12,7 @@ class DeviceCreated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$DeviceCreated",
+          type: '$DeviceCreated',
           created: created,
           data: data,
         );
@@ -25,7 +25,7 @@ class DeviceInformationUpdated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$DeviceInformationUpdated",
+          type: '$DeviceInformationUpdated',
           created: created,
           data: data,
         );
@@ -38,7 +38,7 @@ class DeviceDeleted extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$DeviceDeleted",
+          type: '$DeviceDeleted',
           created: created,
           data: data,
         );
@@ -55,7 +55,7 @@ class DeviceMessageAdded extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$DeviceMessageAdded",
+          type: '$DeviceMessageAdded',
           created: created,
           data: data,
         );
@@ -68,7 +68,7 @@ class DeviceMessageUpdated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$DeviceMessageUpdated",
+          type: '$DeviceMessageUpdated',
           created: created,
           data: data,
         );
@@ -81,7 +81,7 @@ class DeviceMessageRemoved extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$DeviceMessageRemoved",
+          type: '$DeviceMessageRemoved',
           created: created,
           data: data,
         );

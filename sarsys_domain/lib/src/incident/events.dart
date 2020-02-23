@@ -12,7 +12,7 @@ class IncidentRegistered extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$IncidentRegistered",
+          type: '$IncidentRegistered',
           created: created,
           data: data,
         );
@@ -25,7 +25,7 @@ class IncidentInformationUpdated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$IncidentInformationUpdated",
+          type: '$IncidentInformationUpdated',
           created: created,
           data: data,
         );
@@ -38,7 +38,7 @@ class OperationAddedToIncident extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$OperationAddedToIncident",
+          type: '$OperationAddedToIncident',
           created: created,
           data: data,
         );
@@ -51,7 +51,7 @@ class OperationRemovedFromIncident extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$OperationRemovedFromIncident",
+          type: '$OperationRemovedFromIncident',
           created: created,
           data: data,
         );
@@ -64,7 +64,7 @@ class SubjectAddedToIncident extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$SubjectAddedToIncident",
+          type: '$SubjectAddedToIncident',
           created: created,
           data: data,
         );
@@ -77,7 +77,7 @@ class SubjectRemovedFromIncident extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$SubjectRemovedFromIncident",
+          type: '$SubjectRemovedFromIncident',
           created: created,
           data: data,
         );
@@ -90,7 +90,7 @@ class IncidentRespondedTo extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$IncidentRespondedTo",
+          type: '$IncidentRespondedTo',
           created: created,
           data: data,
         );
@@ -103,7 +103,7 @@ class IncidentCancelled extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$IncidentCancelled",
+          type: '$IncidentCancelled',
           created: created,
           data: data,
         );
@@ -116,7 +116,7 @@ class IncidentResolved extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$IncidentResolved",
+          type: '$IncidentResolved',
           created: created,
           data: data,
         );
@@ -129,7 +129,7 @@ class IncidentDeleted extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$IncidentDeleted",
+          type: '$IncidentDeleted',
           created: created,
           data: data,
         );
@@ -146,7 +146,7 @@ class ClueAdded extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$ClueAdded",
+          type: '$ClueAdded',
           created: created,
           data: data,
         );
@@ -159,7 +159,7 @@ class ClueUpdated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$ClueUpdated",
+          type: '$ClueUpdated',
           created: created,
           data: data,
         );
@@ -172,7 +172,7 @@ class ClueRemoved extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$ClueRemoved",
+          type: '$ClueRemoved',
           created: created,
           data: data,
         );
@@ -189,7 +189,7 @@ class IncidentMessageAdded extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$IncidentMessageAdded",
+          type: '$IncidentMessageAdded',
           created: created,
           data: data,
         );
@@ -202,7 +202,7 @@ class IncidentMessageUpdated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$IncidentMessageUpdated",
+          type: '$IncidentMessageUpdated',
           created: created,
           data: data,
         );
@@ -215,7 +215,7 @@ class IncidentMessageRemoved extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$IncidentMessageRemoved",
+          type: '$IncidentMessageRemoved',
           created: created,
           data: data,
         );

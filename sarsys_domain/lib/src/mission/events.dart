@@ -12,7 +12,7 @@ class MissionCreated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$MissionCreated",
+          type: '$MissionCreated',
           created: created,
           data: data,
         );
@@ -25,7 +25,7 @@ class MissionInformationUpdated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$MissionInformationUpdated",
+          type: '$MissionInformationUpdated',
           created: created,
           data: data,
         );
@@ -38,7 +38,7 @@ class MissionPlanned extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$MissionPlanned",
+          type: '$MissionPlanned',
           created: created,
           data: data,
         );
@@ -51,7 +51,7 @@ class MissionAssigned extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$MissionAssigned",
+          type: '$MissionAssigned',
           created: created,
           data: data,
         );
@@ -64,7 +64,7 @@ class MissionExecuted extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$MissionExecuted",
+          type: '$MissionExecuted',
           created: created,
           data: data,
         );
@@ -77,7 +77,7 @@ class MissionDeleted extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$MissionDeleted",
+          type: '$MissionDeleted',
           created: created,
           data: data,
         );
@@ -94,7 +94,7 @@ class MissionPartAdded extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$MissionPartAdded",
+          type: '$MissionPartAdded',
           created: created,
           data: data,
         );
@@ -107,7 +107,7 @@ class MissionPartUpdated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$MissionPartUpdated",
+          type: '$MissionPartUpdated',
           created: created,
           data: data,
         );
@@ -120,7 +120,7 @@ class MissionPartRemoved extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$MissionPartRemoved",
+          type: '$MissionPartRemoved',
           created: created,
           data: data,
         );
@@ -137,7 +137,7 @@ class MissionResultAdded extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$MissionResultAdded",
+          type: '$MissionResultAdded',
           created: created,
           data: data,
         );
@@ -150,7 +150,7 @@ class MissionResultUpdated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$MissionResultUpdated",
+          type: '$MissionResultUpdated',
           created: created,
           data: data,
         );
@@ -163,7 +163,7 @@ class MissionResultRemoved extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$MissionResultRemoved",
+          type: '$MissionResultRemoved',
           created: created,
           data: data,
         );
@@ -180,7 +180,7 @@ class MissionMessageAdded extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$MissionMessageAdded",
+          type: '$MissionMessageAdded',
           created: created,
           data: data,
         );
@@ -193,7 +193,7 @@ class MissionMessageUpdated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$MissionMessageUpdated",
+          type: '$MissionMessageUpdated',
           created: created,
           data: data,
         );
@@ -206,7 +206,7 @@ class MissionMessageRemoved extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$MissionMessageRemoved",
+          type: '$MissionMessageRemoved',
           created: created,
           data: data,
         );

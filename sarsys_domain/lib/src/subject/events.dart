@@ -12,7 +12,7 @@ class SubjectRegistered extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$SubjectRegistered",
+          type: '$SubjectRegistered',
           created: created,
           data: data,
         );
@@ -25,7 +25,7 @@ class SubjectUpdated extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$SubjectUpdated",
+          type: '$SubjectUpdated',
           created: created,
           data: data,
         );
@@ -38,7 +38,7 @@ class SubjectDeleted extends DomainEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          type: "$SubjectDeleted",
+          type: '$SubjectDeleted',
           created: created,
           data: data,
         );
