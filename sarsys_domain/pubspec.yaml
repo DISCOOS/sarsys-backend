@@ -8,10 +8,8 @@ environment:
   sdk: '>=2.7.0 <3.0.0'
 
 dependencies:
-#  path: ^1.6.0
   event_source:
     path: ../event_source
-
 
 dev_dependencies:
   pedantic: ^1.8.0

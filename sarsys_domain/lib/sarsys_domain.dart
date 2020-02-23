@@ -11,5 +11,3 @@ export 'src/personnel/personnel.dart';
 export 'src/subject/subject.dart';
 export 'src/tracking/tracking.dart';
 export 'src/unit/unit.dart';
-
-// TODO: Export any libraries intended for clients of this package.
