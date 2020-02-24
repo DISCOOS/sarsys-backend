@@ -31,3 +31,45 @@ class DeleteTracking extends TrackingCommand<TrackingDeleted> {
     Map<String, dynamic> data,
   ) : super(Action.delete, data: data);
 }
+
+//////////////////////////////////
+// Track entity commands
+//////////////////////////////////
+
+class TrackCommand<T extends DomainEvent> extends TrackingCommand<T> implements EntityCommand<T> {
+  TrackCommand(
+    Action action,
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(action, uuid: uuid, data: data);
+
+  @override
+  String get aggregateField => 'sources';
+
+  @override
+  String get entityId => data[entityIdFieldName] as String;
+
+  @override
+  String get entityIdFieldName => 'id';
+}
+
+class AddSourceToTracking extends TrackCommand<TrackingSourceAdded> {
+  AddSourceToTracking(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.create, uuid, data);
+}
+
+class UpdateTrackingSource extends TrackCommand<TrackingSourceChanged> {
+  UpdateTrackingSource(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.create, uuid, data);
+}
+
+class RemoveSourceFromTracking extends TrackCommand<TrackingSourceRemoved> {
+  RemoveSourceFromTracking(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.delete, uuid, data);
+}

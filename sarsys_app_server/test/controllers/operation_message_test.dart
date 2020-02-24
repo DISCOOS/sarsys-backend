@@ -17,7 +17,7 @@ Future main() async {
     final uuid = Uuid().v4();
     final operation = _createData(uuid);
     expectResponse(await harness.agent.post("/api/operations", body: operation), 201, body: null);
-    final message = createMessage(1);
+    final message = createMessage('1');
     expectResponse(await harness.agent.post("/api/operations/$uuid/messages", body: message), 201, body: null);
   });
 
@@ -27,9 +27,9 @@ Future main() async {
     final uuid = Uuid().v4();
     final operation = _createData(uuid);
     expectResponse(await harness.agent.post("/api/operations", body: operation), 201, body: null);
-    final message1 = createMessage(1);
+    final message1 = createMessage('1');
     expectResponse(await harness.agent.post("/api/operations/$uuid/messages", body: message1), 201, body: null);
-    final message2 = createMessage(2);
+    final message2 = createMessage('2');
     expectResponse(await harness.agent.post("/api/operations/$uuid/messages", body: message2), 201, body: null);
     final response = expectResponse(await harness.agent.get("/api/operations/$uuid/messages"), 200);
     final actual = await response.body.decode();
@@ -43,12 +43,12 @@ Future main() async {
     final uuid = Uuid().v4();
     final operation = _createData(uuid);
     expectResponse(await harness.agent.post("/api/operations", body: operation), 201, body: null);
-    final message1 = createMessage(1);
+    final message1 = createMessage('1');
     expectResponse(await harness.agent.post("/api/operations/$uuid/messages", body: message1), 201, body: null);
     final response1 = expectResponse(await harness.agent.get("/api/operations/$uuid/messages/1"), 200);
     final actual1 = await response1.body.decode();
     expect(actual1['data'], equals(message1));
-    final message2 = createMessage(2);
+    final message2 = createMessage('2');
     expectResponse(await harness.agent.post("/api/operations/$uuid/messages", body: message2), 201, body: null);
     final response2 = expectResponse(await harness.agent.get("/api/operations/$uuid/messages/2"), 200);
     final actual2 = await response2.body.decode();
@@ -61,14 +61,14 @@ Future main() async {
     final uuid = Uuid().v4();
     final operation = _createData(uuid);
     expectResponse(await harness.agent.post("/api/operations", body: operation), 201, body: null);
-    final message = createMessage(0);
+    final message = createMessage('1');
     expectResponse(await harness.agent.post("/api/operations/$uuid/messages", body: message), 201, body: null);
-    expectResponse(await harness.agent.execute("PATCH", "/api/operations/$uuid/messages/0", body: message), 204,
+    expectResponse(await harness.agent.execute("PATCH", "/api/operations/$uuid/messages/1", body: message), 204,
         body: null);
     final response1 = expectResponse(await harness.agent.get("/api/operations/$uuid"), 200);
     final actual1 = await response1.body.decode();
     expect((actual1['data'] as Map)['messages'], equals([message]));
-    final response2 = expectResponse(await harness.agent.get("/api/operations/$uuid/messages/0"), 200);
+    final response2 = expectResponse(await harness.agent.get("/api/operations/$uuid/messages/1"), 200);
     final actual2 = await response2.body.decode();
     expect(actual2['data'], equals(message));
   });
@@ -82,7 +82,7 @@ Future main() async {
 
     expectResponse(
         await harness.agent.execute("PATCH", "/api/operations/$uuid", body: {
-          "messages": [createMessage(1)],
+          "messages": [createMessage('1')],
         }),
         400,
         body: null);
@@ -94,7 +94,7 @@ Future main() async {
     final uuid = Uuid().v4();
     final operation = _createData(uuid);
     expectResponse(await harness.agent.post("/api/operations", body: operation), 201, body: null);
-    final message = createMessage(0);
+    final message = createMessage('1');
     expectResponse(await harness.agent.post("/api/operations/$uuid/messages", body: message), 201, body: null);
     expectResponse(await harness.agent.delete("/api/operations/$uuid"), 204);
   });

@@ -1,6 +1,6 @@
 import 'package:aqueduct/aqueduct.dart';
 
-APISchemaObject documentID() => APISchemaObject.integer()..description = "An id unique in current collection";
+APISchemaObject documentID() => APISchemaObject.string()..description = "An id unique in current collection";
 
 APISchemaObject documentUUID() => APISchemaObject.string()
   ..format = "uuid"

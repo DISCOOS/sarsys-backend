@@ -18,7 +18,7 @@ Future main() async {
     final uuid = Uuid().v4();
     final operation = _createData(uuid);
     expectResponse(await harness.agent.post("/api/operations", body: operation), 201, body: null);
-    final objective = createObjective(1);
+    final objective = createObjective('1');
     expectResponse(await harness.agent.post("/api/operations/$uuid/objectives", body: objective), 201, body: null);
   });
 
@@ -28,9 +28,9 @@ Future main() async {
     final uuid = Uuid().v4();
     final operation = _createData(uuid);
     expectResponse(await harness.agent.post("/api/operations", body: operation), 201, body: null);
-    final objective1 = createObjective(1);
+    final objective1 = createObjective('1');
     expectResponse(await harness.agent.post("/api/operations/$uuid/objectives", body: objective1), 201, body: null);
-    final objective2 = createObjective(2);
+    final objective2 = createObjective('2');
     expectResponse(await harness.agent.post("/api/operations/$uuid/objectives", body: objective2), 201, body: null);
     final response = expectResponse(await harness.agent.get("/api/operations/$uuid/objectives"), 200);
     final actual = await response.body.decode();
@@ -44,12 +44,12 @@ Future main() async {
     final uuid = Uuid().v4();
     final operation = _createData(uuid);
     expectResponse(await harness.agent.post("/api/operations", body: operation), 201, body: null);
-    final objective1 = createObjective(1);
+    final objective1 = createObjective('1');
     expectResponse(await harness.agent.post("/api/operations/$uuid/objectives", body: objective1), 201, body: null);
     final response1 = expectResponse(await harness.agent.get("/api/operations/$uuid/objectives/1"), 200);
     final actual1 = await response1.body.decode();
     expect(actual1['data'], equals(objective1));
-    final objective2 = createObjective(2);
+    final objective2 = createObjective('2');
     expectResponse(await harness.agent.post("/api/operations/$uuid/objectives", body: objective2), 201, body: null);
     final response2 = expectResponse(await harness.agent.get("/api/operations/$uuid/objectives/2"), 200);
     final actual2 = await response2.body.decode();
@@ -62,14 +62,17 @@ Future main() async {
     final uuid = Uuid().v4();
     final operation = _createData(uuid);
     expectResponse(await harness.agent.post("/api/operations", body: operation), 201, body: null);
-    final objective = createObjective(0);
+    final objective = createObjective('1');
     expectResponse(await harness.agent.post("/api/operations/$uuid/objectives", body: objective), 201, body: null);
-    expectResponse(await harness.agent.execute("PATCH", "/api/operations/$uuid/objectives/0", body: objective), 204,
-        body: null);
+    expectResponse(
+      await harness.agent.execute("PATCH", "/api/operations/$uuid/objectives/1", body: objective),
+      204,
+      body: null,
+    );
     final response1 = expectResponse(await harness.agent.get("/api/operations/$uuid"), 200);
     final actual1 = await response1.body.decode();
     expect((actual1['data'] as Map)['objectives'], equals([objective]));
-    final response2 = expectResponse(await harness.agent.get("/api/operations/$uuid/objectives/0"), 200);
+    final response2 = expectResponse(await harness.agent.get("/api/operations/$uuid/objectives/1"), 200);
     final actual2 = await response2.body.decode();
     expect(actual2['data'], equals(objective));
   });
@@ -83,7 +86,7 @@ Future main() async {
 
     expectResponse(
         await harness.agent.execute("PATCH", "/api/operations/$uuid", body: {
-          "objectives": [createObjective(1)],
+          "objectives": [createObjective('1')],
         }),
         400,
         body: null);
@@ -95,7 +98,7 @@ Future main() async {
     final uuid = Uuid().v4();
     final operation = _createData(uuid);
     expectResponse(await harness.agent.post("/api/operations", body: operation), 201, body: null);
-    final objective = createObjective(0);
+    final objective = createObjective('1');
     expectResponse(await harness.agent.post("/api/operations/$uuid/objectives", body: objective), 201, body: null);
     expectResponse(await harness.agent.delete("/api/operations/$uuid"), 204);
   });

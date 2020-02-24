@@ -26,7 +26,7 @@ class MissionResultController extends EntityController<MissionCommand, Mission> 
   @override
   APISchemaObject documentEntityObject(APIDocumentContext context) => APISchemaObject.object(
         {
-          "id": APISchemaObject.integer()..description = "Mission result id (unique in Mission only)",
+          "id": context.schema['ID']..description = "Mission result id (unique in Mission only)",
           "name": APISchemaObject.string()..description = "Mission result name",
           "description": APISchemaObject.string()..description = "Mission result description",
           "data": context.schema["FeatureCollection"],

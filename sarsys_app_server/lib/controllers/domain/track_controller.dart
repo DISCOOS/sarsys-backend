@@ -1,34 +1,31 @@
 import 'package:event_source/event_source.dart';
+import 'package:sarsys_app_server/controllers/eventsource/mixins.dart';
+import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 import 'package:strings/strings.dart';
 
-import 'mixins.dart';
-
-/// A basic CRUD ResourceController for [AggregateRoot] entity requests
-abstract class EntityController<S extends Command, T extends AggregateRoot> extends ResourceController
-    with RequestValidatorMixin {
-  EntityController(
+/// A ResourceController that handles
+/// [/api/incidents/{uuid}/Tracks](http://localhost/api/client.html#/Track) requests
+class TrackController extends ResourceController with RequestValidatorMixin {
+  TrackController(
     this.repository,
-    this.entityType,
-    this.aggregateField, {
     this.validation,
-    this.tag,
-    this.readOnly = const [],
-  });
-  final String tag;
-  final String entityType;
-  final String aggregateField;
-  final Repository<S, T> repository;
+  );
+
+  final String tag = 'Tracking > Track';
+  final String entityType = 'Track';
+  final String aggregateField = 'sources';
+  final TrackingRepository repository;
 
   /// Get aggregate [Type]
-  Type get aggregateType => typeOf<T>();
-
-  @override
-  final List<String> readOnly;
+  Type get aggregateType => typeOf<Tracking>();
 
   @override
   final JsonValidation validation;
+
+  @override
+  final List<String> readOnly = ['positions'];
 
   @override
   FutureOr<RequestOrResponse> willProcessRequest(Request req) => repository.ready
@@ -38,7 +35,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
         );
 
   //////////////////////////////////
-  // Entity Operations
+  // Tracking operations
   //////////////////////////////////
 
   @Operation.get('uuid')
@@ -47,7 +44,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       if (!repository.contains(uuid)) {
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
-      return okEntities<T>(
+      return okEntities<Tracking>(
         uuid,
         entityType,
         List<Map<String, dynamic>>.from(repository.get(uuid).data[aggregateField] as List<dynamic>),
@@ -59,10 +56,10 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     }
   }
 
-  @Operation.get('uuid', 'id')
+  @Operation.get('uuid', 'sourceUuid')
   Future<Response> getById(
     @Bind.path('uuid') String uuid,
-    @Bind.path('id') String id,
+    @Bind.path('sourceUuid') String sourceUuid,
   ) async {
     try {
       if (!repository.contains(uuid)) {
@@ -70,13 +67,13 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       }
       final aggregate = repository.get(uuid);
       final array = aggregate.asEntityArray(aggregateField);
-      if (!array.contains(id)) {
-        return Response.notFound(body: "Entity $id not found");
+      if (!array.contains(sourceUuid)) {
+        return Response.notFound(body: "Source $sourceUuid not found");
       }
-      return okEntity<T>(
+      return okEntity<Tracking>(
         uuid,
         entityType,
-        array[id].data,
+        array[sourceUuid].data,
       );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
@@ -110,12 +107,13 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     }
   }
 
-  S onCreate(String uuid, String type, Map<String, dynamic> data) => throw UnsupportedError("Create not implemented");
+  TrackingCommand onCreate(String uuid, String type, Map<String, dynamic> data) =>
+      throw UnsupportedError("Create not implemented");
 
   @Operation('PATCH', 'uuid', 'id')
   Future<Response> update(
     @Bind.path('uuid') String uuid,
-    @Bind.path('id') String id,
+    @Bind.path('id') int id,
     @Bind.body() Map<String, dynamic> data,
   ) async {
     try {
@@ -139,12 +137,13 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     }
   }
 
-  S onUpdate(String uuid, String type, Map<String, dynamic> data) => throw UnsupportedError("Update not implemented");
+  TrackingCommand onUpdate(String uuid, String type, Map<String, dynamic> data) =>
+      throw UnsupportedError("Update not implemented");
 
   @Operation('DELETE', 'uuid', 'id')
   Future<Response> delete(
     @Bind.path('uuid') String uuid,
-    @Bind.path('id') String id, {
+    @Bind.path('id') int id, {
     @Bind.body() Map<String, dynamic> data,
   }) async {
     try {
@@ -171,7 +170,8 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     }
   }
 
-  S onDelete(String uuid, String type, Map<String, dynamic> data) => throw UnsupportedError("Remove not implemented");
+  TrackingCommand onDelete(String uuid, String type, Map<String, dynamic> data) =>
+      throw UnsupportedError("Remove not implemented");
 
   //////////////////////////////////
   // Documentation
@@ -311,10 +311,76 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
   }
 
   Map<String, APISchemaObject> _documentSchemaObjects(APIDocumentContext context) => {
-        entityType: documentEntityObject(context),
-      }..addAll(documentEntities(context));
+        entityType: documentTrack(context),
+      };
 
-  APISchemaObject documentEntityObject(APIDocumentContext context);
+  /// Track - Entity object
+  APISchemaObject documentTrack(APIDocumentContext context) => APISchemaObject.object({
+        "id": context.schema['ID']..description = "Track id (unique in Tracking only)",
+        "source": context.schema['UUID']..description = "Uuid of position source",
+        "type": documentTrackType()..description = "Track type",
+        "exists": APISchemaObject.boolean()..description = "Flag is true if source exists",
+        "positions": APISchemaObject.array(ofSchema: context.schema['Position'])..description = "Sourced positions",
+      })
+        ..description = "Tracking Schema (aggregate root)"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+        ..required = [
+          'id',
+          'source',
+          'type',
+        ];
+
+  /// TrackType - Value Object
+  APISchemaObject documentTrackType() => APISchemaObject.string()
+    ..description = "Track type"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+    ..enumerated = [
+      'device',
+      'personnel',
+    ];
 
   Map<String, APISchemaObject> documentEntities(APIDocumentContext context) => {};
 }
+
+//EntityController<TrackingCommand, Tracking> {
+//  TrackController(TrackingRepository repository, JsonValidation validation)
+//      : super(repository, "Track", "sources", readOnly: ['positions'], validation: validation, tag: "Tracking > Track");
+//
+//  @override
+//  TrackingCommand onCreate(String uuid, String type, Map<String, dynamic> data) => AddSourceToTracking(uuid, data);
+//
+//  @override
+//  TrackingCommand onUpdate(String uuid, String type, Map<String, dynamic> data) => UpdateTrackingSource(uuid, data);
+//
+//  @override
+//  TrackingCommand onDelete(String uuid, String type, Map<String, dynamic> data) => RemoveSourceFromTracking(uuid, data);
+//
+//  //////////////////////////////////
+//  // Documentation
+//  //////////////////////////////////
+//
+/// Track - Entity object
+@override
+APISchemaObject documentEntityObject(APIDocumentContext context) => APISchemaObject.object({
+      "id": context.schema['ID']..description = "Track id (unique in Tracking only)",
+      "source": context.schema['UUID']..description = "Uuid of position source",
+      "type": documentTrackType()..description = "Track type",
+      "positions": APISchemaObject.array(ofSchema: context.schema['Position'])..description = "Sourced positions",
+    })
+      ..description = "Tracking Schema (aggregate root)"
+      ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+      ..required = [
+        'id',
+        'source',
+        'type',
+      ];
+
+/// TrackType - Value Object
+APISchemaObject documentTrackType() => APISchemaObject.string()
+  ..description = "Track type"
+  ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+  ..enumerated = [
+    'device',
+    'personnel',
+  ];
+//}

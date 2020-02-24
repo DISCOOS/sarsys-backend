@@ -3,8 +3,6 @@ import 'dart:convert';
 import 'package:http/http.dart';
 import 'package:event_source/event_source.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
-import 'package:sarsys_app_server/controllers/domain/division_department_controller.dart';
-import 'package:sarsys_app_server/controllers/domain/organisation_division_controller.dart';
 import 'package:sarsys_app_server/controllers/messages.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
@@ -12,6 +10,7 @@ import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
 import 'auth/oidc.dart';
 import 'controllers/domain/controllers.dart';
 import 'controllers/domain/schemas.dart';
+import 'controllers/domain/track_controller.dart';
 import 'controllers/system/controllers.dart';
 import 'controllers/tenant/app_config.dart';
 import 'controllers/tenant/controllers.dart';
@@ -84,7 +83,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
 
   /// Construct the request channel.
   ///
-  /// Return an instance of some [Controller] that will be the initial receiverof all requests.
+  /// Return an instance of some [Controller] that will be the initial receiver of all requests.
   ///
   /// This method is invoked after [prepare].
   @override
@@ -214,6 +213,10 @@ class SarSysAppServerChannel extends ApplicationChannel {
             requestValidator,
           ))
       ..route('/api/trackings[/:uuid]').link(() => TrackingController(
+            manager.get<TrackingRepository>(),
+            requestValidator,
+          ))
+      ..route('/api/trackings/:uuid/track[/:sourceUuid]').link(() => TrackController(
             manager.get<TrackingRepository>(),
             requestValidator,
           ))
@@ -535,17 +538,17 @@ class SarSysAppServerChannel extends ApplicationChannel {
     ..register('PassCodes', documentPassCodes())
     ..register('Coordinates', documentCoordinates(context))
     ..register('Geometry', documentGeometry(context))
-    ..register("Point", documentPoint(context))
-    ..register("LineString", documentLineString(context))
-    ..register("Polygon", documentPolygon(context))
-    ..register("MultiPoint", documentMultiPoint(context))
-    ..register("MultiLineString", documentMultiLineString(context))
-    ..register("MultiPolygon", documentMultiPolygon(context))
-    ..register("GeometryCollection", documentGeometryCollection(context))
-    ..register("Feature", documentFeature(context))
-    ..register("FeatureCollection", documentFeatureCollection(context))
-    ..register("Circle", documentCircle(context))
-    ..register("Rectangle", documentRectangle(context))
-    ..register("Position", documentPosition(context))
-    ..register("Message", documentMessage(context));
+    ..register('Point', documentPoint(context))
+    ..register('LineString', documentLineString(context))
+    ..register('Polygon', documentPolygon(context))
+    ..register('MultiPoint', documentMultiPoint(context))
+    ..register('MultiLineString', documentMultiLineString(context))
+    ..register('MultiPolygon', documentMultiPolygon(context))
+    ..register('GeometryCollection', documentGeometryCollection(context))
+    ..register('Feature', documentFeature(context))
+    ..register('FeatureCollection', documentFeatureCollection(context))
+    ..register('Circle', documentCircle(context))
+    ..register('Rectangle', documentRectangle(context))
+    ..register('Position', documentPosition(context))
+    ..register('Message', documentMessage(context));
 }

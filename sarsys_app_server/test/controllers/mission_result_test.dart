@@ -16,7 +16,7 @@ Future main() async {
     final uuid = Uuid().v4();
     final mission = _createData(uuid);
     expectResponse(await harness.agent.post("/api/missions", body: mission), 201, body: null);
-    final result = createMissionResult(1);
+    final result = createMissionResult('1');
     expectResponse(await harness.agent.post("/api/missions/$uuid/results", body: result), 201, body: null);
   });
 
@@ -26,9 +26,9 @@ Future main() async {
     final uuid = Uuid().v4();
     final mission = _createData(uuid);
     expectResponse(await harness.agent.post("/api/missions", body: mission), 201, body: null);
-    final result1 = createMissionResult(1);
+    final result1 = createMissionResult('1');
     expectResponse(await harness.agent.post("/api/missions/$uuid/results", body: result1), 201, body: null);
-    final result2 = createMissionResult(2);
+    final result2 = createMissionResult('2');
     expectResponse(await harness.agent.post("/api/missions/$uuid/results", body: result2), 201, body: null);
     final response = expectResponse(await harness.agent.get("/api/missions/$uuid/results"), 200);
     final actual = await response.body.decode();
@@ -42,12 +42,12 @@ Future main() async {
     final uuid = Uuid().v4();
     final mission = _createData(uuid);
     expectResponse(await harness.agent.post("/api/missions", body: mission), 201, body: null);
-    final result1 = createMissionResult(1);
+    final result1 = createMissionResult('1');
     expectResponse(await harness.agent.post("/api/missions/$uuid/results", body: result1), 201, body: null);
     final response1 = expectResponse(await harness.agent.get("/api/missions/$uuid/results/1"), 200);
     final actual1 = await response1.body.decode();
     expect(actual1['data'], equals(result1));
-    final result2 = createMissionResult(2);
+    final result2 = createMissionResult('2');
     expectResponse(await harness.agent.post("/api/missions/$uuid/results", body: result2), 201, body: null);
     final response2 = expectResponse(await harness.agent.get("/api/missions/$uuid/results/2"), 200);
     final actual2 = await response2.body.decode();
@@ -60,14 +60,14 @@ Future main() async {
     final uuid = Uuid().v4();
     final mission = _createData(uuid);
     expectResponse(await harness.agent.post("/api/missions", body: mission), 201, body: null);
-    final result = createMissionResult(0);
+    final result = createMissionResult('1');
     expectResponse(await harness.agent.post("/api/missions/$uuid/results", body: result), 201, body: null);
-    expectResponse(await harness.agent.execute("PATCH", "/api/missions/$uuid/results/0", body: result), 204,
+    expectResponse(await harness.agent.execute("PATCH", "/api/missions/$uuid/results/1", body: result), 204,
         body: null);
     final response1 = expectResponse(await harness.agent.get("/api/missions/$uuid"), 200);
     final actual1 = await response1.body.decode();
     expect((actual1['data'] as Map)['results'], equals([result]));
-    final response2 = expectResponse(await harness.agent.get("/api/missions/$uuid/results/0"), 200);
+    final response2 = expectResponse(await harness.agent.get("/api/missions/$uuid/results/1"), 200);
     final actual2 = await response2.body.decode();
     expect(actual2['data'], equals(result));
   });
@@ -81,7 +81,7 @@ Future main() async {
 
     expectResponse(
         await harness.agent.execute("PATCH", "/api/missions/$uuid", body: {
-          "results": [createMissionResult(1)],
+          "results": [createMissionResult('1')],
         }),
         400,
         body: null);
@@ -93,7 +93,7 @@ Future main() async {
     final uuid = Uuid().v4();
     final mission = _createData(uuid);
     expectResponse(await harness.agent.post("/api/missions", body: mission), 201, body: null);
-    final result = createMissionResult(0);
+    final result = createMissionResult('1');
     expectResponse(await harness.agent.post("/api/missions/$uuid/results", body: result), 201, body: null);
     expectResponse(await harness.agent.delete("/api/missions/$uuid"), 204);
   });

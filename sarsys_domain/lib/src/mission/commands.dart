@@ -47,7 +47,7 @@ class MissionPartCommand<T extends DomainEvent> extends MissionCommand<T> implem
   String get aggregateField => 'parts';
 
   @override
-  int get entityId => data[entityIdFieldName] as int;
+  String get entityId => data[entityIdFieldName] as String;
 
   @override
   String get entityIdFieldName => 'id';
@@ -89,7 +89,7 @@ class MissionResultCommand<T extends DomainEvent> extends MissionCommand<T> impl
   String get aggregateField => 'results';
 
   @override
-  int get entityId => data[entityIdFieldName] as int;
+  String get entityId => data[entityIdFieldName] as String;
 
   @override
   String get entityIdFieldName => 'id';
@@ -131,7 +131,7 @@ class MissionMessageCommand<T extends DomainEvent> extends MissionCommand<T> imp
   String get aggregateField => 'messages';
 
   @override
-  int get entityId => data[entityIdFieldName] as int;
+  String get entityId => data[entityIdFieldName] as String;
 
   @override
   String get entityIdFieldName => 'id';

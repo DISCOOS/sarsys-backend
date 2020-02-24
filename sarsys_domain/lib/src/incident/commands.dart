@@ -92,7 +92,7 @@ class ClueCommand<T extends DomainEvent> extends IncidentCommand<T> implements E
   String get aggregateField => 'clues';
 
   @override
-  int get entityId => data[entityIdFieldName] as int;
+  String get entityId => data[entityIdFieldName] as String;
 
   @override
   String get entityIdFieldName => 'id';
@@ -134,7 +134,7 @@ class IncidentMessageCommand<T extends DomainEvent> extends IncidentCommand<T> i
   String get aggregateField => 'messages';
 
   @override
-  int get entityId => data[entityIdFieldName] as int;
+  String get entityId => data[entityIdFieldName] as String;
 
   @override
   String get entityIdFieldName => 'id';

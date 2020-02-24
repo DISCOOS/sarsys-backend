@@ -92,7 +92,7 @@ class ObjectiveCommand<T extends DomainEvent> extends OperationCommand<T> implem
   String get aggregateField => 'objectives';
 
   @override
-  int get entityId => data[entityIdFieldName] as int;
+  String get entityId => data[entityIdFieldName] as String;
 
   @override
   String get entityIdFieldName => 'id';
@@ -134,7 +134,7 @@ class TalkGroupCommand<T extends DomainEvent> extends OperationCommand<T> implem
   String get aggregateField => 'talkgroups';
 
   @override
-  int get entityId => data[entityIdFieldName] as int;
+  String get entityId => data[entityIdFieldName] as String;
 
   @override
   String get entityIdFieldName => 'id';
@@ -176,7 +176,7 @@ class OperationMessageCommand<T extends DomainEvent> extends OperationCommand<T>
   String get aggregateField => 'messages';
 
   @override
-  int get entityId => data[entityIdFieldName] as int;
+  String get entityId => data[entityIdFieldName] as String;
 
   @override
   String get entityIdFieldName => 'id';

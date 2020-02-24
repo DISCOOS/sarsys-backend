@@ -18,7 +18,7 @@ Future main() async {
     final uuid = Uuid().v4();
     final operation = _createData(uuid);
     expectResponse(await harness.agent.post("/api/operations", body: operation), 201, body: null);
-    final talkgroup = createTalkGroup(1);
+    final talkgroup = createTalkGroup('1');
     expectResponse(await harness.agent.post("/api/operations/$uuid/talkgroups", body: talkgroup), 201, body: null);
   });
 
@@ -28,9 +28,9 @@ Future main() async {
     final uuid = Uuid().v4();
     final operation = _createData(uuid);
     expectResponse(await harness.agent.post("/api/operations", body: operation), 201, body: null);
-    final talkgroup1 = createTalkGroup(1);
+    final talkgroup1 = createTalkGroup('1');
     expectResponse(await harness.agent.post("/api/operations/$uuid/talkgroups", body: talkgroup1), 201, body: null);
-    final talkgroup2 = createTalkGroup(2);
+    final talkgroup2 = createTalkGroup('2');
     expectResponse(await harness.agent.post("/api/operations/$uuid/talkgroups", body: talkgroup2), 201, body: null);
     final response = expectResponse(await harness.agent.get("/api/operations/$uuid/talkgroups"), 200);
     final actual = await response.body.decode();
@@ -44,12 +44,12 @@ Future main() async {
     final uuid = Uuid().v4();
     final operation = _createData(uuid);
     expectResponse(await harness.agent.post("/api/operations", body: operation), 201, body: null);
-    final talkgroup1 = createTalkGroup(1);
+    final talkgroup1 = createTalkGroup('1');
     expectResponse(await harness.agent.post("/api/operations/$uuid/talkgroups", body: talkgroup1), 201, body: null);
     final response1 = expectResponse(await harness.agent.get("/api/operations/$uuid/talkgroups/1"), 200);
     final actual1 = await response1.body.decode();
     expect(actual1['data'], equals(talkgroup1));
-    final talkgroup2 = createTalkGroup(2);
+    final talkgroup2 = createTalkGroup('2');
     expectResponse(await harness.agent.post("/api/operations/$uuid/talkgroups", body: talkgroup2), 201, body: null);
     final response2 = expectResponse(await harness.agent.get("/api/operations/$uuid/talkgroups/2"), 200);
     final actual2 = await response2.body.decode();
@@ -62,14 +62,14 @@ Future main() async {
     final uuid = Uuid().v4();
     final operation = _createData(uuid);
     expectResponse(await harness.agent.post("/api/operations", body: operation), 201, body: null);
-    final talkgroup = createTalkGroup(0);
+    final talkgroup = createTalkGroup('1');
     expectResponse(await harness.agent.post("/api/operations/$uuid/talkgroups", body: talkgroup), 201, body: null);
-    expectResponse(await harness.agent.execute("PATCH", "/api/operations/$uuid/talkgroups/0", body: talkgroup), 204,
+    expectResponse(await harness.agent.execute("PATCH", "/api/operations/$uuid/talkgroups/1", body: talkgroup), 204,
         body: null);
     final response1 = expectResponse(await harness.agent.get("/api/operations/$uuid"), 200);
     final actual1 = await response1.body.decode();
     expect((actual1['data'] as Map)['talkgroups'], equals([talkgroup]));
-    final response2 = expectResponse(await harness.agent.get("/api/operations/$uuid/talkgroups/0"), 200);
+    final response2 = expectResponse(await harness.agent.get("/api/operations/$uuid/talkgroups/1"), 200);
     final actual2 = await response2.body.decode();
     expect(actual2['data'], equals(talkgroup));
   });
@@ -83,7 +83,7 @@ Future main() async {
 
     expectResponse(
         await harness.agent.execute("PATCH", "/api/operations/$uuid", body: {
-          "talkgroups": [createTalkGroup(1)],
+          "talkgroups": [createTalkGroup('1')],
         }),
         400,
         body: null);
@@ -95,7 +95,7 @@ Future main() async {
     final uuid = Uuid().v4();
     final operation = _createData(uuid);
     expectResponse(await harness.agent.post("/api/operations", body: operation), 201, body: null);
-    final talkgroup = createTalkGroup(0);
+    final talkgroup = createTalkGroup('1');
     expectResponse(await harness.agent.post("/api/operations/$uuid/talkgroups", body: talkgroup), 201, body: null);
     expectResponse(await harness.agent.delete("/api/operations/$uuid"), 204);
   });

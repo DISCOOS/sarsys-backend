@@ -16,7 +16,7 @@ Future main() async {
     final uuid = Uuid().v4();
     final unit = _createData(uuid);
     expectResponse(await harness.agent.post("/api/units", body: unit), 201, body: null);
-    final clue = createMessage(1);
+    final clue = createMessage('1');
     expectResponse(await harness.agent.post("/api/units/$uuid/messages", body: clue), 201, body: null);
   });
 
@@ -26,9 +26,9 @@ Future main() async {
     final uuid = Uuid().v4();
     final unit = _createData(uuid);
     expectResponse(await harness.agent.post("/api/units", body: unit), 201, body: null);
-    final clue1 = createMessage(1);
+    final clue1 = createMessage('1');
     expectResponse(await harness.agent.post("/api/units/$uuid/messages", body: clue1), 201, body: null);
-    final clue2 = createMessage(2);
+    final clue2 = createMessage('2');
     expectResponse(await harness.agent.post("/api/units/$uuid/messages", body: clue2), 201, body: null);
     final response = expectResponse(await harness.agent.get("/api/units/$uuid/messages"), 200);
     final actual = await response.body.decode();
@@ -42,12 +42,12 @@ Future main() async {
     final uuid = Uuid().v4();
     final unit = _createData(uuid);
     expectResponse(await harness.agent.post("/api/units", body: unit), 201, body: null);
-    final clue1 = createMessage(1);
+    final clue1 = createMessage('1');
     expectResponse(await harness.agent.post("/api/units/$uuid/messages", body: clue1), 201, body: null);
     final response1 = expectResponse(await harness.agent.get("/api/units/$uuid/messages/1"), 200);
     final actual1 = await response1.body.decode();
     expect(actual1['data'], equals(clue1));
-    final clue2 = createMessage(2);
+    final clue2 = createMessage('2');
     expectResponse(await harness.agent.post("/api/units/$uuid/messages", body: clue2), 201, body: null);
     final response2 = expectResponse(await harness.agent.get("/api/units/$uuid/messages/2"), 200);
     final actual2 = await response2.body.decode();
@@ -60,13 +60,13 @@ Future main() async {
     final uuid = Uuid().v4();
     final unit = _createData(uuid);
     expectResponse(await harness.agent.post("/api/units", body: unit), 201, body: null);
-    final clue = createMessage(0);
+    final clue = createMessage('1');
     expectResponse(await harness.agent.post("/api/units/$uuid/messages", body: clue), 201, body: null);
-    expectResponse(await harness.agent.execute("PATCH", "/api/units/$uuid/messages/0", body: clue), 204, body: null);
+    expectResponse(await harness.agent.execute("PATCH", "/api/units/$uuid/messages/1", body: clue), 204, body: null);
     final response1 = expectResponse(await harness.agent.get("/api/units/$uuid"), 200);
     final actual1 = await response1.body.decode();
     expect((actual1['data'] as Map)['messages'], equals([clue]));
-    final response2 = expectResponse(await harness.agent.get("/api/units/$uuid/messages/0"), 200);
+    final response2 = expectResponse(await harness.agent.get("/api/units/$uuid/messages/1"), 200);
     final actual2 = await response2.body.decode();
     expect(actual2['data'], equals(clue));
   });
@@ -80,7 +80,7 @@ Future main() async {
 
     expectResponse(
         await harness.agent.execute("PATCH", "/api/units/$uuid", body: {
-          "messages": [createMessage(1)],
+          "messages": [createMessage('1')],
         }),
         400,
         body: null);
@@ -92,7 +92,7 @@ Future main() async {
     final uuid = Uuid().v4();
     final unit = _createData(uuid);
     expectResponse(await harness.agent.post("/api/units", body: unit), 201, body: null);
-    final clue = createMessage(0);
+    final clue = createMessage('1');
     expectResponse(await harness.agent.post("/api/units/$uuid/messages", body: clue), 201, body: null);
     expectResponse(await harness.agent.delete("/api/units/$uuid"), 204);
   });

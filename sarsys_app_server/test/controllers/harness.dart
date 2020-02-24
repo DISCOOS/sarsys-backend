@@ -118,7 +118,7 @@ Map<String, dynamic> createIncident(String uuid) => {
       "operations": ["string"]
     };
 
-Map<String, dynamic> createClue(int id) => {
+Map<String, dynamic> createClue(String id) => {
       "id": id,
       "name": "string",
       "description": "string",
@@ -168,7 +168,7 @@ Map<String, dynamic> createOperation(String uuid) => {
       "passcodes": {"commander": "string", "personnel": "string"},
     };
 
-Map<String, dynamic> createObjective(int id) => {
+Map<String, dynamic> createObjective(String id) => {
       "id": id,
       "name": "string",
       "description": "string",
@@ -183,7 +183,7 @@ Map<String, dynamic> createObjective(int id) => {
       "resolution": "unresolved"
     };
 
-Map<String, dynamic> createTalkGroup(int id) => {
+Map<String, dynamic> createTalkGroup(String id) => {
       "id": id,
       "name": true,
       "type": "tetra",
@@ -205,7 +205,7 @@ Map<String, dynamic> createMission(String uuid) => {
       "assignedTo": "string"
     };
 
-Map<String, dynamic> createMissionPart(int id) => {
+Map<String, dynamic> createMissionPart(String id) => {
       "id": id,
       "name": "string",
       "description": "string",
@@ -221,7 +221,7 @@ Map<String, dynamic> createMissionPart(int id) => {
       }
     };
 
-Map<String, dynamic> createMissionResult(int id) => {
+Map<String, dynamic> createMissionResult(String id) => {
       "id": id,
       "name": "string",
       "description": "string",
@@ -305,7 +305,7 @@ Map<String, dynamic> createDevice(String uuid) => {
       "position": createPosition(),
     };
 
-Map<String, dynamic> createMessage(int id) => {
+Map<String, dynamic> createMessage(String id) => {
       "id": id,
       "type": "clue",
       "subject": "string",

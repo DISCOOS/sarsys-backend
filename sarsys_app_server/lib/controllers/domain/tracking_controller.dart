@@ -11,8 +11,6 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
           repository,
           validation: validation,
           readOnly: const [
-            'devices',
-            'aggregates',
             'history',
             'tracks',
           ],
@@ -52,17 +50,11 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
         "effort": APISchemaObject.number()
           ..description = "Total effort in milliseconds"
           ..isReadOnly = true,
-        "devices": APISchemaObject.array(ofSchema: context.schema['UUID'])
-          ..description = "List of uuids of tracked devices"
-          ..isReadOnly = true,
-        "aggregates": APISchemaObject.array(ofSchema: context.schema['UUID'])
-          ..description = "List of uuids of tracking objects being aggregated by this tracking object"
-          ..isReadOnly = true,
         "history": APISchemaObject.array(ofSchema: context.schema['Position'])
           ..description = "List of historical positions"
           ..isReadOnly = true,
-        "tracks": APISchemaObject.map(ofSchema: context.schema['Track'])
-          ..description = "Map of device or aggregate uuid to Track objects"
+        "sources": APISchemaObject.array(ofSchema: context.schema['Track'])
+          ..description = "Array of Track objects"
           ..isReadOnly = true
       })
         ..description = "Tracking Schema (aggregate root)"
@@ -84,29 +76,4 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
       'paused',
       'closed',
     ];
-
-  /// TrackType - Value Object
-  APISchemaObject documentTrackType() => APISchemaObject.string()
-    ..description = "Track type"
-    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
-    ..enumerated = [
-      'device',
-      'aggregated',
-    ];
-
-  @override
-  Map<String, APISchemaObject> documentValues(APIDocumentContext context) => {
-        'Track': documentTrack(context),
-      };
-
-  APISchemaObject documentTrack(APIDocumentContext context) => APISchemaObject.object({
-        "source": context.schema['UUID']..description = "Uuid of position source",
-        "type": documentTrackType()..description = "Track type",
-        "positions": APISchemaObject.array(ofSchema: context.schema['Position'])..description = "Sourced positions",
-      })
-        ..description = "Tracking Schema (aggregate root)"
-        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
-        ..required = [
-          'uuid',
-        ];
 }
