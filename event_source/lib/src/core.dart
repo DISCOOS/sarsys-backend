@@ -195,7 +195,7 @@ abstract class EntityCommand<T extends DomainEvent> extends Command<T> {
     Action action,
     this.aggregateField, {
     String uuid,
-    int entityId,
+    String entityId,
     String uuidFieldName = 'uuid',
     this.entityIdFieldName = 'id',
     Map<String, dynamic> data = const {},
@@ -211,10 +211,10 @@ abstract class EntityCommand<T extends DomainEvent> extends Command<T> {
   final String aggregateField;
 
   /// [EntityObject.id] value
-  final int _id;
+  final String _id;
 
   /// Get [EntityObject.id] value
-  int get entityId => _id ?? data[entityIdFieldName] as int;
+  String get entityId => _id ?? data[entityIdFieldName] as String;
 
   /// [EntityObject.id] field name in [data]
   final String entityIdFieldName;

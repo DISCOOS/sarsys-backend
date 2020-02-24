@@ -930,34 +930,46 @@ class EntityArray {
   bool get isNotEmpty => _asArray().isNotEmpty;
 
   /// Check if id exists
-  bool contains(int id) => _asArray().any((data) => _toId(data) == id);
+  bool contains(String id) => _asArray().any((data) => _toId(data) == id);
 
   /// Next EntityObject id.
   ///
   /// Starts at value `1`
-  int get nextId => _asArray().fold<int>(0, (id, data) => max(id, _toId(data))) + 1;
+  String get nextId => '${_asArray().where(
+        (data) => _toId(data) is int,
+      ).fold<int>(0, (next, data) => max(next, _toId(data) as int)) + 1}';
 
   /// Get [EntityObject.data] as [List]
   List<Map<String, dynamic>> toList() => _asArray().toList();
 
   /// Get [data] as next [EntityObject] in this array
-  EntityObject nextObject(Map<String, dynamic> data) {
-    final id = nextId;
+  EntityObject nextObject(Map<String, dynamic> data, {String id}) {
+    final actual = id ?? nextId;
     final next = Map<String, dynamic>.from(data);
     next[entityIdFieldName] = id;
-    return EntityObject(id, next, entityIdFieldName);
+    return EntityObject(actual, next, entityIdFieldName);
   }
 
-  EntityArray add(Map<String, dynamic> data) {
-    final id = nextId;
+  /// Add entity to array.
+  ///
+  /// Id must be unique if given. Throws [EntityExists] if id exists already
+  EntityArray add(Map<String, dynamic> data, {String id}) {
+    final actual = id ?? nextId;
+    final entities = _asArray();
     final entity = Map<String, dynamic>.from(data);
-    entity[entityIdFieldName] = id;
-    final array = _asArray().toList();
+    if (entities.where((data) => _toId(data) == actual).isNotEmpty) {
+      throw EntityExists('Entity $actual exists');
+    }
+    entity[entityIdFieldName] = actual;
+    final array = entities.toList();
     array.add(entity);
     return _fromArray(array);
   }
 
-  EntityArray patch(Map<String, dynamic> data) {
+  /// Add entity if not found, replace existing otherwise.
+  ///
+  /// If entity was not found, id must be unique if given or else [EntityExists] is thrown.
+  EntityArray patch(Map<String, dynamic> data, {String id}) {
     final id = _toId(data);
     final array = _asArray().toList();
     final current = array.indexWhere((data) => _toId(data) == id);
@@ -986,10 +998,10 @@ class EntityArray {
   }
 
   /// Get [EntityObject] with given [id]
-  EntityObject elementAt(int id) => this[id];
+  EntityObject elementAt(String id) => this[id];
 
   /// Set entity object with given [id]
-  void operator []=(int id, EntityObject entity) {
+  void operator []=(String id, EntityObject entity) {
     final data = entity.data;
     data[entityIdFieldName] = id;
     final array = _asArray().toList();
@@ -1003,22 +1015,22 @@ class EntityArray {
   }
 
   /// Get entity object with given [id]
-  EntityObject operator [](int id) {
+  EntityObject operator [](String id) {
     final found = _asArray().where(
-      (data) => (data[entityIdFieldName] as int) == id,
+      (data) => (data[entityIdFieldName] as String) == id,
     );
-    if (found.length > 1) {
-      throw UnsupportedError('More than one entity object with id $id found');
+    if (found.isEmpty) {
+      throw EntityNotFound('Entity $id not found');
     }
     return EntityObject(id, found.first, entityIdFieldName);
   }
 
-  int _toId(Map<String, dynamic> data) {
-    if (data[entityIdFieldName] is int) {
-      return data[entityIdFieldName] as int;
+  String _toId(Map<String, dynamic> data) {
+    if (data[entityIdFieldName] is String) {
+      return data[entityIdFieldName] as String;
     }
     throw ArgumentError(
-      'Field data[${entityIdFieldName}] is not an int: '
+      'Field data[${entityIdFieldName}] is not a String: '
       'is type: ${data[entityIdFieldName]?.runtimeType}',
     );
   }
@@ -1042,7 +1054,7 @@ class EntityObject {
   EntityObject(this.id, this.data, this.idFieldName);
 
   /// Entity id
-  final int id;
+  final String id;
 
   /// Field name in [Message.data] for [EntityObject.id].
   final String idFieldName;
