@@ -374,7 +374,7 @@ class EventStore {
 
   /// Subscription controller for each repository
   /// subscribing to events from [canonicalStream]
-  final _subscriptions = <Type, _SubscriptionController>{};
+  final _subscriptions = <Type, SubscriptionController>{};
 
   /// Subscribe given [repository] to compete for changes from [canonicalStream]
   ///
@@ -409,7 +409,7 @@ class EventStore {
         strategy: strategy,
       ),
       ifAbsent: () => _subscribe(
-        _SubscriptionController(
+        SubscriptionController(
           logger: logger,
           onDone: _onSubscriptionDone,
           onEvent: _onSubscriptionEvent,
@@ -447,7 +447,7 @@ class EventStore {
         competing: false,
       ),
       ifAbsent: () => _subscribe(
-        _SubscriptionController(
+        SubscriptionController(
           logger: logger,
           onDone: _onSubscriptionDone,
           onEvent: _onSubscriptionEvent,
@@ -460,8 +460,8 @@ class EventStore {
     );
   }
 
-  _SubscriptionController _subscribe(
-    _SubscriptionController controller,
+  SubscriptionController _subscribe(
+    SubscriptionController controller,
     Repository<Command, AggregateRoot> repository, {
     int consume = 20,
     bool competing = false,
@@ -470,17 +470,16 @@ class EventStore {
       competing
           ? controller.compete(
               repository,
-              current() + 1,
-              connection,
-              canonicalStream,
-              consume,
-              strategy,
+              stream: canonicalStream,
+              group: '${repository.aggregateType}',
+              number: current() + 1,
+              consume: consume,
+              strategy: strategy,
             )
           : controller.subscribe(
               repository,
-              current() + 1,
-              connection,
-              canonicalStream,
+              number: current() + 1,
+              stream: canonicalStream,
             );
 
   /// Handle event from subscriptions
@@ -622,14 +621,14 @@ class EventStore {
   }
 }
 
-/// Internal class for handling subscriptions
-class _SubscriptionController {
-  _SubscriptionController({
-    this.logger,
-    this.onEvent,
-    this.onDone,
-    this.onError,
-    this.maxBackoffTime,
+/// Class for handling a subscription with automatic reconnection on failures
+class SubscriptionController {
+  SubscriptionController({
+    @required this.onEvent,
+    @required this.onDone,
+    @required this.onError,
+    @required this.logger,
+    this.maxBackoffTime = const Duration(seconds: 10),
   });
 
   /// [Logger] instance
@@ -654,44 +653,43 @@ class _SubscriptionController {
   /// Subscribe to events from given stream.
   ///
   /// Cancels previous subscriptions if exists
-  _SubscriptionController subscribe(
-    Repository repository,
-    EventNumber current,
-    EventStoreConnection connection,
-    String stream,
-  ) {
+  SubscriptionController subscribe(
+    Repository repository, {
+    @required String stream,
+    EventNumber number = EventNumber.first,
+  }) {
     _subscription?.cancel();
-    _subscription = connection
+    _subscription = repository.store.connection
         .subscribe(
           stream: stream,
-          number: current,
+          number: number,
         )
         .listen(
           (event) => onEvent(repository, event),
           onDone: () => onDone(repository),
           onError: (error, trace) => onError(repository, error, trace),
         );
-    logger.fine('${repository.runtimeType}: Subscribed to stream $stream from event number $current');
+    logger.fine('${repository.runtimeType}: Subscribed to stream $stream from event number $number');
     return this;
   }
 
   /// Compete for events from given stream.
   ///
   /// Cancels previous subscriptions if exists
-  _SubscriptionController compete(
-    Repository repository,
-    EventNumber current,
-    EventStoreConnection connection,
-    String stream,
-    int consume,
-    ConsumerStrategy strategy,
-  ) {
+  SubscriptionController compete(
+    Repository repository, {
+    @required String stream,
+    @required String group,
+    int consume = 20,
+    EventNumber number = EventNumber.first,
+    ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
+  }) {
     _subscription?.cancel();
-    _subscription = connection
+    _subscription = repository.store.connection
         .compete(
           stream: stream,
-          group: '${repository.aggregateType}',
-          number: current,
+          group: group,
+          number: number,
           consume: consume,
           strategy: strategy,
         )
@@ -700,7 +698,7 @@ class _SubscriptionController {
           onDone: () => onDone(repository),
           onError: (error, trace) => onError(repository, error, trace),
         );
-    logger.fine('${repository.runtimeType}: Subscribed to stream $stream from event number $current');
+    logger.fine('${repository.runtimeType}: Subscribed to stream $stream from event number $number');
     return this;
   }
 
