@@ -12,6 +12,7 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
             readOnly: const [
               'operation',
               'messages',
+              'tracking',
               'transitions',
             ],
             tag: 'Units');
@@ -34,9 +35,10 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
         {
           "uuid": context.schema['UUID']..description = "Unique unit id",
           "operation": APISchemaObject.object({
-            "uuid": context.schema['UUID']..description = "Operation uuid which this unit belongs to",
+            "uuid": context.schema['UUID'],
           })
             ..isReadOnly = true
+            ..description = "Operation which this unit belongs to"
             ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
           "type": documentType(),
           "number": APISchemaObject.integer()..description = "Unit number",
@@ -44,8 +46,14 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
           "phone": APISchemaObject.string()..description = "Unit phone number",
           "callsign": APISchemaObject.string()..description = "Unit callsign",
           "status": documentStatus(),
-          "tracking": context.schema['UUID'],
-          "transitions": documentTransitions(),
+          "tracking": APISchemaObject.object({
+            "uuid": context.schema['UUID'],
+          })
+            ..description = "Tracking object for this unit"
+            ..isReadOnly = true,
+          "transitions": APISchemaObject.array(ofSchema: documentTransition())
+            ..isReadOnly = true
+            ..description = "State transitions (read only)",
           "personnels": APISchemaObject.array(ofSchema: context.schema['UUID'])
             ..description = "List of uuid of Personnels assigned to this unit",
           "messages": APISchemaObject.array(ofSchema: context.schema['Message'])
@@ -62,16 +70,13 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
           'callsign',
         ];
 
-  APISchemaObject documentTransitions() => APISchemaObject.array(ofType: APIType.object)
-    ..items = APISchemaObject.object({
-      "status": documentStatus(),
-      "timestamp": APISchemaObject.string()
-        ..description = "When transition occured"
-        ..format = 'date-time',
-    })
-    ..isReadOnly = true
-    ..description = "State transitions (read only)"
-    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
+  APISchemaObject documentTransition() => APISchemaObject.object({
+        "status": documentStatus(),
+        "timestamp": APISchemaObject.string()
+          ..description = "When transition occured"
+          ..format = 'date-time',
+      })
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
 
   /// Unit type - Value Object
   APISchemaObject documentType() => APISchemaObject.string()

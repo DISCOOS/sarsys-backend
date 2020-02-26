@@ -196,20 +196,19 @@ APISchemaObject documentPosition(
       "timestamp": APISchemaObject.string()
         ..description = "Timestamp in ISO8601 Date Time String Format"
         ..format = "date-time",
-      "type": documentPositionType(),
+      "source": documentPositionSource()..isReadOnly = true,
     })
       ..description = description
       ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
 
-APISchemaObject documentPositionType() => APISchemaObject.string()
-  ..description = "Position type"
+APISchemaObject documentPositionSource() => APISchemaObject.string()
+  ..description = "Position source"
   ..defaultValue = "manual"
   ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
   ..enumerated = [
     'manual',
     'device',
-    'personnel',
-    'aggregated',
+    'tracking',
   ];
 
 APISchemaObject documentMessage(APIDocumentContext context) => APISchemaObject.object({

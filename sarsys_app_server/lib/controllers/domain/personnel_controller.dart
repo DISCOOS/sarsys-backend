@@ -11,8 +11,9 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
             validation: validation,
             readOnly: const [
               'operation',
-              'messages',
+              'tracking',
               'transitions',
+              'messages',
             ],
             tag: 'Personnels');
 
@@ -34,8 +35,9 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
         {
           "uuid": context.schema['UUID']..description = "Unique Personnel id",
           "operation": APISchemaObject.object({
-            "uuid": context.schema['UUID']..description = "Operation uuid which this mission belongs to",
+            "uuid": context.schema['UUID'],
           })
+            ..description = "Operation which this personnel is allocated to"
             ..isReadOnly = true
             ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
           "fname": APISchemaObject.string()..description = "First name",
@@ -43,8 +45,14 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
           "phone": APISchemaObject.string()..description = "Phone number",
           "affiliation": context.schema["Affiliation"],
           "status": documentStatus(),
-          "transitions": documentTransitions(),
-          "tracking": context.schema['UUID'],
+          "transitions": APISchemaObject.array(ofSchema: documentTransition())
+            ..isReadOnly = true
+            ..description = "State transitions (read only)",
+          "tracking": APISchemaObject.object({
+            "uuid": context.schema['UUID'],
+          })
+            ..description = "Tracking object for this personnel"
+            ..isReadOnly = true,
           "messages": APISchemaObject.array(ofSchema: context.schema['Message'])
             ..isReadOnly = true
             ..description = "List of messages added to Personnel",
@@ -53,21 +61,15 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
           'uuid',
-          'fname',
-          'lname',
-          'status',
         ];
 
-  APISchemaObject documentTransitions() => APISchemaObject.array(ofType: APIType.object)
-    ..items = APISchemaObject.object({
-      "status": documentStatus(),
-      "timestamp": APISchemaObject.string()
-        ..description = "When transition occured"
-        ..format = 'date-time',
-    })
-    ..isReadOnly = true
-    ..description = "State transitions (read only)"
-    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
+  APISchemaObject documentTransition() => APISchemaObject.object({
+        "status": documentStatus(),
+        "timestamp": APISchemaObject.string()
+          ..description = "When transition occured"
+          ..format = 'date-time',
+      })
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
 
   /// Personnel Status - Value Object
   APISchemaObject documentStatus() => APISchemaObject.string()

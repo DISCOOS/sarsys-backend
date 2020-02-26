@@ -40,7 +40,9 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
           "exercise": APISchemaObject.boolean()..description = "Exercise flag",
           "status": documentStatus(),
           "resolution": documentResolution(),
-          "transitions": documentTransitions(),
+          "transitions": APISchemaObject.array(ofSchema: documentTransition())
+            ..isReadOnly = true
+            ..description = "State transitions (read only)",
           "occurred": APISchemaObject.string()
             ..description = "When Incident occurred"
             ..format = 'date-time',
@@ -76,17 +78,14 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
       'other',
     ];
 
-  APISchemaObject documentTransitions() => APISchemaObject.array(ofType: APIType.object)
-    ..items = APISchemaObject.object({
-      "status": documentStatus(),
-      "resolution": documentResolution(),
-      "timestamp": APISchemaObject.string()
-        ..description = "When transition occured"
-        ..format = 'date-time',
-    })
-    ..isReadOnly = true
-    ..description = "State transitions (read only)"
-    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
+  APISchemaObject documentTransition() => APISchemaObject.object({
+        "status": documentStatus(),
+        "resolution": documentResolution(),
+        "timestamp": APISchemaObject.string()
+          ..description = "When transition occured"
+          ..format = 'date-time',
+      })
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
 
   /// IncidentStatus - Value Object
   APISchemaObject documentStatus() => APISchemaObject.string()

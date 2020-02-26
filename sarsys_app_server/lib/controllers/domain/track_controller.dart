@@ -27,12 +27,13 @@ class TrackController extends EntityController<TrackingCommand, Tracking> {
         "id": context.schema['ID']..description = "Track id (unique in Tracking only)",
         "source": APISchemaObject.object({
           "uuid": context.schema['UUID'],
-          "type": documentTrackType(),
+          "type": documentSourceType(),
           "exists": APISchemaObject.boolean()
             ..description = "Flag is true if source exists"
             ..isReadOnly = true,
         })
           ..description = "Uuid of position source",
+        "status": documentTrackStatus()..isReadOnly = true,
         "positions": APISchemaObject.array(ofSchema: context.schema['Position'])
           ..description = "Sourced positions"
           ..isReadOnly = true,
@@ -45,13 +46,22 @@ class TrackController extends EntityController<TrackingCommand, Tracking> {
           'type',
         ];
 
-  /// TrackType - Value Object
-  APISchemaObject documentTrackType() => APISchemaObject.string()
-    ..description = "Track type"
+  /// SourceType - Value Object
+  APISchemaObject documentSourceType() => APISchemaObject.string()
+    ..description = "Source type"
     ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
     ..enumerated = [
       'device',
-      'personnel',
+      'tracking',
+    ];
+
+  /// TrackStatus - Value Object
+  APISchemaObject documentTrackStatus() => APISchemaObject.string()
+    ..description = "Track status"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+    ..enumerated = [
+      'attached',
+      'detached',
     ];
 
   @override

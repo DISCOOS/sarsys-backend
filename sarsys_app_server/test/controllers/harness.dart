@@ -202,7 +202,6 @@ Map<String, dynamic> createMission(String uuid) => {
       "status": "created",
       "priority": "medium",
       "resolution": "unresolved",
-      "assignedTo": "string"
     };
 
 Map<String, dynamic> createMissionPart(String id) => {
@@ -278,7 +277,6 @@ Map<String, dynamic> createDepartment(String uuid) => {
 
 Map<String, dynamic> createTracking(String uuid) => {
       "uuid": "$uuid",
-      "position": createPosition(),
     };
 
 Map<String, Object> createPosition() => {
@@ -302,7 +300,6 @@ Map<String, dynamic> createDevice(String uuid) => {
       "alias": "string",
       "network": "string",
       "networkId": "string",
-      "position": createPosition(),
     };
 
 Map<String, dynamic> createMessage(String id) => {

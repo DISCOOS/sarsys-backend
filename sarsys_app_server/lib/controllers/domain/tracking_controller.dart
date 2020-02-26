@@ -1,3 +1,4 @@
+import 'package:sarsys_app_server/controllers/domain/schemas.dart';
 import 'package:sarsys_app_server/controllers/eventsource/aggregate_controller.dart';
 import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
@@ -11,15 +12,20 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
           repository,
           validation: validation,
           readOnly: const [
+            'status',
+            'position',
+            'distance',
+            'speed',
+            'effort',
+            'sources',
             'history',
-            'tracks',
           ],
-          validators: [
-            ValueValidator(
-              '/position/properties/type',
-              ['manual'],
-            )
-          ],
+//          validators: [
+//            ValueValidator(
+//              '/position/properties/type',
+//              ['manual'],
+//            )
+//          ],
           tag: "Tracking",
         );
 
@@ -39,8 +45,12 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
   @override
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object({
         "uuid": context.schema['UUID']..description = "Unique tracking id",
-        "status": documentTrackingStatus(),
-        "position": context.schema['Position']..description = "Current position",
+        "status": documentTrackingStatus()
+          ..description = "Tracking status"
+          ..isReadOnly = true,
+        "position": documentPosition(context)
+          ..description = "Current position"
+          ..isReadOnly = true,
         "distance": APISchemaObject.number()
           ..description = "Total distance in meter"
           ..isReadOnly = true,
@@ -65,12 +75,9 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
 
   /// TrackingStatus - Value Object
   APISchemaObject documentTrackingStatus() => APISchemaObject.string()
-    ..description = "Tracking status"
-    ..defaultValue = "none"
-    ..isReadOnly = true
+    ..defaultValue = "created"
     ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
     ..enumerated = [
-      'none',
       'created',
       'tracking',
       'paused',

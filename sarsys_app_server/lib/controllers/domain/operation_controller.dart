@@ -47,7 +47,9 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
           "type": documentType(),
           "status": documentStatus(),
           "resolution": documentOperationResolution(),
-          "transitions": documentTransitions(),
+          "transitions": APISchemaObject.array(ofSchema: documentTransition())
+            ..isReadOnly = true
+            ..description = "State transitions (read only)",
           "reference": APISchemaObject.string()..description = "External reference from requesting authority",
           "justification": APISchemaObject.string()..description = "Justification for responding",
           "commander": context.schema['UUID']..description = "Uuid of personnel in command",
@@ -80,17 +82,14 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
           'justification',
         ];
 
-  APISchemaObject documentTransitions() => APISchemaObject.array(ofType: APIType.object)
-    ..items = APISchemaObject.object({
-      "status": documentStatus(),
-      "resolution": documentOperationResolution(),
-      "timestamp": APISchemaObject.string()
-        ..description = "When transition occured"
-        ..format = 'date-time',
-    })
-    ..isReadOnly = true
-    ..description = "State transitions (read only)"
-    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
+  APISchemaObject documentTransition() => APISchemaObject.object({
+        "status": documentStatus(),
+        "resolution": documentOperationResolution(),
+        "timestamp": APISchemaObject.string()
+          ..description = "When transition occured"
+          ..format = 'date-time',
+      })
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
 
   APISchemaObject documentType() => APISchemaObject.string()
     ..description = "Operation type"

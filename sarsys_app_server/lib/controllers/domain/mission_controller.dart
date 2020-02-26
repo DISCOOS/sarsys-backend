@@ -14,6 +14,7 @@ class MissionController extends AggregateController<MissionCommand, Mission> {
             'operation',
             'parts',
             'results',
+            'assignedTo',
             'transitions',
             'messages',
           ],
@@ -47,14 +48,20 @@ class MissionController extends AggregateController<MissionCommand, Mission> {
           "status": documentStatus(),
           "priority": documentPriority(),
           "resolution": documentResolution(),
-          "transitions": documentTransition(),
+          "transitions": APISchemaObject.array(ofSchema: documentTransition())
+            ..description = "State transitions (read only)"
+            ..isReadOnly = true,
           "parts": APISchemaObject.array(ofSchema: context.schema["MissionPart"])
             ..description = "Points, linestrings, rectangles and circles describing mission parts"
             ..isReadOnly = true,
           "results": APISchemaObject.array(ofSchema: context.schema["MissionResult"])
             ..description = "Points, linestrings, rectangles and circles describing the results"
             ..isReadOnly = true,
-          "assignedTo": context.schema['UUID']..description = "Uuid of unit assigned to mission",
+          "assignedTo": APISchemaObject.object({
+            "uuid": context.schema['UUID'],
+          })
+            ..description = "Unit assigned to this mission"
+            ..isReadOnly = true,
           "messages": APISchemaObject.array(ofSchema: context.schema['Message'])
             ..isReadOnly = true
             ..description = "List of messages added to Mission",
@@ -74,8 +81,6 @@ class MissionController extends AggregateController<MissionCommand, Mission> {
         ..description = "When transition occured"
         ..format = 'date-time',
     })
-    ..isReadOnly = true
-    ..description = "State transitions (read only)"
     ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
 
   APISchemaObject documentType() => APISchemaObject.string()
