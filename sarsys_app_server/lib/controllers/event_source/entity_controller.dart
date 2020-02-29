@@ -41,7 +41,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
   // Entity Operations
   //////////////////////////////////
 
-  @Operation.get('uuid')
+  /// Add @Operation.get('uuid') to activate
   Future<Response> getAll(@Bind.path('uuid') String uuid) async {
     try {
       if (!repository.contains(uuid)) {
@@ -59,7 +59,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     }
   }
 
-  @Operation.get('uuid', 'id')
+  /// Add @Operation.get('uuid', 'id') to activate
   Future<Response> getById(
     @Bind.path('uuid') String uuid,
     @Bind.path('id') String id,
@@ -87,7 +87,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     }
   }
 
-  @Operation.post('uuid')
+  /// Add @Operation.post('uuid') to active
   Future<Response> create(
     @Bind.path('uuid') String uuid,
     @Bind.body() Map<String, dynamic> data,
@@ -114,7 +114,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
 
   S onCreate(String uuid, String type, Map<String, dynamic> data) => throw UnsupportedError("Create not implemented");
 
-  @Operation('PATCH', 'uuid', 'id')
+  /// Add @Operation('PATCH', 'uuid', 'id') to active
   Future<Response> update(
     @Bind.path('uuid') String uuid,
     @Bind.path('id') String id,
@@ -145,7 +145,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
 
   S onUpdate(String uuid, String type, Map<String, dynamic> data) => throw UnsupportedError("Update not implemented");
 
-  @Operation('DELETE', 'uuid', 'id')
+  /// Add @Operation('DELETE', 'uuid', 'id') to active
   Future<Response> delete(
     @Bind.path('uuid') String uuid,
     @Bind.path('id') String id, {

@@ -1,5 +1,5 @@
 import 'package:sarsys_app_server/controllers/event_source/entity_controller.dart';
-import 'package:sarsys_domain/sarsys_domain.dart';
+import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 
@@ -8,6 +8,41 @@ import 'package:sarsys_app_server/validation/validation.dart';
 class ClueController extends EntityController<IncidentCommand, Incident> {
   ClueController(IncidentRepository repository, JsonValidation validation)
       : super(repository, "Clue", "clues", validation: validation, tag: "Incidents > Clues");
+
+  @override
+  @Operation.get('uuid')
+  Future<Response> getAll(@Bind.path('uuid') String uuid) {
+    return super.getAll(uuid);
+  }
+
+  @override
+  @Operation.get('uuid', 'id')
+  Future<Response> getById(
+    @Bind.path('uuid') String uuid,
+    @Bind.path('id') String id,
+  ) {
+    return super.getById(uuid, id);
+  }
+
+  @override
+  @Operation('PATCH', 'uuid', 'id')
+  Future<Response> update(
+    @Bind.path('uuid') String uuid,
+    @Bind.path('id') String id,
+    @Bind.body() Map<String, dynamic> data,
+  ) {
+    return super.update(uuid, id, data);
+  }
+
+  @override
+  @Operation('DELETE', 'uuid', 'id')
+  Future<Response> delete(
+    @Bind.path('uuid') String uuid,
+    @Bind.path('id') String id, {
+    @Bind.body() Map<String, dynamic> data,
+  }) {
+    return super.delete(uuid, id, data: data);
+  }
 
   @override
   IncidentCommand onCreate(String uuid, String type, Map<String, dynamic> data) => AddClue(uuid, data);

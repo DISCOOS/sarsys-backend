@@ -20,6 +20,21 @@ class TrackController extends EntityController<TrackingCommand, Tracking> {
         );
 
   @override
+  @Operation.get('uuid')
+  Future<Response> getAll(@Bind.path('uuid') String uuid) {
+    return super.getAll(uuid);
+  }
+
+  @override
+  @Operation.get('uuid', 'id')
+  Future<Response> getById(
+    @Bind.path('uuid') String uuid,
+    @Bind.path('id') String id,
+  ) {
+    return super.getById(uuid, id);
+  }
+
+  @override
   TrackingCommand onCreate(String uuid, String type, Map<String, dynamic> data) => AddSourceToTracking(uuid, data);
 
   @override

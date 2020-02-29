@@ -10,6 +10,41 @@ class TalkGroupController extends EntityController<sar.OperationCommand, sar.Ope
       : super(repository, "TalkGroup", "talkgroups", validation: validation, tag: 'Operations > Talkgroups');
 
   @override
+  @Operation.get('uuid')
+  Future<Response> getAll(@Bind.path('uuid') String uuid) {
+    return super.getAll(uuid);
+  }
+
+  @override
+  @Operation.get('uuid', 'id')
+  Future<Response> getById(
+    @Bind.path('uuid') String uuid,
+    @Bind.path('id') String id,
+  ) {
+    return super.getById(uuid, id);
+  }
+
+  @override
+  @Operation('PATCH', 'uuid', 'id')
+  Future<Response> update(
+    @Bind.path('uuid') String uuid,
+    @Bind.path('id') String id,
+    @Bind.body() Map<String, dynamic> data,
+  ) {
+    return super.update(uuid, id, data);
+  }
+
+  @override
+  @Operation('DELETE', 'uuid', 'id')
+  Future<Response> delete(
+    @Bind.path('uuid') String uuid,
+    @Bind.path('id') String id, {
+    @Bind.body() Map<String, dynamic> data,
+  }) {
+    return super.delete(uuid, id, data: data);
+  }
+
+  @override
   sar.OperationCommand onCreate(String uuid, String type, Map<String, dynamic> data) => sar.AddTalkGroup(uuid, data);
 
   @override
