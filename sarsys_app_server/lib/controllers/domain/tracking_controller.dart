@@ -17,6 +17,7 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
             'distance',
             'speed',
             'effort',
+            'sources',
             'tracks',
             'history',
           ],
@@ -62,6 +63,9 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
           ..isReadOnly = true,
         "history": APISchemaObject.array(ofSchema: context.schema['Position'])
           ..description = "List of historical positions"
+          ..isReadOnly = true,
+        "sources": APISchemaObject.array(ofSchema: context.schema['Source'])
+          ..description = "Array of Track objects"
           ..isReadOnly = true,
         "tracks": APISchemaObject.array(ofSchema: context.schema['Track'])
           ..description = "Array of Track objects"

@@ -1,3 +1,4 @@
+import 'package:sarsys_app_server/controllers/domain/schemas.dart';
 import 'package:sarsys_app_server/controllers/event_source/aggregate_controller.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
@@ -48,9 +49,7 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
   @override
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object(
         {
-          "uuid": APISchemaObject.string(format: 'uuid')
-            ..format = 'uuid'
-            ..description = "Unique application id",
+          "uuid": documentUUID()..description = "Unique application id",
           "demo": APISchemaObject.boolean()
             ..description = "Use demo-mode (no real data and any login)"
             ..defaultValue = true,

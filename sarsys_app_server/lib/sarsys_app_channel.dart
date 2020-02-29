@@ -220,6 +220,10 @@ class SarSysAppServerChannel extends ApplicationChannel {
             manager.get<TrackingRepository>(),
             requestValidator,
           ))
+      ..route('/api/trackings/:uuid/sources[/:id]').link(() => SourceController(
+            manager.get<TrackingRepository>(),
+            requestValidator,
+          ))
       ..route('/api/devices[/:uuid]').link(() => DeviceController(
             manager.get<DeviceRepository>(),
             requestValidator,

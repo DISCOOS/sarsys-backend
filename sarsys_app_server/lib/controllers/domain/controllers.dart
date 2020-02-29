@@ -18,6 +18,7 @@ export 'operation_unit_controller.dart';
 export 'organisation_controller.dart';
 export 'organisation_division_controller.dart';
 export 'personnel_controller.dart';
+export 'source_controller.dart';
 export 'subject_controllers.dart';
 export 'track_controller.dart';
 export 'tracking_controller.dart';
