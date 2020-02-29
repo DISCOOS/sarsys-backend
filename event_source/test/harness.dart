@@ -27,10 +27,31 @@ class EventSourceHarness {
     return this;
   }
 
+  final Map<String, Map<String, bool>> _streams = {};
+  List<String> get streams => _streams.keys.toList(growable: false);
+  EventSourceHarness withStream(
+    String stream, {
+    bool useInstanceStreams = true,
+    bool useCanonicalName = true,
+  }) {
+    _streams[stream] = {
+      'useInstanceStreams': useInstanceStreams,
+      'useCanonicalName': useCanonicalName,
+    };
+    return this;
+  }
+
   final Set<String> _projections = {};
   List<String> get projections => _projections.toList(growable: false);
   EventSourceHarness withProjections({List<String> projections = const ['\$by_category']}) {
     _projections.addAll(projections);
+    return this;
+  }
+
+  final Map<String, Set<String>> _subscriptions = {};
+  Map<String, String> get subscriptions => Map.unmodifiable(_subscriptions);
+  EventSourceHarness withSubscription(String stream, {String group}) {
+    _subscriptions.update(stream, (groups) => groups..add(group), ifAbsent: () => {group});
     return this;
   }
 
@@ -66,7 +87,7 @@ class EventSourceHarness {
   }
 
   final Map<Type, _RepositoryBuilder> _builders = {};
-  Repository get<T extends Repository>({int port = 4000, int instance = 0}) => _managers[port][instance].get<T>();
+  T get<T extends Repository>({int port = 4000, int instance = 1}) => _managers[port][instance - 1].get<T>();
 
   final Map<int, List<RepositoryManager>> _managers = {};
 
@@ -126,22 +147,33 @@ class EventSourceHarness {
   }
 
   void _build(int port, EventStoreMockServer server) async {
+    _streams.forEach(
+      (stream, flags) => server.withStream(
+        stream,
+        useCanonicalName: flags['useCanonicalName'],
+        useInstanceStreams: flags['useInstanceStreams'],
+      ),
+    );
     _projections.forEach(
       (projection) => server.withProjection(projection),
+    );
+    _subscriptions.forEach(
+      (stream, groups) => groups.forEach((group) => server.withSubscription(stream, group: group)),
     );
     final list = _managers.putIfAbsent(port, () => []);
     _builders.values.forEach((builder) {
       for (var i = 0; i < builder.instances; i++) {
-        final manager = RepositoryManager(
-          _bus,
-          _connections[port],
-          prefix: EventStore.toCanonical([
-            _tenant,
-            _prefix,
-          ]),
-        );
-        builder(manager);
-        list.add(manager);
+        if (list.length == i) {
+          list.add(RepositoryManager(
+            _bus,
+            _connections[port],
+            prefix: EventStore.toCanonical([
+              _tenant,
+              _prefix,
+            ]),
+          ));
+        }
+        builder(list[i]);
       }
       server.withStream(builder.stream);
     });

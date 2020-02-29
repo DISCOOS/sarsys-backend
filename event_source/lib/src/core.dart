@@ -78,8 +78,17 @@ class Event extends Message {
         created: created,
       );
 
-  /// Test if `data['deleted'] == 'true'`
+  /// Get element at given path in [changed]. If not found, [previous] is used instead
+  Map<String, dynamic> elementAt(String path) => changed.elementAt(path) ?? previous.elementAt(path);
+
+  /// Test if all data is deleted by evaluating if `data['deleted'] == 'true'`
   bool get isDeleted => data['deleted'] == true;
+
+  /// Get changed fields from `data['changed']`
+  Map<String, dynamic> get changed => Map<String, dynamic>.from(data['changed']);
+
+  /// Get changed fields from `data['previous']`
+  Map<String, dynamic> get previous => Map<String, dynamic>.from(data['previous'] ?? {});
 
   /// Get list of JSON Patch methods from `data['patches']`
   List<Map<String, dynamic>> get patches => List<Map<String, dynamic>>.from(data['patches'] as List<dynamic>);
@@ -108,6 +117,31 @@ class DomainEvent extends Event {
   String toString() {
     return '$runtimeType{uuid: $uuid, type: $type, created: $created, data: $data}';
   }
+}
+
+class EntityObjectEvent extends DomainEvent {
+  EntityObjectEvent({
+    @required String uuid,
+    @required String type,
+    @required DateTime created,
+    @required this.aggregateField,
+    @required Map<String, dynamic> data,
+    int index,
+    this.idFieldName = 'id',
+  }) : super(
+          uuid: uuid,
+          type: type,
+          created: created,
+          data: {'index': index}..addAll(data),
+        );
+
+  final String idFieldName;
+  final String aggregateField;
+
+  int get index => data['index'];
+  String get id => entity.elementAt('id');
+  Map<String, dynamic> get entity => elementAt('$aggregateField/$index');
+  EntityObject get entityObject => EntityObject(id, entity, idFieldName);
 }
 
 /// Base class for events sourced from an event stream.
@@ -139,7 +173,6 @@ enum Action {
   create,
   update,
   delete,
-  custom,
 }
 
 /// Command interface
@@ -469,5 +502,28 @@ extension StringX on String {
   /// Convert [String] into delimited lower case string
   String toDelimiterCase(String delimiter) {
     return '${this}'.split(RegExp('(?<=[a-z0-9])(?=[A-Z0-9])')).join(delimiter).toLowerCase();
+  }
+}
+
+extension MapX on Map {
+  /// Check if map contains data at given path
+  bool hasPath(String ref) => elementAt(ref) != null;
+
+  /// Get element with given reference on format '/name1/name2/name3'
+  /// equivalent to map['name1']['name2']['name3'].
+  ///
+  /// Returns [null] if not found
+  dynamic elementAt(String path) {
+    final parts = path.split('/');
+    dynamic found = parts.skip(parts.first.isEmpty ? 1 : 0).fold(this, (parent, name) {
+      if (parent is Map<String, dynamic>) {
+        if (parent.containsKey(name)) {
+          return parent[name];
+        }
+      }
+      final element = (parent ?? {});
+      return element is Map ? element[name] : element is List && element.isNotEmpty ? element[int.parse(name)] : null;
+    });
+    return found;
   }
 }

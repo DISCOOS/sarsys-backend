@@ -597,7 +597,6 @@ class EventStore {
   StreamController<Event> _streamController;
 
   /// Get remote [Event] stream.
-  ///
   Stream<Event> asStream() {
     _streamController ??= StreamController.broadcast();
     return _streamController.stream;
@@ -622,7 +621,7 @@ class EventStore {
 }
 
 /// Class for handling a subscription with automatic reconnection on failures
-class SubscriptionController {
+class SubscriptionController<T extends Repository> {
   SubscriptionController({
     @required this.onEvent,
     @required this.onDone,
@@ -634,9 +633,9 @@ class SubscriptionController {
   /// [Logger] instance
   final Logger logger;
 
-  final void Function(Repository repository) onDone;
-  final void Function(Repository repository, SourceEvent event) onEvent;
-  final void Function(Repository repository, dynamic error, StackTrace stackTrace) onError;
+  final void Function(T repository) onDone;
+  final void Function(T repository, SourceEvent event) onEvent;
+  final void Function(T repository, dynamic error, StackTrace stackTrace) onError;
 
   /// Maximum backoff duration between reconnect attempts
   final Duration maxBackoffTime;
@@ -653,8 +652,8 @@ class SubscriptionController {
   /// Subscribe to events from given stream.
   ///
   /// Cancels previous subscriptions if exists
-  SubscriptionController subscribe(
-    Repository repository, {
+  SubscriptionController<T> subscribe(
+    T repository, {
     @required String stream,
     EventNumber number = EventNumber.first,
   }) {
@@ -676,8 +675,8 @@ class SubscriptionController {
   /// Compete for events from given stream.
   ///
   /// Cancels previous subscriptions if exists
-  SubscriptionController compete(
-    Repository repository, {
+  SubscriptionController<T> compete(
+    T repository, {
     @required String stream,
     @required String group,
     int consume = 20,
@@ -707,7 +706,7 @@ class SubscriptionController {
         maxBackoffTime.inMilliseconds,
       );
 
-  void reconnect(Repository repository, EventStore store) {
+  void reconnect(T repository, EventStore store) {
     _subscription.cancel();
     if (!store.connection.closed) {
       _timer ??= Timer(
@@ -724,7 +723,7 @@ class SubscriptionController {
     }
   }
 
-  void connected(Repository repository, EventStoreConnection connection) {
+  void connected(T repository, EventStoreConnection connection) {
     if (reconnects > 0) {
       logger.info(
         '${repository.runtimeType} reconnected to '
@@ -1137,6 +1136,7 @@ class EventStoreConnection {
         stream: stream,
         group: group,
         number: current,
+        consume: consume,
       ),
     )) {
       final feed = await request;

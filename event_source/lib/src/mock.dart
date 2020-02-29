@@ -80,13 +80,6 @@ class EventStoreMockServer {
     });
   }
 
-  void clear() {
-    _router.clear();
-    _streams
-      ..forEach((_, stream) => stream.dispose())
-      ..clear();
-  }
-
   EventStoreMockServer withProjection(String name) {
     _router.putIfAbsent(
       name,
@@ -104,8 +97,17 @@ class EventStoreMockServer {
     return this;
   }
 
-  EventStoreMockServer withStream(String name, {bool useInstanceStreams = true}) {
-    final stream = _addStream(name, useInstanceStreams);
+  EventStoreMockServer withStream(
+    String name, {
+    bool useInstanceStreams = true,
+    bool useCanonicalName = true,
+  }) {
+    final stream = _addStream(
+      name,
+      useInstanceStreams,
+      useCanonicalName ? tenant : null,
+      useCanonicalName ? prefix : null,
+    );
     _router.putIfAbsent(
       stream.instanceStream,
       () => TestRoute(
@@ -127,7 +129,7 @@ class EventStoreMockServer {
 
   TestStream getStream(String name) => _streams[name];
 
-  TestStream _addStream(String name, bool useInstanceStreams) => _streams.putIfAbsent(
+  TestStream _addStream(String name, bool useInstanceStreams, String tenant, String prefix) => _streams.putIfAbsent(
         name,
         () => TestStream(
           port,
@@ -139,20 +141,30 @@ class EventStoreMockServer {
         ),
       );
 
-  EventStoreMockServer withSubscription(String name) {
-    final stream = _streams[name];
-    if (stream == null) {
-      throw ArgumentError('Stream $name not found');
+  EventStoreMockServer withSubscription(String stream, {String group}) {
+    final _stream = _streams[stream];
+    if (_stream == null) {
+      throw ArgumentError('Stream $stream not found');
     }
-    final path = '/subscriptions/${stream.canonicalStream}';
+    if (group != null) {
+      _stream._createGroup(group);
+    }
+    final path = '/subscriptions/${_stream.canonicalStream}';
     _router.putIfAbsent(
       path,
       () => TestRoute(
         path,
-        stream,
+        _stream,
       ),
     );
     return this;
+  }
+
+  void clear() {
+    _router.clear();
+    _streams
+      ..forEach((_, stream) => stream.dispose())
+      ..clear();
   }
 
   /// Shuts down the server listening for HTTP requests.
@@ -202,6 +214,18 @@ class TestStream {
   final Map<String, Map<String, dynamic>> _canonical = {};
   final Map<String, List<Map<String, dynamic>>> _cached = {};
   final List<Map<String, Map<String, dynamic>>> _instances = [];
+
+  /// Get [SourceEvent] from [DomainEvent]
+  static Map<String, dynamic> fromDomainEvent(
+    DomainEvent event, {
+    DateTime updated,
+  }) =>
+      {
+        'eventId': event.uuid,
+        'eventType': event.type,
+        'updated': event.created.toIso8601String(),
+        'data': event.data,
+      };
 
   /// Get [SourceEvent] as JSON compatible object with aggregate [uuid], type [T], [oldData], [newData] and legal [operations]
   static Map<String, dynamic> asSourceEvent<T>(
@@ -284,23 +308,46 @@ class TestStream {
           ..statusCode = HttpStatus.conflict
           ..reasonPhrase = 'Already exists';
       } else {
-        _groups[group] = TestSubscription(
-          canonicalStream,
+        _createGroup(
           group,
-          type,
-          offset,
-          timeout: data['messageTimeoutMilliseconds'],
+          type: type,
+          offset: offset,
+          data: data,
         );
         request.response..statusCode = HttpStatus.created;
       }
     }
   }
 
+  TestSubscription _createGroup(
+    String group, {
+    ConsumerStrategy type = ConsumerStrategy.RoundRobin,
+    offset = 0,
+    data,
+  }) =>
+      _groups[group] = TestSubscription(
+        canonicalStream,
+        group,
+        type,
+        offset,
+        timeout: data ?? {}['messageTimeoutMilliseconds'],
+      );
+
   Future _ackEvents(HttpRequest request, RegExp pattern, String path) async {
     final group = pattern.firstMatch(path).group(1);
     if (_groups.containsKey(group)) {
       final ids = request.uri.queryParameters['ids']?.split(',') ?? [];
       _groups[group].ack(this, request, ids);
+    } else {
+      _notFound(request);
+    }
+  }
+
+  Future _nackEvents(HttpRequest request, RegExp pattern, String path) async {
+    final group = pattern.firstMatch(path).group(1);
+    if (_groups.containsKey(group)) {
+      final ids = request.uri.queryParameters['ids']?.split(',') ?? [];
+      _groups[group].nack(this, request, ids);
     } else {
       _notFound(request);
     }
@@ -315,8 +362,8 @@ class TestStream {
       await _createStream(request, path);
     } else if ((pattern = RegExp(TestSubscription.asAck(RegExp.escape(canonicalStream)))).hasMatch(path)) {
       await _ackEvents(request, pattern, path);
-    } else if ((pattern = RegExp(TestSubscription.asAck(RegExp.escape(canonicalStream)))).hasMatch(path)) {
-      await _ackEvents(request, pattern, path);
+    } else if ((pattern = RegExp(TestSubscription.asNack(RegExp.escape(canonicalStream)))).hasMatch(path)) {
+      await _nackEvents(request, pattern, path);
     } else {
       _unsupported(request);
     }
@@ -631,7 +678,16 @@ class TestSubscription {
     // only acknowledge known ids
     final known = ids.toList()..removeWhere((id) => !stream._canonical.containsKey(id));
     if (known.isNotEmpty) {
-      known.forEach((uuid) => consumed[uuid].acknowledged = false);
+      known.forEach((uuid) => consumed[uuid].acknowledged = true);
+    }
+    request.response..statusCode = HttpStatus.accepted;
+  }
+
+  void nack(TestStream stream, HttpRequest request, List<String> ids) {
+    // only acknowledge known ids
+    final known = ids.toList()..removeWhere((id) => !stream._canonical.containsKey(id));
+    if (known.isNotEmpty) {
+      consumed.removeWhere((id, _) => known.contains(id));
     }
     request.response..statusCode = HttpStatus.accepted;
   }

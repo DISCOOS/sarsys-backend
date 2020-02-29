@@ -24,6 +24,68 @@ Future main() async {
     expect(repository.count, equals(0), reason: 'Repository should be empty');
   });
 
+  test('Repository should emit events with correct patches', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
+
+    // Act
+    final uuid = Uuid().v4();
+    final foo = repo.get(uuid, data: {
+      'property1': 'value1',
+      'property2': 'value2',
+      'property3': 'value3',
+      'list1': [
+        {'name': 'item1'},
+        {'name': 'item2'},
+      ]
+    });
+    foo.patch({
+      'property1': 'patched',
+      'property2': 'value2',
+      'list1': [
+        {'name': 'item3'},
+      ],
+    }, emits: FooUpdated);
+
+    // Assert state
+    final events = foo.getUncommittedChanges();
+    expect(events.length, equals(2), reason: 'Events should contain two events');
+
+    // Assert first event
+    final changed1 = events.first.changed;
+    final value1 = changed1.elementAt('property1');
+    expect(value1, equals('value1'));
+    var value2 = changed1.elementAt('property2');
+    expect(value2, equals('value2'));
+    var value3 = changed1.elementAt('property3');
+    expect(value3, equals('value3'));
+    var list1 = changed1.elementAt('list1');
+    expect(list1, isA<List>());
+    final item1 = changed1.elementAt('list1/0');
+    expect(item1, isA<Map>());
+    final item2 = changed1.elementAt('list1/1');
+    expect(item2, isA<Map>());
+    final name1 = changed1.elementAt('list1/0/name');
+    expect(name1, equals('item1'));
+    final name2 = changed1.elementAt('list1/1/name');
+    expect(name2, equals('item2'));
+
+    // Assert last event
+    final changed2 = events.last.changed;
+    final patched = changed2.elementAt('property1');
+    expect(patched, equals('patched'));
+    // Not given in patch, should not be in changes
+    value3 = changed2.elementAt('property3');
+    expect(value3, isNull);
+    list1 = changed2.elementAt('list1');
+    expect(list1, isA<List>());
+    final item3 = changed2.elementAt('list1/0');
+    expect(item3, isA<Map>());
+    final name3 = changed2.elementAt('list1/0/name');
+    expect(name3, equals('item3'));
+  });
+
   test('Repository should support create -> patch -> push operations', () async {
     // Arrange
     final repository = harness.get<FooRepository>();
@@ -228,7 +290,7 @@ Future main() async {
     foo.patch({'property3': 'value4'}, emits: FooUpdated);
 
     // Assert
-    await expectLater(() async => await repo.push(foo), throwsA(const TypeMatcher<ConflictNotReconcilable>()));
+    await expectLater(repo.push(foo), throwsA(const TypeMatcher<ConflictNotReconcilable>()));
 
     // Assert conflict resolved
     expect(repo.count, equals(1));
@@ -239,9 +301,9 @@ Future main() async {
 
   test('Repository should consume events with stategy RoundRobin', () async {
     // Arrange
-    final repo1 = harness.get<FooRepository>(instance: 0)..compete(consume: 1);
-    final repo2 = harness.get<FooRepository>(instance: 1)..compete(consume: 1);
-    harness.server().withSubscription(repo1.store.aggregate);
+    final repo1 = harness.get<FooRepository>(instance: 1)..compete(consume: 1);
+    final repo2 = harness.get<FooRepository>(instance: 2)..compete(consume: 1);
+    harness.server().withSubscription(repo1.store.aggregate, group: '${repo1.aggregateType}');
     final stream = harness.server().getStream(repo1.store.aggregate);
     await repo1.readyAsync();
     await repo2.readyAsync();
