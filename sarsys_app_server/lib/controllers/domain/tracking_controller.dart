@@ -17,7 +17,7 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
             'distance',
             'speed',
             'effort',
-            'sources',
+            'tracks',
             'history',
           ],
 //          validators: [
@@ -26,7 +26,7 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
 //              ['manual'],
 //            )
 //          ],
-          tag: "Tracking",
+          tag: "Trackings",
         );
 
   @override
@@ -63,7 +63,7 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
         "history": APISchemaObject.array(ofSchema: context.schema['Position'])
           ..description = "List of historical positions"
           ..isReadOnly = true,
-        "sources": APISchemaObject.array(ofSchema: context.schema['Track'])
+        "tracks": APISchemaObject.array(ofSchema: context.schema['Track'])
           ..description = "Array of Track objects"
           ..isReadOnly = true
       })

@@ -44,7 +44,7 @@ class TrackCommand<T extends DomainEvent> extends TrackingCommand<T> implements 
   ) : super(action, uuid: uuid, data: data);
 
   @override
-  String get aggregateField => 'sources';
+  String get aggregateField => 'tracks';
 
   @override
   String get entityId => data[entityIdFieldName] as String;
@@ -64,7 +64,7 @@ class UpdateTrackingSource extends TrackCommand<TrackingSourceChanged> {
   UpdateTrackingSource(
     String uuid,
     Map<String, dynamic> data,
-  ) : super(Action.create, uuid, data);
+  ) : super(Action.update, uuid, data);
 }
 
 class RemoveSourceFromTracking extends TrackCommand<TrackingSourceRemoved> {

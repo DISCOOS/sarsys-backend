@@ -7,7 +7,17 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// [/api/incidents/{uuid}/Tracks](http://localhost/api/client.html#/Track) requests
 class TrackController extends EntityController<TrackingCommand, Tracking> {
   TrackController(TrackingRepository repository, JsonValidation validation)
-      : super(repository, "Track", "sources", readOnly: ['positions'], validation: validation, tag: "Tracking > Track");
+      : super(
+          repository,
+          "Track",
+          "tracks",
+          readOnly: [
+            'status',
+            'positions',
+          ],
+          validation: validation,
+          tag: "Trackings > Tracks",
+        );
 
   @override
   TrackingCommand onCreate(String uuid, String type, Map<String, dynamic> data) => AddSourceToTracking(uuid, data);
@@ -25,14 +35,7 @@ class TrackController extends EntityController<TrackingCommand, Tracking> {
   @override
   APISchemaObject documentEntityObject(APIDocumentContext context) => APISchemaObject.object({
         "id": context.schema['ID']..description = "Track id (unique in Tracking only)",
-        "source": APISchemaObject.object({
-          "uuid": context.schema['UUID'],
-          "type": documentSourceType(),
-          "exists": APISchemaObject.boolean()
-            ..description = "Flag is true if source exists"
-            ..isReadOnly = true,
-        })
-          ..description = "Uuid of position source",
+        "source": context.schema['Source'],
         "status": documentTrackStatus()..isReadOnly = true,
         "positions": APISchemaObject.array(ofSchema: context.schema['Position'])
           ..description = "Sourced positions"
@@ -43,7 +46,6 @@ class TrackController extends EntityController<TrackingCommand, Tracking> {
         ..required = [
           'id',
           'source',
-          'type',
         ];
 
   /// SourceType - Value Object
@@ -64,6 +66,20 @@ class TrackController extends EntityController<TrackingCommand, Tracking> {
       'detached',
     ];
 
+  APISchemaObject documentSource(APIDocumentContext context) => APISchemaObject.object({
+        "uuid": context.schema['UUID'],
+        "type": documentSourceType(),
+        "exists": APISchemaObject.boolean()
+          ..description = "Flag is true if source exists"
+          ..isReadOnly = true,
+      })
+        ..required = [
+          'uuid',
+          'type',
+        ];
+
   @override
-  Map<String, APISchemaObject> documentEntities(APIDocumentContext context) => {};
+  Map<String, APISchemaObject> documentEntities(APIDocumentContext context) => {
+        'Source': documentSource(context),
+      };
 }

@@ -279,6 +279,14 @@ Map<String, dynamic> createTracking(String uuid) => {
       "uuid": "$uuid",
     };
 
+Map<String, dynamic> createTrack({String id, String uuid = 'string', String type = 'device'}) => {
+      if (id != null) "id": "$id",
+      "source": {
+        "uuid": "$uuid",
+        "type": "$type",
+      }
+    };
+
 Map<String, Object> createPosition() => {
       "type": "Feature",
       "geometry": {

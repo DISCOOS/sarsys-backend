@@ -78,6 +78,8 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
         entityType,
         array[id].data,
       );
+    } on EntityNotFound catch (e) {
+      return Response.notFound(body: e.message);
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } on Failure catch (e) {
@@ -126,6 +128,8 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       data[aggregate.entityIdFieldName] = id;
       final events = await repository.execute(onUpdate(uuid, entityType, validate(entityType, data, isPatch: true)));
       return events.isEmpty ? Response.noContent() : Response.noContent();
+    } on EntityExists catch (e) {
+      return Response.conflict(body: e.message);
     } on EntityNotFound catch (e) {
       return Response.notFound(body: e.message);
     } on InvalidOperation catch (e) {
@@ -208,7 +212,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     String desc = "${documentOperationSummary(context, operation)}. ";
     switch (operation.method) {
       case "POST":
-        desc += "The field [uuid] MUST BE unique for each incident. Use a "
+        desc += "The field [id] MUST BE unique for each $entityType. Use a "
             "[universally unique identifier](https://en.wikipedia.org/wiki/Universally_unique_identifier).";
         break;
       case "PATCH":

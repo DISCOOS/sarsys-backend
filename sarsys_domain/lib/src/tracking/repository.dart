@@ -22,12 +22,12 @@ class TrackingRepository extends Repository<TrackingCommand, Tracking> {
                 data: event.data,
                 created: event.created,
               ),
-          TrackingSourceRemoved: (event) => TrackingSourceRemoved(
+          TrackingSourceChanged: (event) => TrackingSourceChanged(
                 uuid: event.uuid,
                 data: event.data,
                 created: event.created,
               ),
-          TrackingPositionChanged: (event) => TrackingPositionChanged(
+          TrackingSourceRemoved: (event) => TrackingSourceRemoved(
                 uuid: event.uuid,
                 data: event.data,
                 created: event.created,

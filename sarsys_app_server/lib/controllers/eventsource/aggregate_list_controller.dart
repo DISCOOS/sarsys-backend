@@ -91,8 +91,8 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
   String documentOperationDescription(APIDocumentContext context, Operation operation) {
     switch (operation.method) {
       case "POST":
-        return "${documentOperationSummary(context, operation)}. The field [uuid] MUST BE unique for each incident. Use a "
-            "[universally unique identifier](https://en.wikipedia.org/wiki/Universally_unique_identifier).";
+        return "${documentOperationSummary(context, operation)}. The field [uuid] MUST BE unique for each ${_toName()}. "
+            "Use a [universally unique identifier](https://en.wikipedia.org/wiki/Universally_unique_identifier).";
     }
     return super.documentOperationSummary(context, operation);
   }

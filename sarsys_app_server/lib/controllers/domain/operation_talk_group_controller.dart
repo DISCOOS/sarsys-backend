@@ -27,7 +27,7 @@ class TalkGroupController extends EntityController<sar.OperationCommand, sar.Ope
   APISchemaObject documentEntityObject(APIDocumentContext context) => APISchemaObject.object(
         {
           "id": context.schema['ID']..description = "TalkGroup id (unique in Operation only)",
-          "name": APISchemaObject.boolean()..description = "Talkgroup name",
+          "name": APISchemaObject.string()..description = "Talkgroup name",
           "type": documentType(),
         },
       )
