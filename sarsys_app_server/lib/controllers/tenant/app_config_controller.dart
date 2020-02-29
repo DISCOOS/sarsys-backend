@@ -12,6 +12,45 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
       : super(repository, validation: validation, tag: 'Tenant');
 
   @override
+  @Operation.get()
+  Future<Response> getAll({
+    @Bind.query('offset') int offset = 0,
+    @Bind.query('limit') int limit = 20,
+  }) {
+    return super.getAll(offset: offset, limit: limit);
+  }
+
+  @override
+  @Operation.get('uuid')
+  Future<Response> getByUuid(@Bind.path('uuid') String uuid) {
+    return super.getByUuid(uuid);
+  }
+
+  @override
+  @Operation.post()
+  Future<Response> create(@Bind.body() Map<String, dynamic> data) {
+    return super.create(data);
+  }
+
+  @override
+  @Operation('PATCH', 'uuid')
+  Future<Response> update(
+    @Bind.path('uuid') String uuid,
+    @Bind.body() Map<String, dynamic> data,
+  ) {
+    return super.update(uuid, data);
+  }
+
+  @override
+  @Operation('DELETE', 'uuid')
+  Future<Response> delete(
+    @Bind.path('uuid') String uuid, {
+    @Bind.body() Map<String, dynamic> data,
+  }) {
+    return super.delete(uuid, data: data);
+  }
+
+  @override
   AppConfigCommand onCreate(Map<String, dynamic> data) => CreateAppConfig(data);
 
   @override

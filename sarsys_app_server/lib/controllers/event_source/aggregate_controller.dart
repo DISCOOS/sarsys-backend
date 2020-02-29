@@ -42,7 +42,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   // Aggregate Operations
   //////////////////////////////////
 
-  @Operation.get()
+  /// Add @Operation.get() to activate
   Future<Response> getAll({
     @Bind.query('offset') int offset = 0,
     @Bind.query('limit') int limit = 20,
@@ -59,7 +59,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     }
   }
 
-  @Operation.get('uuid')
+  /// Add @Operation.get('uuid') to activate
   Future<Response> getByUuid(@Bind.path('uuid') String uuid) async {
     try {
       if (!repository.contains(uuid)) {
@@ -73,7 +73,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     }
   }
 
-  @Operation.post()
+  /// Add @Operation.post() to activate
   Future<Response> create(@Bind.body() Map<String, dynamic> data) async {
     try {
       await repository.execute(onCreate(validate("$aggregateType", data)));
@@ -95,7 +95,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
 
   S onCreate(Map<String, dynamic> data) => throw UnsupportedError("Create not implemented");
 
-  @Operation('PATCH', 'uuid')
+  /// Add @Operation('PATCH', 'uuid') to activate
   Future<Response> update(@Bind.path('uuid') String uuid, @Bind.body() Map<String, dynamic> data) async {
     try {
       if (!repository.contains(uuid)) {
@@ -121,7 +121,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
 
   S onUpdate(Map<String, dynamic> data) => throw UnsupportedError("Update not implemented");
 
-  @Operation('DELETE', 'uuid')
+  /// Add @Operation('DELETE', 'uuid') to activate
   Future<Response> delete(
     @Bind.path('uuid') String uuid, {
     @Bind.body() Map<String, dynamic> data,
