@@ -1,5 +1,5 @@
 import 'package:sarsys_app_server/controllers/domain/schemas.dart';
-import 'package:sarsys_app_server/controllers/eventsource/aggregate_controller.dart';
+import 'package:sarsys_app_server/controllers/event_source/aggregate_controller.dart';
 import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';

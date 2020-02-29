@@ -1,5 +1,5 @@
 import 'package:aqueduct/aqueduct.dart';
-import 'package:sarsys_app_server/controllers/eventsource/entity_controller.dart';
+import 'package:sarsys_app_server/controllers/event_source/entity_controller.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' as sar;
 import 'package:sarsys_app_server/validation/validation.dart';
 
