@@ -224,7 +224,7 @@ Map<String, dynamic> createObjective(String id) => {
 
 Map<String, dynamic> createTalkGroup(String id) => {
       "id": id,
-      "name": true,
+      "name": 'string',
       "type": "tetra",
     };
 

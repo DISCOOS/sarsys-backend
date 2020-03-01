@@ -25,6 +25,15 @@ class IncidentMessageController extends EntityController<sar.IncidentCommand, sa
   }
 
   @override
+  @Operation.post('uuid')
+  Future<Response> create(
+    @Bind.path('uuid') String uuid,
+    @Bind.body() Map<String, dynamic> data,
+  ) {
+    return super.create(uuid, data);
+  }
+
+  @override
   @Operation('PATCH', 'uuid', 'id')
   Future<Response> update(
     @Bind.path('uuid') String uuid,
@@ -84,6 +93,15 @@ class OperationMessageController extends EntityController<sar.OperationCommand, 
     @Bind.path('id') String id,
   ) {
     return super.getById(uuid, id);
+  }
+
+  @override
+  @Operation.post('uuid')
+  Future<Response> create(
+    @Bind.path('uuid') String uuid,
+    @Bind.body() Map<String, dynamic> data,
+  ) {
+    return super.create(uuid, data);
   }
 
   @override
@@ -149,6 +167,15 @@ class MissionMessageController extends EntityController<sar.MissionCommand, sar.
   }
 
   @override
+  @Operation.post('uuid')
+  Future<Response> create(
+    @Bind.path('uuid') String uuid,
+    @Bind.body() Map<String, dynamic> data,
+  ) {
+    return super.create(uuid, data);
+  }
+
+  @override
   @Operation('PATCH', 'uuid', 'id')
   Future<Response> update(
     @Bind.path('uuid') String uuid,
@@ -207,6 +234,15 @@ class PersonnelMessageController extends EntityController<sar.PersonnelCommand, 
     @Bind.path('id') String id,
   ) {
     return super.getById(uuid, id);
+  }
+
+  @override
+  @Operation.post('uuid')
+  Future<Response> create(
+    @Bind.path('uuid') String uuid,
+    @Bind.body() Map<String, dynamic> data,
+  ) {
+    return super.create(uuid, data);
   }
 
   @override
@@ -272,6 +308,15 @@ class UnitMessageController extends EntityController<sar.UnitCommand, sar.Unit> 
   }
 
   @override
+  @Operation.post('uuid')
+  Future<Response> create(
+    @Bind.path('uuid') String uuid,
+    @Bind.body() Map<String, dynamic> data,
+  ) {
+    return super.create(uuid, data);
+  }
+
+  @override
   @Operation('PATCH', 'uuid', 'id')
   Future<Response> update(
     @Bind.path('uuid') String uuid,
@@ -328,6 +373,15 @@ class DeviceMessageController extends EntityController<sar.DeviceCommand, sar.De
     @Bind.path('id') String id,
   ) {
     return super.getById(uuid, id);
+  }
+
+  @override
+  @Operation.post('uuid')
+  Future<Response> create(
+    @Bind.path('uuid') String uuid,
+    @Bind.body() Map<String, dynamic> data,
+  ) {
+    return super.create(uuid, data);
   }
 
   @override

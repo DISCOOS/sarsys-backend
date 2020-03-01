@@ -16,8 +16,8 @@ Future main() async {
     final uuid = Uuid().v4();
     final personnel = _createData(uuid);
     expectResponse(await harness.agent.post("/api/personnels", body: personnel), 201, body: null);
-    final clue = createMessage('1');
-    expectResponse(await harness.agent.post("/api/personnels/$uuid/messages", body: clue), 201, body: null);
+    final message = createMessage('1');
+    expectResponse(await harness.agent.post("/api/personnels/$uuid/messages", body: message), 201, body: null);
   });
 
   test("GET /api/personnels/{uuid}/messages returns status code 200", () async {
@@ -80,11 +80,12 @@ Future main() async {
     expectResponse(await harness.agent.post("/api/personnels", body: personnel), 201, body: null);
 
     expectResponse(
-        await harness.agent.execute("PATCH", "/api/personnels/$uuid", body: {
-          "messages": [createMessage('1')],
-        }),
-        400,
-        body: null);
+      await harness.agent.execute("PATCH", "/api/personnels/$uuid", body: {
+        "messages": [createMessage('1')],
+      }),
+      400,
+      body: null,
+    );
   });
 
   test("DELETE /api/personnels/{uuid}/messages/{id} returns status code 204", () async {

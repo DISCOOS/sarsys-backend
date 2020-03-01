@@ -25,6 +25,15 @@ class ClueController extends EntityController<IncidentCommand, Incident> {
   }
 
   @override
+  @Operation.post('uuid')
+  Future<Response> create(
+    @Bind.path('uuid') String uuid,
+    @Bind.body() Map<String, dynamic> data,
+  ) {
+    return super.create(uuid, data);
+  }
+
+  @override
   @Operation('PATCH', 'uuid', 'id')
   Future<Response> update(
     @Bind.path('uuid') String uuid,
