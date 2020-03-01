@@ -33,6 +33,23 @@ class TrackingInformationUpdated extends DomainEvent {
   Map<String, dynamic> get position => changed['position'];
 }
 
+class TrackingDeleted extends DomainEvent {
+  TrackingDeleted({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: '$TrackingDeleted',
+          created: created,
+          data: data,
+        );
+}
+
+//////////////////////////////////////
+// Tracking Source Domain Events
+//////////////////////////////////////
+
 class TrackingSourceEvent extends EntityObjectEvent {
   TrackingSourceEvent({
     @required String uuid,
@@ -45,13 +62,13 @@ class TrackingSourceEvent extends EntityObjectEvent {
           type: type,
           index: index,
           created: created,
-          aggregateField: 'tracks',
+          idFieldName: 'uuid',
+          aggregateField: 'sources',
           data: data,
         );
 
-  String get status => entity.elementAt('status');
-  Map<String, dynamic> get source => entity.elementAt('source');
-  Map<String, dynamic> get positions => entity.elementAt('positions');
+  String get sourceUuid => entity.elementAt('uuid');
+  String get sourceType => entity.elementAt('type');
 }
 
 class TrackingSourceAdded extends TrackingSourceEvent {
@@ -99,15 +116,72 @@ class TrackingSourceRemoved extends TrackingSourceEvent {
         );
 }
 
-class TrackingDeleted extends DomainEvent {
-  TrackingDeleted({
+//////////////////////////////////////
+// Tracking Track Domain Events
+//////////////////////////////////////
+
+class TrackingTrackEvent extends EntityObjectEvent {
+  TrackingTrackEvent({
+    @required String uuid,
+    @required String type,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+    int index,
+  }) : super(
+          uuid: uuid,
+          type: type,
+          index: index,
+          created: created,
+          aggregateField: 'tracks',
+          data: data,
+        );
+
+  String get status => entity.elementAt('status');
+  Map<String, dynamic> get source => entity.elementAt('source');
+  Map<String, dynamic> get positions => entity.elementAt('positions');
+}
+
+class TrackingTrackAdded extends TrackingTrackEvent {
+  TrackingTrackAdded({
     @required String uuid,
     @required DateTime created,
     @required Map<String, dynamic> data,
+    int index,
   }) : super(
           uuid: uuid,
-          type: '$TrackingDeleted',
+          type: '$TrackingTrackAdded',
           created: created,
           data: data,
+          index: index,
+        );
+}
+
+class TrackingTrackChanged extends TrackingTrackEvent {
+  TrackingTrackChanged({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+    int index,
+  }) : super(
+          uuid: uuid,
+          type: '$TrackingTrackChanged',
+          created: created,
+          data: data,
+          index: index,
+        );
+}
+
+class TrackingTrackRemoved extends TrackingTrackEvent {
+  TrackingTrackRemoved({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+    int index,
+  }) : super(
+          uuid: uuid,
+          type: '$TrackingTrackRemoved',
+          created: created,
+          data: data,
+          index: index,
         );
 }

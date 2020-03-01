@@ -1,15 +1,15 @@
 import 'dart:async';
 
+import 'package:event_source/event_source.dart';
 import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
-import '../controllers/harness.dart';
 import 'harness.dart';
 
 Future main() async {
-  const String subscription = '\$et-TrackingCreated';
-  const String group = 'TrackingPositionManager';
+  const subscription = '\$et-TrackingCreated';
+  const group = 'TrackingPositionManager';
 
   final harness = EventSourceHarness()
     ..withTenant()
@@ -78,7 +78,7 @@ Future main() async {
       manager.asStream(),
       emitsInOrder([
         isA<TrackingCreated>(),
-        isA<TrackingSourceChanged>(),
+        isA<TrackingTrackAdded>(),
       ]),
     );
 
@@ -122,7 +122,7 @@ Future main() async {
       manager.asStream(),
       emitsInOrder([
         isA<TrackingSourceAdded>(),
-        isA<TrackingSourceChanged>(),
+        isA<TrackingTrackAdded>(),
       ]),
     );
 
@@ -130,9 +130,9 @@ Future main() async {
     expect(trackingRepo.count, equals(1));
     expect(manager.managed.length, equals(1));
     expect(manager.managed, contains(tracking));
-    expect(manager.sources.keys, contains(device));
+    expect(manager.sources.keys, contains({device}));
     expect(manager.sources[device]?.length, equals(1));
-    expect(manager.sources[device], contains(tracking));
+    expect(manager.sources[device], contains({tracking}));
     expect(
       trackingRepo.get(tracking).asEntityArray('tracks')?.elementAt('1')?.data['status'],
       contains('attached'),
@@ -215,11 +215,11 @@ FutureOr<String> _createTracking(TrackingRepository repo, TestStream stream, Str
 }
 
 FutureOr<String> _addTrackingSource(TrackingRepository repo, String uuid, String device) async {
-  await repo.execute(AddSourceToTracking(uuid, createTrack(uuid: device)));
+  await repo.execute(AddSourceToTracking(uuid, createSource(uuid: device)));
   return device;
 }
 
 FutureOr<String> _removeTrackingSource(TrackingRepository repo, String uuid, String id) async {
-  await repo.execute(RemoveSourceFromTracking(uuid, createTrack(id: id, uuid: null, type: null)));
+  await repo.execute(RemoveSourceFromTracking(uuid, createSource(id: id, uuid: null, type: null)));
   return id;
 }

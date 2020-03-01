@@ -46,21 +46,14 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
   }
 
   @override
+  @Scope(['roles:admin'])
   @Operation.post()
   Future<Response> create(@Bind.body() Map<String, dynamic> data) {
     return super.create(data);
   }
 
   @override
-  @Operation('PATCH', 'uuid')
-  Future<Response> update(
-    @Bind.path('uuid') String uuid,
-    @Bind.body() Map<String, dynamic> data,
-  ) {
-    return super.update(uuid, data);
-  }
-
-  @override
+  @Scope(['roles:admin'])
   @Operation('DELETE', 'uuid')
   Future<Response> delete(
     @Bind.path('uuid') String uuid, {
@@ -71,9 +64,6 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
 
   @override
   TrackingCommand onCreate(Map<String, dynamic> data) => CreateTracking(data);
-
-  @override
-  TrackingCommand onUpdate(Map<String, dynamic> data) => UpdateTracking(data);
 
   @override
   TrackingCommand onDelete(Map<String, dynamic> data) => DeleteTracking(data);

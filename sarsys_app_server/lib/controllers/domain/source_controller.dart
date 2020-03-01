@@ -15,29 +15,39 @@ class SourceController extends EntityController<TrackingCommand, Tracking> {
             'exists',
           ],
           validation: validation,
+          entityIdFieldName: 'uuid',
           tag: "Trackings > Sources",
         );
 
   @override
-  @Operation.get('uuid')
-  Future<Response> getAll(@Bind.path('uuid') String uuid) {
+  @Operation.post('tuuid')
+  Future<Response> create(
+    @Bind.path('tuuid') String uuid,
+    @Bind.body() Map<String, dynamic> data,
+  ) {
+    return super.create(uuid, data);
+  }
+
+  @override
+  @Operation.get('tuuid')
+  Future<Response> getAll(@Bind.path('tuuid') String uuid) {
     return super.getAll(uuid);
   }
 
   @override
-  @Operation.get('uuid', 'uuid')
+  @Operation.get('tuuid', 'suuid')
   Future<Response> getById(
-    @Bind.path('uuid') String uuid,
-    @Bind.path('uuid') String id,
+    @Bind.path('tuuid') String uuid,
+    @Bind.path('suuid') String id,
   ) {
     return super.getById(uuid, id);
   }
 
   @override
-  @Operation('DELETE', 'uuid', 'uuid')
+  @Operation('DELETE', 'tuuid', 'suuid')
   Future<Response> delete(
-    @Bind.path('uuid') String uuid,
-    @Bind.path('uuid') String id, {
+    @Bind.path('tuuid') String uuid,
+    @Bind.path('suuid') String id, {
     @Bind.body() Map<String, dynamic> data,
   }) {
     return super.delete(uuid, id, data: data);
@@ -55,7 +65,7 @@ class SourceController extends EntityController<TrackingCommand, Tracking> {
 
   @override
   APISchemaObject documentEntityObject(APIDocumentContext context) => APISchemaObject.object({
-        "uuid": documentUUID()..description = "Unique Source identifier",
+        "uuid": documentUUID()..description = "Foreign key to unique source identifier.",
         "type": documentSourceType(),
         "exists": APISchemaObject.boolean()
           ..description = "Flag is true if source exists"

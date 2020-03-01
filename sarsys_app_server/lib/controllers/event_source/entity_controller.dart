@@ -15,10 +15,12 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     this.validation,
     this.tag,
     this.readOnly = const [],
+    this.entityIdFieldName,
   });
   final String tag;
   final String entityType;
   final String aggregateField;
+  final String entityIdFieldName;
   final Repository<S, T> repository;
 
   /// Get aggregate [Type]
@@ -69,7 +71,10 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
       final aggregate = repository.get(uuid);
-      final array = aggregate.asEntityArray(aggregateField);
+      final array = aggregate.asEntityArray(
+        aggregateField,
+        entityIdFieldName: entityIdFieldName ?? aggregate.entityIdFieldName,
+      );
       if (!array.contains(id)) {
         return Response.notFound(body: "Entity $id not found");
       }
@@ -98,7 +103,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       }
       final aggregate = repository.get(uuid);
       await repository.execute(onCreate(uuid, entityType, validate(entityType, data)));
-      return Response.created("${toLocation(request)}/${data[aggregate.entityIdFieldName]}");
+      return Response.created("${toLocation(request)}/${data[entityIdFieldName ?? aggregate.entityIdFieldName]}");
     } on EntityExists catch (e) {
       return Response.conflict(body: e.message);
     } on InvalidOperation catch (e) {
@@ -125,7 +130,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
       final aggregate = repository.get(uuid);
-      data[aggregate.entityIdFieldName] = id;
+      data[entityIdFieldName ?? aggregate.entityIdFieldName] = id;
       final events = await repository.execute(onUpdate(uuid, entityType, validate(entityType, data, isPatch: true)));
       return events.isEmpty ? Response.noContent() : Response.noContent();
     } on EntityExists catch (e) {
@@ -157,8 +162,8 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       }
       final aggregate = repository.get(uuid);
       final entity = data ?? {};
-      entity[aggregate.entityIdFieldName] = id;
-      final events = await repository.execute(onDelete(uuid, entityType, validate(entityType, entity)));
+      entity[entityIdFieldName ?? aggregate.entityIdFieldName] = id;
+      final events = await repository.execute(onDelete(uuid, entityType, entity));
       return events.isEmpty ? Response.noContent() : Response.noContent();
     } on AggregateNotFound catch (e) {
       return Response.notFound(body: e.message);
@@ -252,7 +257,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     };
     switch (operation.method) {
       case "GET":
-        if (operation.pathVariables.isEmpty) {
+        if (operation.pathVariables.length == 1) {
           responses.addAll({
             "200": APIResponse.schema(
               "Successful response.",

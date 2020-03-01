@@ -33,10 +33,52 @@ class DeleteTracking extends TrackingCommand<TrackingDeleted> {
 }
 
 //////////////////////////////////
+// Source entity commands
+//////////////////////////////////
+
+class SourceCommand<T extends TrackingSourceEvent> extends TrackingCommand<T> implements EntityCommand<T> {
+  SourceCommand(
+    Action action,
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(action, uuid: uuid, data: data);
+
+  @override
+  String get aggregateField => 'sources';
+
+  @override
+  String get entityId => data[entityIdFieldName] as String;
+
+  @override
+  String get entityIdFieldName => 'uuid';
+}
+
+class AddSourceToTracking extends SourceCommand<TrackingSourceAdded> {
+  AddSourceToTracking(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.create, uuid, data);
+}
+
+class UpdateTrackingSource extends SourceCommand<TrackingSourceChanged> {
+  UpdateTrackingSource(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.update, uuid, data);
+}
+
+class RemoveSourceFromTracking extends SourceCommand<TrackingSourceRemoved> {
+  RemoveSourceFromTracking(
+    String uuid,
+    Map<String, dynamic> data,
+  ) : super(Action.delete, uuid, data);
+}
+
+//////////////////////////////////
 // Track entity commands
 //////////////////////////////////
 
-class TrackCommand<T extends DomainEvent> extends TrackingCommand<T> implements EntityCommand<T> {
+class TrackCommand<T extends TrackingTrackEvent> extends TrackingCommand<T> implements EntityCommand<T> {
   TrackCommand(
     Action action,
     String uuid,
@@ -53,22 +95,22 @@ class TrackCommand<T extends DomainEvent> extends TrackingCommand<T> implements 
   String get entityIdFieldName => 'id';
 }
 
-class AddSourceToTracking extends TrackCommand<TrackingSourceAdded> {
-  AddSourceToTracking(
+class AddTrackToTracking extends TrackCommand<TrackingTrackAdded> {
+  AddTrackToTracking(
     String uuid,
     Map<String, dynamic> data,
   ) : super(Action.create, uuid, data);
 }
 
-class UpdateTrackingSource extends TrackCommand<TrackingSourceChanged> {
-  UpdateTrackingSource(
+class UpdateTrackingTrack extends TrackCommand<TrackingTrackChanged> {
+  UpdateTrackingTrack(
     String uuid,
     Map<String, dynamic> data,
   ) : super(Action.update, uuid, data);
 }
 
-class RemoveSourceFromTracking extends TrackCommand<TrackingSourceRemoved> {
-  RemoveSourceFromTracking(
+class RemoveTrackFromTracking extends TrackCommand<TrackingTrackRemoved> {
+  RemoveTrackFromTracking(
     String uuid,
     Map<String, dynamic> data,
   ) : super(Action.delete, uuid, data);

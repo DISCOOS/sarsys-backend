@@ -234,3 +234,44 @@ class _RepositoryBuilder<T extends AggregateRoot> {
     );
   }
 }
+
+Map<String, dynamic> createTracking(String uuid) => {
+      'uuid': '$uuid',
+    };
+
+Map<String, dynamic> createSource({String id, String uuid = 'string', String type = 'device'}) => {
+      if (id != null) 'id': '$id',
+      'uuid': '$uuid',
+      'type': '$type',
+    };
+
+Map<String, dynamic> createTrack({String id, String uuid = 'string', String type = 'device'}) => {
+      if (id != null) 'id': '$id',
+      'source': createSource(
+        uuid: uuid,
+        type: type,
+      ),
+    };
+
+Map<String, Object> createPosition() => {
+      'type': 'Feature',
+      'geometry': {
+        'type': 'Point',
+        'coordinates': [0.0, 0.0]
+      },
+      'properties': {
+        'name': 'string',
+        'description': 'string',
+        'accuracy': 0,
+        'timestamp': DateTime.now().toIso8601String(),
+        'type': 'manual'
+      }
+    };
+
+Map<String, dynamic> createDevice(String uuid) => {
+      'uuid': '$uuid',
+      'name': 'string',
+      'alias': 'string',
+      'network': 'string',
+      'networkId': 'string',
+    };

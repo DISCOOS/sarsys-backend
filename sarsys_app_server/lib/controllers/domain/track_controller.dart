@@ -55,15 +55,6 @@ class TrackController extends EntityController<TrackingCommand, Tracking> {
           'source',
         ];
 
-  /// SourceType - Value Object
-  APISchemaObject documentSourceType() => APISchemaObject.string()
-    ..description = "Source type"
-    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
-    ..enumerated = [
-      'device',
-      'tracking',
-    ];
-
   /// TrackStatus - Value Object
   APISchemaObject documentTrackStatus() => APISchemaObject.string()
     ..description = "Track status"
@@ -72,21 +63,4 @@ class TrackController extends EntityController<TrackingCommand, Tracking> {
       'attached',
       'detached',
     ];
-
-  APISchemaObject documentSource(APIDocumentContext context) => APISchemaObject.object({
-        "uuid": context.schema['UUID'],
-        "type": documentSourceType(),
-        "exists": APISchemaObject.boolean()
-          ..description = "Flag is true if source exists"
-          ..isReadOnly = true,
-      })
-        ..required = [
-          'uuid',
-          'type',
-        ];
-
-  @override
-  Map<String, APISchemaObject> documentEntities(APIDocumentContext context) => {
-        'Source': documentSource(context),
-      };
 }

@@ -60,13 +60,14 @@ class OIDCValidator extends AuthValidator implements APIComponentDocumenter {
       ..issueDate = jwt.issuedAt
       ..accessToken = accessToken
       ..expirationDate = jwt.expiry
-      ..scopes = _toScopes(_toClaims(jwt), []);
+      ..scopes = _toScopes(_toRoles(jwt), []);
   }
 
-  Map<String, dynamic> _toClaims(JwtClaim jwt) => Map.fromEntries(jwt
+  Map<String, dynamic> _toRoles(JwtClaim jwt) => Map.fromEntries(jwt
       .claimNames(
         includeRegisteredClaims: false,
       )
+      .where((name) => name.startsWith('roles'))
       .map(
         (name) => MapEntry<String, dynamic>(name, jwt[name]),
       ));
@@ -79,7 +80,7 @@ class OIDCValidator extends AuthValidator implements APIComponentDocumenter {
   void _toScope(String claim, value, List<AuthScope> scopes) {
     if (value is String) {
       scopes.add(AuthScope("$claim:$value"));
-    } else if (value is List<String>) {
+    } else if (value is List) {
       scopes.addAll(value.map((value) => AuthScope("$claim:$value")));
     } else if (value == null) {
       scopes.add(AuthScope(claim));

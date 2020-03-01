@@ -21,11 +21,11 @@ import 'validation/validation.dart';
 /// MUST BE used when bootstrapping Aqueduct
 const int isolateStartupTimeout = 30;
 
-/// Accepted ID token scopes
+/// Required scopes
 const List<String> scopes = [
-  'roles:admin',
-  'roles:commander',
-  'roles:unit_leader',
+//  'roles:admin',
+//  'roles:commander',
+//  'roles:unit_leader',
   'roles:personnel',
 ];
 
@@ -212,15 +212,15 @@ class SarSysAppServerChannel extends ApplicationChannel {
             manager.get<DepartmentRepository>(),
             requestValidator,
           ))
-      ..route('/api/trackings[/:uuid]').link(() => TrackingController(
+      ..route('/api/trackings[/:uuid]').link(() => authorizer).link(() => TrackingController(
+            manager.get<TrackingRepository>(),
+            requestValidator,
+          ))
+      ..route('/api/trackings/:tuuid/sources[/:suuid]').link(() => SourceController(
             manager.get<TrackingRepository>(),
             requestValidator,
           ))
       ..route('/api/trackings/:uuid/tracks[/:id]').link(() => TrackController(
-            manager.get<TrackingRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/trackings/:uuid/sources[/:id]').link(() => SourceController(
             manager.get<TrackingRepository>(),
             requestValidator,
           ))

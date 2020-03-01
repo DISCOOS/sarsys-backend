@@ -570,7 +570,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     var index;
     final data = {};
     final root = get(command.uuid);
-    final array = root.asEntityArray(command.aggregateField);
+    final array = root.asEntityArray(
+      command.aggregateField,
+      entityIdFieldName: command.entityIdFieldName,
+    );
     switch (command.action) {
       case Action.create:
         if (array.contains(command.entityId)) {
@@ -919,7 +922,15 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   List<T> asValueArray<T>(String field) => List<T>.from(data[field] as List);
 
   /// Get array of [EntityObject]
-  EntityArray asEntityArray(String field) => EntityArray.from(field, _ensureList(field));
+  EntityArray asEntityArray(
+    String field, {
+    String entityIdFieldName,
+  }) =>
+      EntityArray.from(
+        field,
+        _ensureList(field),
+        entityIdFieldName: entityIdFieldName,
+      );
 
   AggregateRoot _ensureList(String field) {
     _data.putIfAbsent(field, () => []);
@@ -947,9 +958,14 @@ class EntityArray {
     Map<String, dynamic> data,
   ) : data = Map.from(data);
 
-  factory EntityArray.from(String field, AggregateRoot root) => EntityArray(
+  factory EntityArray.from(
+    String field,
+    AggregateRoot root, {
+    String entityIdFieldName,
+  }) =>
+      EntityArray(
         field,
-        root.entityIdFieldName,
+        entityIdFieldName ?? root.entityIdFieldName,
         _verify(field, root.data),
       );
 

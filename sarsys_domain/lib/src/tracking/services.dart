@@ -46,6 +46,7 @@ class TrackingPositionManager extends MessageHandler<DomainEvent> {
   static const String STATUS = 'status';
   static const String TRACKS = 'tracks';
   static const String SOURCE = 'source';
+  static const String SOURCES = 'sources';
   static const String ATTACHED = 'attached';
   static const String DETACHED = 'detached';
   static const String POSITIONS = 'positions';
@@ -250,61 +251,85 @@ class TrackingPositionManager extends MessageHandler<DomainEvent> {
     }
   }
 
-  Map<String, dynamic> _findTrackManagedByMe(String uuid, TrackingSourceEvent event) =>
+  Map<String, dynamic> _findTrackManagedByMe(String tracking, String source) =>
       // Only one attached track for each unique source in each manager instance
       _firstOrNull(
-        _sources[event.source[UUID]]
+        _sources[source]
             // Find all tracking objects managed by me that tracks given source
-            ?.where((managed) => managed == uuid)
+            ?.where((managed) => managed == tracking)
             // Find source objects in other tracking objects
-            ?.map((other) => _findTrack(repository.get(other), event.source[UUID]))
+            ?.map((other) => _findTrack(repository.get(other), source))
             // Filter out all detached tracks
-            ?.where((source) => source?.elementAt(STATUS) == ATTACHED),
+            ?.where((track) => track?.elementAt(STATUS) == ATTACHED),
       );
 
-  Map<String, dynamic> _findTrackManagedByOthers(String uuid, Map<String, dynamic> source) =>
+  Map<String, dynamic> _findTrackManagedByOthers(String tracking, String source) =>
       // TODO: Select the track with most recent timestamp if multiple was found
       _firstOrNull(
-        _sources[source[UUID]]
+        _sources[source]
             // Find all other tracking objects tracking given source
-            ?.where((other) => other != uuid)
+            ?.where((other) => other != tracking)
             // Find source objects in other tracking objects
-            ?.map((other) => _findTrack(repository.get(other), source[UUID]))
+            ?.map((other) => _findTrack(repository.get(other), source))
             // Filter out all detached tracks
-            ?.where((source) => source?.elementAt(STATUS) == ATTACHED),
+            ?.where((track) => track?.elementAt(STATUS) == ATTACHED),
       );
 
   T _firstOrNull<T>(Iterable<T> list) => list?.isNotEmpty == true ? list.first : null;
 
-  Map<String, dynamic> _findTrack(Tracking tracking, String uuid) => tracking
+  Map<String, dynamic> _findTrack(Tracking tracking, String source) => tracking
       .asEntityArray(
         TRACKS,
       )
       .toList()
       .firstWhere(
-        (track) => track[SOURCE][UUID] == uuid,
+        (track) => track[SOURCE][UUID] == source,
         orElse: () => null,
       );
 
-  Future<Iterable<DomainEvent>> _updateTrack(
+  Future<Iterable<DomainEvent>> _ensureTrack(
     String uuid,
-    String id, {
+    String id,
+    Map<String, dynamic> source, {
     Map<String, dynamic> positions,
     String status,
   }) async {
     final tracking = repository.get(uuid);
     final tracks = tracking.asEntityArray(TRACKS);
-    final track = tracks.elementAt(id).data
-      ..addAll({
-        if (status != null) STATUS: status,
-        if (positions != null) POSITIONS: positions,
-      });
+    final command = tracks.contains(id)
+        ? _updateTrack(
+            uuid,
+            tracks.elementAt(id).data
+              ..addAll({
+                if (status != null) STATUS: status,
+                if (positions != null) POSITIONS: positions,
+              }))
+        : _addTrack(uuid, {
+            SOURCE: source,
+            if (status != null) STATUS: status,
+            if (positions != null) POSITIONS: positions,
+          });
+    final events = await command;
+    return events..forEach(_addToStream);
+  }
+
+  FutureOr<Iterable<DomainEvent>> _addTrack(String uuid, Map<String, Object> track) async {
     try {
-      return await repository.execute(UpdateTrackingSource(uuid, track))
-        ..forEach(_addToStream);
+      return await repository.execute(AddTrackToTracking(uuid, track));
     } on Exception catch (e, stackTrace) {
       logger.severe(
-        'Failed to update track $id in Tracking $uuid: $e, stacktrace: $stackTrace',
+        'Failed to add track ${track['id']} to Tracking $uuid: $e, stacktrace: $stackTrace',
+      );
+      return null;
+    }
+  }
+
+  FutureOr<Iterable<DomainEvent>> _updateTrack(String uuid, Map<String, Object> track) async {
+    try {
+      return await repository.execute(UpdateTrackingTrack(uuid, track));
+    } on Exception catch (e, stackTrace) {
+      logger.severe(
+        'Failed to update track ${track['id']} in Tracking $uuid: $e, stacktrace: $stackTrace',
       );
       return null;
     }
@@ -323,12 +348,13 @@ class TrackingPositionManager extends MessageHandler<DomainEvent> {
       _addToStream(event);
       await _mapSources(repository, uuid);
     } else if (event is TrackingSourceAdded) {
-      if (_appendToSources(event.source, uuid)) {
+      if (_appendToSources(event.sourceUuid, uuid)) {
         _addToStream(event);
-        final other = _findTrackManagedByOthers(uuid, event.source);
-        await _updateTrack(
+        final other = _findTrackManagedByOthers(uuid, event.sourceUuid);
+        await _ensureTrack(
           uuid,
           event.id,
+          event.entity,
           positions: other ?? {}[POSITIONS],
           status: ATTACHED,
         );
@@ -341,11 +367,14 @@ class TrackingPositionManager extends MessageHandler<DomainEvent> {
     if (await _checkTracking(repository, uuid)) {
       final tracking = repository.get(uuid);
       final tracks = tracking.asEntityArray(TRACKS).toList();
-      // Append tracking uuid to list of tracking uuids for given source if not added already
-      await tracks.where((track) => _appendToSources(track[SOURCE], uuid)).forEach((track) async {
-        await _updateTrack(
+      final changed = await tracks.where(
+        (track) => _appendToSources(uuid, track[SOURCE][UUID]),
+      );
+      changed.forEach((track) async {
+        await _ensureTrack(
           uuid,
           track[ID],
+          track[SOURCE],
           status: ATTACHED,
         );
       });
@@ -354,33 +383,38 @@ class TrackingPositionManager extends MessageHandler<DomainEvent> {
     }
   }
 
+  /// Append tracking uuid to list of tracking uuids for given source
+  ///
+  /// Returns true if number of tracking uuids changed
+  bool _appendToSources(
+    String source,
+    String tracking,
+  ) =>
+      (_sources[source]?.length ?? 0) <
+      _sources
+          .update(
+            source,
+            (uuids) => uuids..add(tracking),
+            ifAbsent: () => {tracking},
+          )
+          .length;
+
   Future _ensureDetached(DomainEvent event) async {
     if (event is TrackingSourceAdded || event is TrackingSourceRemoved) {
       final uuid = repository.toAggregateUuid(event);
-      final track = _findTrackManagedByMe(uuid, event);
+      final source = (event as TrackingSourceEvent).sourceUuid;
+      final track = _findTrackManagedByMe(uuid, source);
       if (track != null) {
-        await _updateTrack(
+        await _ensureTrack(
           uuid,
           track[ID],
+          track[SOURCE],
           status: DETACHED,
         );
         _addToStream(event);
       }
     }
   }
-
-  bool _appendToSources(
-    Map<String, dynamic> source,
-    String uuid,
-  ) =>
-      (_sources[source[UUID]]?.length ?? 0) <
-      _sources
-          .update(
-            source[UUID],
-            (uuids) => uuids..add(uuid),
-            ifAbsent: () => {uuid},
-          )
-          .length;
 
   void _addToStream(DomainEvent event) {
     _streamController.add(event);

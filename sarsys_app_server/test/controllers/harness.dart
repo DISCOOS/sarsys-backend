@@ -1,5 +1,6 @@
 import 'package:aqueduct_test/aqueduct_test.dart';
 import 'package:event_source/event_source.dart';
+import 'package:jaguar_jwt/jaguar_jwt.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:test/test.dart';
 
@@ -101,6 +102,44 @@ Future expectAggregateReference(
       })),
   );
 }
+
+Map<String, String> createAuthn(String value) => {'Authorization': value};
+
+String createAuthnAdmin({List<String> required = const ['personnel']}) => createBearerToken(
+      createJWT(
+        ['admin']..addAll(required),
+      ),
+    );
+
+String createAuthnCommander({List<String> required = const ['personnel']}) => createBearerToken(
+      createJWT(
+        ['commander']..addAll(required),
+      ),
+    );
+
+String createAuthnUnitLeader({List<String> required = const ['personnel']}) => createBearerToken(
+      createJWT(
+        ['unit_leader']..addAll(required),
+      ),
+    );
+
+String createAuthnPersonnel({List<String> required = const ['personnel']}) => createBearerToken(
+      createJWT(required),
+    );
+
+String createJWT(List<String> roles) => issueJwtHS256(
+      JwtClaim(
+        subject: 'kleak',
+        issuer: 'sarsys',
+        otherClaims: <String, dynamic>{
+          'roles': roles,
+        },
+        maxAge: const Duration(minutes: 5),
+      ),
+      's3cr3t',
+    );
+
+String createBearerToken(String jwt) => "Bearer $jwt";
 
 //////////////////////////////////
 // Common domain objects
@@ -279,12 +318,17 @@ Map<String, dynamic> createTracking(String uuid) => {
       "uuid": "$uuid",
     };
 
+Map<String, dynamic> createSource({String uuid = 'string', String type = 'device'}) => {
+      'uuid': '$uuid',
+      'type': '$type',
+    };
+
 Map<String, dynamic> createTrack({String id, String uuid = 'string', String type = 'device'}) => {
-      if (id != null) "id": "$id",
-      "source": {
-        "uuid": "$uuid",
-        "type": "$type",
-      }
+      if (id != null) 'id': '$id',
+      'source': createSource(
+        uuid: uuid,
+        type: type,
+      ),
     };
 
 Map<String, Object> createPosition() => {

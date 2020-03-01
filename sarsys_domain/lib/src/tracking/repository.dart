@@ -32,6 +32,21 @@ class TrackingRepository extends Repository<TrackingCommand, Tracking> {
                 data: event.data,
                 created: event.created,
               ),
+          TrackingTrackAdded: (event) => TrackingTrackAdded(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          TrackingTrackChanged: (event) => TrackingTrackChanged(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
+          TrackingTrackRemoved: (event) => TrackingTrackRemoved(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
           TrackingDeleted: (event) => TrackingDeleted(
                 uuid: event.uuid,
                 data: event.data,
