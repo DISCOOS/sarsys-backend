@@ -9,7 +9,7 @@ import 'harness.dart';
 
 Future main() async {
   const subscription = '\$et-TrackingCreated';
-  const group = 'TrackingPositionManager';
+  const group = 'TrackingService';
 
   final harness = EventSourceHarness()
     ..withTenant()
@@ -40,8 +40,8 @@ Future main() async {
     // Act
     await _createTracking(repo, stream, subscription);
     await _createTracking(repo, stream, subscription);
-    final manager1 = TrackingPositionManager(repo, consume: 1)..build();
-    final manager2 = TrackingPositionManager(repo, consume: 1)..build();
+    final manager1 = TrackingService(repo, consume: 1)..build();
+    final manager2 = TrackingService(repo, consume: 1)..build();
 
     // Assert - states
     await expectLater(manager1.asStream(), emits(isA<TrackingCreated>()));
@@ -63,7 +63,7 @@ Future main() async {
     await deviceRepo.readyAsync();
     final trackingRepo = harness.get<TrackingRepository>();
     await trackingRepo.readyAsync();
-    final manager = TrackingPositionManager(trackingRepo, consume: 1)..build();
+    final manager = TrackingService(trackingRepo, consume: 1)..build();
 
     // Act - add source before manager has consumed first TrackingCreated event
     final tracking = await _createTracking(trackingRepo, stream, subscription);
@@ -108,7 +108,7 @@ Future main() async {
 
     // Act - add empty tracking object
     final tracking = await _createTracking(trackingRepo, stream, subscription);
-    final manager = TrackingPositionManager(trackingRepo, consume: 1)..build();
+    final manager = TrackingService(trackingRepo, consume: 1)..build();
     await expectLater(manager.asStream().first, completion(isA<TrackingCreated>()));
 
     // Act - create device
@@ -156,7 +156,7 @@ Future main() async {
 
     // Act - add empty tracking object
     final tracking = await _createTracking(trackingRepo, stream, subscription);
-    final manager = TrackingPositionManager(trackingRepo, consume: 1)..build();
+    final manager = TrackingService(trackingRepo, consume: 1)..build();
     await expectLater(manager.asStream().first, completion(isA<TrackingCreated>()));
 
     // Act - create device

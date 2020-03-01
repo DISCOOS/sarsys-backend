@@ -4,20 +4,20 @@ import 'package:logging/logging.dart';
 import 'package:event_source/event_source.dart';
 import 'package:sarsys_domain/sarsys_domain.dart';
 
-/// A competitive [Tracking] position aggregation manager.
+/// A [Tracking] domain service.
 ///
-/// This class compete with other [TrackingPositionManager]
+/// This class compete with other [TrackingService]
 /// instances on which [Tracking] instances it should manage
 /// a position for. A persistent subscription on projection
 /// '$et-TrackingCreated' with [ConsumerStrategy.RoundRobin]
 /// is made when [build()] is called. This ensures than only
-/// one [TrackingPositionManager] will manage tracks and
+/// one [TrackingService] will manage tracks and
 /// aggregate position from these for each [Tracking] instance,
-/// regardless of how many [TrackingPositionManager] instances
+/// regardless of how many [TrackingService] instances
 /// are running in parallel, minimizing write contention on
 /// each [Tracking] instance event stream.
 ///
-/// Each [TrackingPositionManager] instance listen to events
+/// Each [TrackingService] instance listen to events
 /// when a source is added to, or removed from, a [Tracking]
 /// instance it manages. When a source is added to a [Tracking]
 /// instance it manages, a track is added to it with status
@@ -40,7 +40,7 @@ import 'package:sarsys_domain/sarsys_domain.dart';
 /// when the same source is added to multiple [Tracking]
 /// instances concurrently.
 ///
-class TrackingPositionManager extends MessageHandler<DomainEvent> {
+class TrackingService extends MessageHandler<DomainEvent> {
   static const String ID = 'id';
   static const String UUID = 'uuid';
   static const String STATUS = 'status';
@@ -52,7 +52,7 @@ class TrackingPositionManager extends MessageHandler<DomainEvent> {
   static const String POSITIONS = 'positions';
   static const String STREAM = '\$et-TrackingCreated';
 
-  TrackingPositionManager(
+  TrackingService(
     this.repository, {
     this.consume = 5,
     this.maxBackoffTime = const Duration(seconds: 10),
@@ -62,7 +62,7 @@ class TrackingPositionManager extends MessageHandler<DomainEvent> {
   final TrackingRepository repository;
   final Set<String> _managed = {};
   final Map<String, Set<String>> _sources = {};
-  final Logger logger = Logger('$TrackingPositionManager');
+  final Logger logger = Logger('$TrackingService');
 
   SubscriptionController _subscription;
 
@@ -81,7 +81,7 @@ class TrackingPositionManager extends MessageHandler<DomainEvent> {
   bool get disposed => _disposed;
   bool _disposed = false;
 
-  /// Build competitive [Tracking] position processor
+  /// Build competitive [Tracking] service
   void build() {
     _subscription?.dispose();
     _subscription = SubscriptionController<TrackingRepository>(
@@ -101,6 +101,7 @@ class TrackingPositionManager extends MessageHandler<DomainEvent> {
     repository.store.bus.register<TrackingSourceAdded>(this);
     repository.store.bus.register<TrackingSourceRemoved>(this);
     repository.store.bus.register<DeviceInformationUpdated>(this);
+    logger.info('Built with consumption count $consume from $STREAM');
 //    repository.store.bus.register<TrackingSourceChanged>(this);
 //    repository.store.bus.register<UnitInformationUpdated>(this);
 //    repository.store.bus.register<PersonnelInformationUpdated>(this);
@@ -171,7 +172,7 @@ class TrackingPositionManager extends MessageHandler<DomainEvent> {
   }
 
   /// If [TrackingSourceRemoved] was from a [Tracking] instance
-  /// managed by this [TrackingPositionManager], the state of the
+  /// managed by this [TrackingService], the state of the
   /// associated track is changed to 'detached'
   void _onTrackingSourceRemoved(TrackingSourceRemoved event) async => await _ensureDetached(event);
 
@@ -180,7 +181,7 @@ class TrackingPositionManager extends MessageHandler<DomainEvent> {
       final uuid = repository.toAggregateUuid(event);
       if (_sources.containsKey(uuid) && _managed.any(_sources[uuid].contains)) {
         // TODO: Update track
-        _addToStream(event);
+        _addToStream(event, 'Updated tracking $uuid position');
       }
     }
   }
@@ -294,23 +295,31 @@ class TrackingPositionManager extends MessageHandler<DomainEvent> {
     Map<String, dynamic> positions,
     String status,
   }) async {
+    var track;
     final tracking = repository.get(uuid);
     final tracks = tracking.asEntityArray(TRACKS);
-    final command = tracks.contains(id)
+    final exists = tracks.contains(id);
+    final command = exists
         ? _updateTrack(
             uuid,
-            tracks.elementAt(id).data
+            track = tracks.elementAt(id).data
               ..addAll({
                 if (status != null) STATUS: status,
                 if (positions != null) POSITIONS: positions,
               }))
-        : _addTrack(uuid, {
-            SOURCE: source,
-            if (status != null) STATUS: status,
-            if (positions != null) POSITIONS: positions,
-          });
+        : _addTrack(
+            uuid,
+            track = {
+              SOURCE: source,
+              STATUS: status ??= ATTACHED,
+              if (positions != null) POSITIONS: positions,
+            });
     final events = await command;
-    return events..forEach(_addToStream);
+    return events
+      ..forEach(
+        (event) =>
+            _addToStream(event, '${exists ? 'Updated' : 'Added'} track ${track['status']} source ${source[UUID]}'),
+      );
   }
 
   FutureOr<Iterable<DomainEvent>> _addTrack(String uuid, Map<String, Object> track) async {
@@ -345,11 +354,11 @@ class TrackingPositionManager extends MessageHandler<DomainEvent> {
   Future _ensureManaged(DomainEvent event) async {
     final uuid = repository.toAggregateUuid(event);
     if (event is TrackingCreated) {
-      _addToStream(event);
+      _addToStream(event, 'Analysing source mappings for tracking $uuid');
       await _mapSources(repository, uuid);
     } else if (event is TrackingSourceAdded) {
       if (_appendToSources(event.sourceUuid, uuid)) {
-        _addToStream(event);
+        _addToStream(event, 'Looking for other active tracks for attached to ${event.sourceUuid}');
         final other = _findTrackManagedByOthers(uuid, event.sourceUuid);
         await _ensureTrack(
           uuid,
@@ -416,12 +425,13 @@ class TrackingPositionManager extends MessageHandler<DomainEvent> {
           track[SOURCE],
           status: DETACHED,
         );
-        _addToStream(event);
+        _addToStream(event, 'Detached track ${track[ID]} from source ${track.elementAt('source/uuid')}');
       }
     }
   }
 
-  void _addToStream(DomainEvent event) {
+  void _addToStream(DomainEvent event, String message) {
     _streamController.add(event);
+    logger.fine('Processed $event: $message');
   }
 }
