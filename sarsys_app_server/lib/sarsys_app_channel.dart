@@ -54,6 +54,9 @@ class SarSysAppServerChannel extends ApplicationChannel {
   /// Manages an [Repository] for each registered [AggregateRoot]
   RepositoryManager manager;
 
+  /// Tracking domain service
+  TrackingService trackingService;
+
   /// Logger instance
   @override
   final Logger logger = Logger("SarSysAppServerChannel");
@@ -72,7 +75,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     _configureLogger();
     _buildValidators();
     _buildRepoManager();
-    _buildRepos(stopwatch);
+    _buildRepos(stopwatch, _buildDomainServices);
     _buildInvariants();
     _buildMessageChannel();
 
@@ -307,7 +310,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     );
   }
 
-  void _buildRepos(Stopwatch stopwatch) {
+  void _buildRepos(Stopwatch stopwatch, void whenComplete()) {
     // Register repositories
     manager.register<AppConfig>((manager) => AppConfigRepository(manager));
     manager.register<Incident>((manager) => IncidentRepository(manager));
@@ -326,10 +329,10 @@ class SarSysAppServerChannel extends ApplicationChannel {
     Future.delayed(
       const Duration(milliseconds: 1),
       () => _buildReposWithRetries(stopwatch),
-    );
+    ).whenComplete(whenComplete);
   }
 
-  void _buildReposWithRetries(Stopwatch stopwatch) async {
+  Future _buildReposWithRetries(Stopwatch stopwatch) async {
     /// Build resources
     try {
       await manager.build(
@@ -345,7 +348,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     } on SocketException catch (e) {
       logger.severe("Failed to connect to eventstore with ${manager.connection} with: $e => retrying in 2 seconds");
     }
-    await Future.delayed(const Duration(seconds: 2), () => _buildReposWithRetries(stopwatch));
+    return Future.delayed(const Duration(seconds: 2), () => _buildReposWithRetries(stopwatch));
   }
 
   void _buildInvariants() {
@@ -410,6 +413,10 @@ class SarSysAppServerChannel extends ApplicationChannel {
               ),
               repository as DivisionRepository,
             ));
+  }
+
+  void _buildDomainServices() {
+    trackingService = TrackingService(manager.get<TrackingRepository>())..build();
   }
 
   void _buildMessageChannel() {
