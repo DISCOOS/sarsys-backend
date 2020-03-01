@@ -3,7 +3,7 @@ FROM google/dart
 WORKDIR /app
 ADD bin/main.snapshot /app/
 ADD config.yaml /app/
-ADD web/sarsys.json /app/web/sarsys.json
+ADD web/ /app/web/
 
 # Use a number instead of 'aqueduct' to prevent kubernetes error 'CreateContainerConfigError: Error: container
 # has runAsNonRoot and image has non-numeric user (aqueduct), cannot verify user is non-root'.
