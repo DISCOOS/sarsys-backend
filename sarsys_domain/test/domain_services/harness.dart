@@ -239,8 +239,7 @@ Map<String, dynamic> createTracking(String uuid) => {
       'uuid': '$uuid',
     };
 
-Map<String, dynamic> createSource({String id, String uuid = 'string', String type = 'device'}) => {
-      if (id != null) 'id': '$id',
+Map<String, dynamic> createSource({String uuid = 'string', String type = 'device'}) => {
       'uuid': '$uuid',
       'type': '$type',
     };

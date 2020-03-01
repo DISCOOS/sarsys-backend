@@ -366,16 +366,21 @@ class TrackingPositionManager extends MessageHandler<DomainEvent> {
   Future _mapSources(Repository repository, String uuid) async {
     if (await _checkTracking(repository, uuid)) {
       final tracking = repository.get(uuid);
-      final tracks = tracking.asEntityArray(TRACKS).toList();
-      final changed = await tracks.where(
-        (track) => _appendToSources(uuid, track[SOURCE][UUID]),
-      );
+      final tracks = tracking.asEntityArray(TRACKS);
+      final sources = tracking.asEntityArray(SOURCES).toList();
+      final added = await sources.where((source) => _appendToSources(source[UUID], uuid)).toList();
+      final changed = tracks.isEmpty
+          ? added.map((source) => {SOURCE: source})
+          : added.where(
+              (source) => tracks.toList().any((track) => track.elementAt('source/uuid') == source),
+            );
       changed.forEach((track) async {
         await _ensureTrack(
           uuid,
           track[ID],
           track[SOURCE],
           status: ATTACHED,
+          positions: track[POSITIONS] ?? {},
         );
       });
     } else {

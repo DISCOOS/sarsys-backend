@@ -86,9 +86,13 @@ Future main() async {
     expect(trackingRepo.count, equals(1));
     expect(manager.managed.length, equals(1));
     expect(manager.managed, contains(tracking));
-    expect(manager.sources.keys, contains(device));
+    expect(manager.sources.keys, equals({device}));
     expect(manager.sources[device]?.length, equals(1));
-    expect(manager.sources[device], contains(tracking));
+    expect(manager.sources[device], equals({tracking}));
+    expect(
+      trackingRepo.get(tracking).asEntityArray('tracks')?.elementAt('1')?.data['status'],
+      contains('attached'),
+    );
 
     // Cleanup
     manager.dispose();
@@ -130,9 +134,9 @@ Future main() async {
     expect(trackingRepo.count, equals(1));
     expect(manager.managed.length, equals(1));
     expect(manager.managed, contains(tracking));
-    expect(manager.sources.keys, contains({device}));
+    expect(manager.sources.keys, equals({device}));
     expect(manager.sources[device]?.length, equals(1));
-    expect(manager.sources[device], contains({tracking}));
+    expect(manager.sources[device], equals({tracking}));
     expect(
       trackingRepo.get(tracking).asEntityArray('tracks')?.elementAt('1')?.data['status'],
       contains('attached'),
@@ -168,7 +172,7 @@ Future main() async {
       manager.asStream(),
       emitsInOrder([
         isA<TrackingSourceAdded>(),
-        isA<TrackingSourceChanged>(),
+        isA<TrackingTrackAdded>(),
       ]),
     );
 
@@ -176,11 +180,12 @@ Future main() async {
     _removeTrackingSource(
       trackingRepo,
       tracking,
-      '1',
+      device,
     );
     await expectLater(
       manager.asStream(),
       emitsInOrder([
+        isA<TrackingTrackChanged>(),
         isA<TrackingSourceRemoved>(),
       ]),
     );
@@ -194,7 +199,7 @@ Future main() async {
     expect(manager.sources[device], contains(tracking));
     expect(
       trackingRepo.get(tracking).asEntityArray('tracks')?.elementAt('1')?.data['status'],
-      contains('attached'),
+      contains('detached'),
     );
   });
 }
@@ -219,7 +224,7 @@ FutureOr<String> _addTrackingSource(TrackingRepository repo, String uuid, String
   return device;
 }
 
-FutureOr<String> _removeTrackingSource(TrackingRepository repo, String uuid, String id) async {
-  await repo.execute(RemoveSourceFromTracking(uuid, createSource(id: id, uuid: null, type: null)));
-  return id;
+FutureOr<String> _removeTrackingSource(TrackingRepository repo, String tuuid, String suuid) async {
+  await repo.execute(RemoveSourceFromTracking(tuuid, createSource(uuid: suuid)));
+  return suuid;
 }
