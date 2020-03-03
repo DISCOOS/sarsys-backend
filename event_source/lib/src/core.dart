@@ -171,6 +171,7 @@ class SourceEvent extends Event {
     @required String uuid,
     @required String type,
     @required this.number,
+    @required this.streamId,
     @required DateTime created,
     @required Map<String, dynamic> data,
   }) : super(
@@ -179,6 +180,7 @@ class SourceEvent extends Event {
           data: data,
           created: created ?? DateTime.now(),
         );
+  final String streamId;
   final EventNumber number;
 
   @override

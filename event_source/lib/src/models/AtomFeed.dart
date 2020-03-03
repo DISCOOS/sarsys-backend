@@ -15,6 +15,7 @@ class AtomFeed extends Equatable {
     @required this.title,
     @required this.updated,
     @required this.author,
+    @required this.streamId,
     @required this.headOfStream,
     @required this.selfUrl,
     @required this.eTag,
@@ -38,6 +39,7 @@ class AtomFeed extends Equatable {
   final String id;
   final String title;
   final String updated;
+  final String streamId;
   final AtomAuthor author;
   final bool headOfStream;
   final String selfUrl;

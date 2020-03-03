@@ -13,6 +13,7 @@ class AtomItem extends Equatable {
     @required this.id,
     @required this.title,
     @required this.updated,
+    @required this.streamId,
     @required this.author,
     @required this.summary,
     @required this.links,
@@ -30,6 +31,7 @@ class AtomItem extends Equatable {
   final String id;
   final String title;
   final String updated;
+  final String streamId;
   final String summary;
   final AtomAuthor author;
   final List<AtomLink> links;

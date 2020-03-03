@@ -11,6 +11,7 @@ AtomItem _$AtomItemFromJson(Map<String, dynamic> json) {
       id: json['id'] as String,
       title: json['title'] as String,
       updated: json['updated'] as String,
+      streamId: json['streamId'] as String,
       author: json['author'] == null
           ? null
           : AtomAuthor.fromJson(json['author'] as Map<String, dynamic>),
@@ -25,6 +26,7 @@ Map<String, dynamic> _$AtomItemToJson(AtomItem instance) => <String, dynamic>{
       'id': instance.id,
       'title': instance.title,
       'updated': instance.updated,
+      'streamId': instance.streamId,
       'summary': instance.summary,
       'author': instance.author,
       'links': instance.links

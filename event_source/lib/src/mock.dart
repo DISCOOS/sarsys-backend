@@ -384,13 +384,22 @@ class TestStream {
 
   bool _checkEventNumber(HttpRequest request, String path) {
     final expectedNumber = int.tryParse(request.headers.value('ES-ExpectedVersion'));
-    if (expectedNumber != null && expectedNumber >= 0) {
+    if (expectedNumber != null) {
+      final exists = _streamExists(path);
       final number = _toEventsFromPath(path).length - 1;
-      if (number != expectedNumber) {
+      final isAny = ExpectedVersion.any.value == expectedNumber;
+      final isNone = ExpectedVersion.none.value == expectedNumber;
+      final isEmpty = ExpectedVersion.empty.value == expectedNumber;
+      final isNotEmpty = expectedNumber > 0;
+
+      if (!isAny && /* If ExpectedVersion.any is given, write should never conflict and should always succeed */
+          (isNotEmpty && number != expectedNumber || /* Should match exact event number given */
+              isNone && exists && number > 0 || /* Should not exist at the time of the writing */
+              isEmpty && !exists) /* Should exist and be empty */) {
         request.response
           ..statusCode = HttpStatus.badRequest
           ..headers.add('ES-CurrentVersion', number)
-          ..reasonPhrase = 'Wrong expected eventnumber';
+          ..reasonPhrase = 'Wrong expected EventNumber';
         return false;
       }
     }
@@ -462,6 +471,14 @@ class TestStream {
       return event;
     }
     return Map.from(event)..addAll({'updated': DateTime.now().toIso8601String()});
+  }
+
+  bool _streamExists(String path) {
+    if (useInstanceStreams) {
+      final id = int.tryParse(path.split('-').last);
+      return id < _instances.length;
+    }
+    return _instances.isNotEmpty;
   }
 
   Map<String, Map<String, dynamic>> _toEventsFromPath(String path) {
@@ -739,11 +756,11 @@ AtomFeed _toAtomFeed(
 
   return AtomFeed(
     id: selfUrl, // Dummy
-    title: 'Event stream $stream',
+    title: "Event stream '$stream'",
     author: AtomAuthor(name: '${typeOf<EventStoreMockServer>()}'),
     updated: _lastUpdated(events),
     eTag: '26;-2060438500', // Dummy
-    // streamId: canonicalStream,
+    streamId: stream,
     headOfStream: true,
     selfUrl: selfUrl,
     links: [

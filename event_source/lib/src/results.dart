@@ -175,8 +175,9 @@ class ReadResult extends FeedResult {
             direction: direction,
             events: (events['entries'] as List)
                 .map((event) => SourceEvent(
-                      uuid: event['eventid'] as String,
-                      type: event['eventtype'] as String,
+                      uuid: event['eventId'] as String,
+                      type: event['eventType'] as String,
+                      streamId: event['eventStreamId'] as String,
                       data: event['data'] as Map<String, dynamic>,
                       number: EventNumber(event['eventNumber'] as int),
                       created: DateTime.tryParse(event['updated'] as String),

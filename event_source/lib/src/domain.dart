@@ -449,9 +449,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   ///
   /// Returns pushed events is saved, empty list otherwise
   ///
-  /// Throws an [MultipleAggregatesWithChanges] if other aggregates have changes.
-  /// This failure is recoverable, but with side effect of losing data.
-  ///
   /// Throws an [WrongExpectedEventVersion] if [EventStore.current] event number is not
   /// equal to the last event number in  [EventStore.canonicalStream]. This failure is
   /// recoverable when the store has caught up with [EventStore.canonicalStream]. Push
@@ -467,8 +464,14 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   ///
   /// Throws [WriteFailed] for all other failures. This failure is not recoverable.
   Future<Iterable<DomainEvent>> push(T aggregate, {int maxAttempts = 10}) async {
+/*
+  ///
+  /// Throws an [MultipleAggregatesWithChanges] if other aggregates have changes.
+  /// This failure is recoverable, but with side effect of losing data.
+
     // Are the other aggregates with uncommitted changes?
     _assertSingleAggregateChanged(aggregate);
+*/
 
     try {
       return aggregate.isChanged ? await store.push(aggregate) : [];
@@ -486,6 +489,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         (aggregate) => rollback,
       );
 
+  /*
   /// Assert that only a given [AggregateRoot] has changes.
   ///
   /// Every [Command.action] on a [Repository] should be
@@ -499,6 +503,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       throw MultipleAggregatesWithChanges('Found uncommitted changes that will be lost in $other');
     }
   }
+  */
 
   /// Rollback all pending changes in aggregate
   Iterable<DomainEvent> rollback(T aggregate) {

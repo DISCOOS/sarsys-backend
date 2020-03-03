@@ -154,10 +154,14 @@ class EventStore {
   /// is the same as for the [canonicalStream] if
   /// [useInstanceStreams] is false.
   ///
+  /// If [stream] is given, this takes precedence and returns event number this stream.
+  ///
   /// If stream does not exist, [EventNumber.none] is returned.
   ///
-  EventNumber current({String uuid}) =>
-      (useInstanceStreams && uuid != null ? _current[toInstanceStream(uuid)] : _current[canonicalStream]) ??
+  EventNumber current({String stream, String uuid}) =>
+      (useInstanceStreams && (stream != null || uuid != null)
+          ? _current[stream ?? toInstanceStream(uuid)]
+          : _current[canonicalStream]) ??
       EventNumber.none;
 
   /// Replay events from stream to given repository
@@ -365,9 +369,23 @@ class EventStore {
     throw WriteFailed('Failed to push changes to $stream: ${result.statusCode} ${result.reasonPhrase}');
   }
 
-  /// Get expected version number for given stream
+  /// Get expected version number for given stream.
+  ///
+  /// IMPORTANT: If no event number exists for given
+  /// [stream], [ExpectedVersion.none] MUST BE used
+  /// to ensure that only the first concurrent writer
+  /// will succeed to create same instance stream.
+  /// This will result in a '400 Wrong expected
+  /// EventNumber' response forcing a catchup to
+  /// occur before a retry is attempted with
+  /// an new expected stream id created by
+  /// [toInstanceStream], which is based on current
+  /// aggregate count (safe since all consumers
+  /// are guaranteed to receive events in same
+  /// order).
+  ///
   ExpectedVersion _toExpectedVersion(String stream) => (_current[stream] ?? EventNumber.none).isNone
-      ? ExpectedVersion.any
+      ? ExpectedVersion.none
       : ExpectedVersion.from(
           _current[stream],
         );
@@ -893,6 +911,7 @@ class EventStoreConnection {
   SourceEvent _toEvent(data) => SourceEvent(
         uuid: data['content']['eventId'] as String,
         type: data['content']['eventType'] as String,
+        streamId: data['content']['eventStreamId'] as String,
         data: data['content']['data'] as Map<String, dynamic>,
         created: DateTime.tryParse(data['updated'] as String),
         number: EventNumber(data['content']['eventNumber'] as int),

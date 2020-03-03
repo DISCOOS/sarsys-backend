@@ -14,6 +14,7 @@ AtomFeed _$AtomFeedFromJson(Map<String, dynamic> json) {
       author: json['author'] == null
           ? null
           : AtomAuthor.fromJson(json['author'] as Map<String, dynamic>),
+      streamId: json['streamId'] as String,
       headOfStream: json['headOfStream'] as bool,
       selfUrl: json['selfUrl'] as String,
       eTag: json['eTag'] as String,
@@ -31,6 +32,7 @@ Map<String, dynamic> _$AtomFeedToJson(AtomFeed instance) => <String, dynamic>{
       'id': instance.id,
       'title': instance.title,
       'updated': instance.updated,
+      'streamId': instance.streamId,
       'author': instance.author,
       'headOfStream': instance.headOfStream,
       'selfUrl': instance.selfUrl,
