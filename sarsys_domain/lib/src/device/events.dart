@@ -1,5 +1,6 @@
 import 'package:meta/meta.dart';
 import 'package:event_source/event_source.dart';
+import 'package:sarsys_domain/sarsys_domain.dart';
 
 //////////////////////////////////////
 // Device Domain Events
@@ -39,6 +40,22 @@ class DeviceDeleted extends DomainEvent {
   }) : super(
           uuid: uuid,
           type: '$DeviceDeleted',
+          created: created,
+          data: data,
+        );
+}
+
+//////////////////////////////////
+// Device Position Domain Events
+//////////////////////////////////
+
+class DevicePositionChanged extends PositionEvent {
+  DevicePositionChanged({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
           created: created,
           data: data,
         );

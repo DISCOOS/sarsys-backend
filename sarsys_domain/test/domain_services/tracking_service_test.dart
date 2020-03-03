@@ -36,16 +36,30 @@ Future main() async {
     final stream = harness.server().getStream('\$et-TrackingCreated');
     final repo = harness.get<TrackingRepository>();
     await repo.readyAsync();
+    _createTracking(repo, stream, subscription);
+    _createTracking(repo, stream, subscription);
+    await expectLater(
+        repo.store.asStream(),
+        emitsInOrder([
+          isA<TrackingCreated>(),
+          isA<TrackingCreated>(),
+        ]));
 
     // Act
-    await _createTracking(repo, stream, subscription);
-    await _createTracking(repo, stream, subscription);
     final manager1 = TrackingService(repo, consume: 1)..build();
     final manager2 = TrackingService(repo, consume: 1)..build();
 
     // Assert - states
-    await expectLater(manager1.asStream(), emits(isA<TrackingCreated>()));
-    await expectLater(manager2.asStream(), emits(isA<TrackingCreated>()));
+    await expectLater(
+        manager1.asStream(),
+        emitsInOrder([
+          isA<TrackingInformationUpdated>(),
+        ]));
+    await expectLater(
+        manager2.asStream(),
+        emitsInOrder([
+          isA<TrackingInformationUpdated>(),
+        ]));
     expect(repo.count, equals(2));
     expect(manager1.managed.length, equals(1));
     expect(manager2.managed.length, equals(1));

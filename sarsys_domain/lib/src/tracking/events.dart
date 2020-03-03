@@ -1,5 +1,6 @@
 import 'package:meta/meta.dart';
 import 'package:event_source/event_source.dart';
+import 'package:sarsys_domain/sarsys_domain.dart';
 
 //////////////////////////////////////
 // Tracking Domain Events
@@ -183,5 +184,21 @@ class TrackingTrackRemoved extends TrackingTrackEvent {
           created: created,
           data: data,
           index: index,
+        );
+}
+
+//////////////////////////////////
+// Tracking Position Domain Events
+//////////////////////////////////
+
+class TrackingPositionChanged extends PositionEvent {
+  TrackingPositionChanged({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          created: created,
+          data: data,
         );
 }

@@ -17,6 +17,11 @@ class DeviceRepository extends Repository<DeviceCommand, Device> {
                 data: event.data,
                 created: event.created,
               ),
+          DevicePositionChanged: (event) => DevicePositionChanged(
+                uuid: event.uuid,
+                data: event.data,
+                created: event.created,
+              ),
           DeviceDeleted: (event) => DeviceDeleted(
                 uuid: event.uuid,
                 data: event.data,

@@ -73,3 +73,13 @@ class RemoveDeviceMessage extends DeviceMessageCommand<DeviceMessageRemoved> {
     Map<String, dynamic> data,
   ) : super(Action.delete, uuid, data);
 }
+
+//////////////////////////////////
+// Device Position commands
+//////////////////////////////////
+
+class UpdateDevicePosition extends DeviceCommand<DevicePositionChanged> {
+  UpdateDevicePosition(
+    Map<String, dynamic> data,
+  ) : super(Action.update, data: data);
+}

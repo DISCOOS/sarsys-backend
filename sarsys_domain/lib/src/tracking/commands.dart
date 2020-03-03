@@ -115,3 +115,13 @@ class RemoveTrackFromTracking extends TrackCommand<TrackingTrackRemoved> {
     Map<String, dynamic> data,
   ) : super(Action.delete, uuid, data);
 }
+
+//////////////////////////////////
+// Track Position commands
+//////////////////////////////////
+
+class UpdateTrackingPosition extends TrackingCommand<TrackingPositionChanged> {
+  UpdateTrackingPosition(
+    Map<String, dynamic> data,
+  ) : super(Action.update, data: data);
+}

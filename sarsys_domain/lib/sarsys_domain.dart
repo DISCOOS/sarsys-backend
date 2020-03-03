@@ -1,5 +1,6 @@
 library sarsys_domain;
 
+export 'src/core/events.dart';
 export 'src/department/department.dart';
 export 'src/device/device.dart';
 export 'src/division/division.dart';
