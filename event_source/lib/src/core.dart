@@ -144,6 +144,25 @@ class EntityObjectEvent extends DomainEvent {
   EntityObject get entityObject => EntityObject(id, entity, idFieldName);
 }
 
+class ValueObjectEvent<T> extends DomainEvent {
+  ValueObjectEvent({
+    @required String uuid,
+    @required String type,
+    @required DateTime created,
+    @required this.valueField,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: type,
+          created: created,
+          data: data,
+        );
+
+  final String valueField;
+
+  T get value => elementAt('$valueField') as T;
+}
+
 /// Base class for events sourced from an event stream.
 ///
 /// A [Repository] folds [SourceEvent]s into [DomainEvent]s with [Repository.get].
