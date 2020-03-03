@@ -550,7 +550,6 @@ class EventStore {
     if (!_disposed) {
       _subscriptions[repository.runtimeType].reconnect(
         repository,
-        this,
       );
     }
   }
@@ -563,7 +562,6 @@ class EventStore {
     if (!_disposed) {
       _subscriptions[repository.runtimeType].reconnect(
         repository,
-        this,
       );
     }
   }
@@ -649,6 +647,22 @@ class SubscriptionController<T extends Repository> {
   /// Reference for cancelling in [dispose]
   Timer _timer;
 
+  /// Flag indication if subscription is competing for events with other consumers
+  bool get isCompeting => _competing;
+  bool _competing = false;
+
+  /// Get subscription group if competing for events
+  String get group => _group;
+  String _group;
+
+  /// Event consumer strategy if subscription is competing for events with other consumers
+  ConsumerStrategy get strategy => _strategy;
+  ConsumerStrategy _strategy;
+
+  /// Number of events to consume if subscription is competing for events with other consumers
+  int get consume => _consume;
+  int _consume;
+
   /// Subscribe to events from given stream.
   ///
   /// Cancels previous subscriptions if exists
@@ -658,6 +672,10 @@ class SubscriptionController<T extends Repository> {
     EventNumber number = EventNumber.first,
   }) {
     _subscription?.cancel();
+    _competing = false;
+    _group = null;
+    _consume = null;
+    _strategy = null;
     _subscription = repository.store.connection
         .subscribe(
           stream: stream,
@@ -684,6 +702,10 @@ class SubscriptionController<T extends Repository> {
     ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
   }) {
     _subscription?.cancel();
+    _competing = true;
+    _group = group;
+    _consume = consume;
+    _strategy = strategy;
     _subscription = repository.store.connection
         .compete(
           stream: stream,
@@ -706,18 +728,30 @@ class SubscriptionController<T extends Repository> {
         maxBackoffTime.inMilliseconds,
       );
 
-  void reconnect(T repository, EventStore store) {
+  void reconnect(T repository) {
     _subscription.cancel();
-    if (!store.connection.closed) {
+    if (!repository.store.connection.closed) {
       _timer ??= Timer(
         Duration(milliseconds: toNextReconnectMillis()),
         () {
           _timer.cancel();
           _timer = null;
-          store.subscribe(
-            repository,
-            maxBackoffTime: maxBackoffTime,
+          logger.info(
+            '${repository.runtimeType}: $runtimeType is reconnecting to stream ${repository.store.canonicalStream}',
           );
+          if (_competing) {
+            repository.store.compete(
+              repository,
+              consume: _consume,
+              strategy: _strategy,
+              maxBackoffTime: maxBackoffTime,
+            );
+          } else {
+            repository.store.subscribe(
+              repository,
+              maxBackoffTime: maxBackoffTime,
+            );
+          }
         },
       );
     }
