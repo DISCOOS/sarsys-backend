@@ -1,3 +1,4 @@
+import 'package:event_source/src/core.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
@@ -15,7 +16,7 @@ Future main() async {
     ..add(port: 4001)
     ..install();
 
-  test('EventStore should increment stream id on concurrent writes of first event in each stream', () async {
+  test('EventStore throw a WriteFailed exception on second concurrent write', () async {
     // Arrange
     final repository = harness.get<FooRepository>();
     await repository.readyAsync();
@@ -26,8 +27,8 @@ Future main() async {
     final events1 = repository.store.push(foo1);
     final events2 = repository.store.push(foo2);
 
-    // Assert - store state
+    // Assert - store write fails
     expect(await events1.asStream().first, equals([isA<FooCreated>()]));
-    expect(await events2.asStream().first, equals([isA<FooCreated>()]));
+    await expectLater(events2, throwsA(const TypeMatcher<WriteFailed>()));
   });
 }

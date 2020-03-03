@@ -313,6 +313,9 @@ class EventStore {
     } else {
       _current[stream] = EventNumber.none + events.length;
     }
+    if (useInstanceStreams) {
+      _current[canonicalStream] += events.length;
+    }
   }
 
   /// Publish events to [bus] and [asStream]
@@ -348,10 +351,11 @@ class EventStore {
     }
     final stream = toInstanceStream(aggregate.uuid);
     final events = aggregate.getUncommittedChanges();
+    final number = _toExpectedVersion(stream);
     final result = await connection.writeEvents(
       stream: stream,
       events: events,
-      version: _toExpectedVersion(stream),
+      version: number,
     );
     if (result.isCreated) {
       // Commit all changes after successful write
@@ -525,8 +529,6 @@ class EventStore {
       );
 
       if (process) {
-        final uuid = repository.toAggregateUuid(event);
-
         // IMPORTANT: append to store before applying to repository
         // This ensures that the event added to an aggregate during
         // construction is overwritten with the remote actual

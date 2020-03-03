@@ -216,7 +216,7 @@ class AggregateListInvariant<T extends Repository> extends Invariant<T> {
               (aggregate) => aggregate.data[field] is List,
             )
             .where(
-              (aggregate) => List<String>.unmodifiable(aggregate.data[field] as List).contains(foreign),
+              (aggregate) => List<String>.from(aggregate.data[field] as List).contains(foreign),
             )
             .map(
               (aggregate) => aggregate.uuid,
@@ -631,7 +631,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     this.uuidFieldName = 'uuid',
     this.entityIdFieldName = 'id',
     DateTime created,
-  }) : _processors = Map.unmodifiable(processors) {
+  }) : _processors = Map.from(processors) {
     _createdWhen = created ?? DateTime.now();
     _changedWhen = _createdWhen;
     _change(
@@ -659,7 +659,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
 
   /// Aggregate root data (weak schema)
   final Map<String, dynamic> _data = {};
-  Map<String, dynamic> get data => Map.unmodifiable(_data);
+  Map<String, dynamic> get data => Map.from(_data);
 
   /// Local uncommitted changes
   final _pending = <DomainEvent>[];
@@ -671,7 +671,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   bool isApplied(Event event) => _applied.contains(event.uuid);
 
   /// Get changed not committed to store
-  Iterable<DomainEvent> getUncommittedChanges() => List.unmodifiable(_pending);
+  Iterable<DomainEvent> getUncommittedChanges() => List.from(_pending);
 
   /// Check if uncommitted changes exists
   bool get isNew => _applied.isEmpty;
@@ -703,9 +703,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   AggregateRoot loadFromHistory(Iterable<DomainEvent> events) {
     // Only clear if history exist, otherwise keep the event from construction
     if (events.isNotEmpty) {
-      _data.clear();
-      _pending.clear();
-      _applied.clear();
+      _clear();
     }
     events?.forEach((event) => _apply(
           event,
@@ -713,6 +711,13 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
           isNew: false,
         ));
     return this;
+  }
+
+  /// Clear to initial state
+  void _clear() {
+    _data.clear();
+    _pending.clear();
+    _applied.clear();
   }
 
   /// Patch [AggregateRoot.data] with given [data].
@@ -875,8 +880,8 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   // Apply implementation for internal use
   DomainEvent _apply(
     DomainEvent event, {
-    bool isChanged,
     bool isNew,
+    bool isChanged,
   }) {
     if (toAggregateUuid(event) != uuid) {
       throw InvalidOperation(
@@ -1150,13 +1155,19 @@ abstract class MergeStrategy<T extends AggregateRoot> {
   Future<Iterable<DomainEvent>> reconcile(T aggregate, int max) => _reconcileWithRetry(aggregate, max, 1);
   Future<Iterable<DomainEvent>> _reconcileWithRetry(T aggregate, int max, int attempt) async {
     try {
+      final isNew = aggregate.isNew;
       // Keep local state and rollback
       final events = await merge(aggregate);
+      // Was removed by merge?
+      if (isNew) {
+        // Add again and remove initial event
+        aggregate = repository.get(aggregate.uuid).._clear();
+      }
       // Reapply events as local changes
       events.forEach((event) => aggregate._apply(
             event,
             isChanged: true,
-            isNew: false,
+            isNew: isNew,
           ));
       return repository.push(aggregate);
     } on WrongExpectedEventVersion catch (e, stacktrace) {
@@ -1177,7 +1188,16 @@ class ThreeWayMerge<T extends AggregateRoot> extends MergeStrategy<T> {
   @override
   Future<Iterable<DomainEvent>> merge(T aggregate) async {
     final local = aggregate.data;
+    final isNew = aggregate.isNew;
     final events = repository.rollback(aggregate);
+    if (isNew) {
+      // This implies that an instance stream with
+      // same id was concurrently created. Since the
+      // aggregate was removed from store with rollback
+      // above a, any retry must get a new aggregate
+      // instance before another push is attempted
+      return events;
+    }
 
     // Keep base state and catchup to remote state
     final base = aggregate.data;

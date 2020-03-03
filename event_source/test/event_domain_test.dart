@@ -337,4 +337,20 @@ Future main() async {
     expect(repo2.count, equals(1));
     expect(foo2.data, containsPair('property2', 'value2'));
   });
+
+  test('Repo should resolve concurrent first writes to same empty stream', () async {
+    // Arrange
+    final repository = harness.get<FooRepository>();
+    await repository.readyAsync();
+    final foo1 = repository.get(Uuid().v4());
+    final foo2 = repository.get(Uuid().v4());
+
+    // Act - preform two concurrent pushes without awaiting the result
+    final events1 = repository.push(foo1);
+    final events2 = repository.push(foo2);
+
+    // Assert - store state
+    expect(await events1.asStream().first, equals([isA<FooCreated>()]));
+    expect(await events2.asStream().first, equals([isA<FooCreated>()]));
+  } /*, timeout: Timeout.factor(100)*/);
 }

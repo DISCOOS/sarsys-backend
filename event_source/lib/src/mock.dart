@@ -394,8 +394,8 @@ class TestStream {
 
       if (!isAny && /* If ExpectedVersion.any is given, write should never conflict and should always succeed */
           (isNotEmpty && number != expectedNumber || /* Should match exact event number given */
-              isNone && exists && number > 0 || /* Should not exist at the time of the writing */
-              isEmpty && !exists) /* Should exist and be empty */) {
+              isNone && exists && number >= 0 || /* Should not exist at the time of the writing */
+              isEmpty && (!exists || number > 0)) /* Should exist and be empty */) {
         request.response
           ..statusCode = HttpStatus.badRequest
           ..headers.add('ES-CurrentVersion', number)
