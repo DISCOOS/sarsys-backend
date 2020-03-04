@@ -88,22 +88,23 @@ class TrackingService extends MessageHandler<DomainEvent> {
   bool _disposed = false;
 
   /// Build competitive [Tracking] service
-  void build() {
-    _subscription?.dispose();
+  Future build() async {
+    await _subscription?.dispose();
     _subscription = SubscriptionController<TrackingRepository>(
       logger: logger,
       onDone: _onDone,
       onEvent: _onEvent,
       onError: _onError,
       maxBackoffTime: maxBackoffTime,
-    )..compete(
-        repository,
-        stream: STREAM,
-        group: '$runtimeType',
-        consume: consume,
-        number: EventNumber.first,
-        strategy: ConsumerStrategy.RoundRobin,
-      );
+    );
+    await _subscription.compete(
+      repository,
+      stream: STREAM,
+      group: '$runtimeType',
+      consume: consume,
+      number: EventNumber.first,
+      strategy: ConsumerStrategy.RoundRobin,
+    );
     repository.store.bus.register<TrackingSourceAdded>(this);
     repository.store.bus.register<TrackingSourceRemoved>(this);
     repository.store.bus.register<DevicePositionChanged>(this);
@@ -112,10 +113,10 @@ class TrackingService extends MessageHandler<DomainEvent> {
   }
 
   /// Must be called to prevent memory leaks
-  void dispose() {
-    _subscription?.dispose();
+  Future dispose() async {
+    await _subscription?.dispose();
     _subscription = null;
-    _streamController.close();
+    await _streamController.close();
     _disposed = true;
   }
 

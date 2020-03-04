@@ -415,8 +415,9 @@ class SarSysAppServerChannel extends ApplicationChannel {
             ));
   }
 
-  void _buildDomainServices() {
-    trackingService = TrackingService(manager.get<TrackingRepository>())..build();
+  Future _buildDomainServices() async {
+    trackingService = TrackingService(manager.get<TrackingRepository>());
+    await trackingService.build();
   }
 
   void _buildMessageChannel() {

@@ -46,13 +46,16 @@ Future main() async {
         ]));
 
     // Act
-    final manager1 = TrackingService(repo, consume: 1)..build();
-    final manager2 = TrackingService(repo, consume: 1)..build();
+    final manager1 = TrackingService(repo, consume: 1);
+    await manager1.build();
+    final manager2 = TrackingService(repo, consume: 1);
+    await manager1.build();
 
     // Assert - states
     await expectLater(
         manager1.asStream(),
         emitsInOrder([
+          isA<TrackingCreated>(),
           isA<TrackingInformationUpdated>(),
         ]));
     await expectLater(
@@ -66,8 +69,8 @@ Future main() async {
     expect(manager1.managed, isNot(equals(manager2.managed)));
 
     // Cleanup
-    manager1.dispose();
-    manager2.dispose();
+    await manager1.dispose();
+    await manager2.dispose();
   });
 
   test('Managers shall attach track on TrackingCreated', () async {
@@ -77,7 +80,8 @@ Future main() async {
     await deviceRepo.readyAsync();
     final trackingRepo = harness.get<TrackingRepository>();
     await trackingRepo.readyAsync();
-    final manager = TrackingService(trackingRepo, consume: 1)..build();
+    final manager = TrackingService(trackingRepo, consume: 1);
+    await manager.build();
 
     // Act - add source before manager has consumed first TrackingCreated event
     final tracking = await _createTracking(trackingRepo, stream, subscription);
@@ -109,7 +113,7 @@ Future main() async {
     );
 
     // Cleanup
-    manager.dispose();
+    await manager.dispose();
   });
 
   test('Managers shall attach track on TrackingSourceAdded', () async {
@@ -122,7 +126,9 @@ Future main() async {
 
     // Act - add empty tracking object
     final tracking = await _createTracking(trackingRepo, stream, subscription);
-    final manager = TrackingService(trackingRepo, consume: 1)..build();
+    final manager = TrackingService(trackingRepo, consume: 1);
+    await manager.build();
+
     await expectLater(manager.asStream().first, completion(isA<TrackingCreated>()));
 
     // Act - create device
@@ -157,7 +163,7 @@ Future main() async {
     );
 
     // Cleanup
-    manager.dispose();
+    await manager.dispose();
   });
 
   test('Managers shall detach track on TrackingSourceRemoved', () async {
@@ -170,7 +176,8 @@ Future main() async {
 
     // Act - add empty tracking object
     final tracking = await _createTracking(trackingRepo, stream, subscription);
-    final manager = TrackingService(trackingRepo, consume: 1)..build();
+    final manager = TrackingService(trackingRepo, consume: 1);
+    await manager.build();
     await expectLater(manager.asStream().first, completion(isA<TrackingCreated>()));
 
     // Act - create device
@@ -215,6 +222,8 @@ Future main() async {
       trackingRepo.get(tracking).asEntityArray('tracks')?.elementAt('1')?.data['status'],
       contains('detached'),
     );
+
+    await manager.dispose();
   });
 }
 

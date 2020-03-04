@@ -370,7 +370,9 @@ class EventStore {
         actual: result.number,
       );
     }
-    throw WriteFailed('Failed to push changes to $stream: ${result.statusCode} ${result.reasonPhrase}');
+    throw WriteFailed(
+      'Failed to push changes to $stream: ${events.map((event) => event.runtimeType)}: ${result.statusCode} ${result.reasonPhrase}',
+    );
   }
 
   /// Get expected version number for given stream.
@@ -408,87 +410,75 @@ class EventStore {
   ///
   /// Throws an [InvalidOperation] if [Repository.store] is not this [EventStore]
   /// Throws an [InvalidOperation] if [Repository] is already subscribing to events
-  void compete(
+  Future compete(
     Repository repository, {
     int consume = 20,
     ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
     Duration maxBackoffTime = const Duration(seconds: 10),
-  }) {
+  }) async {
     // Sanity checks
     _assertState();
     _assertRepository(repository);
 
     // Dispose current subscription if exists
-    _subscriptions[repository.runtimeType]?.dispose();
+    await _subscriptions[repository.runtimeType]?.dispose();
 
-    _subscriptions.update(
-      repository.runtimeType,
-      (controller) => _subscribe(
-        controller,
-        repository,
-        competing: true,
-        consume: consume,
-        strategy: strategy,
-      ),
-      ifAbsent: () => _subscribe(
-        SubscriptionController(
-          logger: logger,
-          onDone: _onSubscriptionDone,
-          onEvent: _onSubscriptionEvent,
-          onError: _onSubscriptionError,
-          maxBackoffTime: maxBackoffTime,
-        ),
-        repository,
-        competing: true,
-        consume: consume,
-        strategy: strategy,
-      ),
+    // Get existing or create new
+    final controller = await _subscribe(
+      _subscriptions[repository.runtimeType] ??
+          SubscriptionController(
+            logger: logger,
+            onDone: _onSubscriptionDone,
+            onEvent: _onSubscriptionEvent,
+            onError: _onSubscriptionError,
+            maxBackoffTime: maxBackoffTime,
+          ),
+      repository,
+      competing: true,
+      consume: consume,
+      strategy: strategy,
     );
+    _subscriptions[repository.runtimeType] = controller;
   }
 
   /// Subscribe given [repository] to receive changes from [canonicalStream]
   ///
   /// Throws an [InvalidOperation] if [Repository.store] is not this [EventStore]
   /// Throws an [InvalidOperation] if [Repository] is already subscribing to events
-  void subscribe(
+  Future subscribe(
     Repository repository, {
     Duration maxBackoffTime = const Duration(seconds: 10),
-  }) {
+  }) async {
     // Sanity checks
     _assertState();
     _assertRepository(repository);
 
     // Dispose current subscription if exists
-    _subscriptions[repository.runtimeType]?.dispose();
+    await _subscriptions[repository.runtimeType]?.dispose();
 
-    _subscriptions.update(
-      repository.runtimeType,
-      (controller) => _subscribe(
-        controller,
-        repository,
-        competing: false,
-      ),
-      ifAbsent: () => _subscribe(
-        SubscriptionController(
-          logger: logger,
-          onDone: _onSubscriptionDone,
-          onEvent: _onSubscriptionEvent,
-          onError: _onSubscriptionError,
-          maxBackoffTime: maxBackoffTime,
-        ),
-        repository,
-        competing: false,
-      ),
+    // Get existing or create new
+    final controller = await _subscribe(
+      _subscriptions[repository.runtimeType] ??
+          SubscriptionController(
+            logger: logger,
+            onDone: _onSubscriptionDone,
+            onEvent: _onSubscriptionEvent,
+            onError: _onSubscriptionError,
+            maxBackoffTime: maxBackoffTime,
+          ),
+      repository,
+      competing: false,
     );
+    _subscriptions[repository.runtimeType] = controller;
   }
 
-  SubscriptionController _subscribe(
+  Future<SubscriptionController> _subscribe(
     SubscriptionController controller,
     Repository<Command, AggregateRoot> repository, {
     int consume = 20,
     bool competing = false,
     ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
-  }) =>
+  }) async =>
       competing
           ? controller.compete(
               repository,
@@ -621,11 +611,11 @@ class EventStore {
   }
 
   /// Clear events in store and close connection
-  void dispose() {
+  Future dispose() async {
     _store.clear();
-    _subscriptions.values.forEach((state) => state.dispose());
+    await Future.forEach(_subscriptions.values, (state) => state.dispose());
     _subscriptions.clear();
-    _streamController?.close();
+    await _streamController?.close();
     _disposed = true;
   }
 
@@ -686,12 +676,12 @@ class SubscriptionController<T extends Repository> {
   /// Subscribe to events from given stream.
   ///
   /// Cancels previous subscriptions if exists
-  SubscriptionController<T> subscribe(
+  Future<SubscriptionController<T>> subscribe(
     T repository, {
     @required String stream,
     EventNumber number = EventNumber.first,
-  }) {
-    _subscription?.cancel();
+  }) async {
+    await _subscription?.cancel();
     _competing = false;
     _group = null;
     _consume = null;
@@ -713,15 +703,15 @@ class SubscriptionController<T extends Repository> {
   /// Compete for events from given stream.
   ///
   /// Cancels previous subscriptions if exists
-  SubscriptionController<T> compete(
+  Future<SubscriptionController<T>> compete(
     T repository, {
     @required String stream,
     @required String group,
     int consume = 20,
     EventNumber number = EventNumber.first,
     ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
-  }) {
-    _subscription?.cancel();
+  }) async {
+    await _subscription?.cancel();
     _competing = true;
     _group = group;
     _consume = consume;
@@ -748,8 +738,8 @@ class SubscriptionController<T extends Repository> {
         maxBackoffTime.inMilliseconds,
       );
 
-  void reconnect(T repository) {
-    _subscription.cancel();
+  void reconnect(T repository) async {
+    await _subscription.cancel();
     if (!repository.store.connection.closed) {
       _timer ??= Timer(
         Duration(milliseconds: toNextReconnectMillis()),
@@ -787,9 +777,9 @@ class SubscriptionController<T extends Repository> {
     }
   }
 
-  void dispose() {
+  Future dispose() {
     _timer?.cancel();
-    _subscription?.cancel();
+    return _subscription?.cancel();
   }
 }
 

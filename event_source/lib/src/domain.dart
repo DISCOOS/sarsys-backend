@@ -143,8 +143,9 @@ class RepositoryManager {
   }
 
   /// Dispose all [RepositoryManager] instances
-  void dispose() {
-    _stores.values.forEach(
+  Future dispose() async {
+    await Future.forEach(
+      _stores.values,
       (manager) => manager.dispose(),
     );
     _stores.clear();
@@ -184,12 +185,11 @@ class AggregateListInvariant<T extends Repository> extends Invariant<T> {
   final bool multiple;
 
   @override
-  void call(DomainEvent event) async => toUuids(event)
-      .where(
-        repository.contains,
-      )
-      .forEach(
-        (uuid) async => await repository.execute(
+  void call(DomainEvent event) async => Future.forEach(
+        toUuids(event).where(
+          repository.contains,
+        ),
+        (uuid) => repository.execute(
           enforcer(repository.get(uuid), event),
         ),
       );

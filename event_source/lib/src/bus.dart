@@ -236,30 +236,31 @@ class MessageChannel extends MessageHandler<Event> {
     );
   }
 
-  void _remove(String appId) {
+  Future _remove(String appId) async {
     final state = _states.remove(appId);
     if (state != null) {
-      state.subscription.cancel();
+      await state.subscription.cancel();
       if (state.socket.readyState != WebSocket.closed) {
-        state.socket.close(WebSocketStatus.abnormalClosure);
+        await state.socket.close(WebSocketStatus.abnormalClosure);
       }
       _info('Removed socket for client $appId');
     }
   }
 
-  void close(String appId) => _close(
+  Future close(String appId) async => _close(
         _states[appId],
         WebSocketStatus.normalClosure,
         'Server closed connection to client $appId',
       );
 
   /// Dispose all WebSocket connection
-  void dispose() {
-    _states.forEach(
-      (appId, state) => _close(
-        state,
+  Future dispose() async {
+    await Future.forEach(
+      _states.entries,
+      (MapEntry<String, _SocketState> entry) => _close(
+        entry.value,
         WebSocketStatus.normalClosure,
-        'Server closed connection to $appId',
+        'Server closed connection to ${entry.key}',
       ),
     );
     _states.clear();
@@ -354,9 +355,9 @@ class MessageChannel extends MessageHandler<Event> {
     return message;
   }
 
-  void _check(Timer timer) {
+  void _check(Timer timer) async {
     try {
-      _cleanup();
+      await _cleanup();
       final now = DateTime.now();
       final idle = _states.entries
           .where(
@@ -366,20 +367,21 @@ class MessageChannel extends MessageHandler<Event> {
 
       logger.fine('Checked liveliness, found ${idle.length} of ${_states.length} idle ');
 
-      idle.forEach(
+      await Future.forEach(
+        idle,
         (entry) => _close(
           entry.value,
           WebSocketStatus.goingAway,
           'Closed connection to ${entry.key} because idle timeout',
         ),
       );
-      _removeAll(idle);
+      await _removeAll(idle);
     } catch (e, stacktrace) {
       logger.severe('Failed to check liveliness with: $e with stacktrace: $stacktrace');
     }
   }
 
-  void _cleanup() {
+  Future _cleanup() async {
     final closed = _states.entries
         .where(
           (test) => test.value.socket.readyState == WebSocket.closed || test.value.socket.closeCode != null,
@@ -387,11 +389,12 @@ class MessageChannel extends MessageHandler<Event> {
         .toList();
     if (closed.isNotEmpty) {
       logger.warning('Checked ready state and close code, found ${closed.length} of ${_states.length} closed');
-      _removeAll(closed);
+      await _removeAll(closed);
     }
   }
 
-  void _removeAll(Iterable<MapEntry<String, _SocketState>> entries) => entries.forEach(
+  Future _removeAll(Iterable<MapEntry<String, _SocketState>> entries) => Future.forEach(
+        entries,
         (entry) => _remove(entry.key),
       );
 

@@ -29,6 +29,6 @@ Future main() async {
 
     // Assert - store write fails
     expect(await events1.asStream().first, equals([isA<FooCreated>()]));
-    await expectLater(events2, throwsA(const TypeMatcher<WriteFailed>()));
+    await expectLater(events2, throwsA(const TypeMatcher<WrongExpectedEventVersion>()));
   });
 }

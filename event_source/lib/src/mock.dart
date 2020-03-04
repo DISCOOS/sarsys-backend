@@ -68,16 +68,25 @@ class EventStoreMockServer {
       } else {
         await route.handle(request);
       }
-      if (verbose && logger != null) {
-        logger.info(
-          'Ports ${request.connectionInfo.remotePort} > ${request.connectionInfo.localPort}: '
-          '${request.method} ${request.uri.path}'
-          '${request.uri.queryParameters.isNotEmpty ? '?${request.uri.query}' : ''} '
-          '> ${request.response.statusCode} ${request.response.reasonPhrase}',
-        );
-      }
+      _log(
+        'Ports ${request.connectionInfo.remotePort} > ${request.connectionInfo.localPort}: '
+        '${request.method} ${request.uri.path}'
+        '${request.uri.queryParameters.isNotEmpty ? '?${request.uri.query}' : ''} '
+        '> ${request.response.statusCode} ${request.response.reasonPhrase}',
+      );
       await request.response.close();
     });
+    _log(
+      '$runtimeType[$port]: Listening for requests',
+    );
+  }
+
+  void _log(String message) {
+    if (verbose && logger != null) {
+      logger.info(
+        message,
+      );
+    }
   }
 
   EventStoreMockServer withProjection(String name) {
@@ -165,19 +174,25 @@ class EventStoreMockServer {
     _streams
       ..forEach((_, stream) => stream.dispose())
       ..clear();
+    _log(
+      '$runtimeType[$port]: Cleared router and streams',
+    );
   }
 
   /// Shuts down the server listening for HTTP requests.
-  Future close() {
+  Future close() async {
     clear();
     try {
       // Allow open requests to finish before closing
       return Future.delayed(
         const Duration(milliseconds: 1),
-        _server?.close,
+        await _server?.close,
       );
     } finally {
       _server = null;
+      _log(
+        '$runtimeType[$port]: Closed server',
+      );
     }
   }
 
