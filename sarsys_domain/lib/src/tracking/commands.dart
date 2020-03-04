@@ -20,8 +20,14 @@ class CreateTracking extends TrackingCommand<TrackingCreated> {
   ) : super(Action.create, data: data);
 }
 
-class UpdateTracking extends TrackingCommand<TrackingInformationUpdated> {
-  UpdateTracking(
+class UpdateTrackingInformation extends TrackingCommand<TrackingInformationUpdated> {
+  UpdateTrackingInformation(
+    Map<String, dynamic> data,
+  ) : super(Action.update, data: data);
+}
+
+class UpdateTrackingStatus extends TrackingCommand<TrackingStatusChanged> {
+  UpdateTrackingStatus(
     Map<String, dynamic> data,
   ) : super(Action.update, data: data);
 }

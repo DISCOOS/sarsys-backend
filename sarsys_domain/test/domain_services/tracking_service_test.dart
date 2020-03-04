@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:async/async.dart';
 import 'package:event_source/event_source.dart';
 import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:test/test.dart';
@@ -45,24 +46,29 @@ Future main() async {
           isA<TrackingCreated>(),
         ]));
 
-    // Act
+    // Act - manager 1
     final manager1 = TrackingService(repo, consume: 1);
-    await manager1.build();
     final manager2 = TrackingService(repo, consume: 1);
-    await manager1.build();
+    manager1.build();
+    manager2.build();
 
-    // Assert - states
+    final group = StreamZip([manager1.asStream(), manager2.asStream()]);
+
+    // Assert - events
     await expectLater(
-        manager1.asStream(),
+        group,
         emitsInOrder([
-          isA<TrackingCreated>(),
-          isA<TrackingInformationUpdated>(),
+          [
+            isA<TrackingCreated>(),
+            isA<TrackingCreated>(),
+          ],
+          [
+            isA<TrackingStatusChanged>(),
+            isA<TrackingStatusChanged>(),
+          ]
         ]));
-    await expectLater(
-        manager2.asStream(),
-        emitsInOrder([
-          isA<TrackingInformationUpdated>(),
-        ]));
+
+    // Assert - states0
     expect(repo.count, equals(2));
     expect(manager1.managed.length, equals(1));
     expect(manager2.managed.length, equals(1));
@@ -81,7 +87,6 @@ Future main() async {
     final trackingRepo = harness.get<TrackingRepository>();
     await trackingRepo.readyAsync();
     final manager = TrackingService(trackingRepo, consume: 1);
-    await manager.build();
 
     // Act - add source before manager has consumed first TrackingCreated event
     final tracking = await _createTracking(trackingRepo, stream, subscription);
@@ -90,6 +95,7 @@ Future main() async {
       tracking,
       await _createDevice(deviceRepo),
     );
+    manager.build();
 
     // Assert
     await expectLater(
@@ -97,6 +103,7 @@ Future main() async {
       emitsInOrder([
         isA<TrackingCreated>(),
         isA<TrackingTrackAdded>(),
+        isA<TrackingStatusChanged>(),
       ]),
     );
 
@@ -128,13 +135,10 @@ Future main() async {
     final tracking = await _createTracking(trackingRepo, stream, subscription);
     final manager = TrackingService(trackingRepo, consume: 1);
     await manager.build();
+    await expectLater(manager.asStream(), emits(isA<TrackingCreated>()));
 
-    await expectLater(manager.asStream().first, completion(isA<TrackingCreated>()));
-
-    // Act - create device
+    // Act - create device and add source after manager has consumed TrackingCreated
     final device = await _createDevice(deviceRepo);
-
-    // Act - add source after manager has consumed TrackingCreated
     _addTrackingSource(
       trackingRepo,
       tracking,
@@ -145,6 +149,7 @@ Future main() async {
     await expectLater(
       manager.asStream(),
       emitsInOrder([
+        isA<TrackingStatusChanged>(),
         isA<TrackingSourceAdded>(),
         isA<TrackingTrackAdded>(),
       ]),
@@ -178,12 +183,10 @@ Future main() async {
     final tracking = await _createTracking(trackingRepo, stream, subscription);
     final manager = TrackingService(trackingRepo, consume: 1);
     await manager.build();
-    await expectLater(manager.asStream().first, completion(isA<TrackingCreated>()));
+    await expectLater(manager.asStream(), emits(isA<TrackingCreated>()));
 
-    // Act - create device
+    // Act - create device and add source after manager has consumed TrackingCreated
     final device = await _createDevice(deviceRepo);
-
-    // Act - add source after manager has consumed TrackingCreated
     _addTrackingSource(
       trackingRepo,
       tracking,
@@ -192,6 +195,7 @@ Future main() async {
     await expectLater(
       manager.asStream(),
       emitsInOrder([
+        isA<TrackingStatusChanged>(),
         isA<TrackingSourceAdded>(),
         isA<TrackingTrackAdded>(),
       ]),

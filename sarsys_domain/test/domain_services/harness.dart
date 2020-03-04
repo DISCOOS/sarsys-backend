@@ -138,7 +138,7 @@ class EventSourceHarness {
     });
   }
 
-  void _open(int port, EventStoreMockServer server) async {
+  Future _open(int port, EventStoreMockServer server) async {
     await server.open();
     _connections[port] = EventStoreConnection(
       host: 'http://localhost',
@@ -146,7 +146,7 @@ class EventSourceHarness {
     );
   }
 
-  void _build(int port, EventStoreMockServer server) async {
+  Future _build(int port, EventStoreMockServer server) async {
     _streams.forEach(
       (stream, flags) => server.withStream(
         stream,
@@ -193,7 +193,7 @@ class EventSourceHarness {
     }
   }
 
-  void _close(int port, EventStoreMockServer server) async {
+  Future _close(int port, EventStoreMockServer server) async {
     await server.close();
     _managers[port]
       ..forEach((manager) => manager.dispose())

@@ -20,6 +20,21 @@ class TrackingCreated extends DomainEvent {
   Map<String, dynamic> get position => changed.elementAt('position');
 }
 
+class TrackingStatusChanged extends DomainEvent {
+  TrackingStatusChanged({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+  }) : super(
+          uuid: uuid,
+          type: '$TrackingStatusChanged',
+          created: created,
+          data: data,
+        );
+
+  String get status => changed['status'] as String;
+}
+
 class TrackingInformationUpdated extends DomainEvent {
   TrackingInformationUpdated({
     @required String uuid,
