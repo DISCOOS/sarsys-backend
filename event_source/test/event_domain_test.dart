@@ -210,7 +210,7 @@ Future main() async {
           'member2': 'value4',
           'member3': 'value3',
         })); // keep, add and replace member values
-  });
+  }, timeout: Timeout.factor(100));
 
   test('Repository should catch-up to head of events in remote stream', () async {
     // Arrange
@@ -233,7 +233,7 @@ Future main() async {
     expect(foo2.data, containsPair('property1', 'value1'));
   });
 
-  test('Repository should resolve concurrent modification on push', () async {
+  test('Repository should resolve concurrent remote modification on push', () async {
     // Arrange
     final repo = harness.get<FooRepository>();
     final stream = harness.server().getStream(repo.store.aggregate);
@@ -266,7 +266,7 @@ Future main() async {
     expect(foo.data, containsPair('property3', 'value3'));
   });
 
-  test('Repository push fails when manual merge is needed', () async {
+  test('Repository should fail on push when manual merge is needed', () async {
     // Arrange
     final repo = harness.get<FooRepository>();
     final stream = harness.server().getStream(repo.store.aggregate);
@@ -338,19 +338,104 @@ Future main() async {
     expect(foo2.data, containsPair('property2', 'value2'));
   });
 
-  test('Repo should resolve concurrent first writes to same empty stream', () async {
+  test('Repository should throw AggregateNotFound on push with unknown AggregateRoot', () async {
+    // Arrange - start two empty repos both assuming stream-0 to be first write
+    final repo1 = harness.get<FooRepository>(instance: 1);
+    await repo1.readyAsync();
+    final repo2 = harness.get<FooRepository>(instance: 2);
+    await repo2.readyAsync();
+
+    // Act
+    final foo1 = repo1.get(Uuid().v4());
+
+    // Assert
+    await expectLater(() => repo2.push(foo1), throwsA(isA<AggregateNotFound>()));
+  });
+
+  test('Repository should enforce strict order of in-proc push operations', () async {
     // Arrange
-    final repository = harness.get<FooRepository>();
-    await repository.readyAsync();
-    final foo1 = repository.get(Uuid().v4());
-    final foo2 = repository.get(Uuid().v4());
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
 
-    // Act - preform two concurrent pushes without awaiting the result
-    final events1 = repository.push(foo1);
-    final events2 = repository.push(foo2);
+    // Act - execute pushes without awaiting the result
+    final results = await _createMultiple(repo);
 
-    // Assert - store state
-    expect(await events1.asStream().first, equals([isA<FooCreated>()]));
-    expect(await events2.asStream().first, equals([isA<FooCreated>()]));
-  } /*, timeout: Timeout.factor(100)*/);
+    // Assert - strict order
+    final events = _assertStrictOrder(results);
+
+    // Assert - unique events
+    _assertUniqueEvents(repo, events);
+  });
+
+  test('Repository should enforce strict order of concurrent push operations ', () async {
+    // Arrange
+    final repo1 = harness.get<FooRepository>(port: 4000);
+    final repo2 = harness.get<FooRepository>(port: 4001);
+    await repo1.readyAsync();
+    await repo2.readyAsync();
+
+    // Act - execute pushes and await the results
+    final results1 = await _createMultiple(repo1);
+    final results2 = await _createMultiple(repo2);
+
+    // Assert - strict order
+    _assertStrictOrder(results1);
+    _assertStrictOrder(results2);
+  });
+
+  test('Repository should throw ConcurrentWriteOperation if aggregate is changed after push is scheduled', () async {
+    // Arrange - start two empty repos both assuming stream-0 to be first write
+    final repo = harness.get<FooRepository>(instance: 1);
+    await repo.readyAsync();
+    final foo = repo.get(Uuid().v4());
+
+    // Assert
+    final events = expectLater(repo.push(foo), throwsA(isA<ConcurrentWriteOperation>()));
+    foo.patch({'property2': 'value2'}, emits: FooUpdated);
+    await events;
+  });
+
+  test('Repository should throw ConcurrentWriteOperation on multiple push without waiting on results', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
+
+    // Act
+    final foo = repo.get(Uuid().v4(), data: {'index': 0});
+
+    // Assert
+    final events = repo.push(foo);
+    expect(events, isA<Future<Iterable<DomainEvent>>>());
+    expect(() => repo.push(foo), throwsA(isA<ConcurrentWriteOperation>()));
+    expect(await events, isA<Iterable<DomainEvent>>());
+  }, timeout: Timeout.factor(100));
+}
+
+Iterable<DomainEvent> _assertStrictOrder(List<Iterable<DomainEvent>> results) {
+  final events = <DomainEvent>[];
+  for (var i = 0; i < 10; i++) {
+    expect(results[i].length, equals(1));
+    final event = results[i].first;
+    events.add(event);
+    expect(event, isA<FooCreated>());
+    expect((event as FooCreated).index, equals(i));
+  }
+  return events;
+}
+
+void _assertUniqueEvents(Repository repo, Iterable<DomainEvent> events) {
+  final actual = repo.store.events.values.fold(
+    <String>[],
+    (uuids, items) => uuids..addAll(items.map((e) => e.uuid)),
+  );
+  final expected = events.map((e) => e.uuid).toList();
+  expect(expected, equals(actual));
+}
+
+Future<List<Iterable<DomainEvent>>> _createMultiple(FooRepository repo) async {
+  final operations = [];
+  for (var i = 0; i < 10; i++) {
+    operations.add(repo.push(repo.get(Uuid().v4(), data: {'index': i})));
+  }
+  return await Future.wait<Iterable<DomainEvent>>(operations.cast());
 }

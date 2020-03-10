@@ -215,8 +215,8 @@ class WriteResult extends StreamResult {
     @required String reasonPhrase,
     this.eventIds = const [],
     this.location,
-    this.version,
-    this.number,
+    this.expected,
+    this.actual,
   }) : super(
           stream: stream,
           statusCode: statusCode,
@@ -236,24 +236,24 @@ class WriteResult extends StreamResult {
           statusCode: response.statusCode,
           reasonPhrase: response.reasonPhrase,
           eventIds: eventIds,
-          number: EventNumber(_toNumber(response)),
+          expected: version,
+          actual: EventNumber(_toNumber(response)),
           location: response.headers['location'],
-          version: ExpectedVersion(_toNumber(response)),
         );
       case HttpStatus.badRequest:
         return WriteResult(
           stream: stream,
           statusCode: response.statusCode,
           reasonPhrase: response.reasonPhrase,
-          number: EventNumber(int.tryParse(response.headers['es-currentversion'] ?? '${EventNumber.none.value}')),
-          version: version,
+          expected: version,
+          actual: EventNumber(int.tryParse(response.headers['es-currentversion'] ?? '${EventNumber.none.value}')),
         );
       default:
         return WriteResult(
           stream: stream,
           statusCode: response.statusCode,
           reasonPhrase: response.reasonPhrase,
-          version: version,
+          expected: version,
         );
     }
   }
@@ -261,11 +261,11 @@ class WriteResult extends StreamResult {
   /// Ids of created events
   final List<String> eventIds;
 
-  /// Last event number on stream
-  final EventNumber number;
+  /// Last event number in local [stream]
+  final ExpectedVersion expected;
 
-  /// Version of last event written to [stream]
-  final ExpectedVersion version;
+  /// Last event number in remote [stream]
+  final EventNumber actual;
 
   /// Url to written event
   final String location;
@@ -285,7 +285,7 @@ class WriteResult extends StreamResult {
   @override
   String toString() {
     return '$runtimeType{stream: $stream, statusCode: $statusCode, '
-        'reasonPhrase: $reasonPhrase, number: $number, location: $location}';
+        'reasonPhrase: $reasonPhrase, number: $actual, location: $location}';
   }
 }
 

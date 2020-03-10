@@ -147,6 +147,9 @@ class EventStore {
   /// Check if store is not empty
   bool get isNotEmpty => _store.isNotEmpty;
 
+  /// Get all events
+  Map<String, List<Event>> get events => Map.from(_store);
+
   /// Current event number for [canonicalStream]
   ///
   /// If [AggregateRoot.uuid] is given, the aggregate
@@ -197,9 +200,19 @@ class EventStore {
 
   /// Catch up with stream
   Future<int> catchUp(Repository repository) async {
+    final previous = current();
     final next = current() + 1;
     final count = await _catchUp(repository, next);
-    logger.info("Catched up on $count events from stream '${canonicalStream}' starting from number $next");
+    final actual = current();
+    if (count > 0) {
+      logger.info(
+        'Caught up from event $next to $actual with $count events from remote stream $canonicalStream',
+      );
+    } else {
+      logger.info(
+        'Local stream $canonicalStream is at same event number as remote stream ($previous)',
+      );
+    }
     return count;
   }
 
@@ -247,7 +260,7 @@ class EventStore {
 
   List<Event> _update(String uuid, Iterable<Event> events) => _store.update(
         uuid,
-        (events) => List.from(events)..addAll(events),
+        (current) => List.from(current)..addAll(events),
         ifAbsent: () => events.toList(),
       );
 
@@ -285,10 +298,10 @@ class EventStore {
   }
 
   /// Get events for given [AggregateRoot.uuid]
-  Iterable<Event> get(String uuid) => _store[uuid] ?? [];
+  Iterable<Event> get(String uuid) => List.from(_store[uuid] ?? []);
 
   /// Commit events to local storage.
-  Iterable<DomainEvent> commit(AggregateRoot aggregate) {
+  Iterable<DomainEvent> _commit(AggregateRoot aggregate) {
     _assertState();
     final events = aggregate.commit();
 
@@ -305,22 +318,25 @@ class EventStore {
   }
 
   void _setEventNumber(AggregateRoot aggregate, Iterable<Event> events) {
+    var append = 0;
+    final applied = _store[aggregate.uuid];
     final stream = toInstanceStream(aggregate.uuid);
+    final previous = _current[stream]?.value ?? 0;
     if (_current.containsKey(stream)) {
-      final applied = _store[aggregate.uuid];
-      final unique = events.toList()..removeWhere(applied.contains);
-      _current[stream] += unique.length;
+      append = EventNumber.none.value + applied.length - previous;
     } else {
-      _current[stream] = EventNumber.none + events.length;
+      append = applied.length;
     }
+    _current[stream] = EventNumber.none + applied.length;
     if (useInstanceStreams) {
-      _current[canonicalStream] += events.length;
+      _current[canonicalStream] += append;
     }
   }
 
   /// Publish events to [bus] and [asStream]
   void _publish(Iterable<DomainEvent> events) {
-    events.forEach(bus.publish);
+    // Notify later but before next Future
+    scheduleMicrotask(() => events.forEach(bus.publish));
     _streamController ??= StreamController.broadcast();
     events.forEach(_streamController.add);
   }
@@ -335,6 +351,9 @@ class EventStore {
   }
 
   /// Push changes in [aggregate] to to appropriate instance stream.
+  ///
+  /// If [snapshot] is given, this state is pushed and result
+  /// applied to [aggregate] if push succeeded.
   ///
   /// Throws an [WrongExpectedEventVersion] if current event number
   /// aggregate instance stream for [aggregate] stored locally is not
@@ -359,15 +378,15 @@ class EventStore {
     );
     if (result.isCreated) {
       // Commit all changes after successful write
-      commit(aggregate);
+      _commit(aggregate);
       // Check if commits caught up with last known event in aggregate instance stream
-      _assertCurrentVersion(stream, result.version);
+      _assertCurrentVersion(stream, result.actual);
       return events;
     } else if (result.isWrongESNumber) {
       throw WrongExpectedEventVersion(
         result.reasonPhrase,
-        expected: result.version,
-        actual: result.number,
+        actual: result.actual,
+        expected: result.expected,
       );
     }
     throw WriteFailed(
@@ -533,7 +552,7 @@ class EventStore {
           );
         }
         if (aggregate.isChanged) {
-          final events = commit(aggregate);
+          final events = _commit(aggregate);
           if (events.length > 1) {
             throw InvalidOperation('One source event produced ${events.length} domain events');
           }
@@ -595,9 +614,14 @@ class EventStore {
   }
 
   /// Assert that current event number for [stream] is caught up with last known event
-  void _assertCurrentVersion(String stream, ExpectedVersion version) {
-    if (_current[stream] != EventNumber.from(version)) {
-      throw WriteFailed('Catch up failed, current ${_current[stream]?.value} not equal to version ${version?.value}');
+  void _assertCurrentVersion(String stream, EventNumber actual) {
+    if (_current[stream] < actual) {
+      throw EventNumberMismatch(
+        stream,
+        _current[stream],
+        actual,
+        'Catch up failed',
+      );
     }
   }
 
@@ -613,7 +637,18 @@ class EventStore {
   /// Clear events in store and close connection
   Future dispose() async {
     _store.clear();
-    await Future.forEach(_subscriptions.values, (state) => state.dispose());
+
+    try {
+      await Future.forEach<SubscriptionController>(
+        _subscriptions.values,
+        (state) => state.dispose(),
+      );
+    } on ClientException catch (e, stackTrace) {
+      logger.warning(
+        'Failed to dispose one or more subscriptions: error: $e, stacktrace: $stackTrace',
+      );
+    }
+
     _subscriptions.clear();
     await _streamController?.close();
     _disposed = true;

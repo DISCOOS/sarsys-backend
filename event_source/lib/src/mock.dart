@@ -170,18 +170,22 @@ class EventStoreMockServer {
   }
 
   void clear() {
-    _router.clear();
-    _streams
-      ..forEach((_, stream) => stream.dispose())
-      ..clear();
+    _clear();
     _log(
       '$runtimeType[$port]: Cleared router and streams',
     );
   }
 
+  void _clear() {
+    _router.clear();
+    _streams
+      ..forEach((_, stream) => stream.dispose())
+      ..clear();
+  }
+
   /// Shuts down the server listening for HTTP requests.
   Future close() async {
-    clear();
+    _clear();
     try {
       // Allow open requests to finish before closing
       return Future.delayed(

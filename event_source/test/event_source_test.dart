@@ -16,16 +16,16 @@ Future main() async {
     ..add(port: 4001)
     ..install();
 
-  test('EventStore throw a WriteFailed exception on second concurrent write', () async {
+  test('EventStore throws WrongExpectedEventVersion on second concurrent write', () async {
     // Arrange
-    final repository = harness.get<FooRepository>();
-    await repository.readyAsync();
-    final foo1 = repository.get(Uuid().v4());
-    final foo2 = repository.get(Uuid().v4());
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
+    final foo1 = repo.get(Uuid().v4());
+    final foo2 = repo.get(Uuid().v4());
 
     // Act - preform two concurrent pushes without awaiting the result
-    final events1 = repository.store.push(foo1);
-    final events2 = repository.store.push(foo2);
+    final events1 = repo.store.push(foo1);
+    final events2 = repo.store.push(foo2);
 
     // Assert - store write fails
     expect(await events1.asStream().first, equals([isA<FooCreated>()]));

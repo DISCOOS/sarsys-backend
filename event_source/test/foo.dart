@@ -74,6 +74,8 @@ class FooCreated extends DomainEvent {
           created: created,
           data: data,
         );
+
+  int get index => changed.elementAt('index');
 }
 
 class FooUpdated extends DomainEvent {

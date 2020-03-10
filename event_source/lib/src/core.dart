@@ -238,6 +238,13 @@ abstract class Command<T extends DomainEvent> extends Message {
     );
 
   @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is Command && runtimeType == other.runtimeType && uuid == other.uuid;
+
+  @override
+  int get hashCode => uuid.hashCode;
+
+  @override
   String toString() {
     return '$runtimeType{uuid: $uuid, action: $action}';
   }
@@ -464,6 +471,23 @@ class ConflictNotReconcilable extends InvalidOperation {
 /// Thrown when an write failed
 class WriteFailed extends Failure {
   const WriteFailed(String message) : super(message);
+}
+
+/// Thrown when a concurrent write operation was attempted
+class ConcurrentWriteOperation extends WriteFailed implements Exception {
+  ConcurrentWriteOperation(String message) : super(message);
+}
+
+/// Thrown when catchup ended in mismatch between current number and number in remote event stream
+class EventNumberMismatch extends WriteFailed implements Exception {
+  EventNumberMismatch(String stream, EventNumber current, EventNumber actual, String message)
+      : super('$message: stream $stream current event number ($current) not equal to actual ($actual)');
+}
+
+/// Thrown when [MergeStrategy] fails to reconcile [WrongExpectedEventVersion] after maximum number of attempts
+class EventVersionReconciliationFailed extends WriteFailed {
+  const EventVersionReconciliationFailed(WrongExpectedEventVersion cause, int attempts)
+      : super('Failed to reconcile $cause after $attempts attempts');
 }
 
 /// Thrown when more then one [AggregateRoot] has changes concurrently
