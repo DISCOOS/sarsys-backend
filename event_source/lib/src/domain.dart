@@ -144,6 +144,31 @@ class RepositoryManager {
     return items.isEmpty ? null : items.first;
   }
 
+  bool _isPaused = false;
+  bool get isPaused => _isPaused;
+
+  /// Pause all subscriptions
+  void pause() async {
+    if (!_isPaused) {
+      _isPaused = true;
+      _stores.values.forEach(
+        (store) => store.pause(),
+      );
+      logger.info('Paused ${_stores.length} subscriptions');
+    }
+  }
+
+  /// Resume all subscriptions
+  void resume() async {
+    if (_isPaused) {
+      _isPaused = false;
+      _stores.values.forEach(
+        (store) => store.resume(),
+      );
+      logger.info('Resumed ${_stores.length} subscriptions');
+    }
+  }
+
   /// Dispose all [RepositoryManager] instances
   Future dispose() async {
     try {

@@ -440,7 +440,7 @@ class EventStore {
     _assertRepository(repository);
 
     // Dispose current subscription if exists
-    await _subscriptions[repository.runtimeType]?.dispose();
+    await _subscriptions[repository.runtimeType]?.cancel();
 
     // Get existing or create new
     final controller = await _subscribe(
@@ -473,7 +473,7 @@ class EventStore {
     _assertRepository(repository);
 
     // Dispose current subscription if exists
-    await _subscriptions[repository.runtimeType]?.dispose();
+    await _subscriptions[repository.runtimeType]?.cancel();
 
     // Get existing or create new
     final controller = await _subscribe(
@@ -634,6 +634,31 @@ class EventStore {
     return _streamController.stream;
   }
 
+  bool _isPaused = false;
+  bool get isPaused => _isPaused;
+
+  /// Pause all subscriptions
+  void pause() async {
+    _assertState();
+    if (!_isPaused) {
+      _isPaused = true;
+      _subscriptions.values.forEach(
+        (controller) => controller.pause(),
+      );
+    }
+  }
+
+  /// Resume all subscriptions
+  void resume() async {
+    _assertState();
+    if (_isPaused) {
+      _isPaused = false;
+      _subscriptions.values.forEach(
+        (controller) => controller.resume(),
+      );
+    }
+  }
+
   /// Clear events in store and close connection
   Future dispose() async {
     _store.clear();
@@ -641,7 +666,7 @@ class EventStore {
     try {
       await Future.forEach<SubscriptionController>(
         _subscriptions.values,
-        (state) => state.dispose(),
+        (controller) => controller.cancel(),
       );
     } on ClientException catch (e, stackTrace) {
       logger.warning(
@@ -689,7 +714,7 @@ class SubscriptionController<T extends Repository> {
   /// Reconnect count. Uses in exponential backoff calculation
   int reconnects = 0;
 
-  /// Reference for cancelling in [dispose]
+  /// Reference for cancelling in [cancel]
   Timer _timer;
 
   /// Flag indication if subscription is competing for events with other consumers
@@ -813,7 +838,26 @@ class SubscriptionController<T extends Repository> {
     }
   }
 
-  Future dispose() {
+  bool _isPaused = false;
+  bool get isPaused => _isPaused;
+
+  void pause() {
+    if (!_isPaused) {
+      _isPaused = true;
+      _subscription?.pause();
+    } else {
+      print('Hml');
+    }
+  }
+
+  void resume() {
+    if (_isPaused) {
+      _isPaused = false;
+      _subscription?.resume();
+    }
+  }
+
+  Future cancel() {
     _timer?.cancel();
     return _subscription?.cancel();
   }
@@ -1447,6 +1491,10 @@ class _SubscriptionController {
 
   bool _isCatchup;
 
+  bool _stopped;
+
+  static int _instances = 0;
+
   Stream<SourceEvent> pull({
     @required String stream,
     EventNumber number = EventNumber.last,
@@ -1464,11 +1512,12 @@ class _SubscriptionController {
     // catchup before consuming from head of stream?
     _isCatchup = false == number.isLast;
 
-    _controller ??= StreamController<SourceEvent>(
-      onListen: startTimer,
-      onPause: stopTimer,
-      onResume: startTimer,
-      onCancel: stopTimer,
+    _controller?.close();
+    _controller = StreamController<SourceEvent>(
+      onListen: _startTimer,
+      onPause: _stopTimer,
+      onResume: _startTimer,
+      onCancel: _stopTimer,
     );
 
     return controller.stream;
@@ -1496,53 +1545,48 @@ class _SubscriptionController {
     // catchup before consuming from head of stream?
     _isCatchup = false == number.isLast;
 
-    _controller ??= StreamController<SourceEvent>(
-      onListen: startTimer,
-      onPause: stopTimer,
-      onResume: startTimer,
-      onCancel: stopTimer,
+    _controller?.close();
+    _controller = StreamController<SourceEvent>(
+      onListen: _startTimer,
+      onResume: _startTimer,
+      onPause: _stopTimer,
+      onCancel: _stopTimer,
     );
 
     return controller.stream;
   }
 
-  void startTimer() async {
+  void _startTimer() async {
+    _instances++;
+    logger.fine('Start timer for $name');
     if (_isCatchup) {
-      _current = await _catchup(controller);
+      await _catchup(controller);
       _isCatchup = false;
     }
-    _timer = Timer.periodic(pullEvery, readNext);
+    _timer = Timer.periodic(
+      pullEvery,
+      (_) => _readNext(),
+    );
     logger.fine(
       'Listen for events in subscription $name starting from number $_current',
     );
   }
 
-  void stopTimer() {
-    if (_timer != null) {
-      _timer.cancel();
-      _timer = null;
-    }
+  void _stopTimer() {
+    _instances--;
+    logger.fine('Stop timer for $name');
+    _timer?.cancel();
+    _timer = null;
   }
 
-  Future<EventNumber> _catchup(StreamController<SourceEvent> controller) async {
+  Future _catchup(StreamController<SourceEvent> controller) async {
     logger.fine(
       'Stream $stream catch up from event number $_current',
     );
+
     FeedResult feed;
     do {
-      feed = await _nextFeed();
-      if (feed.isOK) {
-        final result = await connection.readEventsInFeed(feed);
-        if (result.isOK) {
-          if (accept) {
-            await _acceptEvents(result);
-          }
-          result.events.forEach(
-            controller.add,
-          );
-          _current = result.number + 1;
-        }
-      }
+      feed = await _readNext();
     } while (feed.isOK && !feed.atomFeed.headOfStream);
 
     if (number < _current) {
@@ -1553,11 +1597,24 @@ class _SubscriptionController {
     return _current;
   }
 
-  String get name => [stream, group].join('/');
+  String get name => [stream, if (group != null) group].join('/');
 
-  void readNext(_) async {
-    final feed = await _nextFeed();
+  Future<FeedResult> _readNext() async {
+    FeedResult feed;
+    try {
+      feed = await _nextFeed();
+      await _readEventsInFeed(feed);
+    } on Exception catch (e) {
+      // Only throw if running
+      if (_timer != null && _timer.isActive) {
+        logger.severe('Failed to read next events for $name: $e');
+        rethrow;
+      }
+    }
+    return feed;
+  }
 
+  Future _readEventsInFeed(FeedResult feed) async {
     if (feed.isOK) {
       final result = await connection.readEventsInFeed(feed);
       if (result.isOK) {

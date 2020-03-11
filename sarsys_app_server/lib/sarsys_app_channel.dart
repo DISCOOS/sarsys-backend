@@ -452,12 +452,32 @@ class SarSysAppServerChannel extends ApplicationChannel {
     );
   }
 
+  bool get isPaused => manager.isPaused;
+  void pause() {
+    manager.pause();
+    trackingService?.pause();
+  }
+
+  void resume() {
+    manager.resume();
+    trackingService?.resume();
+  }
+
   @override
-  Future close() {
-    manager?.dispose();
-    messages?.dispose();
-    manager?.connection?.close();
+  Future close() async {
+    await dispose();
     return super.close();
+  }
+
+  bool _disposed = false;
+  Future dispose() async {
+    if (!_disposed) {
+      _disposed = true;
+      await manager?.dispose();
+      await messages?.dispose();
+      await trackingService.dispose();
+      manager?.connection?.close();
+    }
   }
 
   //////////////////////////////////

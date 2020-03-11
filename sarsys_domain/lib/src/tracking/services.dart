@@ -91,7 +91,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
 
   /// Build competitive [Tracking] service
   FutureOr build() async {
-    await _subscription?.dispose();
+    await _subscription?.cancel();
     _subscription = SubscriptionController<TrackingRepository>(
       logger: logger,
       onDone: _onDone,
@@ -115,10 +115,22 @@ class TrackingService extends MessageHandler<DomainEvent> {
     return complete;
   }
 
+  bool get isPaused => _subscription?.isPaused;
+
+  /// Pause all subscriptions
+  void pause() async {
+    _subscription?.pause();
+  }
+
+  /// Resume all subscriptions
+  void resume() async {
+    _subscription?.resume();
+  }
+
   /// Must be called to prevent memory leaks
-  void dispose() {
-    _streamController?.close();
-    _subscription?.dispose();
+  Future dispose() async {
+    await _streamController?.close();
+    await _subscription?.cancel();
     _subscription = null;
     _disposed = true;
   }

@@ -44,10 +44,12 @@ class SarSysHarness extends TestHarness<SarSysAppServerChannel> {
       eventStoreMockServer.withProjection('\$by_category');
       eventStoreMockServer.withProjection('\$by_event_type');
     }
+    channel.resume();
   }
 
   @override
   Future onTearDown() async {
+    channel.pause();
     if (eventStoreMockServer != null) {
       eventStoreMockServer.clear();
     }
