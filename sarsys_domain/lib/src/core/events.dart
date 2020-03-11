@@ -21,6 +21,6 @@ class PositionEvent extends ValueObjectEvent<Map<String, dynamic>> {
   String get source => value.elementAt('properties/source');
   double get acc => double.tryParse(value.elementAt('properties/accuracy'));
   DateTime get ts => DateTime.parse(value.elementAt('properties/timestamp'));
-  Map<String, dynamic> get position => value.elementAt('geometry');
-  List<double> get coordinates => List.from(position.elementAt('coordinates'));
+  Map<String, dynamic> get point => value.elementAt('geometry');
+  List<double> get coordinates => List.from(point.elementAt('coordinates'));
 }

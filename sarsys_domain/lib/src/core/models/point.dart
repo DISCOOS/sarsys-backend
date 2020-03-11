@@ -26,7 +26,7 @@ class PointModel extends Equatable {
   final CoordinatesModel coordinates;
 
   @override
-  List<Object> get props => [coordinates];
+  List<Object> get props => [type, coordinates];
 
   bool get isEmpty => coordinates.isEmpty;
   bool get isNotEmpty => !isEmpty;
@@ -36,7 +36,7 @@ class PointModel extends Equatable {
 
   /// Declare support for serialization to JSON
   Map<String, dynamic> toJson() => _$PointModelToJson(this);
-
-  static CoordinatesModel _coordsFromJson(Map json) => CoordinatesModel.fromJson(json);
-  static dynamic _coordsToJson(CoordinatesModel coords) => coords.toJson();
 }
+
+CoordinatesModel _coordsFromJson(List json) => CoordinatesModel.fromJson(json);
+dynamic _coordsToJson(CoordinatesModel coords) => coords.toJson();

@@ -75,6 +75,23 @@ class PositionModel extends Equatable {
 
   /// Declare support for serialization to JSON
   Map<String, dynamic> toJson() => _$PositionModelToJson(this);
+
+  PositionModel cloneWith({
+    double lat,
+    double lon,
+    double acc,
+    double alt,
+    SourceType source,
+    DateTime timestamp,
+  }) =>
+      PositionModel.from(
+        lat: lat ?? this.lat,
+        lon: lon ?? this.lon,
+        alt: alt ?? this.alt,
+        acc: acc ?? this.acc,
+        source: source ?? this.source,
+        timestamp: timestamp ?? this.timestamp,
+      );
 }
 
 @JsonSerializable(explicitToJson: true)
@@ -102,4 +119,15 @@ class PositionModelProps extends Equatable {
 
   /// Declare support for serialization to JSON
   Map<String, dynamic> toJson() => _$PositionModelPropsToJson(this);
+
+  PositionModelProps cloneWith({
+    double acc,
+    SourceType source,
+    DateTime timestamp,
+  }) =>
+      PositionModelProps(
+        acc: acc ?? this.acc,
+        source: source ?? this.source,
+        timestamp: timestamp ?? this.timestamp,
+      );
 }

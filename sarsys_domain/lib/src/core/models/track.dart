@@ -33,6 +33,19 @@ class TrackModel extends Equatable {
         source,
         positions,
       ];
+
+  TrackModel cloneWith({
+    String id,
+    TrackStatus status,
+    SourceModel source,
+    List<PositionModel> positions,
+  }) =>
+      TrackModel(
+        id: id ?? this.id,
+        status: status ?? this.status,
+        source: source ?? this.source,
+        positions: positions ?? this.positions,
+      );
 }
 
 enum TrackStatus { attached, detached }

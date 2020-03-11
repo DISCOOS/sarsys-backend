@@ -252,25 +252,26 @@ Map<String, dynamic> createTrack({String id, String uuid = 'string', String type
       ),
     };
 
-Map<String, Object> createPosition() => {
+Map<String, Object> createPosition({lon = 1.0, lat = 1.0, acc = 1.0}) => {
       'type': 'Feature',
       'geometry': {
         'type': 'Point',
-        'coordinates': [0.0, 0.0]
+        'coordinates': [lon, lat]
       },
       'properties': {
         'name': 'string',
         'description': 'string',
-        'accuracy': 0,
+        'accuracy': acc,
         'timestamp': DateTime.now().toIso8601String(),
         'type': 'manual'
       }
     };
 
-Map<String, dynamic> createDevice(String uuid) => {
+Map<String, dynamic> createDevice(String uuid, {Map<String, dynamic> position}) => {
       'uuid': '$uuid',
       'name': 'string',
       'alias': 'string',
       'network': 'string',
       'networkId': 'string',
+      if (position != null) 'position': position,
     };

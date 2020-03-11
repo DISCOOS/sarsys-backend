@@ -23,7 +23,7 @@ class CoordinatesModel extends Equatable {
   bool get isNotEmpty => !isEmpty;
 
   /// Factory constructor for creating a new `Point`  instance
-  factory CoordinatesModel.fromJson(Map<String, dynamic> json) => CoordinatesModel(
+  factory CoordinatesModel.fromJson(List<dynamic> json) => CoordinatesModel(
         lat: _latFromJson(json),
         lon: _lonFromJson(json),
         alt: _altFromJson(json),

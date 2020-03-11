@@ -45,6 +45,7 @@ import 'package:sarsys_domain/src/core/models/models.dart';
 class TrackingService extends MessageHandler<DomainEvent> {
   static const String ID = 'id';
   static const String UUID = 'uuid';
+  static const String TYPE = 'type';
   static const String SPEED = 'speed';
   static const String EFFORT = 'effort';
   static const String DISTANCE = 'distance';
@@ -52,6 +53,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
   static const String TRACKS = 'tracks';
   static const String SOURCE = 'source';
   static const String SOURCES = 'sources';
+  static const String HISTORY = 'history';
   static const String ATTACHED = 'attached';
   static const String DETACHED = 'detached';
   static const String POSITION = 'position';
@@ -184,7 +186,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
 
   /// If [PositionEvent.source] belongs to a track managed by this
   /// [TrackingService] new position is added to attached track
-  /// and a new [Tracking.position] is calculated based on current
+  /// and a new [Tracking.point] is calculated based on current
   /// aggregation parameters.
   void _onSourcePositionChanged(PositionEvent event) async {
     final suuid = repository.toAggregateUuid(event);
@@ -200,15 +202,21 @@ class TrackingService extends MessageHandler<DomainEvent> {
       TrackingModel.fromJson(repository.get(uuid).data),
       repository.toAggregateUuid(event),
     );
-    track.positions.add(PositionModel.fromJson(event.position));
+    if (track != null) {
+      final positions = track.positions ?? [];
+      positions.add(PositionModel.fromJson(event.value));
 
-    final events = await _updateTrack(uuid, track.toJson());
-    if (events.isNotEmpty) {
-      _addToStream(
-        event,
-        'Added ${event.source} position to track ${track.id} in tracking $uuid',
+      final events = await _updateTrack(
+        uuid,
+        track.cloneWith(positions: positions).toJson(),
       );
-      await _aggregate(uuid);
+      if (events?.isNotEmpty == true) {
+        _addToStream(
+          [event, ...events],
+          'Added ${event.source} position to track ${track.id} in tracking $uuid',
+        );
+        await _aggregate(uuid);
+      }
     }
   }
 
@@ -224,7 +232,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
 
       // Only add tracking history if position has changed
       if (tracking.position != next) {
-        final history = List.from(tracking.history)..add(next);
+        final history = List<PositionModel>.from(tracking.history ?? [])..add(next);
         final effort = asEffort(history);
         final distance = asDistance(
           history,
@@ -234,13 +242,14 @@ class TrackingService extends MessageHandler<DomainEvent> {
         final events = await _updateTrackingInformation({
           UUID: uuid,
           SPEED: speed,
-          POSITION: next,
           DISTANCE: distance,
           EFFORT: effort?.inMicroseconds,
+          POSITION: next.toJson(),
+          HISTORY: history.map((position) => position.toJson()).toList(),
         });
         logger.fine('Aggregated position for Tracking $uuid');
         if (events.isNotEmpty) {
-          _addToStream(events.first, 'Updated tracking $uuid position');
+          _addToStream(events, 'Updated tracking $uuid position');
         }
       }
     }
@@ -360,30 +369,27 @@ class TrackingService extends MessageHandler<DomainEvent> {
     Map<String, dynamic> positions,
     String status,
   }) async {
-    var track;
     final tracking = repository.get(uuid);
     final tracks = tracking.asEntityArray(TRACKS);
     final exists = tracks.contains(id);
     final command = exists
         ? _updateTrack(
             uuid,
-            track = tracks.elementAt(id).data
+            tracks.elementAt(id).data
               ..addAll({
                 if (status != null) STATUS: status,
                 if (positions != null) POSITIONS: positions,
               }))
-        : _addTrack(
-            uuid,
-            track = {
-              SOURCE: source,
-              STATUS: status ??= ATTACHED,
-              if (positions != null) POSITIONS: positions,
-            });
+        : _addTrack(uuid, {
+            SOURCE: source,
+            STATUS: status ??= ATTACHED,
+            if (positions != null) POSITIONS: positions,
+          });
     final events = await command;
     if (events.isNotEmpty) {
       _addToStream(
-        events.first,
-        '${exists ? 'Updated' : 'Added'} track ${track['status']} source ${source[UUID]}',
+        events,
+        '${exists ? 'Detached track from' : 'Attached track to'} ${source[TYPE]} ${source[UUID]}',
       );
     }
     return events;
@@ -413,9 +419,9 @@ class TrackingService extends MessageHandler<DomainEvent> {
 
   String _deriveTrackingStatus(Map<String, dynamic> tracking, current) {
     final hasSource = (tracking.elementAt(SOURCES) as List).isNotEmpty;
-    final next = ['none', 'created'].contains(current)
+    final next = ['created'].contains(current)
         ? (hasSource ? 'tracking' : 'created')
-        : (hasSource ? 'tracking' : ('cracking' == current ? current : 'paused'));
+        : (hasSource ? 'tracking' : (['closed'].contains(current) ? current : 'paused'));
     return next;
   }
 
@@ -431,7 +437,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
         }));
         if (events.isNotEmpty) {
           _addToStream(
-            events.first,
+            events,
             'Updated tracking $uuid status to $next',
           );
         }
@@ -440,7 +446,6 @@ class TrackingService extends MessageHandler<DomainEvent> {
       logger.severe(
         'Failed to update tracking $uuid status: $e, stacktrace: $stackTrace',
       );
-      return null;
     }
   }
 
@@ -469,12 +474,11 @@ class TrackingService extends MessageHandler<DomainEvent> {
   Future _ensureManaged(DomainEvent event) async {
     final uuid = repository.toAggregateUuid(event);
     if (event is TrackingCreated) {
-      _addToStream(event, 'Analysing source mappings for tracking $uuid');
+      _addToStream([event], 'Analysing source mappings for tracking $uuid');
       return _addSources(repository, uuid);
     } else if (event is TrackingSourceAdded) {
       if (_addSource(event.sourceUuid, uuid)) {
-        await _updateTrackingStatus(uuid);
-        _addToStream(event, 'Looking for other active tracks attached to ${event.sourceUuid}');
+        _addToStream([event], 'Looking for other active tracks attached to ${event.sourceType} ${event.sourceUuid}');
         final other = _findTrackManagedByOthers(uuid, event.sourceUuid);
         await _ensureTrack(
           uuid,
@@ -484,6 +488,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
           status: ATTACHED,
         );
         await _aggregate(uuid);
+        await _updateTrackingStatus(uuid);
       }
     }
   }
@@ -527,12 +532,13 @@ class TrackingService extends MessageHandler<DomainEvent> {
   /// Append tracking uuid to list of tracking uuids for given source
   ///
   /// Returns true if number of tracking uuids changed
-  bool _addSource(
-    String source,
-    String tracking,
-  ) =>
-      (_sources[source]?.length ?? 0) <
-      _sources.update(source, (uuids) => uuids..add(tracking), ifAbsent: () => {tracking}).length;
+  bool _addSource(String source, String tracking) {
+    //
+    // TODO: Identify circular reference (will produce reentrant code)
+
+    final length = _sources[source]?.length ?? 0;
+    return length < _sources.update(source, (uuids) => uuids..add(tracking), ifAbsent: () => {tracking}).length;
+  }
 
   Future _ensureDetached(DomainEvent event) async {
     if (event is TrackingSourceAdded || event is TrackingSourceRemoved) {
@@ -540,6 +546,10 @@ class TrackingService extends MessageHandler<DomainEvent> {
       final source = (event as TrackingSourceEvent).sourceUuid;
       final track = _findTrackManagedByMe(uuid, source);
       if (track != null) {
+        _addToStream(
+          [event],
+          'Detaching track ${track.id} from source ${track.source.uuid}',
+        );
         final events = await _ensureTrack(
           uuid,
           track.id,
@@ -547,18 +557,17 @@ class TrackingService extends MessageHandler<DomainEvent> {
           status: DETACHED,
         );
         if (events.isNotEmpty) {
-          _addToStream(
-            event,
-            'Detached track ${track.id} from source ${track.source.uuid}',
-          );
+          await _updateTrackingStatus(uuid);
         }
       }
     }
   }
 
-  void _addToStream(DomainEvent event, String message) {
-    _streamController.add(event);
-    logger.info('Processed ${event.type}: $message');
+  void _addToStream(List<DomainEvent> events, String message) {
+    events.forEach((event) {
+      _streamController.add(event);
+      logger.info('Processed ${event.type}: $message');
+    });
   }
 
   /// Process [TrackingCreated] events fetched from persistent subscription
