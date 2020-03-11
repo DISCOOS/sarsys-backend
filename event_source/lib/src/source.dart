@@ -778,21 +778,22 @@ class SubscriptionController<T extends Repository> {
     if (!repository.store.connection.closed) {
       _timer ??= Timer(
         Duration(milliseconds: toNextReconnectMillis()),
-        () {
+        () async {
           _timer.cancel();
           _timer = null;
           logger.info(
-            '${repository.runtimeType}: $runtimeType is reconnecting to stream ${repository.store.canonicalStream}',
+            '${repository.runtimeType}: SubscriptionController is '
+            'reconnecting to stream ${repository.store.canonicalStream}',
           );
           if (_competing) {
-            repository.store.compete(
+            await repository.store.compete(
               repository,
               consume: _consume,
               strategy: _strategy,
               maxBackoffTime: maxBackoffTime,
             );
           } else {
-            repository.store.subscribe(
+            await repository.store.subscribe(
               repository,
               maxBackoffTime: maxBackoffTime,
             );
@@ -1099,65 +1100,19 @@ class EventStoreConnection {
     EventNumber number = EventNumber.last,
     Duration waitFor = const Duration(milliseconds: 1500),
     Duration pullEvery = const Duration(milliseconds: 500),
-  }) async* {
+  }) {
     _assertState();
-    var current = number;
 
-    // Catch-up subscription?
-    if (false == current.isLast) {
-      _logger.fine('Stream $stream catch up from event number $current');
-      FeedResult feed;
-      do {
-        feed = await getFeed(
-          stream: stream,
-          number: current,
-          direction: Direction.forward,
-        );
-        if (feed.isOK) {
-          final result = await readEventsInFeed(feed);
-          if (result.isOK) {
-            for (var e in result.events) {
-              yield e;
-            }
-            current = result.number + 1;
-          }
-        }
-      } while (feed.isOK && !feed.atomFeed.headOfStream);
+    var controller = _SubscriptionController(
+      this,
+    );
 
-      if (number < current) {
-        _logger.fine('Stream $stream caught up from $number to $current');
-      }
-    }
-
-    _logger.fine('Listen for events in $stream starting from number $current');
-
-    // Continues until StreamSubscription.cancel() is invoked
-    await for (var request in Stream.periodic(
-      pullEvery,
-      (_) => getFeed(
-        stream: stream,
-        number: current,
-        direction: Direction.forward,
-        waitFor: waitFor,
-      ),
-    )) {
-      final feed = await request;
-      if (feed.isOK) {
-        final result = await readEventsInFeed(feed);
-        if (result.isOK) {
-          for (var e in result.events) {
-            yield e;
-          }
-          final next = result.number + 1;
-          _logger.fine('Stream $stream caught up to event $current, listening for $next');
-          current = next;
-        } else if (!result.isNotFound) {
-          throw SubscriptionFailed(
-            'Failed to read head of stream $stream: ${result.statusCode} ${result.reasonPhrase}',
-          );
-        }
-      }
-    }
+    return controller.pull(
+      stream: stream,
+      number: number,
+      waitFor: waitFor,
+      pullEvery: pullEvery,
+    );
   }
 
   /// Compete for [SourceEvent]s from given [stream]
@@ -1169,94 +1124,22 @@ class EventStoreConnection {
     EventNumber number = EventNumber.last,
     ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
     Duration pullEvery = const Duration(milliseconds: 500),
-  }) async* {
+  }) {
     _assertState();
-    var current = number;
 
-    // Catch-up subscription?
-    if (false == current.isLast) {
-      _logger.fine('Stream $stream catch up from event number $current');
-      FeedResult feed;
-      do {
-        feed = await getSubscriptionFeed(
-          stream: stream,
-          group: group,
-          number: current,
-          consume: consume,
-        );
-        if (feed.isOK) {
-          final result = await readEventsInFeed(feed);
-          if (result.isOK) {
-            if (accept) {
-              await _acceptEvents(
-                stream,
-                group,
-                result,
-              );
-            }
-            for (var e in result.events) {
-              yield e;
-            }
-            current = result.number + 1;
-          }
-        }
-      } while (feed.isOK && !feed.atomFeed.headOfStream);
+    var controller = _SubscriptionController(
+      this,
+    );
 
-      if (number < current) {
-        _logger.fine('Subscription $stream/$group caught up from $number to $current');
-      }
-    }
-
-    _logger.fine('Listen for events in subscription $stream/$group starting from number $current');
-
-    // Continues until StreamSubscription.cancel() is invoked
-    await for (var request in Stream.periodic(
-      pullEvery,
-      (_) => getSubscriptionFeed(
-        stream: stream,
-        group: group,
-        number: current,
-        consume: consume,
-      ),
-    )) {
-      final feed = await request;
-      if (feed.isOK) {
-        final result = await readEventsInFeed(feed);
-        if (result.isOK) {
-          if (accept) {
-            await _acceptEvents(
-              stream,
-              group,
-              result,
-            );
-          }
-          for (var e in result.events) {
-            yield e;
-          }
-          final next = result.number + 1;
-          _logger.fine('Subscription $stream/$group caught up to event $current, listening for $next');
-          current = next;
-        } else if (!result.isNotFound) {
-          throw SubscriptionFailed(
-            'Failed to read head of subscription $stream/$group: ${result.statusCode} ${result.reasonPhrase}',
-          );
-        }
-      }
-    }
-  }
-
-  Future _acceptEvents(String stream, String group, ReadResult result) async {
-    final answer = await writeSubscriptionAck(
+    return controller.consume(
       stream: stream,
       group: group,
-      events: result.events,
+      accept: accept,
+      number: number,
+      pageSize: consume,
+      strategy: strategy,
+      pullEvery: pullEvery,
     );
-    if (answer.isAccepted == false) {
-      throw SubscriptionFailed(
-        'Failed to accept ${result.events.length} events in $stream/$group: '
-        '${answer.statusCode} ${answer.reasonPhrase}',
-      );
-    }
   }
 
   /// Get feed for persistent subscription group.
@@ -1522,4 +1405,207 @@ enum SubscriptionAction {
 //
 //  /// Stop the subscription for all consumers
 //  Stop
+}
+
+class _SubscriptionController {
+  _SubscriptionController(this.connection) : logger = connection._logger;
+
+  final Logger logger;
+  final EventStoreConnection connection;
+
+  int _pageSize;
+  int get pageSize => _pageSize;
+
+  String _stream;
+  String get stream => _stream;
+
+  String _group;
+  String get group => _group;
+
+  Duration _waitFor;
+  Duration get waitFor => _waitFor;
+
+  Duration _pullEvery;
+  Duration get pullEvery => _pullEvery;
+
+  EventNumber _number;
+  EventNumber get number => _number;
+
+  bool _accept;
+  bool get accept => _accept;
+
+  EventNumber _current;
+  EventNumber get current => _current;
+
+  ConsumerStrategy _strategy;
+  ConsumerStrategy get strategy => _strategy;
+
+  StreamController<SourceEvent> _controller;
+  StreamController<SourceEvent> get controller => _controller;
+
+  Timer _timer;
+
+  bool _isCatchup;
+
+  Stream<SourceEvent> pull({
+    @required String stream,
+    EventNumber number = EventNumber.last,
+    Duration waitFor = const Duration(milliseconds: 500),
+    Duration pullEvery = const Duration(milliseconds: 500),
+  }) {
+    // Setup
+    _accept = false;
+    _stream = stream;
+    _number = number;
+    _current = number;
+    _waitFor = waitFor;
+    _pullEvery = pullEvery;
+
+    // catchup before consuming from head of stream?
+    _isCatchup = false == number.isLast;
+
+    _controller ??= StreamController<SourceEvent>(
+      onListen: startTimer,
+      onPause: stopTimer,
+      onResume: startTimer,
+      onCancel: stopTimer,
+    );
+
+    return controller.stream;
+  }
+
+  Stream<SourceEvent> consume({
+    @required String stream,
+    @required String group,
+    int pageSize = 20,
+    bool accept = true,
+    EventNumber number = EventNumber.last,
+    ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
+    Duration pullEvery = const Duration(milliseconds: 500),
+  }) {
+    // Setup
+    _group = group;
+    _stream = stream;
+    _accept = accept;
+    _number = number;
+    _current = number;
+    _strategy = strategy;
+    _pageSize = pageSize;
+    _pullEvery = pullEvery;
+
+    // catchup before consuming from head of stream?
+    _isCatchup = false == number.isLast;
+
+    _controller ??= StreamController<SourceEvent>(
+      onListen: startTimer,
+      onPause: stopTimer,
+      onResume: startTimer,
+      onCancel: stopTimer,
+    );
+
+    return controller.stream;
+  }
+
+  void startTimer() async {
+    if (_isCatchup) {
+      _current = await _catchup(controller);
+      _isCatchup = false;
+    }
+    _timer = Timer.periodic(pullEvery, readNext);
+    logger.fine(
+      'Listen for events in subscription $name starting from number $_current',
+    );
+  }
+
+  void stopTimer() {
+    if (_timer != null) {
+      _timer.cancel();
+      _timer = null;
+    }
+  }
+
+  Future<EventNumber> _catchup(StreamController<SourceEvent> controller) async {
+    logger.fine(
+      'Stream $stream catch up from event number $_current',
+    );
+    FeedResult feed;
+    do {
+      feed = await _nextFeed();
+      if (feed.isOK) {
+        final result = await connection.readEventsInFeed(feed);
+        if (result.isOK) {
+          if (accept) {
+            await _acceptEvents(result);
+          }
+          result.events.forEach(
+            controller.add,
+          );
+          _current = result.number + 1;
+        }
+      }
+    } while (feed.isOK && !feed.atomFeed.headOfStream);
+
+    if (number < _current) {
+      logger.fine(
+        'Subscription $name caught up from $number to $_current',
+      );
+    }
+    return _current;
+  }
+
+  String get name => [stream, group].join('/');
+
+  void readNext(_) async {
+    final feed = await _nextFeed();
+
+    if (feed.isOK) {
+      final result = await connection.readEventsInFeed(feed);
+      if (result.isOK) {
+        if (accept) {
+          await _acceptEvents(result);
+        }
+        result.events.forEach(
+          controller.add,
+        );
+        final next = result.number + 1;
+        logger.fine(
+          'Subscription $name caught up to event $_current, listening for $next',
+        );
+        _current = next;
+      } else if (!result.isNotFound) {
+        throw SubscriptionFailed(
+          'Failed to read head of subscription $name: ${result.statusCode} ${result.reasonPhrase}',
+        );
+      }
+    }
+  }
+
+  Future<FeedResult> _nextFeed() => strategy == ConsumerStrategy.RoundRobin
+      ? connection.getSubscriptionFeed(
+          stream: stream,
+          group: group,
+          number: current,
+          consume: pageSize,
+          strategy: strategy,
+        )
+      : connection.getFeed(
+          stream: stream,
+          number: current,
+          direction: Direction.forward,
+          waitFor: waitFor,
+        );
+
+  Future _acceptEvents(ReadResult result) async {
+    final answer = await connection.writeSubscriptionAck(
+      stream: stream,
+      group: group,
+      events: result.events,
+    );
+    if (answer.isAccepted == false) {
+      throw SubscriptionFailed(
+        'Failed to accept ${result.events.length} events in $name: '
+        '${answer.statusCode} ${answer.reasonPhrase}',
+      );
+    }
+  }
 }
