@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart';
 import 'package:event_source/event_source.dart';
+import 'package:sarsys_app_server/controllers/domain/position_controller.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/controllers/messages.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
@@ -228,6 +229,10 @@ class SarSysAppServerChannel extends ApplicationChannel {
             requestValidator,
           ))
       ..route('/api/devices[/:uuid]').link(() => DeviceController(
+            manager.get<DeviceRepository>(),
+            requestValidator,
+          ))
+      ..route('/api/devices/:uuid/position').link(() => DevicePositionController(
             manager.get<DeviceRepository>(),
             requestValidator,
           ))
@@ -565,6 +570,11 @@ class SarSysAppServerChannel extends ApplicationChannel {
     );
 
   void documentSchemas(APIDocumentContext context) => context.schema
+    ..register('AggregateResponse', documentAggregateResponse(context))
+    ..register('EntityResponse', documentEntityResponse(context))
+    ..register('EntityPageResponse', documentEntityPageResponse(context))
+    ..register('ValueResponse', documentValueResponse(context))
+    ..register('AggregateRootRef', documentAggregateRef(context))
     ..register('ID', documentID())
     ..register('UUID', documentUUID())
     ..register('PassCodes', documentPassCodes())

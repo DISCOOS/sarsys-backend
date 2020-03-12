@@ -58,7 +58,9 @@ class AggregateLookupController<T extends AggregateRoot> extends ResourceControl
   bool _exists(String uuid, AggregateRoot parent) {
     final test = foreign.contains(uuid);
     if (!test) {
-      logger.fine("${typeOf<T>()}{${foreign.uuidFieldName}: $uuid} not found in aggregate list '$field' in $parent");
+      logger.fine(
+        "${typeOf<T>()}{${foreign.uuidFieldName}: $uuid} not found in aggregate list '$field' in $parent",
+      );
     }
     return test;
   }

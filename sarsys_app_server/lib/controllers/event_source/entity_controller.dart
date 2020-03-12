@@ -1,4 +1,5 @@
 import 'package:event_source/event_source.dart';
+import 'package:sarsys_app_server/controllers/domain/schemas.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 import 'package:strings/strings.dart';
@@ -49,7 +50,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       if (!repository.contains(uuid)) {
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
-      return okEntities<T>(
+      return okEntityPaged<T>(
         uuid,
         entityType,
         List<Map<String, dynamic>>.from(repository.get(uuid).data[aggregateField] as List<dynamic>),
@@ -78,7 +79,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       if (!array.contains(id)) {
         return Response.notFound(body: "Entity $id not found");
       }
-      return okEntity<T>(
+      return okEntityObject<T>(
         uuid,
         entityType,
         array[id].data,
@@ -103,7 +104,9 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       }
       final aggregate = repository.get(uuid);
       await repository.execute(onCreate(uuid, entityType, validate(entityType, data)));
-      return Response.created("${toLocation(request)}/${data[entityIdFieldName ?? aggregate.entityIdFieldName]}");
+      return Response.created(
+        "${toLocation(request)}/${data[entityIdFieldName ?? aggregate.entityIdFieldName]}",
+      );
     } on EntityExists catch (e) {
       return Response.conflict(body: e.message);
     } on InvalidOperation catch (e) {
@@ -131,7 +134,9 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       }
       final aggregate = repository.get(uuid);
       data[entityIdFieldName ?? aggregate.entityIdFieldName] = id;
-      final events = await repository.execute(onUpdate(uuid, entityType, validate(entityType, data, isPatch: true)));
+      final events = await repository.execute(
+        onUpdate(uuid, entityType, validate(entityType, data, isPatch: true)),
+      );
       return events.isEmpty ? Response.noContent() : Response.noContent();
     } on EntityExists catch (e) {
       return Response.conflict(body: e.message);
@@ -233,14 +238,14 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       case "POST":
         return APIRequestBody.schema(
           context.schema[entityType],
-          description: "New $entityType",
+          description: "New $entityType Request",
           required: true,
         );
         break;
       case "PATCH":
         return APIRequestBody.schema(
           context.schema[entityType],
-          description: "Update $entityType. Only fields in request are updated.",
+          description: "Update $entityType Request. Only fields in request are updated.",
           required: true,
         );
         break;
@@ -261,12 +266,15 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
           responses.addAll({
             "200": APIResponse.schema(
               "Successful response.",
-              APISchemaObject.array(ofSchema: context.schema[entityType]),
+              documentEntityPageResponse(context, type: entityType),
             )
           });
         } else {
           responses.addAll({
-            "200": APIResponse.schema("Successful response", context.schema[entityType]),
+            "200": APIResponse.schema(
+              "Successful response",
+              documentEntityResponse(context, type: entityType),
+            ),
           });
         }
         break;
@@ -320,10 +328,10 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
   }
 
   Map<String, APISchemaObject> _documentSchemaObjects(APIDocumentContext context) => {
-        entityType: documentEntityObject(context),
+        entityType: documentEntityObject(context)..description = "$entityType Response",
       }..addAll(documentEntities(context));
 
-  APISchemaObject documentEntityObject(APIDocumentContext context);
+  APISchemaObject documentEntityObject(APIDocumentContext context) => context.schema[entityType];
 
   Map<String, APISchemaObject> documentEntities(APIDocumentContext context) => {};
 }

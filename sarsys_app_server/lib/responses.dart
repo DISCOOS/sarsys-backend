@@ -31,7 +31,7 @@ Response okAggregatePaged(int count, int offset, int limit, List<AggregateRoot> 
       "entries": aggregates.map(toAggregateData).toList() ?? [],
     });
 
-Response okEntities<T extends AggregateRoot>(
+Response okEntityPaged<T extends AggregateRoot>(
   String uuid,
   String entity,
   List<Map<String, dynamic>> entities,
@@ -42,18 +42,34 @@ Response okEntities<T extends AggregateRoot>(
   });
 }
 
-Response okEntity<T extends AggregateRoot>(
+Response okEntityObject<T extends AggregateRoot>(
   String uuid,
   String entity,
   Map<String, dynamic> data,
 ) =>
     Response.ok(toEntityData<T>(uuid, entity, data));
 
-Map<String, dynamic> toEntityData<T extends AggregateRoot>(String uuid, String entity, Map<String, dynamic> data) => {
+Map<String, dynamic> toEntityData<T extends AggregateRoot>(String uuid, String type, Map<String, dynamic> data) => {
       "aggregate": {
         "type": "${typeOf<T>()}",
         "uuid": uuid,
       },
-      "type": entity,
+      "type": type,
+      "data": data,
+    };
+
+Response okValueObject<T extends AggregateRoot>(
+  String uuid,
+  String type,
+  Map<String, dynamic> data,
+) =>
+    Response.ok(toValueData<T>(uuid, type, data));
+
+Map<String, dynamic> toValueData<T extends AggregateRoot>(String uuid, String type, Map<String, dynamic> data) => {
+      "aggregate": {
+        "type": "${typeOf<T>()}",
+        "uuid": uuid,
+      },
+      "type": type,
       "data": data,
     };

@@ -1,4 +1,5 @@
 import 'package:event_source/event_source.dart';
+import 'package:sarsys_app_server/controllers/domain/schemas.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 
@@ -77,7 +78,9 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   Future<Response> create(@Bind.body() Map<String, dynamic> data) async {
     try {
       await repository.execute(onCreate(validate("$aggregateType", data)));
-      return Response.created("${toLocation(request)}/${data[repository.uuidFieldName]}");
+      return Response.created(
+        "${toLocation(request)}/${data[repository.uuidFieldName]}",
+      );
     } on AggregateExists catch (e) {
       return Response.conflict(body: e.message);
     } on UUIDIsNull {
@@ -102,7 +105,9 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
       data[repository.uuidFieldName] = uuid;
-      final events = await repository.execute(onUpdate(validate("$aggregateType", data, isPatch: true)));
+      final events = await repository.execute(
+        onUpdate(validate("$aggregateType", data, isPatch: true)),
+      );
       return events.isEmpty ? Response.noContent() : Response.noContent();
     } on AggregateNotFound catch (e) {
       return Response.notFound(body: e.message);
@@ -202,14 +207,14 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       case "POST":
         return APIRequestBody.schema(
           context.schema["$aggregateType"],
-          description: "New $aggregateType",
+          description: "New $aggregateType Request",
           required: true,
         );
         break;
       case "PATCH":
         return APIRequestBody.schema(
           context.schema["$aggregateType"],
-          description: "Update $aggregateType. Only fields in request are updated.",
+          description: "Update $aggregateType Request. Only fields in request are updated.",
           required: true,
         );
         break;
@@ -230,12 +235,15 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
           responses.addAll({
             "200": APIResponse.schema(
               "Successful response.",
-              APISchemaObject.array(ofSchema: context.schema["$aggregateType"]),
+              documentAggregatePageResponse(context, type: "$aggregateType"),
             )
           });
         } else {
           responses.addAll({
-            "200": APIResponse.schema("Successful response", context.schema["$aggregateType"]),
+            "200": APIResponse.schema(
+              "Successful response",
+              documentAggregateResponse(context, type: "$aggregateType"),
+            ),
           });
         }
         break;

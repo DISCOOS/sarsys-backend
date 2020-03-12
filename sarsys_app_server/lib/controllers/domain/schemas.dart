@@ -21,6 +21,135 @@ APISchemaObject documentPassCodes() => APISchemaObject.object(
       ];
 
 //////////////////////////////////
+// Core documentation
+//////////////////////////////////
+
+APISchemaObject documentAggregateRef(APIDocumentContext context) => APISchemaObject.object({
+      "type": APISchemaObject.string()
+        ..description = "Aggregate Root Type"
+        ..isReadOnly = true,
+      "uuid": documentUUID()
+        ..description = "Aggregate Root UUID"
+        ..isReadOnly = true,
+    })
+      ..description = "Aggregate Root Reference"
+      ..isReadOnly = true;
+
+//////////////////////////////////
+// Response documentation
+//////////////////////////////////
+
+APISchemaObject documentAggregatePageResponse(
+  APIDocumentContext context, {
+  String type,
+}) =>
+    APISchemaObject.object({
+      "total": APISchemaObject.integer()
+        ..description = "Number of aggregates"
+        ..isReadOnly = true,
+      "offset": APISchemaObject.integer()
+        ..description = "Aggregate Page offset"
+        ..isReadOnly = true,
+      "limit": APISchemaObject.integer()
+        ..description = "Aggregate Page size"
+        ..isReadOnly = true,
+      "next": APISchemaObject.integer()
+        ..description = "Next Aggregate Page offset"
+        ..isReadOnly = true,
+      "entries": APISchemaObject.array(
+        ofSchema: documentAggregateResponse(context, type: type),
+      )
+        ..description = "Array of ${type == null ? "Entity Object" : type}s"
+        ..isReadOnly = true,
+    })
+      ..description = "Entities Response"
+      ..isReadOnly = true;
+
+APISchemaObject documentAggregateResponse(
+  APIDocumentContext context, {
+  String type,
+}) =>
+    APISchemaObject.object({
+      "type": APISchemaObject.string()
+        ..description = "${type == null ? "Aggregate Root" : type} Type"
+        ..defaultValue = type
+        ..isReadOnly = true,
+      "created": APISchemaObject.string()
+        ..description = "When Aggregate was created"
+        ..format = 'date-time'
+        ..isReadOnly = true,
+      "changed": APISchemaObject.string()
+        ..description = "When Aggregate was created"
+        ..format = 'date-time'
+        ..isReadOnly = true,
+      "deleted": APISchemaObject.string()
+        ..description = "When Aggregate was created"
+        ..format = 'date-time'
+        ..isReadOnly = true,
+      "data": type != null ? context.schema[type] : APISchemaObject.freeForm()
+        ..description = "${type == null ? "Aggregate Root" : type}  Data"
+        ..isReadOnly = true,
+    })
+      ..description = "${type == null ? "Aggregate Root" : type} Response"
+      ..isReadOnly = true;
+
+APISchemaObject documentEntityPageResponse(
+  APIDocumentContext context, {
+  String type,
+}) =>
+    APISchemaObject.object({
+      "aggregate": context.schema["AggregateRootRef"],
+      "type": APISchemaObject.string()
+        ..description = "Entity Object Type"
+        ..defaultValue = type
+        ..isReadOnly = true,
+      "total": APISchemaObject.integer()
+        ..description = "Number of entities"
+        ..isReadOnly = true,
+      "entries": APISchemaObject.array(
+        ofSchema: type == null ? APISchemaObject.freeForm() : context.schema[type],
+      )
+        ..description = "Array of ${type == null ? "Entity Object" : type}s"
+        ..isReadOnly = true,
+    })
+      ..description = "Entities Response"
+      ..isReadOnly = true;
+
+APISchemaObject documentEntityResponse(
+  APIDocumentContext context, {
+  String type,
+}) =>
+    APISchemaObject.object({
+      "aggregate": context.schema["AggregateRootRef"],
+      "type": APISchemaObject.string()
+        ..description = "${type == null ? "Entity Object" : type} Type"
+        ..defaultValue = type
+        ..isReadOnly = true,
+      "data": type != null ? context.schema[type] : APISchemaObject.freeForm()
+        ..description = "${type == null ? "Entity Object" : type}  Data"
+        ..isReadOnly = true,
+    })
+      ..description = "${type == null ? "Entity Object" : type} Response"
+      ..isReadOnly = true;
+
+APISchemaObject documentValueResponse(
+  APIDocumentContext context, {
+  String type,
+}) =>
+    APISchemaObject.object({
+      "aggregate": context.schema["AggregateRootRef"],
+      "type": APISchemaObject.string()
+        ..description = "${type == null ? "Value Object" : type} Type"
+        ..defaultValue = type
+        ..isReadOnly = true,
+      "data": type != null ? context.schema[type] : APISchemaObject.freeForm()
+        ..description = "${type == null ? "Value Object" : type}  Data"
+        ..isReadOnly = true,
+    })
+      ..description = "Value Object Response"
+      ..isReadOnly = true;
+
+//////////////////////////////////
 // GeoJSON documentation
 //////////////////////////////////
 
