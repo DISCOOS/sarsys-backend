@@ -16,8 +16,8 @@ Future main() async {
     final uuid = Uuid().v4();
     final device = _createData(uuid);
     expectResponse(await harness.agent.post("/api/devices", body: device), 201, body: null);
-    final clue = createMessage('1');
-    expectResponse(await harness.agent.post("/api/devices/$uuid/messages", body: clue), 201, body: null);
+    final message = createMessage('1');
+    expectResponse(await harness.agent.post("/api/devices/$uuid/messages", body: message), 201, body: null);
   });
 
   test("GET /api/devices/{uuid}/messages returns status code 200", () async {
@@ -26,10 +26,10 @@ Future main() async {
     final uuid = Uuid().v4();
     final device = _createData(uuid);
     expectResponse(await harness.agent.post("/api/devices", body: device), 201, body: null);
-    final clue1 = createMessage('1');
-    expectResponse(await harness.agent.post("/api/devices/$uuid/messages", body: clue1), 201, body: null);
-    final clue2 = createMessage('2');
-    expectResponse(await harness.agent.post("/api/devices/$uuid/messages", body: clue2), 201, body: null);
+    final message1 = createMessage('1');
+    expectResponse(await harness.agent.post("/api/devices/$uuid/messages", body: message1), 201, body: null);
+    final message2 = createMessage('2');
+    expectResponse(await harness.agent.post("/api/devices/$uuid/messages", body: message2), 201, body: null);
     final response = expectResponse(await harness.agent.get("/api/devices/$uuid/messages"), 200);
     final actual = await response.body.decode();
     expect(actual['total'], equals(2));
@@ -42,16 +42,16 @@ Future main() async {
     final uuid = Uuid().v4();
     final device = _createData(uuid);
     expectResponse(await harness.agent.post("/api/devices", body: device), 201, body: null);
-    final clue1 = createMessage('1');
-    expectResponse(await harness.agent.post("/api/devices/$uuid/messages", body: clue1), 201, body: null);
+    final message1 = createMessage('1');
+    expectResponse(await harness.agent.post("/api/devices/$uuid/messages", body: message1), 201, body: null);
     final response1 = expectResponse(await harness.agent.get("/api/devices/$uuid/messages/1"), 200);
     final actual1 = await response1.body.decode();
-    expect(actual1['data'], equals(clue1));
-    final clue2 = createMessage('2');
-    expectResponse(await harness.agent.post("/api/devices/$uuid/messages", body: clue2), 201, body: null);
+    expect(actual1['data'], equals(message1));
+    final message2 = createMessage('2');
+    expectResponse(await harness.agent.post("/api/devices/$uuid/messages", body: message2), 201, body: null);
     final response2 = expectResponse(await harness.agent.get("/api/devices/$uuid/messages/2"), 200);
     final actual2 = await response2.body.decode();
-    expect(actual2['data'], equals(clue2));
+    expect(actual2['data'], equals(message2));
   });
 
   test("PATCH /api/devices/{uuid}/messages/{id} is idempotent", () async {
@@ -60,15 +60,16 @@ Future main() async {
     final uuid = Uuid().v4();
     final device = _createData(uuid);
     expectResponse(await harness.agent.post("/api/devices", body: device), 201, body: null);
-    final clue = createMessage('1');
-    expectResponse(await harness.agent.post("/api/devices/$uuid/messages", body: clue), 201, body: null);
-    expectResponse(await harness.agent.execute("PATCH", "/api/devices/$uuid/messages/1", body: clue), 204, body: null);
+    final message = createMessage('1');
+    expectResponse(await harness.agent.post("/api/devices/$uuid/messages", body: message), 201, body: null);
+    expectResponse(await harness.agent.execute("PATCH", "/api/devices/$uuid/messages/1", body: message), 204,
+        body: null);
     final response1 = expectResponse(await harness.agent.get("/api/devices/$uuid"), 200);
     final actual1 = await response1.body.decode();
-    expect((actual1['data'] as Map)['messages'], equals([clue]));
+    expect((actual1['data'] as Map)['messages'], equals([message]));
     final response2 = expectResponse(await harness.agent.get("/api/devices/$uuid/messages/1"), 200);
     final actual2 = await response2.body.decode();
-    expect(actual2['data'], equals(clue));
+    expect(actual2['data'], equals(message));
   });
 
   test("PATCH /api/devices/{uuid} on entity object lists should not be allowed", () async {
@@ -92,8 +93,8 @@ Future main() async {
     final uuid = Uuid().v4();
     final device = _createData(uuid);
     expectResponse(await harness.agent.post("/api/devices", body: device), 201, body: null);
-    final clue = createMessage('1');
-    expectResponse(await harness.agent.post("/api/devices/$uuid/messages", body: clue), 201, body: null);
+    final message = createMessage('1');
+    expectResponse(await harness.agent.post("/api/devices/$uuid/messages", body: message), 201, body: null);
     expectResponse(await harness.agent.delete("/api/devices/$uuid"), 204);
   });
 }

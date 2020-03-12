@@ -25,10 +25,10 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   final List<String> readOnly;
 
   @override
-  final List<Validator> validators;
+  final JsonValidation validation;
 
   @override
-  final JsonValidation validation;
+  final List<Validator> validators;
 
   Type get aggregateType => typeOf<T>();
 

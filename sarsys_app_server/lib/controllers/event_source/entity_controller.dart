@@ -15,8 +15,9 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     this.aggregateField, {
     this.validation,
     this.tag,
-    this.readOnly = const [],
     this.entityIdFieldName,
+    this.readOnly = const [],
+    this.validators = const [],
   });
   final String tag;
   final String entityType;
@@ -32,6 +33,9 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
 
   @override
   final JsonValidation validation;
+
+  @override
+  final List<Validator> validators;
 
   @override
   FutureOr<RequestOrResponse> willProcessRequest(Request req) => repository.ready

@@ -127,17 +127,19 @@ class ReadOnlyValidator extends Validator {
 }
 
 class ValueValidator extends Validator {
-  ValueValidator(this.path, this.values, {this.required = true});
+  ValueValidator(this.path, this.allowed, {this.required = true});
   final String path;
   final bool required;
-  final List<dynamic> values;
+  final List<dynamic> allowed;
 
   @override
   List<ValidationError> call(String type, dynamic data, JsonValidation validation, {bool isPatch}) {
     final found = getValue(data, path);
-    return isPatch || !(required && found == null) && values.contains(found)
+    final valueIsMissing = !(required || isPatch) && found == null;
+    final valueIsIllegal = found != null && allowed.contains(found);
+    return valueIsMissing || valueIsIllegal
         ? []
-        : [_ValidationError(path, 'illegal value: $found, accepts: $values', path)];
+        : [_ValidationError(path, 'illegal value: $found, accepts: $allowed', path)];
   }
 }
 

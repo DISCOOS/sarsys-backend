@@ -13,9 +13,10 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
     this.repository,
     this.valueType,
     this.aggregateField, {
-    this.validation,
     this.tag,
+    this.validation,
     this.readOnly = const [],
+    this.validators = const [],
   });
   final String tag;
   final String valueType;
@@ -30,6 +31,9 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
 
   @override
   final JsonValidation validation;
+
+  @override
+  final List<Validator> validators;
 
   @override
   FutureOr<RequestOrResponse> willProcessRequest(Request req) => repository.ready
@@ -80,7 +84,10 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
       final events = await repository.execute(
-        onUpdate(uuid, valueType, validate(valueType, data, isPatch: true)),
+        onUpdate(uuid, valueType, {
+          'uuid': uuid,
+          aggregateField: validate(valueType, data, isPatch: true),
+        }),
       );
       return events.isEmpty ? Response.noContent() : Response.noContent();
     } on InvalidOperation catch (e) {

@@ -333,7 +333,7 @@ Map<String, dynamic> createTrack({String id, String uuid = 'string', String type
       ),
     };
 
-Map<String, Object> createPosition() => {
+Map<String, Object> createPosition({String type = 'manual'}) => {
       "type": "Feature",
       "geometry": {
         "type": "Point",
@@ -344,7 +344,7 @@ Map<String, Object> createPosition() => {
         "description": "string",
         "accuracy": 0,
         "timestamp": DateTime.now().toIso8601String(),
-        "type": "manual"
+        "type": "$type"
       }
     };
 
