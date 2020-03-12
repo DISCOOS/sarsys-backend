@@ -128,7 +128,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
   }
 
   /// Must be called to prevent memory leaks
-  void dispose() async {
+  Future dispose() async {
     if (_streamController?.hasListener == true && _streamController?.isClosed == false) {
       // See https://github.com/dart-lang/sdk/issues/19095#issuecomment-108436560
       // ignore: unawaited_futures

@@ -475,7 +475,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
       _disposed = true;
       await manager?.dispose();
       await messages?.dispose();
-      await trackingService.dispose();
+      await trackingService?.dispose();
       manager?.connection?.close();
     }
   }
