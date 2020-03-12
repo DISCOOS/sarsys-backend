@@ -126,8 +126,11 @@ class EventSourceHarness {
       );
     });
 
-    tearDown(() {
-      _servers.forEach(_clear);
+    tearDown(() async {
+      return await Future.forEach(
+        _servers.entries,
+        (server) => _clear(server.key, server.value),
+      );
     });
 
     tearDownAll(() async {
@@ -184,20 +187,20 @@ class EventSourceHarness {
     );
   }
 
-  void _clear(int port, EventStoreMockServer server) {
+  void _clear(int port, EventStoreMockServer server) async {
     server.clear();
     if (_managers.containsKey(port)) {
-      _managers[port]
-        ..forEach((manager) => manager.dispose())
-        ..clear();
+      await Future.forEach<RepositoryManager>(_managers[port], (manager) => manager.dispose());
+      _managers[port].clear();
     }
   }
 
-  Future _close(int port, EventStoreMockServer server) async {
+  void _close(int port, EventStoreMockServer server) async {
     await server.close();
-    _managers[port]
-      ..forEach((manager) => manager.dispose())
-      ..clear();
+    if (_managers.containsKey(port)) {
+      await Future.forEach<RepositoryManager>(_managers[port], (manager) => manager.dispose());
+      _managers[port].clear();
+    }
     _connections[port]?.close();
   }
 

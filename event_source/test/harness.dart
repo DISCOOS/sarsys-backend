@@ -190,7 +190,7 @@ class EventSourceHarness {
   void _clear(int port, EventStoreMockServer server) async {
     server.clear();
     if (_managers.containsKey(port)) {
-      await Future.forEach(_managers[port], (manager) => manager.dispose());
+      await Future.forEach<RepositoryManager>(_managers[port], (manager) => manager.dispose());
       _managers[port].clear();
     }
   }
@@ -198,8 +198,7 @@ class EventSourceHarness {
   void _close(int port, EventStoreMockServer server) async {
     await server.close();
     if (_managers.containsKey(port)) {
-      await Future.forEach(_managers[port], (manager) => manager.dispose());
-      _managers[port].clear();
+      await Future.forEach<RepositoryManager>(_managers[port], (manager) => manager.dispose());
       _managers[port].clear();
     }
     _connections[port]?.close();

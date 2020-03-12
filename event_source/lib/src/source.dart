@@ -675,7 +675,11 @@ class EventStore {
     }
 
     _subscriptions.clear();
-    await _streamController?.close();
+    if (_streamController?.hasListener == true && _streamController?.isClosed == false) {
+      // See https://github.com/dart-lang/sdk/issues/19095#issuecomment-108436560
+      // ignore: unawaited_futures
+      _streamController.close();
+    }
     _disposed = true;
   }
 
