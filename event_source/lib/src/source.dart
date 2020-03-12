@@ -1491,10 +1491,6 @@ class _SubscriptionController {
 
   bool _isCatchup;
 
-  bool _stopped;
-
-  static int _instances = 0;
-
   Stream<SourceEvent> pull({
     @required String stream,
     EventNumber number = EventNumber.last,
@@ -1557,7 +1553,6 @@ class _SubscriptionController {
   }
 
   void _startTimer() async {
-    _instances++;
     logger.fine('Start timer for $name');
     if (_isCatchup) {
       await _catchup(controller);
@@ -1573,7 +1568,6 @@ class _SubscriptionController {
   }
 
   void _stopTimer() {
-    _instances--;
     logger.fine('Stop timer for $name');
     _timer?.cancel();
     _timer = null;

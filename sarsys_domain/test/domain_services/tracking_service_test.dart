@@ -73,10 +73,7 @@ Future main() async {
     expect(service1.managed.length, equals(1));
     expect(service2.managed.length, equals(1));
     expect(service1.managed, isNot(equals(service2.managed)));
-    expect(
-        repo.get(await tuuid1).data.elementAt('status'),
-        equals('pause'
-            'd'));
+    expect(repo.get(await tuuid1).data.elementAt('status'), equals('paused'));
     expect(repo.get(await tuuid2).data.elementAt('status'), equals('paused'));
 
     // Cleanup
