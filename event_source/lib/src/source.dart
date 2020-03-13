@@ -1557,18 +1557,29 @@ class _SubscriptionController {
   }
 
   void _startTimer() async {
-    logger.fine('Start timer for $name');
-    if (_isCatchup) {
-      await _catchup(controller);
-      _isCatchup = false;
+    try {
+      logger.fine('Start timer for $name');
+      if (_isCatchup) {
+        await _catchup(controller);
+        _isCatchup = false;
+      }
+      _timer = Timer.periodic(
+        pullEvery,
+        (_) => _readNext(),
+      );
+      logger.fine(
+        'Listen for events in subscription $name starting from number $_current',
+      );
+    } on Exception catch (e, stackTrace) {
+      // Only throw if running
+      if (_timer != null && _timer.isActive) {
+        controller.addError(e, stackTrace);
+        _stopTimer();
+        logger.severe(
+          'Failed to read next events for $name: $e',
+        );
+      }
     }
-    _timer = Timer.periodic(
-      pullEvery,
-      (_) => _readNext(),
-    );
-    logger.fine(
-      'Listen for events in subscription $name starting from number $_current',
-    );
   }
 
   void _stopTimer() {
@@ -1598,17 +1609,8 @@ class _SubscriptionController {
   String get name => [stream, if (group != null) group].join('/');
 
   Future<FeedResult> _readNext() async {
-    FeedResult feed;
-    try {
-      feed = await _nextFeed();
-      await _readEventsInFeed(feed);
-    } on Exception catch (e) {
-      // Only throw if running
-      if (_timer != null && _timer.isActive) {
-        logger.severe('Failed to read next events for $name: $e');
-        rethrow;
-      }
-    }
+    final feed = await _nextFeed();
+    await _readEventsInFeed(feed);
     return feed;
   }
 
@@ -1627,9 +1629,9 @@ class _SubscriptionController {
           'Subscription $name caught up to event $_current, listening for $next',
         );
         _current = next;
-      } else if (!result.isNotFound) {
-        throw SubscriptionFailed(
-          'Failed to read head of subscription $name: ${result.statusCode} ${result.reasonPhrase}',
+      } else {
+        logger.fine(
+          'Failed to read events in $name from $_current: ${result.statusCode} ${result.reasonPhrase}',
         );
       }
     }
