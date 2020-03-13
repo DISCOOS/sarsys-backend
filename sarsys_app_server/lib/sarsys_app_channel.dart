@@ -2,13 +2,14 @@ import 'dart:convert';
 
 import 'package:http/http.dart';
 import 'package:event_source/event_source.dart';
+import 'package:sarsys_app_server/auth/any.dart';
 import 'package:sarsys_app_server/controllers/domain/position_controller.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/controllers/messages.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
 
-import 'auth/oidc.dart';
+import 'auth/auth.dart';
 import 'controllers/domain/controllers.dart';
 import 'controllers/domain/schemas.dart';
 import 'controllers/domain/track_controller.dart';
@@ -22,8 +23,7 @@ import 'validation/validation.dart';
 /// MUST BE used when bootstrapping Aqueduct
 const int isolateStartupTimeout = 30;
 
-/// Required scopes
-const List<String> scopes = [
+const List<String> allScopes = [
 //  'roles:admin',
 //  'roles:commander',
 //  'roles:unit_leader',
@@ -38,8 +38,8 @@ const String apiSpecPath = 'web/sarsys.json';
 /// Override methods in this class to set up routes and initialize services like
 /// database connections. See http://aqueduct.io/docs/http/channel/.
 class SarSysAppServerChannel extends ApplicationChannel {
-  /// Validates oidc tokens against scopes
-  final OIDCValidator authValidator = OIDCValidator(['id.discoos.org']);
+  /// Authorizes requests
+  Controller authorizer;
 
   /// Channel responsible for distributing messages to client applications
   final MessageChannel messages = MessageChannel(
@@ -74,6 +74,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
 
     _loadConfig();
     _configureLogger();
+    _configureAuth();
     _buildValidators();
     _buildRepoManager();
     _buildRepos(stopwatch, _buildDomainServices);
@@ -94,7 +95,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
   Controller get entryPoint {
     // TODO: PassCodes - implement ReadModel and validation for all protected Aggregates
 
-    final authorizer = Authorizer.bearer(authValidator, scopes: scopes);
     return Router()
       ..route('/').link(() => authorizer)
       ..route('/api/*').link(
@@ -279,6 +279,22 @@ class SarSysAppServerChannel extends ApplicationChannel {
     logger.info("TENANT is '${config.tenant == null ? 'not set' : '${config.tenant}'}'");
   }
 
+  void _configureAuth() {
+    if (config.auth.enabled) {
+      authorizer = Authorizer.bearer(
+        OIDCValidator(['id.discoos.org']),
+        scopes: config.auth.required,
+      );
+    } else {
+      authorizer = AnyAuthorizer([
+        'roles:admin',
+        'roles:commander',
+        'roles:unit_leader',
+        'roles:personnel',
+      ]);
+    }
+  }
+
   void _configureLogger() {
     Logger.root.level = Level.LEVELS.firstWhere(
       (level) => level.name == config.level,
@@ -432,6 +448,15 @@ class SarSysAppServerChannel extends ApplicationChannel {
     messages.register<IncidentInformationUpdated>(manager.bus);
     messages.register<IncidentRespondedTo>(manager.bus);
     messages.register<IncidentCancelled>(manager.bus);
+    messages.register<IncidentResolved>(manager.bus);
+    messages.register<DevicePositionChanged>(manager.bus);
+    messages.register<DeviceInformationUpdated>(manager.bus);
+    messages.register<TrackingTrackChanged>(manager.bus);
+    messages.register<TrackingPositionChanged>(manager.bus);
+    messages.register<TrackingInformationUpdated>(manager.bus);
+    messages.register<IncidentResolved>(manager.bus);
+    messages.register<IncidentResolved>(manager.bus);
+    messages.register<IncidentResolved>(manager.bus);
     messages.register<IncidentResolved>(manager.bus);
     // TODO: MessageChannel - Add Operation events
     // TODO: MessageChannel - Add Unit events

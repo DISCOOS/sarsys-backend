@@ -9,6 +9,9 @@ class SarSysConfig extends Configuration {
   String tenant;
 
   /// [EventStore](www.eventstore.org) config values
+  AuthConfig auth;
+
+  /// [EventStore](www.eventstore.org) config values
   EvenStoreConfig eventstore;
 
   /// EventStore prefix
@@ -26,6 +29,44 @@ class SarSysConfig extends Configuration {
   /// Log level
   @optionalConfiguration
   String level = Level.INFO.name;
+}
+
+class AuthConfig extends Configuration {
+  AuthConfig();
+
+  /// Enabled flag
+  ///
+  /// This property is required.
+  bool enabled;
+
+  /// Required scopes list
+  ///
+  @optionalConfiguration
+  List<String> required;
+}
+
+class EvenStoreConfig extends Configuration {
+  EvenStoreConfig();
+
+  /// The host of the database to connect to.
+  ///
+  /// This property is required.
+  String host;
+
+  /// The port of the database to connect to.
+  ///
+  /// This property is required.
+  int port;
+
+  /// A username for authenticating to the database.
+  ///
+  /// This property is required.
+  String login;
+
+  /// A password for authenticating to the database.
+  ///
+  /// This property is required.
+  String password;
 }
 
 class TrackingConfig extends Configuration {
@@ -52,28 +93,4 @@ class TrackingConfig extends Configuration {
   /// Log level
   @optionalConfiguration
   String level = Level.INFO.name;
-}
-
-class EvenStoreConfig extends Configuration {
-  EvenStoreConfig();
-
-  /// The host of the database to connect to.
-  ///
-  /// This property is required.
-  String host;
-
-  /// The port of the database to connect to.
-  ///
-  /// This property is required.
-  int port;
-
-  /// A username for authenticating to the database.
-  ///
-  /// This property is required.
-  String login;
-
-  /// A password for authenticating to the database.
-  ///
-  /// This property is required.
-  String password;
 }

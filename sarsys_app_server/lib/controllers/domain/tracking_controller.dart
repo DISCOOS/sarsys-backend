@@ -21,12 +21,6 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
             'tracks',
             'history',
           ],
-//          validators: [
-//            ValueValidator(
-//              '/position/properties/type',
-//              ['manual'],
-//            )
-//          ],
           tag: "Trackings",
         );
 

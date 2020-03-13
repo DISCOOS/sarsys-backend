@@ -2,6 +2,10 @@ level: INFO
 debug: true
 prefix: test
 tenant: discoos
+auth:
+  enabled: false
+  required:
+    - roles:personnel
 eventstore:
   # Eventstore:
   # host: http://127.0.0.1

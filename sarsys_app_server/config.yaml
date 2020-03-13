@@ -2,6 +2,11 @@ level: $LEVEL
 debug: $DEBUG
 prefix: $PREFIX
 tenant: $TENANT
+auth:
+  enabled: false
+  required:
+    - roles:personnel
+
 eventstore:
   host: $EVENTSTORE_HOST
   port: $EVENTSTORE_PORT
