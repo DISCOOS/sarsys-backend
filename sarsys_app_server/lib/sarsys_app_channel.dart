@@ -38,9 +38,6 @@ const String apiSpecPath = 'web/sarsys.json';
 /// Override methods in this class to set up routes and initialize services like
 /// database connections. See http://aqueduct.io/docs/http/channel/.
 class SarSysAppServerChannel extends ApplicationChannel {
-  /// Authorizes requests
-  Controller authorizer;
-
   /// Channel responsible for distributing messages to client applications
   final MessageChannel messages = MessageChannel(
     handler: WebSocketMessageProcessor(),
@@ -74,7 +71,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
 
     _loadConfig();
     _configureLogger();
-    _configureAuth();
     _buildValidators();
     _buildRepoManager();
     _buildRepos(stopwatch, _buildDomainServices);
@@ -95,7 +91,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
   Controller get entryPoint {
     // TODO: PassCodes - implement ReadModel and validation for all protected Aggregates
 
-    return SecureRouter(authorizer)
+    return SecureRouter(config.auth)
       ..secure('/', () => DocumentController())
       ..route('/api/*').link(() => DocumentController())
       ..route('/api/healthz').link(() => HealthController())
@@ -335,22 +331,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
       }
     }
     logger.info("TENANT is '${config.tenant == null ? 'not set' : '${config.tenant}'}'");
-  }
-
-  void _configureAuth() {
-    if (config.auth.enabled) {
-      authorizer = Authorizer.bearer(
-        OIDCValidator(['id.discoos.org']),
-        scopes: config.auth.required,
-      );
-    } else {
-      authorizer = AnyAuthorizer(config.auth.required, [
-        'roles:admin',
-        'roles:commander',
-        'roles:unit_leader',
-        'roles:personnel',
-      ]);
-    }
   }
 
   void _configureLogger() {
@@ -679,10 +659,25 @@ class SarSysAppServerChannel extends ApplicationChannel {
 }
 
 class SecureRouter extends Router {
-  SecureRouter(this.authorizer);
-  final Controller authorizer;
+  SecureRouter(this.config);
+  final AuthConfig config;
 
   void secure(String pattern, Controller creator()) {
-    super.route(pattern).link(() => authorizer).link(creator);
+    super.route(pattern).link(authorizer).link(creator);
+  }
+
+  Controller authorizer() {
+    if (config.enabled) {
+      return Authorizer.bearer(
+        OIDCValidator(['id.discoos.org']),
+        scopes: config.required,
+      );
+    }
+    return AnyAuthorizer(config.required, [
+      'roles:admin',
+      'roles:commander',
+      'roles:unit_leader',
+      'roles:personnel',
+    ]);
   }
 }
