@@ -1557,29 +1557,29 @@ class _SubscriptionController {
   }
 
   void _startTimer() async {
+    logger.fine('Start timer for $name');
     try {
-      logger.fine('Start timer for $name');
       if (_isCatchup) {
         await _catchup(controller);
         _isCatchup = false;
       }
-      _timer = Timer.periodic(
-        pullEvery,
-        (_) => _readNext(),
-      );
-      logger.fine(
-        'Listen for events in subscription $name starting from number $_current',
-      );
     } on Exception catch (e, stackTrace) {
       // Only throw if running
       if (_timer != null && _timer.isActive) {
         controller.addError(e, stackTrace);
         _stopTimer();
         logger.severe(
-          'Failed to read next events for $name: $e',
+          'Failed to catchup to head of stream $name: $e: $stackTrace',
         );
       }
     }
+    _timer = Timer.periodic(
+      pullEvery,
+      (_) => _readNext(),
+    );
+    logger.fine(
+      'Listen for events in subscription $name starting from number $_current',
+    );
   }
 
   void _stopTimer() {
@@ -1609,8 +1609,20 @@ class _SubscriptionController {
   String get name => [stream, if (group != null) group].join('/');
 
   Future<FeedResult> _readNext() async {
-    final feed = await _nextFeed();
-    await _readEventsInFeed(feed);
+    FeedResult feed;
+    try {
+      feed = await _nextFeed();
+      await _readEventsInFeed(feed);
+    } on Exception catch (e, stackTrace) {
+      // Only throw if running
+      if (_timer != null && _timer.isActive) {
+        controller.addError(e, stackTrace);
+        _stopTimer();
+        logger.severe(
+          'Failed to read next events for $name: $e: $stackTrace',
+        );
+      }
+    }
     return feed;
   }
 
