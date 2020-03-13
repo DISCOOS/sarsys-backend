@@ -95,151 +95,209 @@ class SarSysAppServerChannel extends ApplicationChannel {
   Controller get entryPoint {
     // TODO: PassCodes - implement ReadModel and validation for all protected Aggregates
 
-    return Router()
-      ..route('/').link(() => authorizer)
-      ..route('/api/*').link(
-        () => DocumentController(),
-      )
-      ..route('/api/healthz').link(
-        () => HealthController(),
-      )
-      ..route('/api/messages/connect').link(
-        () => WebSocketController(messages),
-      )
-      ..route('/api/app-configs[/:uuid]').link(() => AppConfigController(
-            manager.get<AppConfigRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/incidents[/:uuid]').link(() => IncidentController(
-            manager.get<IncidentRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/incidents/:uuid/subjects').link(() => IncidentSubjectController(
-            manager.get<IncidentRepository>(),
-            manager.get<SubjectRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/incidents/:uuid/clues[/:id]').link(() => ClueController(
-            manager.get<IncidentRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/incidents/:uuid/messages[/:id]').link(() => IncidentMessageController(
-            manager.get<IncidentRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/incidents/:uuid/operations').link(() => IncidentOperationsController(
-            manager.get<IncidentRepository>(),
-            manager.get<OperationRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/subjects[/:uuid]').link(() => SubjectController(
-            manager.get<SubjectRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/operations[/:uuid]').link(() => OperationController(
-            manager.get<OperationRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/operations/:uuid/objectives[/:id]').link(() => ObjectiveController(
-            manager.get<OperationRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/operations/:uuid/talkgroups[/:id]').link(() => TalkGroupController(
-            manager.get<OperationRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/operations/:uuid/missions').link(() => OperationMissionController(
-            manager.get<OperationRepository>(),
-            manager.get<MissionRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/operations/:uuid/units').link(() => OperationUnitController(
-            manager.get<OperationRepository>(),
-            manager.get<UnitRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/operations/:uuid/messages[/:id]').link(() => OperationMessageController(
-            manager.get<OperationRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/missions[/:uuid]').link(() => MissionController(
-            manager.get<MissionRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/missions/:uuid/parts[/:id]').link(() => MissionPartController(
-            manager.get<MissionRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/missions/:uuid/results[/:id]').link(() => MissionResultController(
-            manager.get<MissionRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/missions/:uuid/messages[/:id]').link(() => MissionMessageController(
-            manager.get<MissionRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/personnels[/:uuid]').link(() => PersonnelController(
-            manager.get<PersonnelRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/personnels/:uuid/messages[/:id]').link(() => PersonnelMessageController(
-            manager.get<PersonnelRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/units[/:uuid]').link(() => UnitController(
-            manager.get<UnitRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/units/:uuid/messages[/:id]').link(() => UnitMessageController(
-            manager.get<UnitRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/organisations[/:uuid]').link(() => OrganisationController(
-            manager.get<OrganisationRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/organisations/:uuid/divisions').link(() => OrganisationDivisionController(
-            manager.get<OrganisationRepository>(),
-            manager.get<DivisionRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/divisions[/:uuid]').link(() => DivisionController(
-            manager.get<DivisionRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/divisions/:uuid/departments').link(() => DivisionDepartmentController(
-            manager.get<DivisionRepository>(),
-            manager.get<DepartmentRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/departments[/:uuid]').link(() => DepartmentController(
-            manager.get<DepartmentRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/trackings[/:uuid]').link(() => authorizer).link(() => TrackingController(
-            manager.get<TrackingRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/trackings/:tuuid/sources[/:suuid]').link(() => SourceController(
-            manager.get<TrackingRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/trackings/:uuid/tracks[/:id]').link(() => TrackController(
-            manager.get<TrackingRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/devices[/:uuid]').link(() => DeviceController(
-            manager.get<DeviceRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/devices/:uuid/position').link(() => DevicePositionController(
-            manager.get<DeviceRepository>(),
-            requestValidator,
-          ))
-      ..route('/api/devices/:uuid/messages[/:id]').link(() => DeviceMessageController(
-            manager.get<DeviceRepository>(),
-            requestValidator,
-          ));
+    return SecureRouter(authorizer)
+      ..secure('/', () => DocumentController())
+      ..route('/api/*').link(() => DocumentController())
+      ..route('/api/healthz').link(() => HealthController())
+      ..secure('/api/messages/connect', () => WebSocketController(messages))
+      ..secure(
+          '/api/app-configs[/:uuid]',
+          () => AppConfigController(
+                manager.get<AppConfigRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/incidents[/:uuid]',
+          () => IncidentController(
+                manager.get<IncidentRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/incidents/:uuid/subjects',
+          () => IncidentSubjectController(
+                manager.get<IncidentRepository>(),
+                manager.get<SubjectRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/incidents/:uuid/clues[/:id]',
+          () => ClueController(
+                manager.get<IncidentRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/incidents/:uuid/messages[/:id]',
+          () => IncidentMessageController(
+                manager.get<IncidentRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/incidents/:uuid/operations',
+          () => IncidentOperationsController(
+                manager.get<IncidentRepository>(),
+                manager.get<OperationRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/subjects[/:uuid]',
+          () => SubjectController(
+                manager.get<SubjectRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/operations[/:uuid]',
+          () => OperationController(
+                manager.get<OperationRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/operations/:uuid/objectives[/:id]',
+          () => ObjectiveController(
+                manager.get<OperationRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/operations/:uuid/talkgroups[/:id]',
+          () => TalkGroupController(
+                manager.get<OperationRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/operations/:uuid/missions',
+          () => OperationMissionController(
+                manager.get<OperationRepository>(),
+                manager.get<MissionRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/operations/:uuid/units',
+          () => OperationUnitController(
+                manager.get<OperationRepository>(),
+                manager.get<UnitRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/operations/:uuid/messages[/:id]',
+          () => OperationMessageController(
+                manager.get<OperationRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/missions[/:uuid]',
+          () => MissionController(
+                manager.get<MissionRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/missions/:uuid/parts[/:id]',
+          () => MissionPartController(
+                manager.get<MissionRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/missions/:uuid/results[/:id]',
+          () => MissionResultController(
+                manager.get<MissionRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/missions/:uuid/messages[/:id]',
+          () => MissionMessageController(
+                manager.get<MissionRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/personnels[/:uuid]',
+          () => PersonnelController(
+                manager.get<PersonnelRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/personnels/:uuid/messages[/:id]',
+          () => PersonnelMessageController(
+                manager.get<PersonnelRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/units[/:uuid]',
+          () => UnitController(
+                manager.get<UnitRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/units/:uuid/messages[/:id]',
+          () => UnitMessageController(
+                manager.get<UnitRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/organisations[/:uuid]',
+          () => OrganisationController(
+                manager.get<OrganisationRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/organisations/:uuid/divisions',
+          () => OrganisationDivisionController(
+                manager.get<OrganisationRepository>(),
+                manager.get<DivisionRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/divisions[/:uuid]',
+          () => DivisionController(
+                manager.get<DivisionRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/divisions/:uuid/departments',
+          () => DivisionDepartmentController(
+                manager.get<DivisionRepository>(),
+                manager.get<DepartmentRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/departments[/:uuid]',
+          () => DepartmentController(
+                manager.get<DepartmentRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/trackings[/:uuid]',
+          () => TrackingController(
+                manager.get<TrackingRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/trackings/:tuuid/sources[/:suuid]',
+          () => SourceController(
+                manager.get<TrackingRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/trackings/:uuid/tracks[/:id]',
+          () => TrackController(
+                manager.get<TrackingRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/devices[/:uuid]',
+          () => DeviceController(
+                manager.get<DeviceRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/devices/:uuid/position',
+          () => DevicePositionController(
+                manager.get<DeviceRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/devices/:uuid/messages[/:id]',
+          () => DeviceMessageController(
+                manager.get<DeviceRepository>(),
+                requestValidator,
+              ));
   }
 
   @override
@@ -286,7 +344,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
         scopes: config.auth.required,
       );
     } else {
-      authorizer = AnyAuthorizer([
+      authorizer = AnyAuthorizer(config.auth.required, [
         'roles:admin',
         'roles:commander',
         'roles:unit_leader',
@@ -618,4 +676,13 @@ class SarSysAppServerChannel extends ApplicationChannel {
     ..register('Rectangle', documentRectangle(context))
     ..register('Position', documentPosition(context))
     ..register('Message', documentMessage(context));
+}
+
+class SecureRouter extends Router {
+  SecureRouter(this.authorizer);
+  final Controller authorizer;
+
+  void secure(String pattern, Controller creator()) {
+    super.route(pattern).link(() => authorizer).link(creator);
+  }
 }
