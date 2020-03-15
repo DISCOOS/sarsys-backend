@@ -1596,7 +1596,7 @@ class _SubscriptionController {
     FeedResult feed;
     do {
       feed = await _readNext();
-    } while (feed.isOK && !feed.atomFeed.headOfStream);
+    } while (feed != null && feed.isOK && !feed.atomFeed.headOfStream);
 
     if (number < _current) {
       logger.fine(

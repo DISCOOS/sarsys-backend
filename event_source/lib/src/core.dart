@@ -558,7 +558,7 @@ extension MapX on Map {
   /// equivalent to map['name1']['name2']['name3'].
   ///
   /// Returns [null] if not found
-  dynamic elementAt(String path) {
+  T elementAt<T>(String path) {
     final parts = path.split('/');
     dynamic found = parts.skip(parts.first.isEmpty ? 1 : 0).fold(this, (parent, name) {
       if (parent is Map<String, dynamic>) {
@@ -569,6 +569,6 @@ extension MapX on Map {
       final element = (parent ?? {});
       return element is Map ? element[name] : element is List && element.isNotEmpty ? element[int.parse(name)] : null;
     });
-    return found;
+    return found as T;
   }
 }

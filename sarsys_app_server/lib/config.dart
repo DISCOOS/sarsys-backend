@@ -39,6 +39,26 @@ class AuthConfig extends Configuration {
   /// This property is required.
   bool enabled;
 
+  /// Token issuer
+  ///
+  @optionalConfiguration
+  String issuer;
+
+  /// Token audience
+  ///
+  @optionalConfiguration
+  String audience;
+
+  /// Base Server URL
+  ///
+  @optionalConfiguration
+  String baseUrl;
+
+  /// Path to roles claim in JWT
+  ///
+  @optionalConfiguration
+  String rolesClaim;
+
   /// Required scopes list
   ///
   @optionalConfiguration

@@ -1,2 +1,2 @@
 export 'any.dart';
-export 'oidc.dart';
+export 'oauth.dart';

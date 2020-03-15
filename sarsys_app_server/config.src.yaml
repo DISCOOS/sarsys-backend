@@ -4,6 +4,10 @@ prefix: test
 tenant: discoos
 auth:
   enabled: false
+  audience: sarsys-app
+  issuer: https://id.discoos.io/auth/realms/DISCOOS
+  baseUrl: https://id.discoos.io/auth/realms/DISCOOS
+  rolesClaim: roles
   required:
     - roles:personnel
 eventstore:

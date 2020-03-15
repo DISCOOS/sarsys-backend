@@ -3,7 +3,11 @@ debug: $DEBUG
 prefix: $PREFIX
 tenant: $TENANT
 auth:
-  enabled: false
+  enabled: $AUTH_ENABLED
+  audience: $AUTH_AUDIENCE
+  issuer: $AUTH_ISSUER
+  baseUrl: $AUTH_BASE_URL
+  rolesClaim: $AUTH_ROLES_CLAIM
   required:
     - roles:personnel
 

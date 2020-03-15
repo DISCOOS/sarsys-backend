@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart';
 import 'package:event_source/event_source.dart';
+import 'package:jose/jose.dart';
 import 'package:sarsys_app_server/auth/any.dart';
 import 'package:sarsys_app_server/controllers/domain/position_controller.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
@@ -55,6 +56,9 @@ class SarSysAppServerChannel extends ApplicationChannel {
   /// Tracking domain service
   TrackingService trackingService;
 
+  /// Secure router enforcing authorization
+  SecureRouter router;
+
   /// Logger instance
   @override
   final Logger logger = Logger("SarSysAppServerChannel");
@@ -76,6 +80,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     _buildRepos(stopwatch, _buildDomainServices);
     _buildInvariants();
     _buildMessageChannel();
+    await _buildSecureRouter();
 
     if (stopwatch.elapsed.inSeconds > isolateStartupTimeout * 0.8) {
       logger.severe("Approaching maximum duration to wait for each isolate to complete startup");
@@ -91,8 +96,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
   Controller get entryPoint {
     // TODO: PassCodes - implement ReadModel and validation for all protected Aggregates
 
-    return SecureRouter(config.auth)
-      ..secure('/', () => DocumentController())
+    return router
       ..route('/api/*').link(() => DocumentController())
       ..route('/api/healthz').link(() => HealthController())
       ..secure('/api/messages/connect', () => WebSocketController(messages))
@@ -331,6 +335,11 @@ class SarSysAppServerChannel extends ApplicationChannel {
       }
     }
     logger.info("TENANT is '${config.tenant == null ? 'not set' : '${config.tenant}'}'");
+
+    logger.info("AUTHORIZATION is ${config.auth.enabled ? 'ENABLED' : 'DISABLED'}");
+    if (config.auth.enabled) {
+      logger.info("OpenID Connect Provider BASE URL is ${config.auth.baseUrl}");
+    }
   }
 
   void _configureLogger() {
@@ -501,6 +510,15 @@ class SarSysAppServerChannel extends ApplicationChannel {
     messages.build();
   }
 
+  Future _buildSecureRouter() async {
+    router = SecureRouter(
+      config.auth,
+    );
+    if (config.auth.enabled) {
+      await router.prepare();
+    }
+  }
+
   void _setResponseFromEnv(String name, String header) {
     if (Platform.environment.containsKey(name)) {
       server.server.defaultResponseHeaders.add(
@@ -611,14 +629,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
 
   void documentSecuritySchemas(APIDocumentContext context) => context.securitySchemes
     ..register(
-      "id.discoos.org",
-      APISecurityScheme.openID(
-        Uri.parse("https://id.discoos.io/auth/realms/DISCOOS/.well-known/openid-configuration"),
-      )..description = "This endpoint requires an identity token issed from https://id.discoos.io passed as a "
-          "[Bearer token](https://swagger.io/docs/specification/authentication/bearer-authentication/) issued by "
-          "in an [Authorization header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Authorization).",
-    )
-    ..register(
       "Passcode",
       APISecurityScheme.apiKey(
         'X-Passcode',
@@ -659,8 +669,23 @@ class SarSysAppServerChannel extends ApplicationChannel {
 }
 
 class SecureRouter extends Router {
-  SecureRouter(this.config);
+  SecureRouter(this.config) : keyStore = JsonWebKeyStore();
   final AuthConfig config;
+  final JsonWebKeyStore keyStore;
+
+  Future prepare() async {
+    if (config.enabled) {
+      final response = await get('${config.baseUrl}/.well-known/openid-configuration');
+      final body = json.decode(response.body) as Map<String, dynamic>;
+      if (body is Map<String, dynamic>) {
+        if (body.containsKey('jwks_uri')) {
+          keyStore.addKeySetUrl(Uri.parse(body['jwks_uri'] as String));
+          return;
+        }
+      }
+      throw 'Unexpected response from OpenID Connect Provider ${config.baseUrl}: $body';
+    }
+  }
 
   void secure(String pattern, Controller creator()) {
     super.route(pattern).link(authorizer).link(creator);
@@ -669,7 +694,10 @@ class SecureRouter extends Router {
   Controller authorizer() {
     if (config.enabled) {
       return Authorizer.bearer(
-        OIDCValidator(['id.discoos.org']),
+        AccessTokenValidator(
+          keyStore,
+          config,
+        ),
         scopes: config.required,
       );
     }
