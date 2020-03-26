@@ -7,10 +7,10 @@ persistence:
   storageClass: do-block-storage-retain
 resources:
   limits:
-    cpu: 800m
+    cpu: 1600m
     memory: 1Gi
   requests:
-    cpu: 400m
+    cpu: 800m
     memory: 512Mi
 
 eventStoreConfig:
