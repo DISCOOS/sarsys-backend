@@ -1,12 +1,21 @@
-imageTag: release-4.1.3
-clusterSize: 1
+imageTag: release-5.0.7
+clusterSize: 3
+nodeSelector: 
+ doks.digitalocean.com/node-pool: k8s-3
 persistence:
-  enabled: false
+  enabled: true
+  storageClass: do-block-storage-retain
 resources:
   limits:
     cpu: 800m
-    memory: 512Mi
+    memory: 1Gi
   requests:
     cpu: 400m
-    memory: 256Mi
+    memory: 512Mi
 
+eventStoreConfig:
+  # Use recommended cloud settings, see https://eventstore.com/docs/server/ports-and-networking/index.html#heartbeat-timeouts
+  INT_TCP_HEARTBEAT_TIMEOUT: 1000
+  EXT_TCP_HEARTBEAT_TIMEOUT: 1000
+  INT_TCP_HEARTBEAT_INTERVAL: 5000
+  EXT_TCP_HEARTBEAT_INTERVAL: 5000
