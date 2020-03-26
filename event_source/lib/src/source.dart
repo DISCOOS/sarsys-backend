@@ -584,7 +584,7 @@ class EventStore {
   }
 
   /// Handle subscription errors
-  void _onSubscriptionError(Repository repository, dynamic error, StackTrace stackTrace) {
+  void _onSubscriptionError(Repository repository, Object error, StackTrace stackTrace) {
     logger.severe(
       '${repository.runtimeType}: subscription failed with: $error. stactrace: $stackTrace',
     );
@@ -707,7 +707,7 @@ class SubscriptionController<T extends Repository> {
 
   final void Function(T repository) onDone;
   final void Function(T repository, SourceEvent event) onEvent;
-  final void Function(T repository, dynamic error, StackTrace stackTrace) onError;
+  final void Function(T repository, Object error, StackTrace stackTrace) onError;
 
   /// Maximum backoff duration between reconnect attempts
   final Duration maxBackoffTime;
@@ -758,9 +758,15 @@ class SubscriptionController<T extends Repository> {
         .listen(
           (event) => onEvent(repository, event),
           onDone: () => onDone(repository),
-          onError: (error, trace) => onError(repository, error, trace),
+          onError: (error, StackTrace stackTrace) => onError(
+            repository,
+            error,
+            stackTrace,
+          ),
         );
-    logger.fine('${repository.runtimeType}: Subscribed to stream $stream from event number $number');
+    logger.fine(
+      '${repository.runtimeType}: Subscribed to stream $stream from event number $number',
+    );
     return this;
   }
 
@@ -791,43 +797,62 @@ class SubscriptionController<T extends Repository> {
         .listen(
           (event) => onEvent(repository, event),
           onDone: () => onDone(repository),
-          onError: (error, trace) => onError(repository, error, trace),
+          onError: (error, StackTrace stackTrace) => onError(
+            repository,
+            error,
+            stackTrace,
+          ),
         );
-    logger.fine('${repository.runtimeType}: Subscribed to stream $stream from event number $number');
+    logger.fine(
+      '${repository.runtimeType}: Subscribed to stream $stream from event number $number',
+    );
     return this;
   }
 
-  int toNextReconnectMillis() => min(
-        pow(2, reconnects++).toInt() + Random().nextInt(1000),
-        maxBackoffTime.inMilliseconds,
-      );
+  int toNextReconnectMillis() {
+    final wait = min(
+      pow(2, reconnects++).toInt() + Random().nextInt(1000),
+      maxBackoffTime.inMilliseconds,
+    );
+    logger.info('Wait ${wait}ms before reconnecting (attempt: $reconnects)');
+    return wait;
+  }
 
   void reconnect(T repository) async {
-    await _subscription.cancel();
     if (!repository.store.connection.closed) {
+      // Wait for current timer to complete
       _timer ??= Timer(
         Duration(milliseconds: toNextReconnectMillis()),
-        () async {
-          _timer.cancel();
-          _timer = null;
-          logger.info(
-            '${repository.runtimeType}: SubscriptionController is '
-            'reconnecting to stream ${repository.store.canonicalStream}',
-          );
-          if (_competing) {
-            await repository.store.compete(
-              repository,
-              consume: _consume,
-              strategy: _strategy,
-              maxBackoffTime: maxBackoffTime,
-            );
-          } else {
-            await repository.store.subscribe(
-              repository,
-              maxBackoffTime: maxBackoffTime,
-            );
-          }
-        },
+        () => _retry(repository),
+      );
+    }
+  }
+
+  Future _retry(repository) async {
+    try {
+      _timer.cancel();
+      _timer = null;
+      logger.info(
+        '${repository.runtimeType}: SubscriptionController is '
+        'reconnecting to stream ${repository.store.canonicalStream}, attempt: $reconnects',
+      );
+      await _subscription?.cancel();
+      if (_competing) {
+        _subscription = await repository.store.compete(
+          repository,
+          consume: _consume,
+          strategy: _strategy,
+          maxBackoffTime: maxBackoffTime,
+        );
+      } else {
+        _subscription = await repository.store.subscribe(
+          repository,
+          maxBackoffTime: maxBackoffTime,
+        );
+      }
+    } on Exception catch (e, stackTrace) {
+      logger.severe(
+        'Failed to reconnect: $e: $stackTrace',
       );
     }
   }
@@ -849,8 +874,6 @@ class SubscriptionController<T extends Repository> {
     if (!_isPaused) {
       _isPaused = true;
       _subscription?.pause();
-    } else {
-      print('Hml');
     }
   }
 

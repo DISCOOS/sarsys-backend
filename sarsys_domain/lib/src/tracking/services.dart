@@ -111,7 +111,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
     repository.store.bus.register<TrackingSourceRemoved>(this);
     repository.store.bus.register<DevicePositionChanged>(this);
     repository.store.bus.register<TrackingPositionChanged>(this);
-    logger.info('Built with consumption count $consume from $STREAM');
+    logger.info('Built with consumption count $consume from stream $STREAM');
     return complete;
   }
 
