@@ -80,26 +80,66 @@ class RepositoryManager {
     );
   }
 
-  /// Build all repositories from event stores
+  Timer _timer;
+
+  /// Prepare projections required by repositories that uses instance streams
   ///
   /// Throws an [ProjectionNotAvailable] if one
   /// or more [EventStore.useInstanceStreams] are
   /// true and system projection
   /// [$by_category](https://eventstore.org/docs/projections/system-projections/index.html?tabs=tabid-5#by-category)
   ///  is not available.
-  Future build({List<String> withProjections = const []}) async {
-    final projections = Set.from(withProjections);
+  Future prepare({
+    List<String> withProjections = const [],
+    int maxAttempts = 10,
+    Duration maxBackoffTime = const Duration(seconds: 10),
+  }) async {
+    if (_timer != null) {
+      throw InvalidOperation('Build is pending');
+    }
+    final projections = Set<String>.from(withProjections);
     if (_stores.values.any(
       (store) => store.useInstanceStreams,
     )) {
       projections.add('\$by_category');
     }
-    await Future.wait(
-      projections.map((command) => _prepare(command)),
-    );
-    await Future.wait(_stores.keys.map(
-      (repository) => repository.build(),
-    ));
+    final completer = Completer();
+    _prepareWithRetries(projections, maxAttempts, 0, maxBackoffTime, completer);
+    return completer.future;
+  }
+
+  void _prepareWithRetries(
+    Iterable<String> projections,
+    int max,
+    int attempt,
+    Duration maxBackoffTime,
+    Completer completer,
+  ) async {
+    final backlog = projections.toSet();
+    try {
+      await Future.wait(
+        backlog.map((command) => _prepare(command)),
+        cleanUp: (prepared) => backlog.removeAll(prepared),
+      );
+      completer.complete();
+    } on Exception catch (e, stackTrace) {
+      if (attempt < max) {
+        final wait = toNextTimeout(attempt++, maxBackoffTime, exponent: 8);
+        logger.info('Wait ${wait}ms before retrying prepare again (attempt: $attempt)');
+        _timer?.cancel();
+        _timer = Timer(
+          Duration(milliseconds: wait),
+          () => _prepareWithRetries(backlog, max, attempt, maxBackoffTime, completer),
+        );
+      } else {
+        completer.completeError(
+          ProjectionNotAvailable(
+            'Failed to prepare projections $backlog with error: $e: $stackTrace',
+          ),
+          StackTrace.current,
+        );
+      }
+    }
   }
 
   /// Check if projections are enabled
@@ -135,6 +175,58 @@ class RepositoryManager {
       );
     } else {
       logger.info("EventStore projection '$projection' is running");
+    }
+  }
+
+  /// Build all repositories from event stores
+  ///
+  /// Throws an [RepositoryNotAvailable] if one
+  /// or more [Repository] instances failed to build.
+  Future build({
+    int maxAttempts = 10,
+    Duration maxBackoffTime = const Duration(seconds: 10),
+  }) async {
+    if (_timer != null) {
+      throw InvalidOperation('Prepare is pending');
+    }
+    final completer = Completer();
+    _buildWithRetries(_stores.keys, maxAttempts, 0, maxBackoffTime, completer);
+    return completer.future;
+  }
+
+  void _buildWithRetries(
+    Iterable<Repository> repositories,
+    int max,
+    int attempt,
+    Duration maxBackoffTime,
+    Completer completer,
+  ) async {
+    final backlog = repositories.toSet();
+    try {
+      await Future.wait(
+        repositories.map(
+          (repository) => repository.build(),
+        ),
+        cleanUp: (built) => backlog.removeAll(built),
+      );
+      completer.complete();
+    } on Exception catch (e, stackTrace) {
+      if (attempt < max) {
+        final wait = toNextTimeout(attempt++, maxBackoffTime, exponent: 8);
+        logger.info('Wait ${wait}ms before retrying build again (attempt: $attempt)');
+        _timer?.cancel();
+        _timer = Timer(
+          Duration(milliseconds: wait),
+          () => _buildWithRetries(backlog, max, attempt, maxBackoffTime, completer),
+        );
+      } else {
+        completer.completeError(
+          ProjectionNotAvailable(
+            'Failed to build repositories ${backlog.map((repo) => repo.aggregateType)} with error: $e: $stackTrace',
+          ),
+          StackTrace.current,
+        );
+      }
     }
   }
 

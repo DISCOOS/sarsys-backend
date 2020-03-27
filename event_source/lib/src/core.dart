@@ -411,6 +411,11 @@ class ProjectionNotAvailable extends InvalidOperation {
   const ProjectionNotAvailable(String message) : super(message);
 }
 
+/// Thrown when an required repository is not available
+class RepositoryNotAvailable extends InvalidOperation {
+  const RepositoryNotAvailable(String message) : super(message);
+}
+
 /// Thrown when an uuid is null
 class UUIDIsNull extends InvalidOperation {
   const UUIDIsNull(String message) : super(message);

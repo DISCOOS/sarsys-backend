@@ -77,7 +77,11 @@ class SarSysAppServerChannel extends ApplicationChannel {
     _configureLogger();
     _buildValidators();
     _buildRepoManager();
-    _buildRepos(stopwatch, _buildDomainServices);
+    _buildRepos(
+      stopwatch,
+      catchError: _terminateOnFailure,
+      whenComplete: _buildDomainServices,
+    );
     _buildInvariants();
     _buildMessageChannel();
     await _buildSecureRouter();
@@ -378,7 +382,11 @@ class SarSysAppServerChannel extends ApplicationChannel {
     );
   }
 
-  void _buildRepos(Stopwatch stopwatch, void whenComplete()) {
+  void _buildRepos(
+    Stopwatch stopwatch, {
+    Function() whenComplete,
+    Function(Object error, StackTrace stackTrace) catchError,
+  }) {
     // Register repositories
     manager.register<AppConfig>((manager) => AppConfigRepository(manager));
     manager.register<Incident>((manager) => IncidentRepository(manager));
@@ -394,29 +402,18 @@ class SarSysAppServerChannel extends ApplicationChannel {
     manager.register<Device>((manager) => DeviceRepository(manager));
 
     // Defer repository builds so that isolates are not killed on eventstore connection timeouts
-    Future.delayed(
-      const Duration(milliseconds: 1),
-      () => _buildReposWithRetries(stopwatch),
-    ).whenComplete(whenComplete);
+    Future.microtask(() => _buildReposAsync(stopwatch))
+      ..then((_) => whenComplete())
+      ..catchError(catchError);
   }
 
-  Future _buildReposWithRetries(Stopwatch stopwatch) async {
-    /// Build resources
-    try {
-      await manager.build(
-        withProjections: [
-          '\$by_category',
-          '\$by_event_type',
-        ],
-      );
-      logger.info("Built repositories in ${stopwatch.elapsedMilliseconds}ms => ready for aggregate requests!");
-      return;
-    } on ClientException catch (e) {
-      logger.severe("Failed to connect to eventstore with ${manager.connection} with: $e => retrying in 2 seconds");
-    } on SocketException catch (e) {
-      logger.severe("Failed to connect to eventstore with ${manager.connection} with: $e => retrying in 2 seconds");
-    }
-    return Future.delayed(const Duration(seconds: 2), () => _buildReposWithRetries(stopwatch));
+  Future _buildReposAsync(Stopwatch stopwatch) async {
+    await manager.prepare(withProjections: [
+      '\$by_category',
+      '\$by_event_type',
+    ]);
+    await manager.build();
+    logger.info("Built repositories in ${stopwatch.elapsedMilliseconds}ms => ready for aggregate requests!");
   }
 
   void _buildInvariants() {
@@ -486,6 +483,16 @@ class SarSysAppServerChannel extends ApplicationChannel {
   Future _buildDomainServices() async {
     trackingService = TrackingService(manager.get<TrackingRepository>());
     await trackingService.build();
+  }
+
+  void _terminateOnFailure(error, stackTrace) {
+    if (error is ClientException || error is SocketException) {
+      logger.severe("Failed to connect to eventstore with ${manager.connection}");
+    } else {
+      logger.severe("Failed to build repositories: $error: $stackTrace");
+    }
+    logger.severe("Terminating server safely...");
+    server.close();
   }
 
   void _buildMessageChannel() {

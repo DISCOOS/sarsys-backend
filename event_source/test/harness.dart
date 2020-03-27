@@ -182,7 +182,12 @@ class EventSourceHarness {
     });
     await Future.wait(
       list.map(
-        (manager) => manager.build(withProjections: _projections.toList()),
+        (manager) => manager.prepare(withProjections: _projections.toList()),
+      ),
+    );
+    await Future.wait(
+      list.map(
+        (manager) => manager.build(),
       ),
     );
   }

@@ -810,10 +810,7 @@ class SubscriptionController<T extends Repository> {
   }
 
   int toNextReconnectMillis() {
-    final wait = min(
-      pow(2, reconnects++).toInt() + Random().nextInt(1000),
-      maxBackoffTime.inMilliseconds,
-    );
+    final wait = toNextTimeout(reconnects++, maxBackoffTime);
     logger.info('Wait ${wait}ms before reconnecting (attempt: $reconnects)');
     return wait;
   }
@@ -899,12 +896,14 @@ class EventStoreConnection {
     this.host = 'http://127.0.0.1',
     this.port = 2113,
     this.pageSize = 20,
+    this.enforceAddress = true,
     this.credentials = UserCredentials.defaultCredentials,
   });
 
   final String host;
   final int port;
   final int pageSize;
+  final bool enforceAddress;
   final Client client = Client();
   final UserCredentials credentials;
 
@@ -1041,8 +1040,8 @@ class EventStoreConnection {
       );
     }
 
-    ReadResult next,
-        result = ReadResult(
+    var next;
+    var result = ReadResult(
       stream: stream,
       number: number,
       direction: direction,
@@ -1119,7 +1118,7 @@ class EventStoreConnection {
 
   /// Get event from stream
   Future<Response> _getEvent(String url) => client.get(
-        url,
+        _mapUrlTo(url),
         headers: {
           'Authorization': credentials.header,
           'Accept': 'application/vnd.eventstore.atom+json',
@@ -1402,6 +1401,19 @@ class EventStoreConnection {
   @override
   String toString() {
     return 'EventStoreConnection{host: $host, port: $port, pageSize: $pageSize}';
+  }
+
+  String _mapUrlTo(String url) {
+    if (enforceAddress) {
+      var uri = Uri.parse(url);
+      final host = uri.host;
+      if (uri.hasPort) {
+        final next = url.replaceFirst('${uri.scheme}://$host:${uri.port}', '${this.host}:$port');
+        return next;
+      }
+      return url.replaceFirst('$host', '${this.host}:$port');
+    }
+    return url;
   }
 }
 
@@ -1700,4 +1712,12 @@ class _SubscriptionController {
       );
     }
   }
+}
+
+int toNextTimeout(int reconnects, Duration maxBackoffTime, {int exponent = 2}) {
+  final wait = min(
+    pow(exponent, reconnects++).toInt() + Random().nextInt(1000),
+    maxBackoffTime.inMilliseconds,
+  );
+  return wait;
 }
