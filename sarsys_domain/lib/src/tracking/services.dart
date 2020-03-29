@@ -62,7 +62,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
 
   TrackingService(
     this.repository, {
-    this.consume = 5,
+    this.consume = 1,
     this.maxBackoffTime = const Duration(seconds: 10),
   });
   final int consume;
@@ -143,23 +143,23 @@ class TrackingService extends MessageHandler<DomainEvent> {
   }
 
   @override
-  void handle(DomainEvent message) {
+  void handle(DomainEvent message) async {
     try {
       switch (message.runtimeType) {
         case TrackingCreated:
-          _onTrackingCreated(message);
+          await _onTrackingCreated(message);
           break;
         case TrackingSourceAdded:
-          _onTrackingSourceAdded(message);
+          await _onTrackingSourceAdded(message);
           break;
         case TrackingSourceRemoved:
-          _onTrackingSourceRemoved(message);
+          await _onTrackingSourceRemoved(message);
           break;
         case DevicePositionChanged:
-          _onSourcePositionChanged(message);
+          await _onSourcePositionChanged(message);
           break;
         case TrackingPositionChanged:
-          _onSourcePositionChanged(message);
+          await _onSourcePositionChanged(message);
           break;
       }
     } on Exception catch (e, stackTrace) {

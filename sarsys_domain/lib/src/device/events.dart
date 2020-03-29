@@ -56,8 +56,9 @@ class DevicePositionChanged extends PositionEvent {
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
-          created: created,
           data: data,
+          created: created,
+          type: 'DevicePositionChanged',
         );
 }
 

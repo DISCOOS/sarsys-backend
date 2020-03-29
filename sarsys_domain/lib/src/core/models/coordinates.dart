@@ -19,8 +19,10 @@ class CoordinatesModel extends Equatable {
         alt,
       ];
 
-  bool get isEmpty => lat == 0 && lon == 0;
   bool get isNotEmpty => !isEmpty;
+  bool get isEmpty => _isEmpty(lat) || _isEmpty(lon);
+
+  bool _isEmpty(double value) => value == 0 || value == null;
 
   /// Factory constructor for creating a new `Point`  instance
   factory CoordinatesModel.fromJson(List<dynamic> json) => CoordinatesModel(
@@ -33,6 +35,20 @@ class CoordinatesModel extends Equatable {
   List<double> toJson() => [lat, lon, if (alt != null) alt];
 }
 
-double _latFromJson(Object json) => (json as List)[0];
-double _lonFromJson(Object json) => (json as List)[1];
-double _altFromJson(Object json) => (json as List).length > 2 ? (json as List)[2] : null;
+double _latFromJson(Object json) => _toDouble(json, 0);
+double _lonFromJson(Object json) => _toDouble(json, 1);
+double _altFromJson(Object json) => _toDouble(json, 2);
+
+double _toDouble(Object json, int index) {
+  if (json is List) {
+    if (index < json.length) {
+      var value = json[index];
+      if (value is num) {
+        return value.toDouble();
+      } else if (value is String) {
+        return double.parse(value);
+      }
+    }
+  }
+  return null;
+}
