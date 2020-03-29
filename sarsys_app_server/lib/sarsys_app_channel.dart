@@ -344,6 +344,13 @@ class SarSysAppServerChannel extends ApplicationChannel {
     if (config.auth.enabled) {
       logger.info("OpenID Connect Provider BASE URL is ${config.auth.baseUrl}");
     }
+
+    // Ensure that data path exists
+    final dir = File(config.dataPath);
+    if (!dir.existsSync()) {
+      dir.createSync(recursive: true);
+      logger.fine("Created data path ${config.dataPath}");
+    }
   }
 
   void _configureLogger() {

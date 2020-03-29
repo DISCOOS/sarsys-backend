@@ -14,6 +14,9 @@ class SarSysConfig extends Configuration {
   /// [EventStore](www.eventstore.org) config values
   EvenStoreConfig eventstore;
 
+  /// SARSys data path
+  String dataPath;
+
   /// EventStore prefix
   @optionalConfiguration
   String prefix;

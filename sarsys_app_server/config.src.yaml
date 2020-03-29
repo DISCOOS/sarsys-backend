@@ -2,6 +2,7 @@ level: INFO
 debug: true
 prefix: test
 tenant: discoos
+dataPath: .data
 auth:
   enabled: false
   audience: sarsys-app
