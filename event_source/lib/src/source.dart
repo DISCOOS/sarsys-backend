@@ -1317,7 +1317,6 @@ class EventStoreConnection {
   /// If the client fails to respond in the given timeout period, the message will be retried.
   Future<SubscriptionResult> writeSubscriptionAckAll(FeedResult feed) async {
     final url = feed.atomFeed.getUri('ackAll');
-    _logger.info('answer: $url');
     final response = await client.post(
       url,
       headers: {
@@ -1358,7 +1357,6 @@ class EventStoreConnection {
     final ids = events.map((event) => event.uuid).join(',');
     final nackAction = nack ? '?action=${enumName(action)}' : '';
     final url = '$host:$port/subscriptions/$stream/$group/$answer?ids=$ids$nackAction';
-    _logger.info('answer: $url');
     final result = await client.post(
       url,
       headers: {
@@ -1716,9 +1714,6 @@ class _SubscriptionController {
     try {
       feed = await _nextFeed();
       if (feed.isNotEmpty) {
-        if (strategy == ConsumerStrategy.RoundRobin) {
-          logger.info(feed);
-        }
         await _readEventsInFeed(feed);
       }
     } on Exception catch (e, stackTrace) {
