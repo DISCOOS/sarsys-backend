@@ -14,7 +14,8 @@ resources:
     memory: 512Mi
 
 eventStoreConfig:
-  # Use recommended cloud settings, see https://eventstore.com/docs/server/ports-and-networking/index.html#heartbeat-timeouts
+  # Use recommended cloud settings,
+  # see https://eventstore.com/docs/server/ports-and-networking/index.html#heartbeat-timeouts
   INT_TCP_HEARTBEAT_TIMEOUT: 1000
   EXT_TCP_HEARTBEAT_TIMEOUT: 1000
   INT_TCP_HEARTBEAT_INTERVAL: 5000

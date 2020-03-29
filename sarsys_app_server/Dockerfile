@@ -21,4 +21,6 @@ USER 1000
 # is raised.
 EXPOSE 8082
 
+VOLUME /var/lib/eventstore
+
 ENTRYPOINT ["dart", "main.snapshot", "--port", "8082", "--instances", "1", "--config", "config.yaml"]

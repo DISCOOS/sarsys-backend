@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sarsys-app-server-config
+  namespace: sarsys
+data:
+  LEVEL: "INFO"
+  DEBUG: "true"
+  PREFIX: "test"
+  TENANT: "discoos"
+  EVENTSTORE_HOST: "http://eventstore.sarsys.svc.cluster.local"
+  EVENTSTORE_PORT: "2113"
+  AUTH_ENABLED: "true"
+  AUTH_AUDIENCE: "sarsys-web"
+  AUTH_ISSUER: "https://id.discoos.io/auth/realms/DISCOOS"
+  AUTH_BASE_URL: "https://id.discoos.io/auth/realms/DISCOOS"
+  AUTH_ROLES_CLAIM: "roles"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sarsys-app-server-secrets
+  namespace: sarsys
+data:
+  # echo -n 'admin' | openssl base64
+  EVENTSTORE_LOGIN: YWRtaW4=
+  # echo -n 'changeit' | openssl base64
+  EVENTSTORE_PASSWORD: Y2hhbmdlaXQ=
+type: Opaque
