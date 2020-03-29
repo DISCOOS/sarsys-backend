@@ -64,7 +64,7 @@ class EventStoreMockServer {
         orElse: () => null,
       );
       if (route == null) {
-        request.response.statusCode = HttpStatus.notFound;
+        _notFound(request);
       } else {
         await route.handle(request);
       }
@@ -79,6 +79,12 @@ class EventStoreMockServer {
     _log(
       '$runtimeType[$port]: Listening for requests',
     );
+  }
+
+  HttpResponse _notFound(HttpRequest request) {
+    return request.response
+      ..statusCode = HttpStatus.notFound
+      ..reasonPhrase = 'Not found';
   }
 
   void _log(String message) {
@@ -532,8 +538,12 @@ class TestStream {
     } else if (RegExp(asNumber(stream)).hasMatch(path)) {
       // Fetch events with given canonical event number
       final number = toNumber(stream, path);
-      final data = _canonical[_canonical.keys.elementAt(number)];
-      _toAtomItemContentResponse(request, number, data);
+      if (number <= _canonical.keys.length) {
+        final data = _canonical[_canonical.keys.elementAt(number)];
+        _toAtomItemContentResponse(request, number, data);
+      } else {
+        _notFound(request);
+      }
     } else if (RegExp(TestSubscription.asSubscription(stream)).hasMatch(path)) {
       // Fetch next events from subscription group for given consumer
       _toCompetingAtomFeedResponse(request, TestSubscription.asSubscription(stream), path);
