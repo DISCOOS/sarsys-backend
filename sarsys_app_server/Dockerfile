@@ -1,4 +1,5 @@
 FROM google/dart
+MAINTAINER DISCO Open Source <admin@discoos.org>
 
 WORKDIR /app
 ADD bin/main.snapshot /app/
