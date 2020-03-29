@@ -54,10 +54,15 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       if (!repository.contains(uuid)) {
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
+      final aggregate = repository.get(uuid);
+      final array = aggregate.asEntityArray(
+        aggregateField,
+        entityIdFieldName: entityIdFieldName ?? aggregate.entityIdFieldName,
+      );
       return okEntityPaged<T>(
         uuid,
         entityType,
-        List<Map<String, dynamic>>.from(repository.get(uuid).data[aggregateField] as List<dynamic>),
+        array.toList(),
       );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);

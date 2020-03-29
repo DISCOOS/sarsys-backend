@@ -586,7 +586,7 @@ class EventStore {
   /// Handle subscription errors
   void _onSubscriptionError(Repository repository, Object error, StackTrace stackTrace) {
     logger.severe(
-      '${repository.runtimeType}: subscription failed with: $error. stactrace: $stackTrace',
+      '${repository.runtimeType}: subscription failed with: $error. stacktrace: $stackTrace',
     );
     if (!_disposed) {
       _subscriptions[repository.runtimeType].reconnect(
@@ -1264,16 +1264,19 @@ class EventStoreConnection {
     String stream,
     String group, {
     EventNumber number = EventNumber.first,
-    Duration timeout = const Duration(microseconds: 10000),
+    Duration timeout = const Duration(seconds: 1),
     ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
   }) async {
-    final result = await client.put('$host:$port/subscriptions/$stream/$group',
+    final url = _mapUrlTo('$host:$port/subscriptions/$stream/$group');
+    final result = await client.put(url,
         headers: {
           'Authorization': credentials.header,
-          'Accept': ' application/vnd.eventstore.competingatom+json',
+          'Content-Type': 'application/json',
         },
         body: json.encode({
           'startFrom': number.value,
+          // IMPORTANT: This will resolve to events instead of atom items in subscription stream
+          'resolveLinktos': true,
           'namedConsumerStrategy': enumName(strategy),
           'messageTimeoutMilliseconds': timeout.inMilliseconds,
         }));
@@ -1286,13 +1289,16 @@ class EventStoreConnection {
     );
   }
 
-  Future<Response> _getSubscriptionGroup(String stream, String group, int count) => client.get(
-        '$host:$port/subscriptions/$stream/$group/$count',
-        headers: {
-          'Authorization': credentials.header,
-          'Accept': ' application/vnd.eventstore.competingatom+json',
-        },
-      );
+  Future<Response> _getSubscriptionGroup(String stream, String group, int count) {
+    final url = _mapUrlTo('$host:$port/subscriptions/$stream/$group/$count');
+    return client.get(
+      url,
+      headers: {
+        'Authorization': credentials.header,
+        'Accept': 'application/vnd.eventstore.competingatom+json',
+      },
+    );
+  }
 
   /// Acknowledge multiple messages
   ///
@@ -1302,8 +1308,28 @@ class EventStoreConnection {
     @required String stream,
     @required String group,
     @required List<SourceEvent> events,
-  }) async =>
-      await _writeSubscriptionAnswer(stream, group, events, nack: false);
+  }) =>
+      _writeSubscriptionAnswer(stream, group, events, nack: false);
+
+  /// Acknowledge all messages in [SubscriptionFeed]
+  ///
+  /// Clients must acknowledge (or not acknowledge) messages in the competing consumer model.
+  /// If the client fails to respond in the given timeout period, the message will be retried.
+  Future<SubscriptionResult> writeSubscriptionAckAll(FeedResult feed) async {
+    final url = feed.atomFeed.getUri('ackAll');
+    _logger.info('answer: $url');
+    final response = await client.post(
+      url,
+      headers: {
+        'Authorization': credentials.header,
+      },
+    );
+    return SubscriptionResult.from(
+      stream: feed.stream,
+      group: feed.subscription,
+      response: response,
+    );
+  }
 
   /// Negative acknowledge multiple messages
   ///
@@ -1314,10 +1340,10 @@ class EventStoreConnection {
     @required String group,
     @required List<SourceEvent> events,
     SubscriptionAction action = SubscriptionAction.Retry,
-  }) async =>
-      await _writeSubscriptionAnswer(stream, group, events, nack: true);
+  }) =>
+      _writeSubscriptionAnswer(stream, group, events, nack: true);
 
-  /// Negative acknowledge multiple messages
+  /// Acknowledge multiple messages
   ///
   /// Clients must acknowledge (or not acknowledge) messages in the competing consumer model.
   /// If the client fails to respond in the given timeout period, the message will be retried.
@@ -1332,10 +1358,12 @@ class EventStoreConnection {
     final ids = events.map((event) => event.uuid).join(',');
     final nackAction = nack ? '?action=${enumName(action)}' : '';
     final url = '$host:$port/subscriptions/$stream/$group/$answer?ids=$ids$nackAction';
+    _logger.info('answer: $url');
     final result = await client.post(
       url,
       headers: {
         'Authorization': credentials.header,
+//        'Content-Type': 'application/json',
       },
     );
     return SubscriptionResult.from(
@@ -1530,6 +1558,14 @@ class _SubscriptionController {
 
   bool _isCatchup;
 
+  /// Queue of [_SubscriptionRequest]s executed in FIFO manner.
+  ///
+  /// This queue ensures that each command is processed in order
+  /// waiting for the previous request has completed. This
+  /// is need because the [Timer] class will not block on
+  /// await in it't callback method.
+  final _requestQueue = ListQueue<_SubscriptionRequest>();
+
   Stream<SourceEvent> pull({
     @required String stream,
     EventNumber number = EventNumber.last,
@@ -1592,28 +1628,60 @@ class _SubscriptionController {
   }
 
   void _startTimer() async {
-    logger.fine('Start timer for $name');
     try {
+      logger.fine(
+        'Started ${_strategy == null ? 'pull' : enumName(_strategy)} subscription on stream: $stream',
+      );
       if (_isCatchup) {
         await _catchup(controller);
         _isCatchup = false;
       }
+      _timer = Timer.periodic(
+        pullEvery,
+        (_) {
+          // Timer could will fire before previous read has completed
+          if (_requestQueue.isEmpty) {
+            _schedule<FeedResult>(_readNext);
+            scheduleMicrotask(_process);
+          }
+        },
+      );
+      logger.fine(
+        'Listen for events in subscription $name starting from number $_current',
+      );
     } on Exception catch (e, stackTrace) {
       // Only throw if running
       if (_timer != null && _timer.isActive) {
-        controller.addError(e, stackTrace);
-        _stopTimer();
-        logger.severe(
-          'Failed to catchup to head of stream $name: $e: $stackTrace',
-        );
+        _fatal('Failed to catchup to head of stream $name', e, stackTrace);
       }
     }
-    _timer = Timer.periodic(
-      pullEvery,
-      (_) => _readNext(),
+  }
+
+  void _schedule<T>(Future<T> Function() execute) {
+    _requestQueue.add(
+      _SubscriptionRequest<T>(execute),
     );
-    logger.fine(
-      'Listen for events in subscription $name starting from number $_current',
+  }
+
+  /// Execute [_SubscriptionRequest] in FIFO-manner until empty
+  void _process() async {
+    while (_requestQueue.isNotEmpty) {
+      final request = _requestQueue.first;
+      try {
+        await request();
+      } on Exception catch (e, stackTrace) {
+        _fatal('Failed to execute $request', e, stackTrace);
+      }
+      // Only remove after execution is completed
+      _requestQueue.remove(request);
+    }
+  }
+
+  void _fatal(String message, Exception e, StackTrace stackTrace) {
+    _stopTimer();
+    controller.addError(e, stackTrace);
+    logger.severe(
+      '$message: $e: $stackTrace',
     );
   }
 
@@ -1631,7 +1699,7 @@ class _SubscriptionController {
     FeedResult feed;
     do {
       feed = await _readNext();
-    } while (feed != null && feed.isOK && !feed.atomFeed.headOfStream);
+    } while (feed != null && feed.isOK && !(feed.headOfStream || feed.isEmpty));
 
     if (number < _current) {
       logger.fine(
@@ -1647,12 +1715,17 @@ class _SubscriptionController {
     FeedResult feed;
     try {
       feed = await _nextFeed();
-      await _readEventsInFeed(feed);
+      if (feed.isNotEmpty) {
+        if (strategy == ConsumerStrategy.RoundRobin) {
+          logger.info(feed);
+        }
+        await _readEventsInFeed(feed);
+      }
     } on Exception catch (e, stackTrace) {
       // Only throw if running
       if (_timer != null && _timer.isActive) {
-        controller.addError(e, stackTrace);
         _stopTimer();
+        controller.addError(e, stackTrace);
         logger.severe(
           'Failed to read next events for $name: $e: $stackTrace',
         );
@@ -1661,27 +1734,32 @@ class _SubscriptionController {
     return feed;
   }
 
-  Future _readEventsInFeed(FeedResult feed) async {
+  Future<ReadResult> _readEventsInFeed(FeedResult feed) async {
     if (feed.isOK) {
       final result = await connection.readEventsInFeed(feed);
-      if (result.isOK) {
-        if (accept) {
-          await _acceptEvents(result);
-        }
-        result.events.forEach(
-          controller.add,
-        );
+      if (result.isOK && result.isNotEmpty) {
         final next = result.number + 1;
         logger.fine(
           'Subscription $name caught up to event $_current, listening for $next',
         );
         _current = next;
+
+        if (accept) {
+          await _acceptEvents(feed);
+        }
+
+        // Notify when all actions are done
+        result.events.forEach(
+          controller.add,
+        );
       } else {
         logger.fine(
           'Failed to read events in $name from $_current: ${result.statusCode} ${result.reasonPhrase}',
         );
       }
+      return result;
     }
+    return null;
   }
 
   Future<FeedResult> _nextFeed() => strategy == ConsumerStrategy.RoundRobin
@@ -1699,18 +1777,37 @@ class _SubscriptionController {
           waitFor: waitFor,
         );
 
-  Future _acceptEvents(ReadResult result) async {
-    final answer = await connection.writeSubscriptionAck(
-      stream: stream,
-      group: group,
-      events: result.events,
-    );
+  Future<SubscriptionResult> _acceptEvents(FeedResult feed) async {
+    final answer = await connection.writeSubscriptionAckAll(feed);
     if (answer.isAccepted == false) {
       throw SubscriptionFailed(
-        'Failed to accept ${result.events.length} events in $name: '
+        'Failed to accept events in for $name: '
         '${answer.statusCode} ${answer.reasonPhrase}',
       );
     }
+    return answer;
+  }
+}
+
+class _SubscriptionRequest<T> {
+  _SubscriptionRequest(this.execute);
+  final Completer completer = Completer();
+  final Future<T> Function() execute;
+
+  Future<T> call() async {
+    var response;
+    try {
+      response = await execute();
+      completer.complete(response);
+    } on Exception catch (e, stackTrace) {
+      completer.completeError(e, stackTrace);
+    }
+    return response;
+  }
+
+  @override
+  String toString() {
+    return '_SubscriptionRequest{execute: $execute}';
   }
 }
 

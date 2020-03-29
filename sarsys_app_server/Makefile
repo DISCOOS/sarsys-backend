@@ -19,9 +19,9 @@ endif
 
 
 .PHONY: \
-	check commit test serve document models snapshot localhost build push publish apply restart rollback status eventstore
+	check commit test serve document models snapshot localhost build push publish apply delete restart rollback status eventstore
 .SILENT: \
-	check commit test serve document models snapshot localhost build push publish apply restart rollback status eventstore
+	check commit test serve document models snapshot localhost build push publish apply delete restart rollback status eventstore
 
 check:
 	if [[ `git status --porcelain` ]]; then echo 'You have changes, aborting.'; exit 1; else echo "No changes"; fi

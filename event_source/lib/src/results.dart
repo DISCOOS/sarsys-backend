@@ -111,6 +111,15 @@ class FeedResult extends StreamResult {
   /// Atom feed data
   final AtomFeed atomFeed;
 
+  /// Check if empty stream
+  bool get isEmpty => atomFeed?.entries?.isEmpty == true;
+
+  /// Check if not empty stream
+  bool get isNotEmpty => atomFeed?.entries?.isNotEmpty == true;
+
+  /// Check if head of stream
+  bool get headOfStream => atomFeed?.headOfStream == true;
+
   /// Check if 200 OK
   bool get isOK => statusCode == HttpStatus.ok;
 
@@ -131,6 +140,12 @@ class FeedResult extends StreamResult {
       throw FeedFailed('Failed to get atom feed for $stream because: $statusCode $reasonPhrase');
     }
     return this;
+  }
+
+  @override
+  String toString() {
+    return '$runtimeType{statusCode: $statusCode, reasonPhrase: $reasonPhrase, eTag: $eTag, '
+        'number: $number, subscription: $subscription, atomFeed: ${atomFeed.toJson()}}';
   }
 }
 
@@ -205,6 +220,20 @@ class ReadResult extends FeedResult {
 
   /// Events read from stream
   final List<SourceEvent> events;
+
+  /// Check if empty stream
+  @override
+  bool get isEmpty => events?.isEmpty == true;
+
+  /// Check if not empty stream
+  @override
+  bool get isNotEmpty => events?.isNotEmpty == true;
+
+  @override
+  String toString() {
+    return '$runtimeType{statusCode: $statusCode, reasonPhrase: $reasonPhrase, eTag: $eTag, '
+        'number: $number, subscription: $subscription, atomFeed: ${atomFeed.toJson()}, events: $events}';
+  }
 }
 
 /// Command result class

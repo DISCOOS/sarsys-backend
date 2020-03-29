@@ -33,10 +33,10 @@ Map<String, dynamic> _$AtomFeedToJson(AtomFeed instance) => <String, dynamic>{
       'title': instance.title,
       'updated': instance.updated,
       'streamId': instance.streamId,
-      'author': instance.author,
+      'author': instance.author?.toJson(),
       'headOfStream': instance.headOfStream,
       'selfUrl': instance.selfUrl,
       'eTag': instance.eTag,
-      'links': instance.links,
-      'entries': instance.entries
+      'links': instance.links?.map((e) => e?.toJson())?.toList(),
+      'entries': instance.entries?.map((e) => e?.toJson())?.toList()
     };

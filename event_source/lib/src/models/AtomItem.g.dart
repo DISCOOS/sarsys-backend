@@ -28,6 +28,6 @@ Map<String, dynamic> _$AtomItemToJson(AtomItem instance) => <String, dynamic>{
       'updated': instance.updated,
       'streamId': instance.streamId,
       'summary': instance.summary,
-      'author': instance.author,
-      'links': instance.links
+      'author': instance.author?.toJson(),
+      'links': instance.links?.map((e) => e?.toJson())?.toList()
     };

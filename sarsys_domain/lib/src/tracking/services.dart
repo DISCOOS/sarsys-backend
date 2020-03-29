@@ -102,7 +102,10 @@ class TrackingService extends MessageHandler<DomainEvent> {
     final complete = _subscription.compete(
       repository,
       stream: STREAM,
-      group: '$runtimeType',
+      group: EventStore.toCanonical([
+        repository.store.prefix,
+        '$runtimeType',
+      ]),
       consume: consume,
       number: EventNumber.first,
       strategy: ConsumerStrategy.RoundRobin,
@@ -621,7 +624,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
 
   void _onError(TrackingRepository repository, dynamic error, StackTrace stackTrace) {
     logger.severe(
-      'Competing subscription failed with: $error. stactrace: $stackTrace',
+      'Competing subscription failed with: $error. stacktrace: $stackTrace',
     );
     if (!_disposed) {
       try {

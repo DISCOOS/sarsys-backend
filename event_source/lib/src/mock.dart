@@ -342,14 +342,14 @@ class TestStream {
     String group, {
     ConsumerStrategy type = ConsumerStrategy.RoundRobin,
     offset = 0,
-    data,
+    Map data,
   }) =>
       _groups[group] = TestSubscription(
         canonicalStream,
         group,
         type,
         offset,
-        timeout: data ?? {}['messageTimeoutMilliseconds'],
+        timeout: (data ?? {})['messageTimeoutMilliseconds'] as int,
       );
 
   Future _ackEvents(HttpRequest request, RegExp pattern, String path) async {
@@ -552,8 +552,8 @@ class TestStream {
   String asForward(String stream) => '/streams/$stream/(\\d+)/forward/(\\d+)';
   String asBackward(String stream) => '/streams/$stream/(\\d+)/backward/(\\d+)';
 
-  String asUuid(String stream) => '/streams/$stream/(\\w+)';
-  String toUuid(String stream, String path) => RegExp('/streams/$stream/(\\w+)').firstMatch(path)?.group(1);
+  String asUuid(String stream) => '/streams/$stream/([\\w:-]+)';
+  String toUuid(String stream, String path) => RegExp('/streams/$stream/([\\w:-]+)').firstMatch(path)?.group(1);
 
   String asNumber(String stream) => '/streams/$stream/(\\d+)';
   int toNumber(String stream, String path) => int.parse(RegExp('/streams/$stream/(\\d+)').firstMatch(path)?.group(1));
@@ -704,11 +704,11 @@ class TestSubscription {
     return consumed;
   }
 
-  static String asSubscription(String stream) => 'subscriptions/$stream/(\\w+)';
+  static String asSubscription(String stream) => 'subscriptions/$stream/([\\w:-]+)';
   static String asGroup(String stream, String group) => 'subscriptions/$stream/$group';
   static String asCount(String stream, String group) => 'subscriptions/$stream/$group/(\\d+)';
-  static String asAck(String stream) => 'subscriptions/$stream/(\\w+)/ack';
-  static String asNack(String stream) => 'subscriptions/$stream/(\\w+)/nack';
+  static String asAck(String stream) => 'subscriptions/$stream/([\\w:-]+)/ack';
+  static String asNack(String stream) => 'subscriptions/$stream/([\\w:-]+)/nack';
 
   void ack(TestStream stream, HttpRequest request, List<String> ids) {
     // only acknowledge known ids
@@ -787,8 +787,8 @@ AtomFeed _toAtomFeed(
       if (!isSubscription) AtomLink(uri: '$selfUrl/head/backward/20', relation: 'first'),
       if (!isSubscription) AtomLink(uri: '$selfUrl/1/forward/20', relation: 'previous'),
       if (!isSubscription) AtomLink(uri: '$selfUrl/metadata', relation: 'meta'),
-      if (isSubscription) AtomLink(uri: '$selfUrl/?ack?ids=$ids', relation: 'ackAll'),
-      if (isSubscription) AtomLink(uri: '$selfUrl/?nack?ids=$ids', relation: 'nackAll'),
+      if (isSubscription) AtomLink(uri: '$selfUrl/ack?ids=$ids', relation: 'ackAll'),
+      if (isSubscription) AtomLink(uri: '$selfUrl/nack?ids=$ids', relation: 'nackAll'),
       if (isSubscription) AtomLink(uri: '$selfUrl/$consume', relation: 'previous'),
     ],
     entries: _toAtomItems(
