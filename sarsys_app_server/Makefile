@@ -76,19 +76,10 @@ push:
 	echo "[✓] Deploy docker image finished"
 
 publish: check build commit push
-	echo "Publish to kubernetes..."
-	if cat ../k8s/server/rbac.yaml | kubectl diff -f - > /dev/null 2>&1; then \
-	    echo "RBAC unchanged"; \
-	else \
-	    echo "RBAC changed"; \
-	    kubectl apply -f ../k8s/server/rbac.yaml; \
-	fi
-	if cat ../k8s/server/config.yaml | kubectl diff -f - > /dev/null 2>&1; then \
-	    echo "Configuration unchanged"; \
-	else \
-	    echo "Configuration changed"; \
-	    kubectl apply -f ../k8s/server/sarsys.yaml; \
-	fi
+	echo "Applying SARSys server..."
+	kubectl apply -f ../k8s/server/ns.yaml; \
+	kubectl apply -f ../k8s/server/rbac.yaml; \
+	kubectl apply -f ../k8s/server/config.yaml; \
 	if cat ../k8s/server/sarsys.yaml | kubectl diff -f - > /dev/null 2>&1; then \
 	    echo "Statefulset unchanged, restart using rollout (k8s version 1.15 or higher)"; \
 	    kubectl -n sarsys rollout restart statefulset sarsys-app-server; \
