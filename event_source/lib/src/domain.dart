@@ -187,7 +187,8 @@ class RepositoryManager {
     Duration maxBackoffTime = const Duration(seconds: 10),
   }) async {
     if (_timer != null) {
-      throw InvalidOperation('Prepare is pending');
+      logger.severe('Build not allowed, prepare is pending');
+      throw InvalidOperation('Build not allowed, prepare is pending');
     }
     final completer = Completer();
     _buildWithRetries(_stores.keys, maxAttempts, 0, maxBackoffTime, completer);
@@ -479,7 +480,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     if (process != null) {
       return process(event);
     }
-    throw InvalidOperation('Message ${event.type} not recognized');
+    final message = 'Message ${event.type} not recognized';
+    logger.severe(message);
+    throw InvalidOperation(message);
   }
 
   /// [DomainEvent] type to constraint definitions
@@ -489,7 +492,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   void constraint<E extends DomainEvent>(CreateInvariant creator, {bool unique = true}) {
     final type = typeOf<E>();
     if (unique && _constraints.containsKey(type)) {
-      throw InvalidOperation('Invariant for event $type already registered');
+      final message = 'Invariant for event $type already registered';
+      logger.severe(message);
+      throw InvalidOperation(message);
     }
     store.bus.register<E>(this);
     _constraints.putIfAbsent(type, () => creator);
@@ -505,7 +510,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           invariant(message);
         }
       } on Exception catch (e) {
-        logger.severe('Failed to enforce invariant for $message, failed with: $e');
+        logger.severe('Failed to enforce invariant for $message in $runtimeType, failed with: $e');
       }
     }
   }
