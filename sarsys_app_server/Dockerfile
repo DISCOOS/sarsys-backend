@@ -11,6 +11,7 @@ ADD web/ /app/web/
 RUN groupadd -r -g 1000 aqueduct
 RUN useradd -m -r -u 1000 -g 1000 aqueduct
 RUN chown -R 1000:1000 /app
+RUN mkdir -p /var/lib/sarsys && chown -R 1000:1000 /var/lib/sarsys
 
 USER 1000
 
@@ -22,7 +23,7 @@ USER 1000
 # is raised.
 EXPOSE 8082
 
-VOLUME /var/lib/eventstore
+VOLUME /var/lib/sarsys
 
 HEALTHCHECK --timeout=4s CMD curl -sf http://localhost:8082/api/healthz || exit 1
 
