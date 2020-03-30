@@ -1,3 +1,4 @@
+import 'package:event_source/event_source.dart';
 import 'package:sarsys_app_server/controllers/event_source/controllers.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_app_server/sarsys_app_server.dart';
@@ -15,7 +16,7 @@ class DevicePositionController extends ValueController<DeviceCommand, Device> {
           tag: "Device > Position",
           validators: [
             ValueValidator(
-              '/properties/type',
+              '/properties/source',
               ['manual'],
             )
           ],
@@ -32,8 +33,23 @@ class DevicePositionController extends ValueController<DeviceCommand, Device> {
   Future<Response> update(
     @Bind.path('uuid') String uuid,
     @Bind.body() Map<String, dynamic> data,
-  ) {
-    return super.update(uuid, data);
+  ) async {
+    if (!repository.contains(uuid)) {
+      return Response.notFound(body: "$aggregateType $uuid not found");
+    }
+    final aggregate = repository.get(uuid);
+    final currProps = aggregate.data.elementAt('$aggregateField/properties');
+    final nextProps = data.elementAt('properties') ?? {};
+    // Enforce defaults?
+    if (currProps == null) {
+      nextProps['timestamp'] ??= DateTime.now().toIso8601String();
+    }
+    nextProps['source'] ??= 'manual';
+    data['properties'] = nextProps;
+    return super.update(
+      uuid,
+      data,
+    );
   }
 
   @override

@@ -8,6 +8,7 @@ environment:
   sdk: '>=2.7.0 <3.0.0'
 
 dependencies:
+  hive: ^1.4.1+1
   event_source:
     path: ../event_source
 

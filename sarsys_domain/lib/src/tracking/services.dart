@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:logging/logging.dart';
 import 'package:event_source/event_source.dart';
+import 'package:hive/hive.dart';
+import 'package:collection/collection.dart';
 import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:sarsys_domain/src/core/models/models.dart';
 
@@ -63,9 +66,13 @@ class TrackingService extends MessageHandler<DomainEvent> {
   TrackingService(
     this.repository, {
     this.consume = 1,
+    this.dataPath = '.data',
+    this.snapshot = true,
     this.maxBackoffTime = const Duration(seconds: 10),
   });
   final int consume;
+  final bool snapshot;
+  final String dataPath;
   final Duration maxBackoffTime;
   final TrackingRepository repository;
   final Set<String> _managed = {};
@@ -74,11 +81,24 @@ class TrackingService extends MessageHandler<DomainEvent> {
 
   SubscriptionController<TrackingRepository> _subscription;
 
-  Set<String> get managed => Set.from(_managed);
-  Map<String, Set<String>> get sources => Map.from(_sources);
+  /// Get [Tracking] instances managed by this [TrackingService]
+  Set<String> get managed => UnmodifiableSetView(_managed);
+
+  /// Get mapping between [Tracking] and sources
+  Map<String, Set<String>> get sources => Map.unmodifiable(_sources);
 
   /// This stream will only contain [DomainEvent] pushed to remote stream
   final _streamController = StreamController<DomainEvent>.broadcast();
+
+  /// Persist [Tracking] managed by this service.
+  /// This solves the restart problem, which will not
+  /// fetch already consumed TrackingCreated events.
+  /// IMPORTANT: This solutions REQUIRES that same
+  /// AQUEDUCT instance is restarted in stateful manner,
+  /// f.ex. using a StatefulSet in Kubernetes (files are
+  /// kept between restarts of same logical instance)
+  ///
+  Box<String> _box;
 
   /// Get remote [Event] stream.
   Stream<DomainEvent> asStream() {
@@ -90,7 +110,28 @@ class TrackingService extends MessageHandler<DomainEvent> {
   bool _disposed = false;
 
   /// Build competitive [Tracking] service
-  FutureOr build() async {
+  FutureOr build({bool init = false}) async {
+    // Initialize from snapshot?
+    if (snapshot) {
+      Hive.init('$dataPath');
+      _box = await Hive.openBox('$runtimeType');
+      if (init) {
+        await _box.clear();
+      } else {
+        final futures = List<String>.from(_box.values ?? []).map((json) => _fromJson(json)).map(
+              (event) => _ensureManaged(event, replay: true),
+            );
+        await Future.wait(futures);
+      }
+    }
+
+    // Register events of interest
+    repository.store.bus.register<TrackingSourceAdded>(this);
+    repository.store.bus.register<TrackingSourceRemoved>(this);
+    repository.store.bus.register<DevicePositionChanged>(this);
+    repository.store.bus.register<TrackingPositionChanged>(this);
+
+    // Start competition with other tracking service instances
     await _subscription?.cancel();
     _subscription = SubscriptionController<TrackingRepository>(
       logger: logger,
@@ -110,10 +151,6 @@ class TrackingService extends MessageHandler<DomainEvent> {
       number: EventNumber.first,
       strategy: ConsumerStrategy.RoundRobin,
     );
-    repository.store.bus.register<TrackingSourceAdded>(this);
-    repository.store.bus.register<TrackingSourceRemoved>(this);
-    repository.store.bus.register<DevicePositionChanged>(this);
-    repository.store.bus.register<TrackingPositionChanged>(this);
     logger.info('Built with consumption count $consume from stream $STREAM');
     return complete;
   }
@@ -191,7 +228,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
   ///
   void _onTrackingSourceAdded(TrackingSourceAdded event) async {
     final uuid = repository.toAggregateUuid(event);
-    if (_managed.contains(uuid)) {
+    if (managed.contains(uuid)) {
       await _ensureManaged(event);
     } else {
       await _ensureDetached(event);
@@ -210,7 +247,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
   void _onSourcePositionChanged(PositionEvent event) async {
     final suuid = repository.toAggregateUuid(event);
     if (_sources.containsKey(suuid)) {
-      final tuuids = _sources[suuid].where((tuuid) => _managed.contains(tuuid));
+      final tuuids = _sources[suuid].where((tuuid) => managed.contains(tuuid));
       await Future.forEach(tuuids, (tuuid) => _addPosition(tuuid, event));
     }
   }
@@ -282,7 +319,8 @@ class TrackingService extends MessageHandler<DomainEvent> {
     if (sources.isEmpty) {
       return current;
     } else if (sources.length == 1) {
-      return _findTrack(tracking, sources.first.uuid)?.positions?.last ?? current;
+      final track = _findTrack(tracking, sources.first.uuid);
+      return track?.positions?.last ?? current;
     }
     final tracks = tracking.tracks;
     // Aggregate
@@ -490,11 +528,27 @@ class TrackingService extends MessageHandler<DomainEvent> {
     return repository.contains(uuid);
   }
 
-  Future _ensureManaged(DomainEvent event) async {
+  Future _ensureManaged(DomainEvent event, {bool replay = false}) async {
     final uuid = repository.toAggregateUuid(event);
     if (event is TrackingCreated) {
-      _addToStream([event], 'Analysing source mappings for tracking $uuid');
-      return _addSources(repository, uuid);
+      final uuid = repository.toAggregateUuid(event);
+      if (!_managed.contains(uuid)) {
+        // Ensure that tracking is persisted to this instance?
+        if (!replay && snapshot) {
+          await _box.put(uuid, _toJson(event));
+        }
+        _managed.add(uuid);
+        logger.info('Added tracking $uuid for position processing');
+      }
+      // Only attempt to add sources from tracking that exists during replay (stale
+      if (!replay || replay && repository.contains(uuid)) {
+        _addToStream([event], 'Analysing source mappings for tracking $uuid', replay: replay);
+        return _addSources(repository, uuid);
+      } else if (replay && snapshot) {
+        // Stale tracking object, remove it from hive
+        await _box.delete(uuid);
+        logger.info('Deleted stale tracking $uuid');
+      }
     } else if (event is TrackingSourceAdded) {
       if (_addSource(event.sourceUuid, uuid)) {
         _addToStream([event], 'Looking for other active tracks attached to ${event.sourceType} ${event.sourceUuid}');
@@ -582,10 +636,10 @@ class TrackingService extends MessageHandler<DomainEvent> {
     }
   }
 
-  void _addToStream(List<DomainEvent> events, String message) {
+  void _addToStream(List<DomainEvent> events, String message, {bool replay = false}) {
     events.forEach((event) {
       _streamController.add(event);
-      logger.info('Processed ${event.type}: $message');
+      logger.info('Processed ${event.type}${replay ? '[replay]' : ''}: $message');
     });
   }
 
@@ -595,10 +649,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
     try {
       final domain = repository.toDomainEvent(event);
       if (domain is TrackingCreated) {
-        final uuid = repository.toAggregateUuid(event);
-        _managed.add(uuid);
         await _ensureManaged(domain);
-        logger.fine('Added tracking $uuid for position processing');
       }
     } on Exception catch (e, stackTrace) {
       logger.severe(
@@ -637,5 +688,20 @@ class TrackingService extends MessageHandler<DomainEvent> {
         );
       }
     }
+  }
+
+  String _toJson(TrackingCreated event) => jsonEncode({
+        'uuid': event.uuid,
+        'data': event.data,
+        'created': event.created.toIso8601String(),
+      });
+
+  TrackingCreated _fromJson(String data) {
+    final json = jsonDecode(data);
+    return TrackingCreated(
+      uuid: json['uuid'],
+      data: json['data'],
+      created: DateTime.parse(json['created'] as String),
+    );
   }
 }

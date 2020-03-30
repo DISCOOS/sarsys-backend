@@ -47,8 +47,8 @@ Future main() async {
         ]));
 
     // Act - service 1
-    final service1 = TrackingService(repo, consume: 1);
-    final service2 = TrackingService(repo, consume: 1);
+    final service1 = TrackingService(repo, consume: 1, snapshot: false);
+    final service2 = TrackingService(repo, consume: 1, snapshot: false);
     service1.build();
     service2.build();
 
@@ -96,7 +96,7 @@ Future main() async {
       tuuid,
       await _createDevice(deviceRepo),
     );
-    final service = TrackingService(trackingRepo, consume: 1)..build();
+    final service = TrackingService(trackingRepo, consume: 1, snapshot: false)..build();
     await expectLater(
       service.asStream(),
       emitsInOrder([
@@ -130,7 +130,7 @@ Future main() async {
 
     // Act - add empty tracking object
     final tuuid = await _createTracking(trackingRepo, stream, subscription);
-    final service = TrackingService(trackingRepo, consume: 1)..build();
+    final service = TrackingService(trackingRepo, consume: 1, snapshot: false)..build();
     await expectLater(service.asStream(), emits(isA<TrackingCreated>()));
 
     // Act - create device and add source after service has consumed TrackingCreated
@@ -175,7 +175,7 @@ Future main() async {
 
     // Act - add empty tracking object
     final tuuid = await _createTracking(trackingRepo, stream, subscription);
-    final service = TrackingService(trackingRepo, consume: 1)..build();
+    final service = TrackingService(trackingRepo, consume: 1, snapshot: false)..build();
     await expectLater(service.asStream(), emits(isA<TrackingCreated>()));
 
     // Act - create device, add source and update device position with two positions
@@ -231,7 +231,7 @@ Future main() async {
 
     // Act - add empty tracking object
     final tuuid = await _createTracking(trackingRepo, stream, subscription);
-    final service = TrackingService(trackingRepo, consume: 1)..build();
+    final service = TrackingService(trackingRepo, consume: 1, snapshot: false)..build();
     await expectLater(
       service.asStream(),
       emitsInOrder([

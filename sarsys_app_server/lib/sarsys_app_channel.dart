@@ -4,7 +4,7 @@ import 'package:http/http.dart';
 import 'package:event_source/event_source.dart';
 import 'package:jose/jose.dart';
 import 'package:sarsys_app_server/auth/any.dart';
-import 'package:sarsys_app_server/controllers/domain/position_controller.dart';
+import 'package:sarsys_app_server/controllers/domain/device_position_controller.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/controllers/messages.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
@@ -346,7 +346,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     }
 
     // Ensure that data path exists
-    final dir = File(config.dataPath);
+    final dir = Directory(config.dataPath);
     if (!dir.existsSync()) {
       dir.createSync(recursive: true);
       logger.fine("Created data path ${config.dataPath}");
@@ -488,7 +488,10 @@ class SarSysAppServerChannel extends ApplicationChannel {
   }
 
   Future _buildDomainServices() async {
-    trackingService = TrackingService(manager.get<TrackingRepository>());
+    trackingService = TrackingService(
+      manager.get<TrackingRepository>(),
+      dataPath: config.dataPath,
+    );
     await trackingService.build();
   }
 

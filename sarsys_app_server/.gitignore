@@ -30,4 +30,4 @@ Dart_Packages.xml
 *.aqueduct.pid
 
 # Project
-.data
+.data*
