@@ -1,4 +1,5 @@
 import 'package:event_source/event_source.dart';
+import 'package:sarsys_domain/src/department/events.dart';
 
 import 'aggregate.dart';
 import 'commands.dart';
@@ -56,6 +57,20 @@ class DivisionRepository extends Repository<DivisionCommand, Division> {
                 created: event.created,
               ),
         });
+
+  @override
+  void willStartProcessingEvents() {
+    // Remove Department from 'departments' list when deleted
+    rule<DepartmentDeleted>((_) => AggregateListRule(
+          'departments',
+          (aggregate, event) => RemoveDepartmentFromDivision(
+            aggregate,
+            toAggregateUuid(event),
+          ),
+          this,
+        ));
+    super.willStartProcessingEvents();
+  }
 
   @override
   Division create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => Division(

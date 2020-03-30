@@ -82,7 +82,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
       catchError: _terminateOnFailure,
       whenComplete: _buildDomainServices,
     );
-    _buildInvariants();
     _buildMessageChannel();
     await _buildSecureRouter();
 
@@ -423,18 +422,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
     ]);
     await manager.build();
     logger.info("Built repositories in ${stopwatch.elapsedMilliseconds}ms => ready for aggregate requests!");
-  }
-
-  void _buildInvariants() {
-    // DivisionRepository constraints
-    manager.get<DivisionRepository>().rule<DepartmentDeleted>((repository) => AggregateListRule<DivisionRepository>(
-          'departments',
-          (aggregate, event) => RemoveDepartmentFromDivision(
-            aggregate as Division,
-            repository.toAggregateUuid(event),
-          ),
-          repository as DivisionRepository,
-        ));
   }
 
   Future _buildDomainServices() async {
