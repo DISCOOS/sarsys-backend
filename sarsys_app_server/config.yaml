@@ -2,7 +2,11 @@ level: $LEVEL
 debug: $DEBUG
 prefix: $PREFIX
 tenant: $TENANT
-dataPath: $DATA_PATH
+
+data:
+  enabled: $DATA_ENABLED
+  path: $DATA_PATH
+
 auth:
   enabled: $AUTH_ENABLED
   audience: $AUTH_AUDIENCE

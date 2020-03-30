@@ -14,8 +14,8 @@ class SarSysConfig extends Configuration {
   /// [EventStore](www.eventstore.org) config values
   EvenStoreConfig eventstore;
 
-  /// SARSys data path
-  String dataPath;
+  /// SARSys data config
+  DataConfig data;
 
   /// EventStore prefix
   @optionalConfiguration
@@ -32,6 +32,18 @@ class SarSysConfig extends Configuration {
   /// Log level
   @optionalConfiguration
   String level = Level.INFO.name;
+}
+
+class DataConfig extends Configuration {
+  DataConfig();
+
+  /// SARSys data path
+  @optionalConfiguration
+  String path;
+
+  /// SARSys data enabled
+  @optionalConfiguration
+  bool enabled = false;
 }
 
 class AuthConfig extends Configuration {

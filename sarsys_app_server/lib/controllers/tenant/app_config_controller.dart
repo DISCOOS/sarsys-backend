@@ -1,4 +1,3 @@
-import 'package:event_source/src/core.dart';
 import 'package:sarsys_app_server/controllers/domain/schemas.dart';
 import 'package:sarsys_app_server/controllers/event_source/aggregate_controller.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';

@@ -1,5 +1,4 @@
 import 'package:event_source/event_source.dart';
-import 'package:sarsys_domain/src/personnel/aggregate.dart';
 
 import 'aggregate.dart';
 import 'events.dart';

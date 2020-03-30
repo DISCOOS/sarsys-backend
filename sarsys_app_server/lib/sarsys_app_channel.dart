@@ -352,13 +352,17 @@ class SarSysAppServerChannel extends ApplicationChannel {
       logger.info("OpenID Connect Provider BASE URL is ${config.auth.baseUrl}");
     }
 
-    // Ensure that data path exists
-    final dir = Directory(config.dataPath);
-    if (!dir.existsSync()) {
-      dir.createSync(recursive: true);
-      logger.info("Created data path ${config.dataPath}");
+    // Ensure that data path exists?
+    if (config.data.enabled) {
+      final dir = Directory(config.data.path);
+      if (!dir.existsSync()) {
+        dir.createSync(recursive: true);
+        logger.info("Created data path ${config.data.path}");
+      } else {
+        logger.info("Data path is ${config.data.path}");
+      }
     } else {
-      logger.info("Data path is ${config.dataPath}");
+      logger.info("Data is DISABLED");
     }
   }
 
@@ -439,7 +443,8 @@ class SarSysAppServerChannel extends ApplicationChannel {
   Future _buildDomainServices() async {
     trackingService = TrackingService(
       manager.get<TrackingRepository>(),
-      dataPath: config.dataPath,
+      dataPath: config.data.path,
+      snapshot: config.data.enabled,
     );
     await trackingService.build();
   }
