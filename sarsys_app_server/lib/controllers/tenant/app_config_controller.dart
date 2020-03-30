@@ -1,7 +1,9 @@
+import 'package:event_source/src/core.dart';
 import 'package:sarsys_app_server/controllers/domain/schemas.dart';
 import 'package:sarsys_app_server/controllers/event_source/aggregate_controller.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
+import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 
 import 'app_config.dart';
 
@@ -28,8 +30,12 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
 
   @override
   @Operation.post()
-  Future<Response> create(@Bind.body() Map<String, dynamic> data) {
-    return super.create(data);
+  Future<Response> create(@Bind.body() Map<String, dynamic> data) async {
+    return await waitForRuleResult<DeviceCreated>(
+      await super.create(data),
+      fail: true,
+      timeout: const Duration(milliseconds: 1000),
+    );
   }
 
   @override
@@ -46,8 +52,13 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
   Future<Response> delete(
     @Bind.path('uuid') String uuid, {
     @Bind.body() Map<String, dynamic> data,
-  }) {
-    return super.delete(uuid, data: data);
+  }) async {
+    // Wait for rules to complete
+    return await waitForRuleResult<DeviceDeleted>(
+      await super.delete(uuid, data: data),
+      fail: true,
+      timeout: const Duration(milliseconds: 1000),
+    );
   }
 
   @override

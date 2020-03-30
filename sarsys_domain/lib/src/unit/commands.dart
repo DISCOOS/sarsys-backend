@@ -1,5 +1,7 @@
 import 'package:event_source/event_source.dart';
+import 'package:sarsys_domain/src/personnel/aggregate.dart';
 
+import 'aggregate.dart';
 import 'events.dart';
 
 abstract class UnitCommand<T extends DomainEvent> extends Command<T> {
@@ -48,6 +50,32 @@ class DeleteUnit extends UnitCommand<UnitDeleted> {
   DeleteUnit(
     Map<String, dynamic> data,
   ) : super(Action.delete, data: data);
+}
+
+//////////////////////////////////
+// Unit Personnel commands
+//////////////////////////////////
+
+class AddPersonnelToUnit extends UnitCommand<PersonnelAddedToUnit> {
+  AddPersonnelToUnit(
+    Unit unit,
+    String puuid,
+  ) : super(
+          Action.update,
+          uuid: unit.uuid,
+          data: Command.addToList<String>(unit.data, 'personnels', puuid),
+        );
+}
+
+class RemovePersonnelFromUnit extends UnitCommand<PersonnelRemovedFromUnit> {
+  RemovePersonnelFromUnit(
+    Unit unit,
+    String puuid,
+  ) : super(
+          Action.update,
+          uuid: unit.uuid,
+          data: Command.removeFromList<String>(unit.data, 'personnels', puuid),
+        );
 }
 
 //////////////////////////////////

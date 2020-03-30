@@ -44,8 +44,10 @@ class DivisionController extends AggregateController<DivisionCommand, Division> 
   Future<Response> delete(
     @Bind.path('uuid') String uuid, {
     @Bind.body() Map<String, dynamic> data,
-  }) {
-    return super.delete(uuid, data: data);
+  }) async {
+    return await waitForRuleResult<DivisionRemovedFromOrganisation>(
+      await super.delete(uuid, data: data),
+    );
   }
 
   @override

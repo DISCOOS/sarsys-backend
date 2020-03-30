@@ -44,8 +44,10 @@ class SubjectController extends AggregateController<SubjectCommand, Subject> {
   Future<Response> delete(
     @Bind.path('uuid') String uuid, {
     @Bind.body() Map<String, dynamic> data,
-  }) {
-    return super.delete(uuid, data: data);
+  }) async {
+    return await waitForRuleResult<SubjectRemovedFromIncident>(
+      await super.delete(uuid, data: data),
+    );
   }
 
   @override

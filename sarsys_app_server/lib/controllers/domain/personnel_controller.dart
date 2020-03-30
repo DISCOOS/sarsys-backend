@@ -57,7 +57,7 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
   }
 
   @override
-  PersonnelCommand onCreate(Map<String, dynamic> data) => CreatePersonnel(data);
+  PersonnelCommand onCreate(Map<String, dynamic> data) => RegisterPersonnel(data);
 
   @override
   PersonnelCommand onUpdate(Map<String, dynamic> data) => UpdatePersonnelInformation(data);
@@ -77,6 +77,12 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
             "uuid": context.schema['UUID'],
           })
             ..description = "Operation which this personnel is allocated to"
+            ..isReadOnly = true
+            ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
+          "unit": APISchemaObject.object({
+            "uuid": context.schema['UUID'],
+          })
+            ..description = "Unit which this personnel is assigned to"
             ..isReadOnly = true
             ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
           "fname": APISchemaObject.string()..description = "First name",

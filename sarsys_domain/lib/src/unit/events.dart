@@ -95,6 +95,40 @@ class UnitDeleted extends DomainEvent {
         );
 }
 
+//////////////////////////////////////
+// Unit Personnel Domain Events
+//////////////////////////////////////
+
+class PersonnelAddedToUnit extends DomainEvent {
+  PersonnelAddedToUnit({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+    @required bool local,
+  }) : super(
+          uuid: uuid,
+          local: local,
+          type: '$PersonnelAddedToUnit',
+          created: created,
+          data: data,
+        );
+}
+
+class PersonnelRemovedFromUnit extends DomainEvent {
+  PersonnelRemovedFromUnit({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+    @required bool local,
+  }) : super(
+          uuid: uuid,
+          local: local,
+          type: '$PersonnelRemovedFromUnit',
+          created: created,
+          data: data,
+        );
+}
+
 //////////////////////////////////
 // Unit Message Domain Events
 //////////////////////////////////

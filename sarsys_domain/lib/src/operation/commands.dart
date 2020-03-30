@@ -27,6 +27,10 @@ class UpdateOperationInformation extends OperationCommand<OperationInformationUp
   ) : super(Action.update, data: data);
 }
 
+//////////////////////////////////
+// Operation Mission commands
+//////////////////////////////////
+
 class AddMissionToOperation extends OperationCommand<MissionAddedToOperation> {
   AddMissionToOperation(
     Operation operation,
@@ -48,6 +52,10 @@ class RemoveMissionFromOperation extends OperationCommand<MissionRemovedFromOper
           data: Command.removeFromList<String>(incident.data, 'missions', operationUuid),
         );
 }
+
+//////////////////////////////////
+// Operation Unit commands
+//////////////////////////////////
 
 class AddUnitToOperation extends OperationCommand<UnitAddedToOperation> {
   AddUnitToOperation(

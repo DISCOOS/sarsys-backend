@@ -156,6 +156,26 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
 
   S onDelete(Map<String, dynamic> data) => throw UnsupportedError("Update not implemented");
 
+  /// Wait for given rule result from stream of results
+  Future<Response> waitForRuleResult<T extends Event>(
+    Response response, {
+    bool fail = false,
+    Duration timeout = const Duration(
+      milliseconds: 100,
+    ),
+  }) async {
+    try {
+      await repository.onRuleResult.firstWhere((event) => event is T).timeout(timeout);
+    } on Exception catch (e, stackTrace) {
+      if (fail) {
+        final message = "Waiting for ${typeOf<T>()} timed out after $timeout";
+        logger.severe('$message: $e: $stackTrace');
+        return Response.serverError(body: {'error': message});
+      }
+    }
+    return response;
+  }
+
   //////////////////////////////////
   // Documentation
   //////////////////////////////////

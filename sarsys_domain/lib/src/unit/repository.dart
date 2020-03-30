@@ -1,4 +1,5 @@
 import 'package:event_source/event_source.dart';
+import 'package:sarsys_domain/src/personnel/events.dart';
 
 import 'aggregate.dart';
 import 'commands.dart';
@@ -43,6 +44,18 @@ class UnitRepository extends Repository<UnitCommand, Unit> {
                 local: event.local,
                 created: event.created,
               ),
+          PersonnelAddedToUnit: (event) => PersonnelAddedToUnit(
+                uuid: event.uuid,
+                data: event.data,
+                local: event.local,
+                created: event.created,
+              ),
+          PersonnelRemovedFromUnit: (event) => PersonnelRemovedFromUnit(
+                uuid: event.uuid,
+                data: event.data,
+                local: event.local,
+                created: event.created,
+              ),
           UnitMessageAdded: (event) => UnitMessageAdded(
                 uuid: event.uuid,
                 data: event.data,
@@ -62,6 +75,20 @@ class UnitRepository extends Repository<UnitCommand, Unit> {
                 created: event.created,
               ),
         });
+
+  @override
+  void willStartProcessingEvents() {
+    // Remove Mission from 'missions' list when deleted
+    rule<PersonnelDeleted>((_) => AggregateListRule(
+          'personnels',
+          (aggregate, event) => RemovePersonnelFromUnit(
+            aggregate,
+            toAggregateUuid(event),
+          ),
+          this,
+        ));
+    super.willStartProcessingEvents();
+  }
 
   @override
   Unit create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => Unit(

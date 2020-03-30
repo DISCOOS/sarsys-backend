@@ -1,8 +1,9 @@
 import 'package:meta/meta.dart';
 import 'package:event_source/event_source.dart';
+import 'package:sarsys_domain/sarsys_domain.dart';
 
 class AppConfigRepository extends Repository<AppConfigCommand, AppConfig> {
-  AppConfigRepository(EventStore store)
+  AppConfigRepository(EventStore store, this.devices)
       : super(store: store, processors: {
           AppConfigCreated: (event) => AppConfigCreated(
                 uuid: event.uuid,
@@ -23,6 +24,39 @@ class AppConfigRepository extends Repository<AppConfigCommand, AppConfig> {
                 created: event.created,
               ),
         });
+
+  final DeviceRepository devices;
+
+  @override
+  void willStartProcessingEvents() {
+    // Co-create Device with AppConfig
+    rule<AppConfigCreated>((_) => AggregateRule(
+          uuidFieldName,
+          (aggregate, event) => CreateDevice(
+            {
+              "type": "app",
+              "network": "sarsys",
+              "status": "unavailable",
+              "uuid": aggregate.uuid,
+            },
+          ),
+          this,
+          target: (command) => devices,
+        ));
+
+    // Co-delete Device with AppConfig
+    rule<AppConfigDeleted>((_) => AggregateRule(
+          uuidFieldName,
+          (aggregate, event) => DeleteDevice(
+            {
+              "uuid": aggregate.uuid,
+            },
+          ),
+          devices,
+        ));
+
+    super.willStartProcessingEvents();
+  }
 
   @override
   AppConfig create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => AppConfig(
@@ -66,7 +100,7 @@ class UpdateAppConfig extends AppConfigCommand<AppConfigUpdated> {
 class DeleteAppConfig extends AppConfigCommand<AppConfigDeleted> {
   DeleteAppConfig(
     Map<String, dynamic> data,
-  ) : super(Action.update, data: data);
+  ) : super(Action.delete, data: data);
 }
 
 //////////////////////////////////////

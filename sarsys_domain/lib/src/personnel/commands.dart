@@ -14,8 +14,8 @@ abstract class PersonnelCommand<T extends DomainEvent> extends Command<T> {
 // Personnel aggregate commands
 //////////////////////////////////
 
-class CreatePersonnel extends PersonnelCommand<PersonnelCreated> {
-  CreatePersonnel(
+class RegisterPersonnel extends PersonnelCommand<PersonnelRegistered> {
+  RegisterPersonnel(
     Map<String, dynamic> data,
   ) : super(Action.create, data: data);
 }

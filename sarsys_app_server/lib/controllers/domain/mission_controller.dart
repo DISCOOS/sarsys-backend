@@ -56,8 +56,10 @@ class MissionController extends AggregateController<MissionCommand, Mission> {
   Future<Response> delete(
     @Bind.path('uuid') String uuid, {
     @Bind.body() Map<String, dynamic> data,
-  }) {
-    return super.delete(uuid, data: data);
+  }) async {
+    return await waitForRuleResult<MissionRemovedFromOperation>(
+      await super.delete(uuid, data: data),
+    );
   }
 
   @override

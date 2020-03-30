@@ -55,7 +55,7 @@ class RepositoryManager {
   /// Throws [InvalidOperation] if type of [Repository]
   /// returned from [create] is already registered.
   void register<T extends AggregateRoot>(
-    Repository<Command, T> Function(EventStore) create, {
+    Repository<Command, T> Function(EventStore store) create, {
     String prefix,
     String stream,
     bool useInstanceStreams = true,
@@ -281,41 +281,124 @@ class RepositoryManager {
 /// [Message] type name to [DomainEvent] processor method
 typedef Process = DomainEvent Function(Message message);
 
-/// Rule (invariant) handler function for given [event] and [root]
-typedef RuleHandler = Command Function(AggregateRoot root, DomainEvent event);
-
 /// Rule (invariant) builder function for given [repository]
 typedef RuleBuilder<T extends Repository> = Rule<T> Function(T repository);
 
+/// Rule (invariant) handler function for given [event] and [root]
+typedef RuleHandler = Command Function(AggregateRoot root, DomainEvent event);
+
+/// Rule (invariant) target function for given command
+typedef RuleTarget = Repository Function(Command command);
+
 /// Interface for rule (invariant) validation
 abstract class Rule<T extends Repository> {
-  Rule(this.field, this.handler, this.repository);
-  final String field;
+  Rule(this.handler, this.source, this.local, {this.target});
+  final bool local;
   final RuleHandler handler;
-  final T repository;
+  final RuleTarget target;
+  final T source;
 
-  Type get aggregateType => repository.aggregateType;
+  Type get aggregateType => source.aggregateType;
 
-  void call(DomainEvent event);
+  Future<Iterable<Event>> call(DomainEvent event);
+
+  Future<Iterable<Event>> execute(AggregateRoot aggregate, DomainEvent event) async {
+    final command = handler(aggregate, event);
+    if (command != null) {
+      final repository = target == null ? source : target(command);
+      return await repository.execute(
+        command,
+      );
+    }
+    return null;
+  }
+}
+
+/// Rule managing a uni-directional reference from field
+/// in [Event.data] to [AggregateRoot] in given [source]
+class AggregateRule<T extends Repository> extends Rule<T> {
+  AggregateRule(
+    this.field,
+    RuleHandler handler,
+    T repository, {
+    bool local = true,
+    this.create = false,
+    RuleTarget target,
+  }) : super(
+          handler,
+          repository,
+          local,
+          target: target,
+        );
+
+  final bool create;
+  final String field;
+
+  @override
+  Future<Iterable<Event>> call(DomainEvent event) async {
+    if (event.local == local) {
+      // Get uuid from
+      final uuid = event.data.elementAt(field);
+      final aggregate = create || source.contains(uuid) ? source.get(uuid) : null;
+      return await execute(aggregate, event);
+    }
+    return null;
+  }
+}
+
+/// Rule managing foreign [AggregateRoot.uuid] in [AggregateRoot] list with name [field]
+class AggregateListRule<T extends Repository> extends Rule<T> {
+  AggregateListRule(
+    this.field,
+    RuleHandler handler,
+    T repository, {
+    bool local = true,
+    this.multiple = false,
+    this.create = false,
+  }) : super(handler, repository, local);
+
+  final bool create;
+  final String field;
+  final bool multiple;
+
+  @override
+  Future<Iterable<Event>> call(DomainEvent event) async {
+    if (event.local == local) {
+      final result = await Future.wait(toUuids(event, multiple: multiple).where(source.contains).map((uuid) => execute(
+            create || source.contains(uuid) ? source.get(uuid) : null,
+            event,
+          )));
+      return result.fold<List<Event>>(
+        <Event>[],
+        (events, list) => events..addAll(list),
+      ).toList();
+    }
+    return null;
+  }
 
   Iterable<String> toUuids(
     DomainEvent event, {
     bool multiple = false,
   }) {
     final uuids = <String>[];
+
+    // Get referenced aggregate uuid directly
     final reference = event.data[aggregateType.toLowerCase()];
     if (reference is Map<String, dynamic>) {
       if (reference.containsKey('uuid')) {
         uuids.add(reference['uuid'] as String);
       }
     }
+    // Look through all lists in all aggregates?
     if (uuids.isEmpty || multiple) {
+      // Get foreign uuid (assuming it has the same field name)
+      final fuuid = source.toAggregateUuid(event);
+
       // TODO: Implement test that fails when number of open aggregates are above threshold
       // Do a full search for foreign id. This will be efficient
-      // as long as number of incidents are reasonable low
-      final foreign = event.data[repository.uuidFieldName] as String;
+      // as long as number of aggregates are reasonable low
       uuids.addAll(
-        repository.aggregates
+        source.aggregates
             .where(
               (aggregate) => !aggregate.isDeleted,
             )
@@ -323,7 +406,7 @@ abstract class Rule<T extends Repository> {
               (aggregate) => aggregate.data[field] is List,
             )
             .where(
-              (aggregate) => List<String>.from(aggregate.data[field] as List).contains(foreign),
+              (aggregate) => List<String>.from(aggregate.data[field] as List).contains(fuuid),
             )
             .map(
               (aggregate) => aggregate.uuid,
@@ -331,34 +414,6 @@ abstract class Rule<T extends Repository> {
       );
     }
     return uuids;
-  }
-}
-
-/// Rule for foreign uuids in [AggregateRoot] list with name [field]
-class AggregateListRule<T extends Repository> extends Rule<T> {
-  AggregateListRule(
-    String field,
-    RuleHandler handler,
-    T repository, {
-    this.local = true,
-    this.multiple = false,
-  }) : super(field, handler, repository);
-
-  final bool local;
-  final bool multiple;
-
-  @override
-  void call(DomainEvent event) async {
-    if (event.local == local) {
-      await Future.forEach(
-        toUuids(event, multiple: multiple).where(
-          repository.contains,
-        ),
-        (uuid) => repository.execute(
-          handler(repository.get(uuid), event),
-        ),
-      );
-    }
   }
 }
 
@@ -455,7 +510,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     return events;
   }
 
-  /// Subscribe this [repository] to compete for changes from [store]
+  /// Subscribe this [source] to compete for changes from [store]
   void compete({
     int consume = 20,
     ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
@@ -468,7 +523,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         maxBackoffTime: maxBackoffTime,
       );
 
-  /// Subscribe this [repository] to receive all changes from [store]
+  /// Subscribe this [source] to receive all changes from [store]
   void subscribe({
     Duration maxBackoffTime = const Duration(seconds: 10),
   }) =>
@@ -496,6 +551,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// [DomainEvent] type to constraint definitions
   final Map<Type, RuleBuilder> _rules = {};
+  final StreamController<Event> _ruleController = StreamController.broadcast();
+
+  /// Get stream of rule results
+  Stream<Event> get onRuleResult => _ruleController.stream;
 
   /// Register rule (invariant) for given DomainEvent [E]
   void rule<E extends DomainEvent>(RuleBuilder builder, {bool unique = true}) {
@@ -516,7 +575,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         final builder = _rules[message.runtimeType];
         if (builder != null) {
           final handler = builder(this);
-          handler(message);
+          final events = await handler(message);
+          events?.forEach(_ruleController.add);
         }
       } on Exception catch (e) {
         logger.severe('Failed to enforce invariant for $message in $runtimeType, failed with: $e');
@@ -728,6 +788,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         logger.fine('Push > $aggregate');
         // Wait for operation to complete before processing next
         final events = await store.push(aggregate);
+        if (aggregate.isDeleted) {
+          _aggregates.remove(aggregate.uuid);
+        }
         operation.completer.complete(events);
       }
     } on WrongExpectedEventVersion {

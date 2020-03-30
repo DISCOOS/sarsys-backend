@@ -74,7 +74,7 @@ class RemoveSubjectFromIncident extends IncidentCommand<SubjectRemovedFromIncide
 class DeleteIncident extends IncidentCommand<IncidentDeleted> {
   DeleteIncident(
     Map<String, dynamic> data,
-  ) : super(Action.update, data: data);
+  ) : super(Action.delete, data: data);
 }
 
 //////////////////////////////////

@@ -1,12 +1,13 @@
 import 'package:sarsys_app_server/controllers/event_source/controllers.dart';
+import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_domain/sarsys_domain.dart' as sar;
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 
 /// A ResourceController that handles
 /// [/api/operations](http://localhost/api/client.html#/Operation) requests
-class OperationController extends AggregateController<sar.OperationCommand, sar.Operation> {
-  OperationController(sar.OperationRepository repository, JsonValidation validation)
+class OperationController extends AggregateController<OperationCommand, sar.Operation> {
+  OperationController(OperationRepository repository, JsonValidation validation)
       : super(
           repository,
           validation: validation,
@@ -55,18 +56,20 @@ class OperationController extends AggregateController<sar.OperationCommand, sar.
   Future<Response> delete(
     @Bind.path('uuid') String uuid, {
     @Bind.body() Map<String, dynamic> data,
-  }) {
-    return super.delete(uuid, data: data);
+  }) async {
+    return await waitForRuleResult<OperationRemovedFromIncident>(
+      await super.delete(uuid, data: data),
+    );
   }
 
   @override
-  sar.OperationCommand onCreate(Map<String, dynamic> data) => sar.RegisterOperation(data);
+  OperationCommand onCreate(Map<String, dynamic> data) => RegisterOperation(data);
 
   @override
-  sar.OperationCommand onUpdate(Map<String, dynamic> data) => sar.UpdateOperationInformation(data);
+  OperationCommand onUpdate(Map<String, dynamic> data) => UpdateOperationInformation(data);
 
   @override
-  sar.OperationCommand onDelete(Map<String, dynamic> data) => sar.DeleteOperation(data);
+  OperationCommand onDelete(Map<String, dynamic> data) => DeleteOperation(data);
 
   //////////////////////////////////
   // Documentation

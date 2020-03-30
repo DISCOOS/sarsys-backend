@@ -52,8 +52,10 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
   Future<Response> delete(
     @Bind.path('uuid') String uuid, {
     @Bind.body() Map<String, dynamic> data,
-  }) {
-    return super.delete(uuid, data: data);
+  }) async {
+    return await waitForRuleResult<UnitRemovedFromOperation>(
+      await super.delete(uuid, data: data),
+    );
   }
 
   @override

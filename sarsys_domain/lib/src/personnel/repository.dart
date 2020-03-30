@@ -7,7 +7,7 @@ import 'events.dart';
 class PersonnelRepository extends Repository<PersonnelCommand, Personnel> {
   PersonnelRepository(EventStore store)
       : super(store: store, processors: {
-          PersonnelCreated: (event) => PersonnelCreated(
+          PersonnelRegistered: (event) => PersonnelRegistered(
                 uuid: event.uuid,
                 data: event.data,
                 local: event.local,

@@ -5,6 +5,7 @@ import 'package:event_source/event_source.dart';
 import 'package:jose/jose.dart';
 import 'package:sarsys_app_server/auth/any.dart';
 import 'package:sarsys_app_server/controllers/domain/device_position_controller.dart';
+import 'package:sarsys_app_server/controllers/domain/unit_personnel_controller.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/controllers/messages.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
@@ -228,6 +229,13 @@ class SarSysAppServerChannel extends ApplicationChannel {
                 requestValidator,
               ))
       ..secure(
+          '/api/units/:uuid/personnels',
+          () => UnitPersonnelController(
+                manager.get<UnitRepository>(),
+                manager.get<PersonnelRepository>(),
+                requestValidator,
+              ))
+      ..secure(
           '/api/units/:uuid/messages[/:id]',
           () => UnitMessageController(
                 manager.get<UnitRepository>(),
@@ -395,19 +403,23 @@ class SarSysAppServerChannel extends ApplicationChannel {
     Function() whenComplete,
     Function(Object error, StackTrace stackTrace) catchError,
   }) {
-    // Register repositories
-    manager.register<AppConfig>((manager) => AppConfigRepository(manager));
-    manager.register<Incident>((manager) => IncidentRepository(manager));
-    manager.register<Subject>((manager) => SubjectRepository(manager));
-    manager.register<Personnel>((manager) => PersonnelRepository(manager));
-    manager.register<Unit>((manager) => UnitRepository(manager));
-    manager.register<Mission>((manager) => MissionRepository(manager));
-    manager.register<Organisation>((manager) => OrganisationRepository(manager));
-    manager.register<Department>((manager) => DepartmentRepository(manager));
-    manager.register<Division>((manager) => DivisionRepository(manager));
-    manager.register<sar.Operation>((manager) => OperationRepository(manager));
-    manager.register<Tracking>((manager) => TrackingRepository(manager));
-    manager.register<Device>((manager) => DeviceRepository(manager));
+    // Register independent repositories
+    manager.register<Incident>((store) => IncidentRepository(store));
+    manager.register<Subject>((store) => SubjectRepository(store));
+    manager.register<Personnel>((store) => PersonnelRepository(store));
+    manager.register<Unit>((store) => UnitRepository(store));
+    manager.register<Mission>((store) => MissionRepository(store));
+    manager.register<Organisation>((store) => OrganisationRepository(store));
+    manager.register<Department>((store) => DepartmentRepository(store));
+    manager.register<Division>((store) => DivisionRepository(store));
+    manager.register<sar.Operation>((store) => OperationRepository(store));
+    manager.register<Tracking>((store) => TrackingRepository(store));
+    manager.register<Device>((store) => DeviceRepository(store));
+
+    // Register dependent repositories
+    manager.register<AppConfig>(
+      (store) => AppConfigRepository(store, manager.get<DeviceRepository>()),
+    );
 
     // Defer repository builds so that isolates are not killed on eventstore connection timeouts
     Future.microtask(() => _buildReposAsync(stopwatch))

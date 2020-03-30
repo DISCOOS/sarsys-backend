@@ -35,66 +35,6 @@ class OperationInformationUpdated extends DomainEvent {
         );
 }
 
-class MissionAddedToOperation extends DomainEvent {
-  MissionAddedToOperation({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
-          type: '$MissionAddedToOperation',
-          created: created,
-          data: data,
-        );
-}
-
-class MissionRemovedFromOperation extends DomainEvent {
-  MissionRemovedFromOperation({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
-          type: '$MissionRemovedFromOperation',
-          created: created,
-          data: data,
-        );
-}
-
-class UnitAddedToOperation extends DomainEvent {
-  UnitAddedToOperation({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
-          type: '$UnitAddedToOperation',
-          created: created,
-          data: data,
-        );
-}
-
-class UnitRemovedFromOperation extends DomainEvent {
-  UnitRemovedFromOperation({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
-          type: '$UnitRemovedFromOperation',
-          created: created,
-          data: data,
-        );
-}
-
 class OperationStarted extends DomainEvent {
   OperationStarted({
     @required String uuid,
@@ -150,6 +90,74 @@ class OperationDeleted extends DomainEvent {
           uuid: uuid,
           local: local,
           type: '$OperationDeleted',
+          created: created,
+          data: data,
+        );
+}
+
+//////////////////////////////////////
+// Mission Domain Events
+//////////////////////////////////////
+
+class MissionAddedToOperation extends DomainEvent {
+  MissionAddedToOperation({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+    @required bool local,
+  }) : super(
+          uuid: uuid,
+          local: local,
+          type: '$MissionAddedToOperation',
+          created: created,
+          data: data,
+        );
+}
+
+class MissionRemovedFromOperation extends DomainEvent {
+  MissionRemovedFromOperation({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+    @required bool local,
+  }) : super(
+          uuid: uuid,
+          local: local,
+          type: '$MissionRemovedFromOperation',
+          created: created,
+          data: data,
+        );
+}
+
+//////////////////////////////////////
+// Unit Domain Events
+//////////////////////////////////////
+
+class UnitAddedToOperation extends DomainEvent {
+  UnitAddedToOperation({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+    @required bool local,
+  }) : super(
+          uuid: uuid,
+          local: local,
+          type: '$UnitAddedToOperation',
+          created: created,
+          data: data,
+        );
+}
+
+class UnitRemovedFromOperation extends DomainEvent {
+  UnitRemovedFromOperation({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+    @required bool local,
+  }) : super(
+          uuid: uuid,
+          local: local,
+          type: '$UnitRemovedFromOperation',
           created: created,
           data: data,
         );
