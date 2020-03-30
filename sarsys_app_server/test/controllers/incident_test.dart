@@ -1,4 +1,5 @@
-import 'package:sarsys_domain/sarsys_domain.dart';
+import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
+import 'package:sarsys_domain/src/operation/operation.dart' as sar;
 import 'package:event_source/event_source.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
@@ -91,6 +92,42 @@ Future main() async {
     expect(actual['data'], equals(body), reason: "List was not cleared");
   });
 
+//  test("Uuids SHOULD BE removed from aggregate lists when foreign aggregates are deleted", () async {
+//    harness.eventStoreMockServer.withStream(typeOf<Incident>().toColonCase());
+//    harness.eventStoreMockServer.withStream(typeOf<sar.Operation>().toColonCase());
+//    harness.eventStoreMockServer.withStream(typeOf<Subject>().toColonCase());
+//    await harness.channel.manager.get<IncidentRepository>().readyAsync();
+//    await harness.channel.manager.get<SubjectRepository>().readyAsync();
+//    await harness.channel.manager.get<OperationRepository>().readyAsync();
+//    final uuid = Uuid().v4();
+//    final lists = {
+//      "subjects": ["s1"],
+//      "operations": ["o1"]
+//    };
+//    final body = _createData(uuid)..addAll(lists);
+//
+//    // Act
+//    expectResponse(await harness.agent.post("/api/subjects", body: createSubject('s1')), 201, body: null);
+//    expectResponse(await harness.agent.post("/api/operations", body: createOperation('o1')), 201, body: null);
+//    expectResponse(await harness.agent.post("/api/incidents", body: body), 201, body: null);
+//    final response1 = expectResponse(await harness.agent.get("/api/incidents/$uuid"), 200, body: null);
+//    final actual1 = Map.from(await response1.body.decode());
+//    expect(
+//      {'subjects': actual1.elementAt('data/subjects'), 'operations': actual1.elementAt('data/operations')},
+//      lists,
+//    );
+//
+//    // Test that foreign uuids are removed
+//    expectResponse(await harness.agent.delete("/api/subjects/s1"), 204, body: null);
+//    expectResponse(await harness.agent.delete("/api/operations/o1"), 204, body: null);
+//    final response2 = expectResponse(await harness.agent.get("/api/incidents/$uuid"), 200, body: null);
+//    final actual2 = Map.from(await response2.body.decode());
+//    expect(
+//      {'subjects': actual2.elementAt('data/subjects'), 'operations': actual2.elementAt('data/operations')},
+//      {'subjects': [], 'operations': []},
+//    );
+//  });
+//
   test("DELETE /api/incidents/{uuid} returns status code 204", () async {
     harness.eventStoreMockServer.withStream(typeOf<Incident>().toColonCase());
     await harness.channel.manager.get<IncidentRepository>().readyAsync();

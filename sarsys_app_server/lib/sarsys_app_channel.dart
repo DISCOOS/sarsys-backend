@@ -426,28 +426,9 @@ class SarSysAppServerChannel extends ApplicationChannel {
   }
 
   void _buildInvariants() {
-    // IncidentRepository constraints
-    manager.get<IncidentRepository>()
-      ..constraint<OperationDeleted>((repository) => AggregateListInvariant<IncidentRepository>(
-            'operations',
-            (aggregate, event) => RemoveOperationFromIncident(
-              aggregate as Incident,
-              repository.toAggregateUuid(event),
-            ),
-            repository as IncidentRepository,
-          ))
-      ..constraint<SubjectDeleted>((repository) => AggregateListInvariant<IncidentRepository>(
-            'subjects',
-            (aggregate, event) => RemoveSubjectFromIncident(
-              aggregate as Incident,
-              repository.toAggregateUuid(event),
-            ),
-            repository as IncidentRepository,
-          ));
-
     // OperationRepository constraints
     manager.get<OperationRepository>()
-      ..constraint<MissionDeleted>((repository) => AggregateListInvariant<OperationRepository>(
+      ..rule<MissionDeleted>((repository) => AggregateListRule<OperationRepository>(
             'missions',
             (aggregate, event) => RemoveMissionFromOperation(
               aggregate as sar.Operation,
@@ -455,7 +436,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
             ),
             repository as OperationRepository,
           ))
-      ..constraint<UnitDeleted>((repository) => AggregateListInvariant<OperationRepository>(
+      ..rule<UnitDeleted>((repository) => AggregateListRule<OperationRepository>(
             'units',
             (aggregate, event) => RemoveUnitFromOperation(
               aggregate as sar.Operation,
@@ -467,7 +448,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     // OrganisationRepository constraints
     manager
         .get<OrganisationRepository>()
-        .constraint<DivisionDeleted>((repository) => AggregateListInvariant<OrganisationRepository>(
+        .rule<DivisionDeleted>((repository) => AggregateListRule<OrganisationRepository>(
               'divisions',
               (aggregate, event) => RemoveDivisionFromOrganisation(
                 aggregate as Organisation,
@@ -477,16 +458,14 @@ class SarSysAppServerChannel extends ApplicationChannel {
             ));
 
     // DivisionRepository constraints
-    manager
-        .get<DivisionRepository>()
-        .constraint<DepartmentDeleted>((repository) => AggregateListInvariant<DivisionRepository>(
-              'departments',
-              (aggregate, event) => RemoveDepartmentFromDivision(
-                aggregate as Division,
-                repository.toAggregateUuid(event),
-              ),
-              repository as DivisionRepository,
-            ));
+    manager.get<DivisionRepository>().rule<DepartmentDeleted>((repository) => AggregateListRule<DivisionRepository>(
+          'departments',
+          (aggregate, event) => RemoveDepartmentFromDivision(
+            aggregate as Division,
+            repository.toAggregateUuid(event),
+          ),
+          repository as DivisionRepository,
+        ));
   }
 
   Future _buildDomainServices() async {

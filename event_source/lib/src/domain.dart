@@ -281,46 +281,27 @@ class RepositoryManager {
 /// [Message] type name to [DomainEvent] processor method
 typedef Process = DomainEvent Function(Message message);
 
-/// [Message] type name to [DomainEvent] processor method
-typedef Enforcer = Command Function(AggregateRoot root, DomainEvent event);
+/// Rule (invariant) handler function for given [event] and [root]
+typedef RuleHandler = Command Function(AggregateRoot root, DomainEvent event);
 
-/// Create invariant for given [repository]
-typedef CreateInvariant<T extends Repository> = Invariant<T> Function(T repository);
+/// Rule (invariant) builder function for given [repository]
+typedef RuleBuilder<T extends Repository> = Rule<T> Function(T repository);
 
-/// Interface for invariant execution
-abstract class Invariant<T extends Repository> {
-  Invariant(this.field, this.enforcer, this.repository);
+/// Interface for rule (invariant) validation
+abstract class Rule<T extends Repository> {
+  Rule(this.field, this.handler, this.repository);
   final String field;
-  final Enforcer enforcer;
+  final RuleHandler handler;
   final T repository;
 
   Type get aggregateType => repository.aggregateType;
 
   void call(DomainEvent event);
-}
 
-/// Invariant for foreign uuids in list with name [field]
-class AggregateListInvariant<T extends Repository> extends Invariant<T> {
-  AggregateListInvariant(
-    String field,
-    Enforcer enforcer,
-    T repository, {
-    this.multiple = false,
-  }) : super(field, enforcer, repository);
-
-  final bool multiple;
-
-  @override
-  void call(DomainEvent event) async => Future.forEach(
-        toUuids(event).where(
-          repository.contains,
-        ),
-        (uuid) => repository.execute(
-          enforcer(repository.get(uuid), event),
-        ),
-      );
-
-  Iterable<String> toUuids(DomainEvent event) {
+  Iterable<String> toUuids(
+    DomainEvent event, {
+    bool multiple = false,
+  }) {
     final uuids = <String>[];
     final reference = event.data[aggregateType.toLowerCase()];
     if (reference is Map<String, dynamic>) {
@@ -351,6 +332,28 @@ class AggregateListInvariant<T extends Repository> extends Invariant<T> {
     }
     return uuids;
   }
+}
+
+/// Rule for foreign uuids in [AggregateRoot] list with name [field]
+class AggregateListRule<T extends Repository> extends Rule<T> {
+  AggregateListRule(
+    String field,
+    RuleHandler handler,
+    T repository, {
+    this.multiple = false,
+  }) : super(field, handler, repository);
+
+  final bool multiple;
+
+  @override
+  void call(DomainEvent event) async => Future.forEach(
+        toUuids(event, multiple: multiple).where(
+          repository.contains,
+        ),
+        (uuid) => repository.execute(
+          handler(repository.get(uuid), event),
+        ),
+      );
 }
 
 /// Repository or [AggregateRoot]s as the single responsible for all transactions on each aggregate
@@ -486,28 +489,28 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   }
 
   /// [DomainEvent] type to constraint definitions
-  final Map<Type, CreateInvariant> _constraints = {};
+  final Map<Type, RuleBuilder> _rules = {};
 
-  /// Register invariant for given DomainEvent [E]
-  void constraint<E extends DomainEvent>(CreateInvariant creator, {bool unique = true}) {
+  /// Register rule (invariant) for given DomainEvent [E]
+  void rule<E extends DomainEvent>(RuleBuilder builder, {bool unique = true}) {
     final type = typeOf<E>();
-    if (unique && _constraints.containsKey(type)) {
-      final message = 'Invariant for event $type already registered';
+    if (unique && _rules.containsKey(type)) {
+      final message = 'Rule for event $type already registered';
       logger.severe(message);
       throw InvalidOperation(message);
     }
     store.bus.register<E>(this);
-    _constraints.putIfAbsent(type, () => creator);
+    _rules.putIfAbsent(type, () => builder);
   }
 
   @override
   void handle(DomainEvent message) async {
-    if (_constraints.isNotEmpty) {
+    if (_rules.isNotEmpty) {
       try {
-        final creator = _constraints[message.runtimeType];
-        if (creator != null) {
-          final invariant = creator(this);
-          invariant(message);
+        final builder = _rules[message.runtimeType];
+        if (builder != null) {
+          final handler = builder(this);
+          handler(message);
         }
       } on Exception catch (e) {
         logger.severe('Failed to enforce invariant for $message in $runtimeType, failed with: $e');

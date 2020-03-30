@@ -1,4 +1,6 @@
 import 'package:event_source/event_source.dart';
+import 'package:sarsys_domain/src/operation/events.dart';
+import 'package:sarsys_domain/src/subject/events.dart';
 
 import 'aggregate.dart';
 import 'commands.dart';
@@ -98,6 +100,30 @@ class IncidentRepository extends Repository<IncidentCommand, Incident> implement
                 created: event.created,
               )
         });
+
+  @override
+  void willStartProcessingEvents() {
+    // Remove Operation from 'operations' list when deleted
+    rule<OperationDeleted>((_) => AggregateListRule(
+          'operations',
+          (aggregate, event) => RemoveOperationFromIncident(
+            aggregate,
+            toAggregateUuid(event),
+          ),
+          this,
+        ));
+
+    // Remove Subject from 'subjects' list when deleted
+    rule<SubjectDeleted>((_) => AggregateListRule(
+          'subjects',
+          (aggregate, event) => RemoveSubjectFromIncident(
+            aggregate,
+            toAggregateUuid(event),
+          ),
+          this,
+        ));
+    super.willStartProcessingEvents();
+  }
 
   @override
   Incident create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => Incident(
