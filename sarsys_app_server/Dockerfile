@@ -11,7 +11,7 @@ ADD web/ /app/web/
 RUN groupadd -r -g 1000 aqueduct
 RUN useradd -m -r -u 1000 -g 1000 aqueduct
 RUN chown -R 1000:1000 /app
-RUN mkdir -p /var/lib/sarsys && chown -R 1000:1000 /var/lib/sarsys
+RUN mkdir -p /var/lib/sarsys && chown -R 1000:1000 /var/lib/sarsys && chmod -R 700 /var/lib/sarsys
 
 USER 1000
 
