@@ -349,7 +349,9 @@ class SarSysAppServerChannel extends ApplicationChannel {
     final dir = Directory(config.dataPath);
     if (!dir.existsSync()) {
       dir.createSync(recursive: true);
-      logger.fine("Created data path ${config.dataPath}");
+      logger.info("Created data path ${config.dataPath}");
+    } else {
+      logger.info("Data path is ${config.dataPath}");
     }
   }
 
