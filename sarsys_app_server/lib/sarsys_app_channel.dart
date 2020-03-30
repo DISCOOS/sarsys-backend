@@ -426,18 +426,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
   }
 
   void _buildInvariants() {
-    // OrganisationRepository constraints
-    manager
-        .get<OrganisationRepository>()
-        .rule<DivisionDeleted>((repository) => AggregateListRule<OrganisationRepository>(
-              'divisions',
-              (aggregate, event) => RemoveDivisionFromOrganisation(
-                aggregate as Organisation,
-                repository.toAggregateUuid(event),
-              ),
-              repository as OrganisationRepository,
-            ));
-
     // DivisionRepository constraints
     manager.get<DivisionRepository>().rule<DepartmentDeleted>((repository) => AggregateListRule<DivisionRepository>(
           'departments',

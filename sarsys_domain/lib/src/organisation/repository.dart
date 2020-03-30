@@ -1,4 +1,5 @@
 import 'package:event_source/event_source.dart';
+import 'package:sarsys_domain/src/division/events.dart';
 
 import 'aggregate.dart';
 import 'commands.dart';
@@ -38,6 +39,21 @@ class OrganisationRepository extends Repository<OrganisationCommand, Organisatio
                 created: event.created,
               ),
         });
+
+  @override
+  void willStartProcessingEvents() {
+    // Remove Division from 'divisions' list when deleted
+    rule<DivisionDeleted>((_) => AggregateListRule(
+          'divisions',
+          (aggregate, event) => RemoveDivisionFromOrganisation(
+            aggregate,
+            toAggregateUuid(event),
+          ),
+          this,
+        ));
+
+    super.willStartProcessingEvents();
+  }
 
   @override
   Organisation create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => Organisation(

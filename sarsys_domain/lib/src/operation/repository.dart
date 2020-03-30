@@ -131,7 +131,7 @@ class OperationRepository extends Repository<OperationCommand, Operation> {
     rule<MissionDeleted>((_) => AggregateListRule(
           'missions',
           (aggregate, event) => RemoveMissionFromOperation(
-            aggregate as Operation,
+            aggregate,
             toAggregateUuid(event),
           ),
           this,
@@ -141,7 +141,7 @@ class OperationRepository extends Repository<OperationCommand, Operation> {
     rule<UnitDeleted>((repository) => AggregateListRule(
           'units',
           (aggregate, event) => RemoveUnitFromOperation(
-            aggregate as Operation,
+            aggregate,
             toAggregateUuid(event),
           ),
           this,
