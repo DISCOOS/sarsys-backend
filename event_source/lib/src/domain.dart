@@ -1159,6 +1159,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         uuid: Uuid().v4(),
         type: '$emits',
         data: data,
+        local: true,
         created: timestamp,
       ));
     }

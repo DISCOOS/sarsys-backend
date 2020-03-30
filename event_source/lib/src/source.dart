@@ -247,6 +247,10 @@ class EventStore {
         (uuid, events) {
           _update(uuid, events);
           _apply(repository, uuid, events);
+          // Publish remotely created events.
+          // Handlers can determine events with
+          // local origin using the local field
+          // in each Event
           _publish(events.map(repository.toDomainEvent));
         },
       );
@@ -312,6 +316,10 @@ class EventStore {
         events,
       );
       _setEventNumber(aggregate, events);
+      // Publish locally created events.0
+      // Handlers can determine events with
+      // local origin using the local field
+      // in each Event
       _publish(events);
     }
     return events;
@@ -561,7 +569,10 @@ class EventStore {
           _current[canonicalStream] = _getCanonicalNumber([event]);
           // Update last number in canonical stream
           _current[stream] = event.number;
-          // Notify listeners
+          // Publish remotely created events.
+          // Handlers can determine events with
+          // local origin using the local field
+          // in each Event
           _publish([repository.toDomainEvent(event)]);
         }
         logger.fine(

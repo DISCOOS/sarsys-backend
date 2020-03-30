@@ -10,16 +10,19 @@ class SubjectRepository extends Repository<SubjectCommand, Subject> {
           SubjectRegistered: (event) => SubjectRegistered(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           SubjectUpdated: (event) => SubjectUpdated(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           SubjectDeleted: (event) => SubjectDeleted(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               )
         });

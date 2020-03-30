@@ -3,6 +3,7 @@ import 'package:meta/meta.dart';
 
 class PositionEvent extends ValueObjectEvent<Map<String, dynamic>> {
   PositionEvent({
+    @required bool local,
     @required String uuid,
     @required String type,
     @required DateTime created,
@@ -11,6 +12,7 @@ class PositionEvent extends ValueObjectEvent<Map<String, dynamic>> {
   }) : super(
           uuid: uuid,
           type: type,
+          local: local,
           created: created,
           valueField: valueField ?? 'position',
           data: data,

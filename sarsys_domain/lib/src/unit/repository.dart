@@ -10,46 +10,55 @@ class UnitRepository extends Repository<UnitCommand, Unit> {
           UnitCreated: (event) => UnitCreated(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           UnitInformationUpdated: (event) => UnitInformationUpdated(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           UnitMobilized: (event) => UnitMobilized(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           UnitDeployed: (event) => UnitDeployed(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           UnitRetired: (event) => UnitRetired(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           UnitDeleted: (event) => UnitDeleted(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           UnitMessageAdded: (event) => UnitMessageAdded(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           UnitMessageUpdated: (event) => UnitMessageUpdated(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           UnitMessageRemoved: (event) => UnitMessageRemoved(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
         });

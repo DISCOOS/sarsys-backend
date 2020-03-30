@@ -16,15 +16,18 @@ class FooRepository extends Repository<FooCommand, Foo> {
                 uuid: event.uuid,
                 data: event.data,
                 created: event.created,
+                local: event.local,
               ),
           FooUpdated: (event) => FooUpdated(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           FooDeleted: (event) => FooDeleted(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
         });
@@ -65,11 +68,13 @@ class DeleteFoo extends FooCommand<FooDeleted> {
 
 class FooCreated extends DomainEvent {
   FooCreated({
+    @required bool local,
     @required String uuid,
     @required DateTime created,
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
+          local: local,
           type: '$FooCreated',
           created: created,
           data: data,
@@ -83,8 +88,10 @@ class FooUpdated extends DomainEvent {
     @required String uuid,
     @required DateTime created,
     @required Map<String, dynamic> data,
+    @required bool local,
   }) : super(
           uuid: uuid,
+          local: local,
           type: '$FooUpdated',
           created: created,
           data: data,
@@ -96,8 +103,10 @@ class FooDeleted extends DomainEvent {
     @required String uuid,
     @required DateTime created,
     @required Map<String, dynamic> data,
+    @required bool local,
   }) : super(
           uuid: uuid,
+          local: local,
           type: '$FooDeleted',
           created: created,
           data: data,

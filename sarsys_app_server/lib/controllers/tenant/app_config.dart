@@ -7,16 +7,19 @@ class AppConfigRepository extends Repository<AppConfigCommand, AppConfig> {
           AppConfigCreated: (event) => AppConfigCreated(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           AppConfigUpdated: (event) => AppConfigUpdated(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           AppConfigDeleted: (event) => AppConfigDeleted(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
         });
@@ -75,8 +78,10 @@ class AppConfigCreated extends DomainEvent {
     @required String uuid,
     @required DateTime created,
     @required Map<String, dynamic> data,
+    @required bool local,
   }) : super(
           uuid: uuid,
+          local: local,
           type: "$AppConfigCreated",
           created: created,
           data: data,
@@ -88,8 +93,10 @@ class AppConfigUpdated extends DomainEvent {
     @required String uuid,
     @required DateTime created,
     @required Map<String, dynamic> data,
+    @required bool local,
   }) : super(
           uuid: uuid,
+          local: local,
           type: "$AppConfigUpdated",
           created: created,
           data: data,
@@ -101,8 +108,10 @@ class AppConfigDeleted extends DomainEvent {
     @required String uuid,
     @required DateTime created,
     @required Map<String, dynamic> data,
+    @required bool local,
   }) : super(
           uuid: uuid,
+          local: local,
           type: "$AppConfigDeleted",
           created: created,
           data: data,

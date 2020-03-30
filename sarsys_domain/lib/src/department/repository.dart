@@ -10,16 +10,19 @@ class DepartmentRepository extends Repository<DepartmentCommand, Department> {
           DepartmentCreated: (event) => DepartmentCreated(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           DepartmentInformationUpdated: (event) => DepartmentInformationUpdated(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           DepartmentDeleted: (event) => DepartmentDeleted(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
         });

@@ -10,41 +10,49 @@ class DivisionRepository extends Repository<DivisionCommand, Division> {
           DivisionRegistered: (event) => DivisionRegistered(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           DivisionInformationUpdated: (event) => DivisionInformationUpdated(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           DepartmentAddedToDivision: (event) => DepartmentAddedToDivision(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           DepartmentRemovedFromDivision: (event) => DepartmentRemovedFromDivision(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           DivisionStarted: (event) => DivisionStarted(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           DivisionCancelled: (event) => DivisionCancelled(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           DivisionFinished: (event) => DivisionFinished(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           DivisionDeleted: (event) => DivisionDeleted(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
         });

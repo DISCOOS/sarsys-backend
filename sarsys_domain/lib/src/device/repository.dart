@@ -10,41 +10,49 @@ class DeviceRepository extends Repository<DeviceCommand, Device> {
           DeviceCreated: (event) => DeviceCreated(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           DeviceInformationUpdated: (event) => DeviceInformationUpdated(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           DevicePositionChanged: (event) => DevicePositionChanged(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           DeviceDeleted: (event) => DeviceDeleted(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           DevicePositionChanged: (event) => DevicePositionChanged(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           DeviceMessageAdded: (event) => DeviceMessageAdded(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           DeviceMessageUpdated: (event) => DeviceMessageUpdated(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           DeviceMessageRemoved: (event) => DeviceMessageRemoved(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
         });

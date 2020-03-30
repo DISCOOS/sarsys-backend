@@ -11,23 +11,32 @@ import 'models/AtomFeed.dart';
 class Message {
   const Message({
     @required this.uuid,
+    @required this.local,
     this.created,
     String type,
     this.data,
   }) : _type = type;
 
-  /// Massage
+  /// Massage uuid
+  ///
   final String uuid;
 
-  /// Message creation time
+  /// Flag indicating that event has local origin.
+  /// Allow handlers to decide if event should be processed0
   ///
+  final bool local;
+
+  /// Message creation time
   /// *NOTE*: Not stable until read from remote stream
+  ///
   final DateTime created;
 
   /// Message data
+  ///
   final Map<String, dynamic> data;
 
   /// Message type
+  ///
   String get type => _type ?? '$runtimeType';
   final String _type;
 
@@ -56,17 +65,20 @@ class Event extends Message {
   const Event({
     @required String uuid,
     @required String type,
+    @required bool local,
     @required DateTime created,
     @required Map<String, dynamic> data,
   }) : super(
           uuid: uuid,
           type: type,
           data: data,
+          local: local,
           created: created,
         );
 
   /// Create an event with uuid
   factory Event.unique({
+    @required bool local,
     @required String type,
     @required DateTime created,
     @required Map<String, dynamic> data,
@@ -75,6 +87,7 @@ class Event extends Message {
         uuid: Uuid().v4(),
         type: type,
         data: data,
+        local: local,
         created: created,
       );
 
@@ -102,6 +115,7 @@ class Event extends Message {
 /// Base class for domain events
 class DomainEvent extends Event {
   DomainEvent({
+    @required bool local,
     @required String uuid,
     @required String type,
     @required DateTime created,
@@ -110,6 +124,7 @@ class DomainEvent extends Event {
           uuid: uuid,
           type: type,
           data: data,
+          local: local,
           created: created ?? DateTime.now(),
         );
 
@@ -121,6 +136,7 @@ class DomainEvent extends Event {
 
 class EntityObjectEvent extends DomainEvent {
   EntityObjectEvent({
+    @required bool local,
     @required String uuid,
     @required String type,
     @required DateTime created,
@@ -131,6 +147,7 @@ class EntityObjectEvent extends DomainEvent {
   }) : super(
           uuid: uuid,
           type: type,
+          local: local,
           created: created,
           data: {'index': index}..addAll(data),
         );
@@ -146,6 +163,7 @@ class EntityObjectEvent extends DomainEvent {
 
 class ValueObjectEvent<T> extends DomainEvent {
   ValueObjectEvent({
+    @required bool local,
     @required String uuid,
     @required String type,
     @required DateTime created,
@@ -154,6 +172,7 @@ class ValueObjectEvent<T> extends DomainEvent {
   }) : super(
           uuid: uuid,
           type: type,
+          local: local,
           created: created,
           data: data,
         );
@@ -178,6 +197,7 @@ class SourceEvent extends Event {
           uuid: uuid,
           type: type,
           data: data,
+          local: false,
           created: created ?? DateTime.now(),
         );
   final String streamId;
@@ -204,7 +224,11 @@ abstract class Command<T extends DomainEvent> extends Message {
     this.uuidFieldName = 'uuid',
     Map<String, dynamic> data = const {},
   })  : _uuid = uuid,
-        super(uuid: uuid, data: data);
+        super(
+          uuid: uuid,
+          data: data,
+          local: true,
+        );
 
   /// Command action
   final Action action;

@@ -10,56 +10,67 @@ class TrackingRepository extends Repository<TrackingCommand, Tracking> {
           TrackingCreated: (event) => TrackingCreated(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           TrackingStatusChanged: (event) => TrackingStatusChanged(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           TrackingInformationUpdated: (event) => TrackingInformationUpdated(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           TrackingDeleted: (event) => TrackingDeleted(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           TrackingSourceAdded: (event) => TrackingSourceAdded(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           TrackingSourceChanged: (event) => TrackingSourceChanged(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           TrackingSourceRemoved: (event) => TrackingSourceRemoved(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           TrackingTrackAdded: (event) => TrackingTrackAdded(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           TrackingTrackChanged: (event) => TrackingTrackChanged(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           TrackingTrackRemoved: (event) => TrackingTrackRemoved(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           TrackingPositionChanged: (event) => TrackingPositionChanged(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
         });

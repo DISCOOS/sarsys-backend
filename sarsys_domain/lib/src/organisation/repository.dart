@@ -10,26 +10,31 @@ class OrganisationRepository extends Repository<OrganisationCommand, Organisatio
           OrganisationCreated: (event) => OrganisationCreated(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           OrganisationInfomationUpdated: (event) => OrganisationInfomationUpdated(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           DivisionAddedToOrganisation: (event) => DivisionAddedToOrganisation(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           DivisionRemovedFromOrganisation: (event) => DivisionRemovedFromOrganisation(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
           OrganisationDeleted: (event) => OrganisationDeleted(
                 uuid: event.uuid,
                 data: event.data,
+                local: event.local,
                 created: event.created,
               ),
         });
