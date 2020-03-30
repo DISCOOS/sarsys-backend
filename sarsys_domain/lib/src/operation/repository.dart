@@ -1,4 +1,6 @@
 import 'package:event_source/event_source.dart';
+import 'package:sarsys_domain/src/mission/events.dart';
+import 'package:sarsys_domain/src/unit/events.dart';
 
 import 'aggregate.dart';
 import 'commands.dart';
@@ -122,6 +124,31 @@ class OperationRepository extends Repository<OperationCommand, Operation> {
                 created: event.created,
               ),
         });
+
+  @override
+  void willStartProcessingEvents() {
+    // Remove Mission from 'missions' list when deleted
+    rule<MissionDeleted>((_) => AggregateListRule(
+          'missions',
+          (aggregate, event) => RemoveMissionFromOperation(
+            aggregate as Operation,
+            toAggregateUuid(event),
+          ),
+          this,
+        ));
+
+    // Remove Unit from 'units' list when deleted
+    rule<UnitDeleted>((repository) => AggregateListRule(
+          'units',
+          (aggregate, event) => RemoveUnitFromOperation(
+            aggregate as Operation,
+            toAggregateUuid(event),
+          ),
+          this,
+        ));
+
+    super.willStartProcessingEvents();
+  }
 
   @override
   Operation create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => Operation(

@@ -426,25 +426,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
   }
 
   void _buildInvariants() {
-    // OperationRepository constraints
-    manager.get<OperationRepository>()
-      ..rule<MissionDeleted>((repository) => AggregateListRule<OperationRepository>(
-            'missions',
-            (aggregate, event) => RemoveMissionFromOperation(
-              aggregate as sar.Operation,
-              repository.toAggregateUuid(event),
-            ),
-            repository as OperationRepository,
-          ))
-      ..rule<UnitDeleted>((repository) => AggregateListRule<OperationRepository>(
-            'units',
-            (aggregate, event) => RemoveUnitFromOperation(
-              aggregate as sar.Operation,
-              repository.toAggregateUuid(event),
-            ),
-            repository as OperationRepository,
-          ));
-
     // OrganisationRepository constraints
     manager
         .get<OrganisationRepository>()
