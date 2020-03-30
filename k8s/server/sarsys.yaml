@@ -55,6 +55,8 @@ spec:
         role: backend
         type: api
     spec:
+      nodeSelector:
+        doks.digitalocean.com/node-pool: k8s-2
       containers:
         - name: sarsys-app-server
           image: discoos/sarsys_app_server:latest
