@@ -340,13 +340,17 @@ class AggregateListRule<T extends Repository> extends Rule<T> {
     String field,
     RuleHandler handler,
     T repository, {
+    this.local = true,
     this.multiple = false,
   }) : super(field, handler, repository);
 
+  final bool local;
   final bool multiple;
 
   @override
-  void call(DomainEvent event) async => Future.forEach(
+  void call(DomainEvent event) async {
+    if (event.local == local) {
+      await Future.forEach(
         toUuids(event, multiple: multiple).where(
           repository.contains,
         ),
@@ -354,6 +358,8 @@ class AggregateListRule<T extends Repository> extends Rule<T> {
           handler(repository.get(uuid), event),
         ),
       );
+    }
+  }
 }
 
 /// Repository or [AggregateRoot]s as the single responsible for all transactions on each aggregate
@@ -505,7 +511,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   @override
   void handle(DomainEvent message) async {
-    if (_rules.isNotEmpty) {
+    if (message.local && _rules.isNotEmpty) {
       try {
         final builder = _rules[message.runtimeType];
         if (builder != null) {
