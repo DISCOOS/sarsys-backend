@@ -344,7 +344,7 @@ Map<String, Object> createPosition({String type = 'manual'}) => {
         "description": "string",
         "accuracy": 0,
         "timestamp": DateTime.now().toIso8601String(),
-        "type": "$type"
+        "source": "$type"
       }
     };
 
