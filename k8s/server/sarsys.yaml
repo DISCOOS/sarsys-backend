@@ -55,8 +55,22 @@ spec:
         role: backend
         type: api
     spec:
+      # Only schedule on given node pool
       nodeSelector:
         doks.digitalocean.com/node-pool: k8s-2
+      affinity:
+        podAntiAffinity:
+          # Spread as evenly on nodes in node pool as possible
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: "app"
+                      operator: In
+                      values:
+                        - "sarsys-app-server"
+                topologyKey: "kubernetes.io/hostname"
       containers:
         - name: sarsys-app-server
           image: discoos/sarsys_app_server:latest
