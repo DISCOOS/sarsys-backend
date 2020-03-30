@@ -538,7 +538,7 @@ class TestStream {
     } else if (RegExp(asNumber(stream)).hasMatch(path)) {
       // Fetch events with given canonical event number
       final number = toNumber(stream, path);
-      if (number <= _canonical.keys.length) {
+      if (number >= 0 && number <= _canonical.keys.length) {
         final data = _canonical[_canonical.keys.elementAt(number)];
         _toAtomItemContentResponse(request, number, data);
       } else {
