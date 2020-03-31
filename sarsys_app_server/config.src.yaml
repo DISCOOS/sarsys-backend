@@ -1,4 +1,3 @@
-level: INFO
 debug: true
 prefix: test
 tenant: discoos
@@ -21,3 +20,5 @@ eventstore:
   port: 4000
   login: admin
   password: changeit
+logging:
+  level: INFO

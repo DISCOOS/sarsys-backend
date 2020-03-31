@@ -17,6 +17,9 @@ class SarSysConfig extends Configuration {
   /// SARSys data config
   DataConfig data;
 
+  /// SARSys data config
+  LoggerConfig logging;
+
   /// EventStore prefix
   @optionalConfiguration
   String prefix;
@@ -28,10 +31,40 @@ class SarSysConfig extends Configuration {
   /// 'POD_NAME', and 'POD_NAMESPACE', see k8s/sarsys.yaml
   @optionalConfiguration
   bool debug = false;
+}
+
+class LoggerConfig extends Configuration {
+  LoggerConfig();
 
   /// Log level
   @optionalConfiguration
   String level = Level.INFO.name;
+
+  /// Sentry.io config
+  @optionalConfiguration
+  SentryConfig sentry;
+
+  static Level toLevel(
+    String name, {
+    Level defaultLevel = Level.INFO,
+  }) {
+    return Level.LEVELS.firstWhere(
+      (level) => level.name.toUpperCase() == name.toUpperCase(),
+      orElse: () => defaultLevel,
+    );
+  }
+}
+
+class SentryConfig extends Configuration {
+  SentryConfig();
+
+  /// Sentry.io DSN Uri
+  String dsn;
+
+  /// Capture all events above this level to remove logger.
+  /// Use [Level.LEVELS] names
+  @optionalConfiguration
+  String level = Level.SEVERE.name;
 }
 
 class DataConfig extends Configuration {

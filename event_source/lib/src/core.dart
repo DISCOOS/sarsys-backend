@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:equatable/equatable.dart';
+import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:uuid/uuid.dart';
 
@@ -599,5 +600,20 @@ extension MapX on Map {
       return element is Map ? element[name] : element is List && element.isNotEmpty ? element[int.parse(name)] : null;
     });
     return found as T;
+  }
+}
+
+extension LoggerX on Logger {
+  static const CONNECTION_CLOSED = 'Connection closed before full header was received';
+
+  /// Decide between [Level.WARNING] and [Level.SEVERE]
+  void network(String message, Object error, StackTrace stackTrace) {
+    final level = '$error'.contains(CONNECTION_CLOSED) ? Level.WARNING : Level.SEVERE;
+    log(
+      level,
+      message,
+      error,
+      stackTrace,
+    );
   }
 }

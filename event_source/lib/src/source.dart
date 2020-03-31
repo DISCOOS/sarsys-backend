@@ -580,7 +580,7 @@ class EventStore {
         );
       }
     } catch (e, stacktrace) {
-      logger.severe('Failed to process $event, got error $e with stacktrace: $stacktrace');
+      logger.network('Failed to process $event, got error $e with stacktrace: $stacktrace', e, stacktrace);
     }
   }
 
@@ -596,8 +596,10 @@ class EventStore {
 
   /// Handle subscription errors
   void _onSubscriptionError(Repository repository, Object error, StackTrace stackTrace) {
-    logger.severe(
+    logger.network(
       '${repository.runtimeType}: subscription failed with: $error. stacktrace: $stackTrace',
+      error,
+      stackTrace,
     );
     if (!_disposed) {
       _subscriptions[repository.runtimeType].reconnect(
@@ -680,9 +682,7 @@ class EventStore {
         (controller) => controller.cancel(),
       );
     } on ClientException catch (e, stackTrace) {
-      logger.warning(
-        'Failed to dispose one or more subscriptions: error: $e, stacktrace: $stackTrace',
-      );
+      logger.network('Failed to dispose one or more subscriptions: error: $e, stacktrace: $stackTrace', e, stackTrace);
     }
 
     _subscriptions.clear();
@@ -859,9 +859,7 @@ class SubscriptionController<T extends Repository> {
         );
       }
     } on Exception catch (e, stackTrace) {
-      logger.severe(
-        'Failed to reconnect: $e: $stackTrace',
-      );
+      logger.network('Failed to reconnect: $e: $stackTrace', e, stackTrace);
     }
   }
 
@@ -1732,8 +1730,10 @@ class _SubscriptionController {
       if (_timer != null && _timer.isActive) {
         _stopTimer();
         controller.addError(e, stackTrace);
-        logger.severe(
+        logger.network(
           'Failed to read next events for $name: $e: $stackTrace',
+          e,
+          stackTrace,
         );
       }
     }

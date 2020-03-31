@@ -1,4 +1,3 @@
-level: $LEVEL
 debug: $DEBUG
 prefix: $PREFIX
 tenant: $TENANT
@@ -21,3 +20,8 @@ eventstore:
   port: $EVENTSTORE_PORT
   login: $EVENTSTORE_LOGIN
   password: $EVENTSTORE_PASSWORD
+logging:
+  level: $LOG_LEVEL
+  sentry:
+    dsn: $LOG_SENTRY_DSN
+    level: $LOG_SENTRY_LEVEL

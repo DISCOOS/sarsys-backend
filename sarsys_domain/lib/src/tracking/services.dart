@@ -674,8 +674,10 @@ class TrackingService extends MessageHandler<DomainEvent> {
   }
 
   void _onError(TrackingRepository repository, dynamic error, StackTrace stackTrace) {
-    logger.severe(
+    logger.network(
       'Competing subscription failed with: $error. stacktrace: $stackTrace',
+      error,
+      stackTrace,
     );
     if (!_disposed) {
       try {

@@ -19,6 +19,7 @@ import 'controllers/system/controllers.dart';
 import 'controllers/tenant/app_config.dart';
 import 'controllers/tenant/controllers.dart';
 import 'controllers/websocket_controller.dart';
+import 'logging.dart';
 import 'sarsys_app_server.dart';
 import 'validation/validation.dart';
 
@@ -315,6 +316,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
   void willStartReceivingRequests() {
     // Set k8s information for debugging purposes
     if (config.debug == true) {
+      _setResponseFromEnv("IMAGE", "X-Image");
       _setResponseFromEnv("TENANT", "X-Tenant");
       _setResponseFromEnv("PREFIX", "X-Prefix");
       _setResponseFromEnv("NODE_NAME", "X-Node-Name");
@@ -332,6 +334,9 @@ class SarSysAppServerChannel extends ApplicationChannel {
 
     if (config.debug == true) {
       logger.info("Debug mode enabled");
+      if (Platform.environment.containsKey("IMAGE")) {
+        logger.info("PREFIX is '${Platform.environment["IMAGE"]}'");
+      }
       if (Platform.environment.containsKey("PREFIX")) {
         logger.info("PREFIX is '${Platform.environment["PREFIX"]}'");
       }
@@ -367,11 +372,15 @@ class SarSysAppServerChannel extends ApplicationChannel {
   }
 
   void _configureLogger() {
-    Logger.root.level = Level.LEVELS.firstWhere(
-      (level) => level.name == config.level,
-      orElse: () => Level.INFO,
+    Logger.root.level = LoggerConfig.toLevel(
+      config.logging.level,
     );
-    logger.info("Log level set to ${Logger.root.level.name}");
+    logger.info("Server log level set to ${Logger.root.level.name}");
+    if (config.logging.sentry != null) {
+      _remoteLogger = RemoteLogger(config);
+      logger.info("Sentry DSN is ${config.logging.sentry.dsn}");
+      logger.info("Sentry log level set to ${_remoteLogger.level}");
+    }
   }
 
   void _buildValidators() {
@@ -499,14 +508,16 @@ class SarSysAppServerChannel extends ApplicationChannel {
     }
   }
 
+  static RemoteLogger _remoteLogger;
+
   /// Print [LogRecord] formatted
   static void printRecord(LogRecord rec, {bool debug = false}) {
-    print(
-      "${rec.time}: ${rec.level.name}: "
-      "${debug ? '${rec.loggerName}: ' : ''}"
-      "${debug && Platform.environment.containsKey('POD-NAME') ? '${Platform.environment['POD-NAME']}: ' : ''}"
-      "${rec.message} ${rec.error ?? ""} ${rec.stackTrace ?? ""}",
-    );
+    final message = "${rec.time}: ${rec.level.name}: "
+        "${debug ? '${rec.loggerName}: ' : ''}"
+        "${debug && Platform.environment.containsKey('POD-NAME') ? '${Platform.environment['POD-NAME']}: ' : ''}"
+        "${rec.message} ${rec.error ?? ""} ${rec.stackTrace ?? ""}";
+    print(message);
+    _remoteLogger?.log(rec);
   }
 
   bool get isPaused => manager.isPaused;
