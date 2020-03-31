@@ -357,6 +357,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   @visibleForOverriding
   T create(Map<String, Process> processors, String uuid, Map<String, dynamic> data);
 
+  /// Check given aggregate root exists.
+  /// An aggregate exists IFF it repository contains it and it is not deleted
+  bool exists(String uuid) => _aggregates.containsKey(uuid) && !_aggregates[uuid].isDeleted;
+
   /// Check if repository contains given aggregate root
   bool contains(String uuid) => _aggregates.containsKey(uuid);
 
@@ -657,9 +661,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         logger.fine('Push > $aggregate');
         // Wait for operation to complete before processing next
         final events = await store.push(aggregate);
-        if (aggregate.isDeleted) {
-          _aggregates.remove(aggregate.uuid);
-        }
         operation.completer.complete(events);
       }
     } on WrongExpectedEventVersion {

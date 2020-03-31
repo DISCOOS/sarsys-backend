@@ -51,7 +51,7 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
     @Bind.path('uuid') String uuid,
   ) async {
     try {
-      if (!repository.contains(uuid)) {
+      if (!repository.exists(uuid)) {
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
       final aggregate = repository.get(uuid);
@@ -80,7 +80,7 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
     @Bind.body() Map<String, dynamic> data,
   ) async {
     try {
-      if (!repository.contains(uuid)) {
+      if (!repository.exists(uuid)) {
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
       final events = await repository.execute(

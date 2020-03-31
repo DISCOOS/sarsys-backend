@@ -63,7 +63,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   /// Add @Operation.get('uuid') to activate
   Future<Response> getByUuid(@Bind.path('uuid') String uuid) async {
     try {
-      if (!repository.contains(uuid)) {
+      if (!repository.exists(uuid)) {
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
       return okAggregate(repository.get(uuid));
@@ -101,7 +101,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   /// Add @Operation('PATCH', 'uuid') to activate
   Future<Response> update(@Bind.path('uuid') String uuid, @Bind.body() Map<String, dynamic> data) async {
     try {
-      if (!repository.contains(uuid)) {
+      if (!repository.exists(uuid)) {
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
       data[repository.uuidFieldName] = uuid;
@@ -132,7 +132,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     @Bind.body() Map<String, dynamic> data,
   }) async {
     try {
-      if (!repository.contains(uuid)) {
+      if (!repository.exists(uuid)) {
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
       final aggregate = data ?? {};

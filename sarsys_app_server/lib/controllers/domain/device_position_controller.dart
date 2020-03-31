@@ -34,7 +34,7 @@ class DevicePositionController extends ValueController<DeviceCommand, Device> {
     @Bind.path('uuid') String uuid,
     @Bind.body() Map<String, dynamic> data,
   ) async {
-    if (!repository.contains(uuid)) {
+    if (!repository.exists(uuid)) {
       return Response.notFound(body: "$aggregateType $uuid not found");
     }
     final aggregate = repository.get(uuid);

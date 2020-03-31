@@ -42,7 +42,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
     @Bind.body() Map<String, dynamic> data,
   ) async {
     try {
-      if (!primary.contains(uuid)) {
+      if (!primary.exists(uuid)) {
         return Response.notFound(body: "$primaryType $uuid not found");
       }
       final aggregate = primary.get(uuid);

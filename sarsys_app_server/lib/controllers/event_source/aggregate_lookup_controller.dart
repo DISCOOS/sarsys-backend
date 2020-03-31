@@ -31,7 +31,7 @@ class AggregateLookupController<T extends AggregateRoot> extends ResourceControl
     @Bind.query('limit') int limit = 20,
   }) async {
     try {
-      if (!primary.contains(uuid)) {
+      if (!primary.exists(uuid)) {
         return Response.notFound(body: "$primaryType $uuid not found");
       }
       final aggregate = primary.get(uuid);
@@ -40,11 +40,7 @@ class AggregateLookupController<T extends AggregateRoot> extends ResourceControl
         ..removeWhere(
           (uuid) => !_exists(uuid, aggregate),
         );
-      final aggregates = uuids
-          .where((uuid) => _exists(uuid, aggregate))
-          .toPage(offset: offset, limit: limit)
-          .map(foreign.get)
-          .toList();
+      final aggregates = uuids.toPage(offset: offset, limit: limit).map(foreign.get).toList();
       return okAggregatePaged(uuids.length, offset, limit, aggregates);
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
@@ -62,7 +58,7 @@ class AggregateLookupController<T extends AggregateRoot> extends ResourceControl
         "${typeOf<T>()}{${foreign.uuidFieldName}: $uuid} not found in aggregate list '$field' in $parent",
       );
     }
-    return test;
+    return test && !foreign.get(uuid).isDeleted;
   }
 
   //////////////////////////////////
