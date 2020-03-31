@@ -79,13 +79,14 @@ class UnitRepository extends Repository<UnitCommand, Unit> {
   @override
   void willStartProcessingEvents() {
     // Remove Mission from 'missions' list when deleted
-    rule<PersonnelDeleted>((_) => AggregateListRule(
-          'personnels',
-          (aggregate, event) => RemovePersonnelFromUnit(
-            aggregate,
-            toAggregateUuid(event),
+    rule<PersonnelDeleted>((_) => AssociationRule(
+          (source, target) => RemovePersonnelFromUnit(
+            get(target),
+            toAggregateUuid(source),
           ),
-          this,
+          target: this,
+          targetField: 'personnels',
+          intent: Action.delete,
         ));
     super.willStartProcessingEvents();
   }

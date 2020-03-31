@@ -11,6 +11,8 @@ import 'package:collection/collection.dart';
 
 import 'bus.dart';
 import 'core.dart';
+import 'error.dart';
+import 'extension.dart';
 import 'domain.dart';
 import 'models/AtomFeed.dart';
 import 'models/AtomItem.dart';

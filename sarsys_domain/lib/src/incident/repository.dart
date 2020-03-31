@@ -104,23 +104,25 @@ class IncidentRepository extends Repository<IncidentCommand, Incident> implement
   @override
   void willStartProcessingEvents() {
     // Remove Operation from 'operations' list when deleted
-    rule<OperationDeleted>((_) => AggregateListRule(
-          'operations',
-          (aggregate, event) => RemoveOperationFromIncident(
-            aggregate,
-            toAggregateUuid(event),
+    rule<OperationDeleted>((_) => AssociationRule(
+          (source, target) => RemoveOperationFromIncident(
+            get(target),
+            toAggregateUuid(source),
           ),
-          this,
+          target: this,
+          targetField: 'operations',
+          intent: Action.delete,
         ));
 
     // Remove Subject from 'subjects' list when deleted
-    rule<SubjectDeleted>((_) => AggregateListRule(
-          'subjects',
-          (aggregate, event) => RemoveSubjectFromIncident(
-            aggregate,
-            toAggregateUuid(event),
+    rule<SubjectDeleted>((_) => AssociationRule(
+          (source, target) => RemoveSubjectFromIncident(
+            get(target),
+            toAggregateUuid(source),
           ),
-          this,
+          target: this,
+          targetField: 'subjects',
+          intent: Action.delete,
         ));
     super.willStartProcessingEvents();
   }

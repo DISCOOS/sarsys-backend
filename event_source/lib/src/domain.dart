@@ -11,6 +11,9 @@ import 'package:uuid/uuid.dart';
 
 import 'bus.dart';
 import 'core.dart';
+import 'error.dart';
+import 'extension.dart';
+import 'rule.dart';
 import 'source.dart';
 
 /// [Repository] manager class.
@@ -281,142 +284,6 @@ class RepositoryManager {
 /// [Message] type name to [DomainEvent] processor method
 typedef Process = DomainEvent Function(Message message);
 
-/// Rule (invariant) builder function for given [repository]
-typedef RuleBuilder<T extends Repository> = Rule<T> Function(T repository);
-
-/// Rule (invariant) handler function for given [event] and [root]
-typedef RuleHandler = Command Function(AggregateRoot root, DomainEvent event);
-
-/// Rule (invariant) target function for given command
-typedef RuleTarget = Repository Function(Command command);
-
-/// Interface for rule (invariant) validation
-abstract class Rule<T extends Repository> {
-  Rule(this.handler, this.source, this.local, {this.target});
-  final bool local;
-  final RuleHandler handler;
-  final RuleTarget target;
-  final T source;
-
-  Type get aggregateType => source.aggregateType;
-
-  Future<Iterable<Event>> call(DomainEvent event);
-
-  Future<Iterable<Event>> execute(AggregateRoot aggregate, DomainEvent event) async {
-    final command = handler(aggregate, event);
-    if (command != null) {
-      final repository = target == null ? source : target(command);
-      return await repository.execute(
-        command,
-      );
-    }
-    return null;
-  }
-}
-
-/// Rule managing a uni-directional reference from field
-/// in [Event.data] to [AggregateRoot] in given [source]
-class AggregateRule<T extends Repository> extends Rule<T> {
-  AggregateRule(
-    this.field,
-    RuleHandler handler,
-    T repository, {
-    bool local = true,
-    this.create = false,
-    RuleTarget target,
-  }) : super(
-          handler,
-          repository,
-          local,
-          target: target,
-        );
-
-  final bool create;
-  final String field;
-
-  @override
-  Future<Iterable<Event>> call(DomainEvent event) async {
-    if (event.local == local) {
-      // Get uuid from
-      final uuid = event.data.elementAt(field);
-      final aggregate = create || source.contains(uuid) ? source.get(uuid) : null;
-      return await execute(aggregate, event);
-    }
-    return null;
-  }
-}
-
-/// Rule managing foreign [AggregateRoot.uuid] in [AggregateRoot] list with name [field]
-class AggregateListRule<T extends Repository> extends Rule<T> {
-  AggregateListRule(
-    this.field,
-    RuleHandler handler,
-    T repository, {
-    bool local = true,
-    this.multiple = false,
-    this.create = false,
-  }) : super(handler, repository, local);
-
-  final bool create;
-  final String field;
-  final bool multiple;
-
-  @override
-  Future<Iterable<Event>> call(DomainEvent event) async {
-    if (event.local == local) {
-      final result = await Future.wait(toUuids(event, multiple: multiple).where(source.contains).map((uuid) => execute(
-            create || source.contains(uuid) ? source.get(uuid) : null,
-            event,
-          )));
-      return result.fold<List<Event>>(
-        <Event>[],
-        (events, list) => events..addAll(list),
-      ).toList();
-    }
-    return null;
-  }
-
-  Iterable<String> toUuids(
-    DomainEvent event, {
-    bool multiple = false,
-  }) {
-    final uuids = <String>[];
-
-    // Get referenced aggregate uuid directly
-    final reference = event.data[aggregateType.toLowerCase()];
-    if (reference is Map<String, dynamic>) {
-      if (reference.containsKey('uuid')) {
-        uuids.add(reference['uuid'] as String);
-      }
-    }
-    // Look through all lists in all aggregates?
-    if (uuids.isEmpty || multiple) {
-      // Get foreign uuid (assuming it has the same field name)
-      final fuuid = source.toAggregateUuid(event);
-
-      // TODO: Implement test that fails when number of open aggregates are above threshold
-      // Do a full search for foreign id. This will be efficient
-      // as long as number of aggregates are reasonable low
-      uuids.addAll(
-        source.aggregates
-            .where(
-              (aggregate) => !aggregate.isDeleted,
-            )
-            .where(
-              (aggregate) => aggregate.data[field] is List,
-            )
-            .where(
-              (aggregate) => List<String>.from(aggregate.data[field] as List).contains(fuuid),
-            )
-            .map(
-              (aggregate) => aggregate.uuid,
-            ),
-      );
-    }
-    return uuids;
-  }
-}
-
 /// Repository or [AggregateRoot]s as the single responsible for all transactions on each aggregate
 abstract class Repository<S extends Command, T extends AggregateRoot>
     implements CommandHandler<S>, MessageHandler<DomainEvent> {
@@ -473,6 +340,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// [Message] type name to [DomainEvent] processors
   final Map<String, Process> _processors;
+  Map<String, Process> get processors => Map.unmodifiable(_processors);
 
   /// Map of aggregate roots
   final Map<String, T> _aggregates = {};
@@ -486,6 +354,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Create aggregate root with given id. Should only called from within [Repository].
   @protected
+  @visibleForOverriding
   T create(Map<String, Process> processors, String uuid, Map<String, dynamic> data);
 
   /// Check if repository contains given aggregate root
@@ -1499,22 +1368,6 @@ class EntityObject {
 
   @override
   int get hashCode => id.hashCode;
-}
-
-extension IterableX<T> on Iterable<T> {
-  Iterable<T> toPage({
-    int offset = 0,
-    int limit = 20,
-  }) {
-    if (offset < 0 || limit < 0) {
-      throw const InvalidOperation('Offset and limit can not be negative');
-    } else if (offset > length) {
-      throw InvalidOperation('Index out of bounds: offset $offset > length $length');
-    } else if (offset == 0 && limit == 0) {
-      return toList();
-    }
-    return skip(offset).take(limit);
-  }
 }
 
 /// Class for implementing a strategy for merging concurrent modifications

@@ -21,9 +21,9 @@ class EventStoreMockServer {
     this.tenant,
     this.prefix,
     this.port, {
+    this.logger,
     this.replicate,
     this.verbose = true,
-    this.logger,
   });
 
   /// Port to listen on.

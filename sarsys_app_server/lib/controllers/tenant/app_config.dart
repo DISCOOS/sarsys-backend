@@ -30,29 +30,32 @@ class AppConfigRepository extends Repository<AppConfigCommand, AppConfig> {
   @override
   void willStartProcessingEvents() {
     // Co-create Device with AppConfig
-    rule<AppConfigCreated>((_) => AggregateRule(
-          uuidFieldName,
-          (aggregate, event) => CreateDevice(
+    rule<AppConfigCreated>((_) => AssociationRule(
+          (source, target) => CreateDevice(
             {
               "type": "app",
               "network": "sarsys",
               "status": "unavailable",
-              "uuid": aggregate.uuid,
+              uuidFieldName: target,
             },
           ),
-          this,
-          target: (command) => devices,
+          target: devices,
+          intent: Action.create,
+          targetField: uuidFieldName,
+          cardinality: Cardinality.none,
         ));
 
     // Co-delete Device with AppConfig
-    rule<AppConfigDeleted>((_) => AggregateRule(
-          uuidFieldName,
-          (aggregate, event) => DeleteDevice(
+    rule<AppConfigDeleted>((_) => AssociationRule(
+          (source, target) => DeleteDevice(
             {
-              "uuid": aggregate.uuid,
+              uuidFieldName: target,
             },
           ),
-          devices,
+          target: devices,
+          intent: Action.delete,
+          targetField: uuidFieldName,
+          cardinality: Cardinality.none,
         ));
 
     super.willStartProcessingEvents();

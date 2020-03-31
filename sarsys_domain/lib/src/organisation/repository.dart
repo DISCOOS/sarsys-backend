@@ -43,13 +43,14 @@ class OrganisationRepository extends Repository<OrganisationCommand, Organisatio
   @override
   void willStartProcessingEvents() {
     // Remove Division from 'divisions' list when deleted
-    rule<DivisionDeleted>((_) => AggregateListRule(
-          'divisions',
-          (aggregate, event) => RemoveDivisionFromOrganisation(
-            aggregate,
-            toAggregateUuid(event),
+    rule<DivisionDeleted>((_) => AssociationRule(
+          (source, target) => RemoveDivisionFromOrganisation(
+            get(target),
+            toAggregateUuid(source),
           ),
-          this,
+          target: this,
+          targetField: 'divisions',
+          intent: Action.delete,
         ));
 
     super.willStartProcessingEvents();

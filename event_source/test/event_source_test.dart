@@ -1,4 +1,4 @@
-import 'package:event_source/src/core.dart';
+import 'package:event_source/src/error.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 

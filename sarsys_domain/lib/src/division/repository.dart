@@ -61,13 +61,14 @@ class DivisionRepository extends Repository<DivisionCommand, Division> {
   @override
   void willStartProcessingEvents() {
     // Remove Department from 'departments' list when deleted
-    rule<DepartmentDeleted>((_) => AggregateListRule(
-          'departments',
-          (aggregate, event) => RemoveDepartmentFromDivision(
-            aggregate,
-            toAggregateUuid(event),
+    rule<DepartmentDeleted>((_) => AssociationRule(
+          (source, target) => RemoveDepartmentFromDivision(
+            get(target),
+            toAggregateUuid(source),
           ),
-          this,
+          target: this,
+          targetField: 'departments',
+          intent: Action.delete,
         ));
     super.willStartProcessingEvents();
   }

@@ -128,23 +128,25 @@ class OperationRepository extends Repository<OperationCommand, Operation> {
   @override
   void willStartProcessingEvents() {
     // Remove Mission from 'missions' list when deleted
-    rule<MissionDeleted>((_) => AggregateListRule(
-          'missions',
-          (aggregate, event) => RemoveMissionFromOperation(
-            aggregate,
-            toAggregateUuid(event),
+    rule<MissionDeleted>((_) => AssociationRule(
+          (source, target) => RemoveMissionFromOperation(
+            get(target),
+            toAggregateUuid(source),
           ),
-          this,
+          target: this,
+          targetField: 'missions',
+          intent: Action.delete,
         ));
 
     // Remove Unit from 'units' list when deleted
-    rule<UnitDeleted>((repository) => AggregateListRule(
-          'units',
-          (aggregate, event) => RemoveUnitFromOperation(
-            aggregate,
-            toAggregateUuid(event),
+    rule<UnitDeleted>((repository) => AssociationRule(
+          (source, target) => RemoveUnitFromOperation(
+            get(target),
+            toAggregateUuid(source),
           ),
-          this,
+          target: this,
+          targetField: 'units',
+          intent: Action.delete,
         ));
 
     super.willStartProcessingEvents();
