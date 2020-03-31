@@ -18,7 +18,6 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
     @Bind.query('offset') int offset = 0,
     @Bind.query('limit') int limit = 20,
   }) {
-    throw "Severe error";
     return super.getAll(offset: offset, limit: limit);
   }
 
