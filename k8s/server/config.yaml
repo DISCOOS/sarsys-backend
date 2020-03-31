@@ -4,6 +4,7 @@ metadata:
   name: sarsys-app-server-config
   namespace: sarsys
 data:
+  IMAGE: "discoos/sarsys_app_server:latest"
   DEBUG: "true"
   PREFIX: "test"
   TENANT: "discoos"

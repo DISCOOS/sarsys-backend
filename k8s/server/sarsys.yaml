@@ -86,11 +86,6 @@ spec:
                 name: sarsys-app-server-secrets
           # Setup 'Downward API' - passed to
           env:
-            - name: IMAGE
-              valueFrom:
-                resourceFieldRef:
-                  containerName: sarsys-app-server
-                  resource: image
             - name: NODE_NAME
               valueFrom:
                 fieldRef:
