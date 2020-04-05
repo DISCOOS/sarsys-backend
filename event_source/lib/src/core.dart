@@ -100,8 +100,8 @@ class Event extends Message {
   /// Get changed fields from `data['changed']`
   Map<String, dynamic> get changed => Map<String, dynamic>.from(data['changed']);
 
-  /// Get changed fields from `data['previous']`
-  Map<String, dynamic> get previous => Map<String, dynamic>.from(data['previous'] ?? {});
+  /// Get changed fields from `data['previous']`. If empty, `data['changed']`is returned instead
+  Map<String, dynamic> get previous => Map<String, dynamic>.from(data['previous'] ?? data['changed']);
 
   /// Get list of JSON Patch methods from `data['patches']`
   List<Map<String, dynamic>> get patches => List<Map<String, dynamic>>.from(data['patches'] as List<dynamic>);

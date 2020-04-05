@@ -229,10 +229,13 @@ class AssociationRule extends AggregateRule {
   String _toSourceValue(DomainEvent event) {
     final uuid = source.toAggregateUuid(event);
     if (sourceField != source.uuidFieldName) {
+      final value = event.previous?.elementAt(sourceField);
+      if (value != null) {
+        return value;
+      }
       if (source.exists(uuid)) {
         return source.get(uuid).data.elementAt(sourceField);
       }
-      return event.previous?.elementAt(sourceField);
     }
     return uuid;
   }
