@@ -111,6 +111,7 @@ Future main() async {
 
 Map<String, Object> _createData(String uuid) => {
       "uuid": "$uuid",
+      "udid": "$uuid",
       "demo": true,
       "demoRole": "commander",
       "onboarding": true,
@@ -127,5 +128,8 @@ Map<String, Object> _createData(String uuid) => {
       "locationSmallestDisplacement": 0,
       "keepScreenOn": false,
       "callsignReuse": true,
-      "sentryDns": "https://sentry"
+      "sentryDns": "https://sentry",
+      "securityType": "pin",
+      "securityMode": "personal",
+      "securityLockAfter": 2700,
     };

@@ -40,8 +40,9 @@ class AppConfigRepository extends Repository<AppConfigCommand, AppConfig> {
             },
           ),
           target: devices,
-          intent: Action.create,
+          sourceField: 'udid',
           targetField: uuidFieldName,
+          intent: Action.create,
           cardinality: Cardinality.none,
         ));
 
@@ -53,8 +54,9 @@ class AppConfigRepository extends Repository<AppConfigCommand, AppConfig> {
             },
           ),
           target: devices,
-          intent: Action.delete,
+          sourceField: 'udid',
           targetField: uuidFieldName,
+          intent: Action.delete,
           cardinality: Cardinality.none,
         ));
 

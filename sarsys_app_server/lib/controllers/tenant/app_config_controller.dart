@@ -98,7 +98,10 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
   @override
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object(
         {
-          "uuid": documentUUID()..description = "Unique application id",
+          "uuid": documentUUID()..description = "Unique application configuration id",
+          "udid": documentUUID()
+            ..description = "Unique device id, typically [ANDROID_ID] "
+                "for Android and [identifierForVendor] for iOS platforms",
           "demo": APISchemaObject.boolean()
             ..description = "Use demo-mode (no real data and any login)"
             ..defaultValue = true,
@@ -113,6 +116,16 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
           "onboarding": APISchemaObject.boolean()
             ..description = "Show onboarding before next login"
             ..defaultValue = true,
+          "securityMode": APISchemaObject.string()
+            ..description = "Security mode applied to application"
+            ..enumerated = ['personal', 'shared'],
+          "securityType": APISchemaObject.string()
+            ..description = "Security type"
+            ..enumerated = ['pin', 'fingerprint'],
+          "securityPin": APISchemaObject.string()..description = "Security pin",
+          "securityLockAfter": APISchemaObject.integer()
+            ..description = "Lock idle device (no user interactions) after in given number of seconds"
+            ..defaultValue = 2700, // 45 minutes
           "organization": APISchemaObject.string()
             ..description = "Default organization identifier"
             ..defaultValue = "61",
