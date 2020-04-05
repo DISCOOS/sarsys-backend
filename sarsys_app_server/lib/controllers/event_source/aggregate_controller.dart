@@ -160,17 +160,24 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   Future<Response> waitForRuleResult<T extends Event>(
     Response response, {
     bool fail = false,
+    List<int> statusCodes = const [
+      HttpStatus.ok,
+      HttpStatus.created,
+      HttpStatus.noContent,
+    ],
     Duration timeout = const Duration(
       milliseconds: 100,
     ),
   }) async {
-    try {
-      await repository.onRuleResult.firstWhere((event) => event is T).timeout(timeout);
-    } on Exception catch (e, stackTrace) {
-      if (fail) {
-        final message = "Waiting for ${typeOf<T>()} timed out after $timeout";
-        logger.severe('$message: $e: $stackTrace');
-        return Response.serverError(body: {'error': message});
+    if (statusCodes.contains(response.statusCode)) {
+      try {
+        await repository.onRuleResult.firstWhere((event) => event is T).timeout(timeout);
+      } on Exception catch (e, stackTrace) {
+        if (fail) {
+          final message = "Waiting for ${typeOf<T>()} timed out after $timeout";
+          logger.severe('$message: $e: $stackTrace');
+          return Response.serverError(body: {'error': message});
+        }
       }
     }
     return response;
