@@ -10,7 +10,7 @@ part 'tracking.g.dart';
 @JsonSerializable(explicitToJson: true)
 class TrackingModel extends Equatable {
   TrackingModel({
-    @required this.id,
+    @required this.uuid,
     @required this.status,
     @required this.speed,
     @required this.effort,
@@ -21,7 +21,7 @@ class TrackingModel extends Equatable {
     @required this.distance,
   }) : super();
 
-  final String id;
+  final String uuid;
 
   @JsonKey(nullable: true)
   final TrackingStatus status;
@@ -43,17 +43,45 @@ class TrackingModel extends Equatable {
 
   @override
   List<Object> get props => [
-        id,
+        uuid,
         speed,
         status,
         effort,
         tracks,
         sources,
         history,
-        history,
         distance,
         position,
       ];
+
+  /// Clone with given devices and state
+  TrackingModel cloneWith({
+    double speed,
+    double distance,
+    Duration effort,
+    PositionModel position,
+    List<SourceModel> sources,
+    List<PositionModel> history,
+    TrackingStatus status,
+    List<TrackModel> tracks,
+  }) {
+    return TrackingModel(
+      uuid: uuid,
+      status: status ?? this.status,
+      position: position ?? this.position,
+      distance: distance ?? this.distance,
+      speed: speed ?? this.speed,
+      effort: effort ?? this.effort,
+      sources: sources ?? this.sources,
+      history: history ?? this.history,
+      tracks: tracks ?? this.tracks,
+    );
+  }
 }
 
-enum TrackingStatus { created, tracking, paused, closed }
+enum TrackingStatus {
+  created,
+  tracking,
+  paused,
+  closed,
+}

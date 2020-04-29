@@ -34,6 +34,20 @@ class PointModel extends Equatable {
   /// Factory constructor for creating a new `Point`  instance
   factory PointModel.fromJson(Map<String, dynamic> json) => _$PointModelFromJson(json);
 
+  /// Factory constructor for creating a new `Point`  instance
+  factory PointModel.fromCoords({
+    @required double lat,
+    @required double lon,
+    double alt,
+  }) =>
+      PointModel(
+        coordinates: CoordinatesModel(
+          lat: lat,
+          lon: lon,
+          alt: alt,
+        ),
+      );
+
   /// Declare support for serialization to JSON
   Map<String, dynamic> toJson() => _$PointModelToJson(this);
 }

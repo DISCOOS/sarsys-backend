@@ -1,3 +1,4 @@
+import 'package:sarsys_app_server/controllers/domain/schemas.dart';
 import 'package:sarsys_app_server/controllers/event_source/aggregate_controller.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_app_server/sarsys_app_server.dart';
@@ -98,11 +99,11 @@ class MissionController extends AggregateController<MissionCommand, Mission> {
           "results": APISchemaObject.array(ofSchema: context.schema["MissionResult"])
             ..description = "Points, linestrings, rectangles and circles describing the results"
             ..isReadOnly = true,
-          "assignedTo": APISchemaObject.object({
-            "uuid": context.schema['UUID'],
-          })
-            ..description = "Unit assigned to this mission"
-            ..isReadOnly = true,
+          "assignedTo": documentAggregateRef(
+            context,
+            description: "Unit assigned to this mission",
+            defaultType: 'Unit',
+          ),
           "messages": APISchemaObject.array(ofSchema: context.schema['Message'])
             ..isReadOnly = true
             ..description = "List of messages added to Mission",

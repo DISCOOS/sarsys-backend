@@ -2,6 +2,7 @@ import 'package:sarsys_app_server/controllers/event_source/aggregate_controller.
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
+import 'package:event_source/event_source.dart';
 
 /// A ResourceController that handles
 /// [/api/incidents/{uuid}/personnels](http://localhost/api/client.html#/Personnel) requests
@@ -11,7 +12,6 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
             validation: validation,
             readOnly: const [
               'operation',
-              'tracking',
               'transitions',
               'messages',
             ],
@@ -34,8 +34,17 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
 
   @override
   @Operation.post()
-  Future<Response> create(@Bind.body() Map<String, dynamic> data) {
-    return super.create(data);
+  Future<Response> create(@Bind.body() Map<String, dynamic> data) async {
+    final hasTracking = data?.elementAt('tracking/uuid') != null;
+    final response = await super.create(data);
+    if (hasTracking) {
+      return await waitForRuleResult<TrackingCreated>(
+        response,
+        fail: true,
+        timeout: const Duration(milliseconds: 1000),
+      );
+    }
+    return response;
   }
 
   @override
@@ -44,7 +53,7 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
     @Bind.path('uuid') String uuid,
     @Bind.body() Map<String, dynamic> data,
   ) {
-    return super.update(uuid, data);
+    return super.update(uuid, data..remove('tracking'));
   }
 
   @override
@@ -52,8 +61,18 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
   Future<Response> delete(
     @Bind.path('uuid') String uuid, {
     @Bind.body() Map<String, dynamic> data,
-  }) {
-    return super.delete(uuid, data: data);
+  }) async {
+    final hasTracking = repository.get(uuid, createNew: false)?.data?.elementAt('tracking/uuid') != null;
+    final response = await super.delete(uuid, data: data);
+    if (hasTracking) {
+      return await waitForRuleResults(response, expected: [
+        PersonnelRemovedFromUnit,
+        TrackingDeleted,
+      ]);
+    }
+    return await waitForRuleResult<PersonnelRemovedFromUnit>(
+      response,
+    );
   }
 
   @override
@@ -85,19 +104,25 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
             ..description = "Unit which this personnel is assigned to"
             ..isReadOnly = true
             ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
+          "person": APISchemaObject.object({
+            "uuid": context.schema['UUID'],
+          })
+            ..description = "Unique person uuid"
+            ..isReadOnly = true
+            ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
           "fname": APISchemaObject.string()..description = "First name",
           "lname": APISchemaObject.string()..description = "Last name",
           "phone": APISchemaObject.string()..description = "Phone number",
           "affiliation": context.schema["Affiliation"],
           "status": documentStatus(),
-          "transitions": APISchemaObject.array(ofSchema: documentTransition())
-            ..isReadOnly = true
-            ..description = "State transitions (read only)",
           "tracking": APISchemaObject.object({
             "uuid": context.schema['UUID'],
           })
-            ..description = "Tracking object for this personnel"
-            ..isReadOnly = true,
+            ..description = "Unique id of tracking object created "
+                "for this personnel. Only writable on creation.",
+          "transitions": APISchemaObject.array(ofSchema: documentTransition())
+            ..isReadOnly = true
+            ..description = "State transitions (read only)",
           "messages": APISchemaObject.array(ofSchema: context.schema['Message'])
             ..isReadOnly = true
             ..description = "List of messages added to Personnel",
@@ -111,7 +136,7 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
   APISchemaObject documentTransition() => APISchemaObject.object({
         "status": documentStatus(),
         "timestamp": APISchemaObject.string()
-          ..description = "When transition occured"
+          ..description = "When transition occurred"
           ..format = 'date-time',
       })
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
@@ -123,7 +148,7 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
     ..defaultValue = "mobilized"
     ..enumerated = [
       'mobilized',
-      'deployed',
+      'onscene',
       'retired',
     ];
 

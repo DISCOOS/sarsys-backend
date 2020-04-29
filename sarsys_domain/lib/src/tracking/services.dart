@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:logging/logging.dart';
 import 'package:event_source/event_source.dart';
@@ -8,6 +7,7 @@ import 'package:hive/hive.dart';
 import 'package:collection/collection.dart';
 import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:sarsys_domain/src/core/models/models.dart';
+import 'package:sarsys_domain/src/tracking/tracking_utils.dart';
 
 /// A [Tracking] domain service.
 ///
@@ -118,8 +118,12 @@ class TrackingService extends MessageHandler<DomainEvent> {
       if (init) {
         await _box.clear();
       } else {
-        final futures = List<String>.from(_box.values ?? []).map((json) => _fromJson(json)).map(
-              (event) => _ensureManaged(event, replay: true),
+        final futures = List<String>.from(_box.values ?? [])
+            .map(
+              (json) => _fromJson(json),
+            )
+            .map(
+              (event) => _replayEvent(event),
             );
         await Future.wait(futures);
       }
@@ -198,6 +202,9 @@ class TrackingService extends MessageHandler<DomainEvent> {
         case TrackingPositionChanged:
           await _onSourcePositionChanged(message);
           break;
+        case TrackingDeleted:
+          await _onTrackingDeleted(message);
+          break;
       }
     } on Exception catch (e, stackTrace) {
       logger.severe(
@@ -206,8 +213,48 @@ class TrackingService extends MessageHandler<DomainEvent> {
     }
   }
 
+  Future _replayEvent(DomainEvent event) async {
+    if (event is TrackingCreated) {
+      return _onTrackingCreated(event, replay: true);
+    } else if (event is TrackingSourceAdded) {
+      return _onTrackingSourceAdded(event);
+    } else if (event is TrackingDeleted) {
+      return _onTrackingDeleted(event, replay: true);
+    }
+  }
+
   /// Build map of all source uuids to its tracking uuids
-  void _onTrackingCreated(TrackingCreated event) async => await _ensureManaged(event);
+  void _onTrackingCreated(TrackingCreated event, {bool replay = false}) async {
+    final uuid = repository.toAggregateUuid(event);
+    if (!_managed.contains(uuid)) {
+      // Ensure that tracking is persisted to this instance?
+      if (!replay && snapshot) {
+        await _box.put(uuid, _toJson(event));
+      }
+      _managed.add(uuid);
+      logger.info('Added tracking $uuid for position processing');
+    }
+    // Only attempt to add sources from tracking that exists during replay (stale
+    if (!replay || replay && repository.contains(uuid)) {
+      _addToStream([event], 'Analysing source mappings for tracking $uuid', replay: replay);
+      return _addSources(repository, uuid);
+    } else if (replay && snapshot) {
+      _managed.remove(uuid);
+      // Stale tracking object, remove it from hive
+      await _box.delete(uuid);
+      logger.info('Deleted stale tracking $uuid');
+    }
+  }
+
+  /// Stop management and remove from service
+  void _onTrackingDeleted(TrackingDeleted event, {bool replay = false}) async {
+    final uuid = repository.toAggregateUuid(event);
+    if (_managed.contains(uuid) && !replay && snapshot) {
+      _managed.remove(uuid);
+      await _box.delete(uuid);
+      logger.info('Removed tracking $uuid from service');
+    }
+  }
 
   /// Handles invariants
   ///
@@ -229,7 +276,22 @@ class TrackingService extends MessageHandler<DomainEvent> {
   void _onTrackingSourceAdded(TrackingSourceAdded event) async {
     final uuid = repository.toAggregateUuid(event);
     if (managed.contains(uuid)) {
-      await _ensureManaged(event);
+      if (_addSource(event.sourceUuid, uuid)) {
+        _addToStream(
+          [event],
+          'Looking for other active tracks attached to ${event.sourceType} ${event.sourceUuid}',
+        );
+        final other = _findTrackManagedByOthers(uuid, event.sourceUuid);
+        await _ensureTrack(
+          uuid,
+          event.id,
+          event.entity,
+          positions: other ?? {}[POSITIONS],
+          status: ATTACHED,
+        );
+        await _aggregate(uuid);
+        await _updateTrackingStatus(uuid);
+      }
     } else {
       await _ensureDetached(event);
     }
@@ -284,17 +346,17 @@ class TrackingService extends MessageHandler<DomainEvent> {
     if (tracking.status == TrackingStatus.tracking) {
       // Calculate geometric centre of all last position in all
       // tracks as the arithmetic mean of positions coordinates
-      final next = _average(tracking);
+      final next = TrackingUtils.average(tracking);
 
       // Only add tracking history if position has changed
       if (tracking.position != next) {
         final history = List<PositionModel>.from(tracking.history ?? [])..add(next);
-        final effort = asEffort(history);
-        final distance = asDistance(
+        final effort = TrackingUtils.effort(history);
+        final distance = TrackingUtils.distance(
           history,
           distance: tracking.distance ?? 0,
         );
-        final speed = asSpeed(distance, effort);
+        final speed = TrackingUtils.speed(distance, effort);
         final events = await _updateTrackingInformation({
           UUID: uuid,
           SPEED: speed,
@@ -310,79 +372,6 @@ class TrackingService extends MessageHandler<DomainEvent> {
       }
     }
   }
-
-  PositionModel _average(TrackingModel tracking) {
-    final current = tracking.position;
-    final sources = tracking.sources;
-
-    // Calculate geometric centre of all source tracks as the arithmetic mean of the input coordinates
-    if (sources.isEmpty) {
-      return current;
-    } else if (sources.length == 1) {
-      final track = _findTrack(tracking, sources.first.uuid);
-      return track?.positions?.last ?? current;
-    }
-    final tracks = tracking.tracks;
-    // Aggregate
-    var sum = tracks.fold<List<num>>(
-      [0.0, 0.0, 0.0, DateTime.now().millisecondsSinceEpoch],
-      (sum, track) => track.positions.isEmpty
-          ? sum
-          : [
-              track.positions.last.lat + sum[0],
-              track.positions.last.lon + sum[1],
-              (track.positions.last.acc ?? 0.0) + sum[2],
-              min(track.positions.last.timestamp.millisecondsSinceEpoch, sum[3]),
-            ],
-    );
-    final count = tracks.length;
-    return PositionModel.from(
-      source: SourceType.tracking,
-      lat: sum[0] / count,
-      lon: sum[1] / count,
-      acc: sum[2] / count,
-      timestamp: DateTime.fromMillisecondsSinceEpoch(sum[3]),
-    );
-  }
-
-  double asSpeed(double distance, Duration effort) =>
-      distance.isNaN == false && effort.inMicroseconds > 0.0 ? distance / effort.inSeconds : 0.0;
-
-  double asDistance(List<PositionModel> history, {double distance = 0, int tail = 2}) {
-    distance ??= 0;
-    var offset = max(0, history.length - tail - 1);
-    var i = offset + 1;
-    history?.skip(offset)?.forEach((p) {
-      i++;
-      distance += i < history.length
-          ? eucledianDistance(
-              history[i]?.lat ?? p.lat,
-              history[i]?.lon ?? p.lon,
-              p.lat,
-              p.lon,
-            )
-          : 0.0;
-    });
-    return distance;
-  }
-
-  double eucledianDistance(
-    double lat1,
-    double lon1,
-    double lat2,
-    double lon2,
-  ) {
-    final degLen = 110250;
-    final x = lat1 - lat2;
-    final y = (lon1 - lon2) * cos(lat2 * pi / 180.0);
-    return degLen * sqrt(x * x + y * y);
-  }
-
-  Duration asEffort(List<PositionModel> history) => history?.isNotEmpty == true
-      ? history.last.timestamp.difference(
-          history.first.timestamp,
-        )
-      : Duration.zero;
 
   TrackModel _findTrackManagedByMe(String tracking, String source) =>
       // Only one attached track for each unique source in each manager instance
@@ -528,44 +517,6 @@ class TrackingService extends MessageHandler<DomainEvent> {
     return repository.contains(uuid);
   }
 
-  Future _ensureManaged(DomainEvent event, {bool replay = false}) async {
-    final uuid = repository.toAggregateUuid(event);
-    if (event is TrackingCreated) {
-      final uuid = repository.toAggregateUuid(event);
-      if (!_managed.contains(uuid)) {
-        // Ensure that tracking is persisted to this instance?
-        if (!replay && snapshot) {
-          await _box.put(uuid, _toJson(event));
-        }
-        _managed.add(uuid);
-        logger.info('Added tracking $uuid for position processing');
-      }
-      // Only attempt to add sources from tracking that exists during replay (stale
-      if (!replay || replay && repository.contains(uuid)) {
-        _addToStream([event], 'Analysing source mappings for tracking $uuid', replay: replay);
-        return _addSources(repository, uuid);
-      } else if (replay && snapshot) {
-        // Stale tracking object, remove it from hive
-        await _box.delete(uuid);
-        logger.info('Deleted stale tracking $uuid');
-      }
-    } else if (event is TrackingSourceAdded) {
-      if (_addSource(event.sourceUuid, uuid)) {
-        _addToStream([event], 'Looking for other active tracks attached to ${event.sourceType} ${event.sourceUuid}');
-        final other = _findTrackManagedByOthers(uuid, event.sourceUuid);
-        await _ensureTrack(
-          uuid,
-          event.id,
-          event.entity,
-          positions: other ?? {}[POSITIONS],
-          status: ATTACHED,
-        );
-        await _aggregate(uuid);
-        await _updateTrackingStatus(uuid);
-      }
-    }
-  }
-
   Future _addSources(Repository repository, String uuid) async {
     if (await _checkTracking(repository, uuid)) {
       final tracking = repository.get(uuid);
@@ -649,7 +600,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
     try {
       final domain = repository.toDomainEvent(event);
       if (domain is TrackingCreated) {
-        await _ensureManaged(domain);
+        await _onTrackingCreated(domain);
       }
     } on Exception catch (e, stackTrace) {
       logger.severe(

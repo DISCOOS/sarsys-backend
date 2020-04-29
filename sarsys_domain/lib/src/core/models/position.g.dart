@@ -29,14 +29,14 @@ PositionModelProps _$PositionModelPropsFromJson(Map<String, dynamic> json) {
       timestamp: json['timestamp'] == null
           ? null
           : DateTime.parse(json['timestamp'] as String),
-      source: _$enumDecodeNullable(_$SourceTypeEnumMap, json['source']));
+      source: _$enumDecodeNullable(_$PositionSourceEnumMap, json['source']));
 }
 
 Map<String, dynamic> _$PositionModelPropsToJson(PositionModelProps instance) =>
     <String, dynamic>{
       'accuracy': instance.acc,
       'timestamp': instance.timestamp?.toIso8601String(),
-      'source': _$SourceTypeEnumMap[instance.source]
+      'source': _$PositionSourceEnumMap[instance.source]
     };
 
 T _$enumDecode<T>(Map<T, dynamic> enumValues, dynamic source) {
@@ -59,8 +59,8 @@ T _$enumDecodeNullable<T>(Map<T, dynamic> enumValues, dynamic source) {
   return _$enumDecode<T>(enumValues, source);
 }
 
-const _$SourceTypeEnumMap = <SourceType, dynamic>{
-  SourceType.manual: 'manual',
-  SourceType.device: 'device',
-  SourceType.tracking: 'tracking'
+const _$PositionSourceEnumMap = <PositionSource, dynamic>{
+  PositionSource.manual: 'manual',
+  PositionSource.gps: 'gps',
+  PositionSource.aggregate: 'aggregate'
 };

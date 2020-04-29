@@ -1,12 +1,13 @@
 import 'package:event_source/event_source.dart';
 import 'package:sarsys_domain/src/personnel/events.dart';
+import 'package:sarsys_domain/src/tracking/tracking.dart';
 
 import 'aggregate.dart';
 import 'commands.dart';
 import 'events.dart';
 
 class UnitRepository extends Repository<UnitCommand, Unit> {
-  UnitRepository(EventStore store)
+  UnitRepository(EventStore store, this.trackings)
       : super(store: store, processors: {
           UnitCreated: (event) => UnitCreated(
                 uuid: event.uuid,
@@ -76,20 +77,31 @@ class UnitRepository extends Repository<UnitCommand, Unit> {
               ),
         });
 
+  final TrackingRepository trackings;
+
   @override
   void willStartProcessingEvents() {
-    // Remove Mission from 'missions' list when deleted
-    rule<PersonnelDeleted>((_) => AssociationRule(
-          (source, target) => RemovePersonnelFromUnit(
-            get(target),
-            toAggregateUuid(source),
-          ),
-          target: this,
-          targetField: 'personnels',
-          intent: Action.delete,
-        ));
+    // Remove Personnel from 'personnels' list when deleted
+    rule<PersonnelDeleted>(newDeleteRule);
+
+    // Co-create Tracking with Unit
+    rule<UnitCreated>(trackings.newCreateRule);
+
+    // Co-delete Tracking with Unit
+    rule<UnitDeleted>(trackings.newDeleteRule);
+
     super.willStartProcessingEvents();
   }
+
+  AggregateRule newDeleteRule(_) => AssociationRule(
+        (source, target) => RemovePersonnelFromUnit(
+          get(target),
+          toAggregateUuid(source),
+        ),
+        target: this,
+        targetField: 'personnels',
+        intent: Action.delete,
+      );
 
   @override
   Unit create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => Unit(

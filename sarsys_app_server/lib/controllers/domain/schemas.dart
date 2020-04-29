@@ -24,15 +24,23 @@ APISchemaObject documentPassCodes() => APISchemaObject.object(
 // Core documentation
 //////////////////////////////////
 
-APISchemaObject documentAggregateRef(APIDocumentContext context) => APISchemaObject.object({
-      "type": APISchemaObject.string()
-        ..description = "Aggregate Root Type"
-        ..isReadOnly = true,
+APISchemaObject documentAggregateRef(
+  APIDocumentContext context, {
+  String defaultType,
+  String description = "Aggregate Root Reference",
+}) =>
+    APISchemaObject.object({
       "uuid": documentUUID()
         ..description = "Aggregate Root UUID"
         ..isReadOnly = true,
+      "type": APISchemaObject.string()
+        ..description = "Aggregate Root Type"
+        ..isReadOnly = true
+        ..isNullable = true
+        ..defaultValue = defaultType,
     })
-      ..description = "Aggregate Root Reference"
+      ..description = description
+      ..required = ['uuid']
       ..isReadOnly = true;
 
 //////////////////////////////////
@@ -98,7 +106,7 @@ APISchemaObject documentEntityPageResponse(
   String type,
 }) =>
     APISchemaObject.object({
-      "aggregate": context.schema["AggregateRootRef"],
+      "aggregate": context.schema["AggregateRef"],
       "type": APISchemaObject.string()
         ..description = "Entity Object Type"
         ..defaultValue = type
@@ -120,7 +128,7 @@ APISchemaObject documentEntityResponse(
   String type,
 }) =>
     APISchemaObject.object({
-      "aggregate": context.schema["AggregateRootRef"],
+      "aggregate": context.schema["AggregateRef"],
       "type": APISchemaObject.string()
         ..description = "${type == null ? "Entity Object" : type} Type"
         ..defaultValue = type
@@ -137,7 +145,7 @@ APISchemaObject documentValueResponse(
   String type,
 }) =>
     APISchemaObject.object({
-      "aggregate": context.schema["AggregateRootRef"],
+      "aggregate": context.schema["AggregateRef"],
       "type": APISchemaObject.string()
         ..description = "${type == null ? "Value Object" : type} Type"
         ..defaultValue = type
@@ -335,9 +343,9 @@ APISchemaObject documentPositionSource() => APISchemaObject.string()
   ..defaultValue = "manual"
   ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
   ..enumerated = [
+    'gps',
     'manual',
-    'device',
-    'tracking',
+    'aggregate',
   ];
 
 APISchemaObject documentMessage(APIDocumentContext context) => APISchemaObject.object({

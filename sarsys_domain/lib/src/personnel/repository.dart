@@ -1,11 +1,12 @@
 import 'package:event_source/event_source.dart';
+import 'package:sarsys_domain/src/tracking/tracking.dart';
 
 import 'aggregate.dart';
 import 'commands.dart';
 import 'events.dart';
 
 class PersonnelRepository extends Repository<PersonnelCommand, Personnel> {
-  PersonnelRepository(EventStore store)
+  PersonnelRepository(EventStore store, this.trackings)
       : super(store: store, processors: {
           PersonnelRegistered: (event) => PersonnelRegistered(
                 uuid: event.uuid,
@@ -62,6 +63,19 @@ class PersonnelRepository extends Repository<PersonnelCommand, Personnel> {
                 created: event.created,
               ),
         });
+
+  final TrackingRepository trackings;
+
+  @override
+  void willStartProcessingEvents() {
+    // Co-create Tracking with Personnel
+    rule<PersonnelRegistered>(trackings.newCreateRule);
+
+    // Co-delete Tracking with Personnel
+    rule<PersonnelDeleted>(trackings.newDeleteRule);
+
+    super.willStartProcessingEvents();
+  }
 
   @override
   Personnel create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => Personnel(

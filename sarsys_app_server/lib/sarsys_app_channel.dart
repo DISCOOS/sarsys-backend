@@ -419,8 +419,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
     // Register independent repositories
     manager.register<Incident>((store) => IncidentRepository(store));
     manager.register<Subject>((store) => SubjectRepository(store));
-    manager.register<Personnel>((store) => PersonnelRepository(store));
-    manager.register<Unit>((store) => UnitRepository(store));
     manager.register<Mission>((store) => MissionRepository(store));
     manager.register<Organisation>((store) => OrganisationRepository(store));
     manager.register<Department>((store) => DepartmentRepository(store));
@@ -433,8 +431,15 @@ class SarSysAppServerChannel extends ApplicationChannel {
     manager.register<AppConfig>(
       (store) => AppConfigRepository(store, manager.get<DeviceRepository>()),
     );
+    manager.register<Unit>(
+      (store) => UnitRepository(store, manager.get<TrackingRepository>()),
+    );
+    manager.register<Personnel>(
+      (store) => PersonnelRepository(store, manager.get<TrackingRepository>()),
+    );
 
-    // Defer repository builds so that isolates are not killed on eventstore connection timeouts
+    // Defer repository builds so that isolates are
+    // not killed on eventstore connection timeouts
     Future.microtask(() => _buildReposAsync(stopwatch))
       ..then((_) => whenComplete())
       ..catchError(catchError);
@@ -446,7 +451,9 @@ class SarSysAppServerChannel extends ApplicationChannel {
       '\$by_event_type',
     ]);
     await manager.build();
-    logger.info("Built repositories in ${stopwatch.elapsedMilliseconds}ms => ready for aggregate requests!");
+    logger.info(
+      "Built repositories in ${stopwatch.elapsedMilliseconds}ms => ready for aggregate requests!",
+    );
   }
 
   Future _buildDomainServices() async {
@@ -629,7 +636,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     ..register('EntityResponse', documentEntityResponse(context))
     ..register('EntityPageResponse', documentEntityPageResponse(context))
     ..register('ValueResponse', documentValueResponse(context))
-    ..register('AggregateRootRef', documentAggregateRef(context))
+    ..register('AggregateRef', documentAggregateRef(context))
     ..register('ID', documentID())
     ..register('UUID', documentUUID())
     ..register('PassCodes', documentPassCodes())

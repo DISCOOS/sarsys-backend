@@ -61,17 +61,20 @@ class DivisionRepository extends Repository<DivisionCommand, Division> {
   @override
   void willStartProcessingEvents() {
     // Remove Department from 'departments' list when deleted
-    rule<DepartmentDeleted>((_) => AssociationRule(
-          (source, target) => RemoveDepartmentFromDivision(
-            get(target),
-            toAggregateUuid(source),
-          ),
-          target: this,
-          targetField: 'departments',
-          intent: Action.delete,
-        ));
+    rule<DepartmentDeleted>(newDeleteRule);
+
     super.willStartProcessingEvents();
   }
+
+  AggregateRule newDeleteRule(_) => AssociationRule(
+        (source, target) => RemoveDepartmentFromDivision(
+          get(target),
+          toAggregateUuid(source),
+        ),
+        target: this,
+        targetField: 'departments',
+        intent: Action.delete,
+      );
 
   @override
   Division create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => Division(

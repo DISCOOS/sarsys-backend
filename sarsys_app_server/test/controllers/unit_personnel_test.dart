@@ -11,7 +11,7 @@ Future main() async {
     ..install(restartForEachTest: true);
 
   test("POST /api/unit/{uuid}/personnel adds personnel to aggregate list", () async {
-    await _install(harness);
+    await _prepare(harness);
     final unitUuid = Uuid().v4();
     final unit = createUnit(unitUuid);
     expectResponse(await harness.agent.post("/api/units", body: unit), 201, body: null);
@@ -44,7 +44,7 @@ Future main() async {
   });
 
   test("GET /api/unit/{uuid}/personnels returns status code 200 with offset=1 and limit=2", () async {
-    await _install(harness);
+    await _prepare(harness);
     final uuid = Uuid().v4();
     final unit = createUnit(uuid);
     expectResponse(await harness.agent.post("/api/units", body: unit), 201, body: null);
@@ -61,7 +61,7 @@ Future main() async {
   });
 
   test("DELETE /api/personnels/{uuid} should remove {uuid} from personnels list in unit", () async {
-    await _install(harness);
+    await _prepare(harness);
     final unitUuid = Uuid().v4();
     final unit = createUnit(unitUuid);
     expectResponse(await harness.agent.post("/api/units", body: unit), 201, body: null);
@@ -75,8 +75,12 @@ Future main() async {
   });
 }
 
-Future _install(SarSysHarness harness) async {
-  harness.eventStoreMockServer..withStream(typeOf<Unit>().toColonCase())..withStream(typeOf<Personnel>().toColonCase());
+Future _prepare(SarSysHarness harness) async {
+  harness.eventStoreMockServer
+    ..withStream(typeOf<Unit>().toColonCase())
+    ..withStream(typeOf<Personnel>().toColonCase())
+    ..withStream(typeOf<Tracking>().toColonCase());
+  await harness.channel.manager.get<TrackingRepository>().readyAsync();
   await harness.channel.manager.get<UnitRepository>().readyAsync();
   await harness.channel.manager.get<PersonnelRepository>().readyAsync();
 }

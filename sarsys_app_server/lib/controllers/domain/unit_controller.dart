@@ -2,20 +2,22 @@ import 'package:sarsys_app_server/controllers/event_source/aggregate_controller.
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
+import 'package:event_source/event_source.dart';
 
 /// A ResourceController that handles
 /// [/api/incidents/{uuid}/units](http://localhost/api/client.html#/Unit) requests
 class UnitController extends AggregateController<UnitCommand, Unit> {
   UnitController(UnitRepository repository, JsonValidation validation)
-      : super(repository,
-            validation: validation,
-            readOnly: const [
-              'operation',
-              'messages',
-              'tracking',
-              'transitions',
-            ],
-            tag: 'Units');
+      : super(
+          repository,
+          validation: validation,
+          readOnly: const [
+            'operation',
+            'messages',
+            'transitions',
+          ],
+          tag: 'Units',
+        );
 
   @override
   @Operation.get()
@@ -34,8 +36,17 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
 
   @override
   @Operation.post()
-  Future<Response> create(@Bind.body() Map<String, dynamic> data) {
-    return super.create(data);
+  Future<Response> create(@Bind.body() Map<String, dynamic> data) async {
+    final hasTracking = data?.elementAt('tracking/uuid') != null;
+    final response = await super.create(data);
+    if (hasTracking) {
+      return await waitForRuleResult<TrackingCreated>(
+        response,
+        fail: true,
+        timeout: const Duration(milliseconds: 10000),
+      );
+    }
+    return response;
   }
 
   @override
@@ -44,7 +55,7 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
     @Bind.path('uuid') String uuid,
     @Bind.body() Map<String, dynamic> data,
   ) {
-    return super.update(uuid, data);
+    return super.update(uuid, data..remove('tracking'));
   }
 
   @override
@@ -53,8 +64,16 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
     @Bind.path('uuid') String uuid, {
     @Bind.body() Map<String, dynamic> data,
   }) async {
+    final hasTracking = repository.get(uuid, createNew: false)?.data?.elementAt('tracking/uuid') != null;
+    final response = await super.delete(uuid, data: data);
+    if (hasTracking) {
+      return await waitForRuleResults(response, expected: [
+        UnitRemovedFromOperation,
+        TrackingDeleted,
+      ]);
+    }
     return await waitForRuleResult<UnitRemovedFromOperation>(
-      await super.delete(uuid, data: data),
+      response,
     );
   }
 
@@ -90,8 +109,8 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
           "tracking": APISchemaObject.object({
             "uuid": context.schema['UUID'],
           })
-            ..description = "Tracking object for this unit"
-            ..isReadOnly = true,
+            ..description = "Unique id of tracking object "
+                "created for this unit. Only writable on creation.",
           "transitions": APISchemaObject.array(ofSchema: documentTransition())
             ..isReadOnly = true
             ..description = "State transitions (read only)",

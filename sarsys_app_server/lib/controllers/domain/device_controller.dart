@@ -84,11 +84,11 @@ class DeviceController extends AggregateController<DeviceCommand, Device> {
         "position": documentPosition(context)
           ..description = "Current position"
           ..isReadOnly = true,
-        "allocatedTo": APISchemaObject.object({
-          "uuid": context.schema['UUID'],
-        })
-          ..description = "Incident which device is available for"
-          ..isReadOnly = true,
+        "allocatedTo": documentAggregateRef(
+          context,
+          description: "Incident which device is allocated to",
+          defaultType: 'Incident',
+        ),
         "transitions": APISchemaObject.array(ofSchema: documentTransition())
           ..description = "State transitions (read only)"
           ..isReadOnly = true,

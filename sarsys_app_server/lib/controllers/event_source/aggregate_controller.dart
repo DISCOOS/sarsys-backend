@@ -1,3 +1,5 @@
+import 'package:meta/meta.dart';
+
 import 'package:event_source/event_source.dart';
 import 'package:sarsys_app_server/controllers/domain/schemas.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
@@ -108,7 +110,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       final events = await repository.execute(
         onUpdate(validate("$aggregateType", data, isPatch: true)),
       );
-      return events.isEmpty ? Response.noContent() : Response.noContent();
+      return events.isEmpty ? Response.noContent() : okAggregate(repository.get(uuid));
     } on AggregateNotFound catch (e) {
       return Response.notFound(body: e.message);
     } on UUIDIsNull {
@@ -171,7 +173,47 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   }) async {
     if (statusCodes.contains(response.statusCode)) {
       try {
-        await repository.onRuleResult.firstWhere((event) => event is T).timeout(timeout);
+        await repository.onRuleResult
+            .firstWhere(
+              (event) => event is T,
+            )
+            .timeout(timeout);
+      } on Exception catch (e, stackTrace) {
+        if (fail) {
+          final message = "Waiting for ${typeOf<T>()} timed out after $timeout";
+          logger.severe('$message: $e: $stackTrace');
+          return Response.serverError(body: {'error': message});
+        }
+      }
+    }
+    return response;
+  }
+
+  /// Wait for given rule result from stream of results
+  Future<Response> waitForRuleResults(
+    Response response, {
+    @required List<Type> expected,
+    bool fail = false,
+    List<int> statusCodes = const [
+      HttpStatus.ok,
+      HttpStatus.created,
+      HttpStatus.noContent,
+    ],
+    Duration timeout = const Duration(
+      milliseconds: 100,
+    ),
+  }) async {
+    if (statusCodes.contains(response.statusCode)) {
+      try {
+        await repository.onRuleResult
+            // Match expected events
+            .where((event) => expected.contains(event.runtimeType))
+            // Match against expected number
+            .take(expected.length)
+            // Complete when last event is received
+            .last
+            // Fail on time
+            .timeout(timeout);
       } on Exception catch (e, stackTrace) {
         if (fail) {
           final message = "Waiting for ${typeOf<T>()} timed out after $timeout";

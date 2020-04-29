@@ -30,38 +30,40 @@ class AppConfigRepository extends Repository<AppConfigCommand, AppConfig> {
   @override
   void willStartProcessingEvents() {
     // Co-create Device with AppConfig
-    rule<AppConfigCreated>((_) => AssociationRule(
-          (source, target) => CreateDevice(
-            {
-              "type": "app",
-              "network": "sarsys",
-              "status": "unavailable",
-              uuidFieldName: target,
-            },
-          ),
-          target: devices,
-          sourceField: 'udid',
-          targetField: uuidFieldName,
-          intent: Action.create,
-          cardinality: Cardinality.none,
-        ));
+    rule<AppConfigCreated>(newCreateRule);
 
     // Co-delete Device with AppConfig
-    rule<AppConfigDeleted>((_) => AssociationRule(
-          (source, target) => DeleteDevice(
-            {
-              uuidFieldName: target,
-            },
-          ),
-          target: devices,
-          sourceField: 'udid',
-          targetField: uuidFieldName,
-          intent: Action.delete,
-          cardinality: Cardinality.none,
-        ));
+    rule<AppConfigDeleted>(newDeleteRule);
 
     super.willStartProcessingEvents();
   }
+
+  AggregateRule newDeleteRule(_) => AssociationRule(
+        (source, target) => DeleteDevice(
+          {uuidFieldName: target},
+        ),
+        target: devices,
+        sourceField: 'udid',
+        targetField: uuidFieldName,
+        intent: Action.delete,
+        cardinality: Cardinality.none,
+      );
+
+  AggregateRule newCreateRule(_) => AssociationRule(
+        (source, target) => CreateDevice(
+          {
+            "type": "app",
+            "network": "sarsys",
+            "status": "unavailable",
+            uuidFieldName: target,
+          },
+        ),
+        target: devices,
+        sourceField: 'udid',
+        targetField: uuidFieldName,
+        intent: Action.create,
+        cardinality: Cardinality.none,
+      );
 
   @override
   AppConfig create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => AppConfig(

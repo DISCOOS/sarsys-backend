@@ -65,7 +65,7 @@ Future main() async {
       "subjects": ["string1"],
       "operations": ["string1"]
     };
-    expectResponse(await harness.agent.execute("PATCH", "/api/incidents/$uuid", body: lists), 204, body: null);
+    expectResponse(await harness.agent.execute("PATCH", "/api/incidents/$uuid", body: lists), 200);
     var response = expectResponse(await harness.agent.get("/api/incidents/$uuid"), 200);
     var actual = await response.body.decode();
     body.addAll(lists);
@@ -76,7 +76,7 @@ Future main() async {
       "subjects": ["string2"],
       "operations": ["string2"]
     };
-    expectResponse(await harness.agent.execute("PATCH", "/api/incidents/$uuid", body: lists), 204, body: null);
+    expectResponse(await harness.agent.execute("PATCH", "/api/incidents/$uuid", body: lists), 200);
     response = expectResponse(await harness.agent.get("/api/incidents/$uuid"), 200);
     actual = await response.body.decode();
     body.addAll(lists);
@@ -84,7 +84,7 @@ Future main() async {
 
     // Test that subjects are removed
     lists = {"subjects": [], "operations": []};
-    expectResponse(await harness.agent.execute("PATCH", "/api/incidents/$uuid", body: lists), 204, body: null);
+    expectResponse(await harness.agent.execute("PATCH", "/api/incidents/$uuid", body: lists), 200);
     response = expectResponse(await harness.agent.get("/api/incidents/$uuid"), 200);
     actual = await response.body.decode();
     body.addAll(lists);

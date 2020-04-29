@@ -11,16 +11,22 @@ Future main() async {
     ..install(restartForEachTest: true);
 
   test("POST /api/units/ returns status code 201 with empty body", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Unit>().toColonCase());
-    await harness.channel.manager.get<UnitRepository>().readyAsync();
+    await _prepare(harness);
     final uuid = Uuid().v4();
     final body = _createData(uuid);
     expectResponse(await harness.agent.post("/api/units", body: body), 201, body: null);
   });
 
+  test("POST /api/units/ returns status code 201 with tracking enabled", () async {
+    await _prepare(harness);
+    final uuid = Uuid().v4();
+    final tuuid = Uuid().v4();
+    final body = _createData(uuid, tuuid: tuuid);
+    expectResponse(await harness.agent.post("/api/units", body: body), 201, body: null);
+  });
+
   test("POST /api/units/ returns status code 400 when 'operation/uuid' is given", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Unit>().toColonCase());
-    await harness.channel.manager.get<UnitRepository>().readyAsync();
+    await _prepare(harness);
     final uuid = Uuid().v4();
     final body = _createData(uuid)
       ..addAll({
@@ -34,8 +40,7 @@ Future main() async {
   });
 
   test("GET /api/units/{uuid} returns status code 200", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Unit>().toColonCase());
-    await harness.channel.manager.get<UnitRepository>().readyAsync();
+    await _prepare(harness);
     final uuid = Uuid().v4();
     final body = _createData(uuid);
     expectResponse(await harness.agent.post("/api/units", body: body), 201, body: null);
@@ -45,8 +50,7 @@ Future main() async {
   });
 
   test("PATCH /api/units/{uuid} is idempotent", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Unit>().toColonCase());
-    await harness.channel.manager.get<UnitRepository>().readyAsync();
+    await _prepare(harness);
     final uuid = Uuid().v4();
     final body = _createData(uuid);
     expectResponse(await harness.agent.post("/api/units", body: body), 201, body: null);
@@ -57,8 +61,7 @@ Future main() async {
   });
 
   test("PATCH /api/units/{uuid} does not remove value objects", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Unit>().toColonCase());
-    await harness.channel.manager.get<UnitRepository>().readyAsync();
+    await _prepare(harness);
     final uuid = Uuid().v4();
     final body = _createData(uuid);
     expectResponse(await harness.agent.post("/api/units", body: body), 201, body: null);
@@ -69,17 +72,24 @@ Future main() async {
   });
 
   test("DELETE /api/units/{uuid} returns status code 204", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Unit>().toColonCase());
-    await harness.channel.manager.get<UnitRepository>().readyAsync();
+    await _prepare(harness);
     final uuid = Uuid().v4();
     final body = _createData(uuid);
     expectResponse(await harness.agent.post("/api/units", body: body), 201, body: null);
     expectResponse(await harness.agent.delete("/api/units/$uuid"), 204);
   });
 
+  test("DELETE /api/units/{uuid} returns status code 204 with tracking enabled", () async {
+    await _prepare(harness);
+    final uuid = Uuid().v4();
+    final tuuid = Uuid().v4();
+    final body = _createData(uuid, tuuid: tuuid);
+    expectResponse(await harness.agent.post("/api/units", body: body), 201, body: null);
+    expectResponse(await harness.agent.delete("/api/units/$uuid"), 204);
+  });
+
   test("GET /api/units returns status code 200 with offset=1 and limit=2", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Unit>().toColonCase());
-    await harness.channel.manager.get<UnitRepository>().readyAsync();
+    await _prepare(harness);
     await harness.agent.post("/api/units", body: _createData(Uuid().v4()));
     await harness.agent.post("/api/units", body: _createData(Uuid().v4()));
     await harness.agent.post("/api/units", body: _createData(Uuid().v4()));
@@ -93,4 +103,11 @@ Future main() async {
   });
 }
 
-Map<String, Object> _createData(String uuid) => createUnit(uuid);
+Future _prepare(SarSysHarness harness) async {
+  harness.eventStoreMockServer.withStream(typeOf<Unit>().toColonCase());
+  harness.eventStoreMockServer.withStream(typeOf<Tracking>().toColonCase());
+  await harness.channel.manager.get<UnitRepository>().readyAsync();
+  await harness.channel.manager.get<TrackingRepository>().readyAsync();
+}
+
+Map<String, Object> _createData(String uuid, {String tuuid}) => createUnit(uuid, tuuid: tuuid);

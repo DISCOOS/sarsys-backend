@@ -75,6 +75,38 @@ class TrackingRepository extends Repository<TrackingCommand, Tracking> {
               ),
         });
 
+  AssociationRule newCreateRule(_) {
+    return AssociationRule(
+      // Only create if tracking does not exist
+      (source, target) => target != null && !exists(target)
+          ? CreateTracking(
+              {uuidFieldName: target},
+            )
+          : null,
+      target: this,
+      sourceField: 'tracking/uuid',
+      targetField: uuidFieldName,
+      intent: Action.create,
+      cardinality: Cardinality.none,
+    );
+  }
+
+  AssociationRule newDeleteRule(_) {
+    return AssociationRule(
+      // Only delete if tracking exist
+      (source, target) => exists(target)
+          ? DeleteTracking(
+              {uuidFieldName: target},
+            )
+          : null,
+      target: this,
+      sourceField: 'tracking/uuid',
+      targetField: uuidFieldName,
+      intent: Action.delete,
+      cardinality: Cardinality.none,
+    );
+  }
+
   @override
   Tracking create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => Tracking(
         uuid,

@@ -277,15 +277,16 @@ Map<String, dynamic> createMissionResult(String id) => {
       }
     };
 
-Map<String, dynamic> createPersonnel(String uuid) => {
+Map<String, dynamic> createPersonnel(String uuid, {String tuuid}) => {
       "uuid": "$uuid",
       "fname": "string",
       "lname": "string",
       "phone": "string",
       "status": "mobilized",
+      if (tuuid != null) "tracking": {"uuid": tuuid}
     };
 
-Map<String, dynamic> createUnit(String uuid) => {
+Map<String, dynamic> createUnit(String uuid, {String tuuid}) => {
       "uuid": "$uuid",
       "type": "team",
       "number": 0,
@@ -293,6 +294,7 @@ Map<String, dynamic> createUnit(String uuid) => {
       "callsign": "string",
       "status": "mobilized",
       "personnels": ["string"],
+      if (tuuid != null) "tracking": {"uuid": tuuid}
     };
 
 Map<String, dynamic> createOrganisation(String uuid) => {

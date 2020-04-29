@@ -31,7 +31,7 @@ class PositionModel extends Equatable {
   double get acc => properties.acc;
 
   @JsonKey(ignore: true)
-  SourceType get source => properties.source;
+  PositionSource get source => properties.source;
 
   @JsonKey(ignore: true)
   DateTime get timestamp => properties.timestamp;
@@ -50,7 +50,7 @@ class PositionModel extends Equatable {
   factory PositionModel.from({
     @required double lat,
     @required double lon,
-    @required SourceType source,
+    @required PositionSource source,
     @required DateTime timestamp,
     double acc,
     double alt,
@@ -94,17 +94,19 @@ class PositionModel extends Equatable {
       );
 }
 
+enum PositionSource { manual, gps, aggregate }
+
 @JsonSerializable(explicitToJson: true)
 class PositionModelProps extends Equatable {
   @JsonKey(name: 'accuracy')
   final double acc;
   final DateTime timestamp;
-  final SourceType source;
+  final PositionSource source;
 
   PositionModelProps({
     @required this.acc,
     @required this.timestamp,
-    this.source = SourceType.manual,
+    this.source = PositionSource.manual,
   }) : super();
 
   @override
