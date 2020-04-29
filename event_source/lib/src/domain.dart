@@ -707,26 +707,30 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Get aggregate with given id.
   ///
-  /// Will create a new aggregate if not found by applying a left
-  /// fold from [SourceEvent] to [DomainEvent]. Each [DomainEvent]
-  /// is then processed by applying changes to [AggregateRoot.data]
-  /// in accordance to the business value of to each [DomainEvent].
+  /// Will by default create a new aggregate if not found by
+  /// applying a left fold from [SourceEvent] to [DomainEvent].
+  /// Each [DomainEvent] is then processed by applying changes
+  /// to [AggregateRoot.data] in accordance to the business value
+  /// of to each [DomainEvent].
   T get(
     String uuid, {
     Map<String, dynamic> data = const {},
     List<Map<String, dynamic>> patches = const [],
+    bool createNew = true,
   }) =>
       _aggregates[uuid] ??
-      _aggregates.putIfAbsent(
-        uuid,
-        () => create(
-          _processors,
-          uuid,
-          JsonPatch.apply(data ?? {}, patches) as Map<String, dynamic>,
-        )..loadFromHistory(
-            store.get(uuid).map(toDomainEvent),
-          ),
-      );
+      (createNew
+          ? _aggregates.putIfAbsent(
+              uuid,
+              () => create(
+                _processors,
+                uuid,
+                JsonPatch.apply(data ?? {}, patches) as Map<String, dynamic>,
+              )..loadFromHistory(
+                  store.get(uuid).map(toDomainEvent),
+                ),
+            )
+          : null);
 
   /// Get all aggregate roots.
   Iterable<T> getAll({int offset = 0, int limit = 20}) => _aggregates.values.toPage(
