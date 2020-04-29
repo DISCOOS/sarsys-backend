@@ -9,9 +9,14 @@ import 'extension.dart';
 import 'domain.dart';
 
 /// Rule (invariant) builder function for given [repository]
+///
+/// Should always return an [AggregateRule]
 typedef RuleBuilder = AggregateRule Function(Repository repository);
 
 /// [Command] builder function for given [AggregateRoot] and [DomainEvent]
+///
+/// If function returns a [Command] it must be executed. Return null if
+/// nothing should be execution.
 typedef CommandBuilder = Command Function(DomainEvent source, String target);
 
 /// [AggregateRoot] target resolver function
@@ -157,14 +162,14 @@ abstract class AggregateRule {
     return null;
   }
 
-  Future<Iterable<DomainEvent>> execute(DomainEvent event, String uuid) async {
-    final command = builder(event, uuid);
+  Future<Iterable<DomainEvent>> execute(DomainEvent event, String value) async {
+    final command = builder(event, value);
     if (command != null) {
       return await target.execute(
         command,
       );
     }
-    return null;
+    return [];
   }
 }
 
@@ -222,7 +227,6 @@ class AssociationRule extends AggregateRule {
       case Action.update:
         break;
     }
-
     return aggregates;
   }
 
@@ -233,9 +237,7 @@ class AssociationRule extends AggregateRule {
       if (value != null) {
         return value;
       }
-      if (source.exists(uuid)) {
-        return source.get(uuid).data.elementAt(sourceField);
-      }
+      return source.get(uuid, createNew: false)?.data?.elementAt(sourceField);
     }
     return uuid;
   }
