@@ -343,8 +343,8 @@ APISchemaObject documentPositionSource() => APISchemaObject.string()
   ..defaultValue = "manual"
   ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
   ..enumerated = [
-    'gps',
     'manual',
+    'device',
     'aggregate',
   ];
 

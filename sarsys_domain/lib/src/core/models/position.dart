@@ -94,7 +94,7 @@ class PositionModel extends Equatable {
       );
 }
 
-enum PositionSource { manual, gps, aggregate }
+enum PositionSource { manual, device, aggregate }
 
 @JsonSerializable(explicitToJson: true)
 class PositionModelProps extends Equatable {
