@@ -81,6 +81,9 @@ class DeviceController extends AggregateController<DeviceCommand, Device> {
         "alias": APISchemaObject.string()..description = "Device alias",
         "network": APISchemaObject.string()..description = "Device network name",
         "networkId": APISchemaObject.string()..description = "Device identifier on network",
+        "manual": APISchemaObject.boolean()
+          ..description = "Device registered manually"
+          ..defaultValue = true,
         "position": documentPosition(context)
           ..description = "Current position"
           ..isReadOnly = true,

@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:sarsys_domain/src/core/models/models.dart';
 import 'package:sarsys_domain/src/core/proj4d.dart';
+import 'package:sarsys_domain/src/tracking/tracking.dart';
 
 class TrackingUtils {
   /// Calculate average speed from distance and duration
@@ -130,6 +131,27 @@ class TrackingUtils {
     );
   }
 
+  static TrackingModel closed(TrackingModel tracking) {
+    return tracking.cloneWith(
+      status: TrackingStatus.closed,
+      sources: [],
+      tracks: tracking.tracks.map((track) => track.cloneWith(status: TrackStatus.detached)).toList(),
+    );
+  }
+
+  static TrackingModel reopened(TrackingModel tracking) {
+    if (TrackingStatus.closed == tracking.status) {
+      final sources = tracking.tracks.map((track) => track.source);
+      final tracks = tracking.tracks.map((track) => track.cloneWith(status: TrackStatus.attached));
+      return tracking.cloneWith(
+        status: derive(TrackingStatus.closed, sources, defaultStatus: TrackingStatus.created),
+        sources: sources.toList(),
+        tracks: tracks.toList(),
+      );
+    }
+    return tracking;
+  }
+
   static List<TrackModel> findAndDelete(TrackingModel tracking, String suuid) {
     final track = find(tracking, suuid);
     final tracks = List.from(tracking.tracks);
@@ -157,13 +179,17 @@ class TrackingUtils {
         orElse: () => null,
       );
 
-  static TrackingStatus derive(TrackingStatus current, Iterable<SourceModel> sources) {
+  static TrackingStatus derive(
+    TrackingStatus current,
+    Iterable<SourceModel> sources, {
+    TrackingStatus defaultStatus,
+  }) {
     final hasSources = sources.isNotEmpty;
     final next = [TrackingStatus.created].contains(current)
         ? (hasSources ? TrackingStatus.tracking : TrackingStatus.created)
         : (hasSources
             ? TrackingStatus.tracking
-            : ([TrackingStatus.closed].contains(current) ? current : TrackingStatus.paused));
+            : ([TrackingStatus.closed].contains(current) ? (defaultStatus ?? current) : TrackingStatus.paused));
     return next;
   }
 }
