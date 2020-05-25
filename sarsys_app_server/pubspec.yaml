@@ -14,7 +14,7 @@ dependencies:
   jose: ^0.1.2+1
   webfeed: ^0.4.2
   strings: ^0.1.2
-  aqueduct: ^3.0.0
+  aqueduct: ^3.3.0+1
   equatable: ^1.0.1
   jaguar_jwt: ^2.1.6
   json_patch: ^2.0.0
