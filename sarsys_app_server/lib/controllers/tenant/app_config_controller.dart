@@ -99,6 +99,9 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object(
         {
           "uuid": documentUUID()..description = "Unique application configuration id",
+          "version": APISchemaObject.integer()
+            ..description = "AppConfig version for backwards compatibility"
+            ..defaultValue = 1,
           "udid": documentUUID()
             ..description = "Unique device id, typically [ANDROID_ID] "
                 "for Android and [identifierForVendor] for iOS platforms",
@@ -109,12 +112,16 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
             ..description = "Role of logged in user in demo-mode"
             ..defaultValue = "commander"
             ..enumerated = [
+              'oversight',
               'commander',
-              'unitleader',
+              'unit_leader',
               'personnel',
             ],
           "onboarding": APISchemaObject.boolean()
             ..description = "Show onboarding before next login"
+            ..defaultValue = true,
+          "firstSetup": APISchemaObject.boolean()
+            ..description = "Show first setup before next login"
             ..defaultValue = true,
           "securityMode": APISchemaObject.string()
             ..description = "Security mode applied to application"
@@ -126,18 +133,26 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
           "securityLockAfter": APISchemaObject.integer()
             ..description = "Lock idle device (no user interactions) after in given number of seconds"
             ..defaultValue = 2700, // 45 minutes
-          "organization": APISchemaObject.string()
+          "orgId": APISchemaObject.string()
             ..description = "Default organization identifier"
             ..defaultValue = "61",
-          "division": APISchemaObject.string()
+          "divId": APISchemaObject.string()
             ..description = "Default division identifier"
             ..defaultValue = "140",
-          "department": APISchemaObject.string()
+          "depId": APISchemaObject.string()
             ..description = "Default department identifier"
             ..defaultValue = "141",
+          "talkGroups": APISchemaObject.array(ofType: APIType.string)
+            ..description = "List of default talk group names"
+            ..defaultValue = ["Oslo"],
           "talkGroupCatalog": APISchemaObject.string()
-            ..description = "Default talkgroup name"
+            ..description = "Default talk group catalog name"
             ..defaultValue = "Oslo",
+          "trustedDomains": APISchemaObject.array(ofType: APIType.string)
+            ..description = "List of trusted domains"
+            ..defaultValue = ["rodekors.org", "discoos.org"],
+          "units": APISchemaObject.array(ofType: APIType.string)
+            ..description = "List of templates for units to create automatically when opening an new operation",
           "storage": APISchemaObject.boolean()
             ..description = "Storage access is granted"
             ..defaultValue = false,

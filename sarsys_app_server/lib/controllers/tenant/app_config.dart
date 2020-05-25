@@ -39,6 +39,7 @@ class AppConfigRepository extends Repository<AppConfigCommand, AppConfig> {
   }
 
   AggregateRule newDeleteRule(_) => AssociationRule(
+        // TODO: Handle multiple app-configs with same udid
         (source, target) => DeleteDevice(
           {uuidFieldName: target},
         ),
@@ -50,11 +51,12 @@ class AppConfigRepository extends Repository<AppConfigCommand, AppConfig> {
       );
 
   AggregateRule newCreateRule(_) => AssociationRule(
+        // TODO: Handle multiple app-configs with same udid
         (source, target) => CreateDevice(
           {
             "type": "app",
             "network": "sarsys",
-            "status": "unavailable",
+            "status": "available",
             uuidFieldName: target,
           },
         ),

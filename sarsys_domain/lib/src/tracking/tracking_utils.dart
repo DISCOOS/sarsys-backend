@@ -2,7 +2,6 @@ import 'dart:math';
 
 import 'package:sarsys_domain/src/core/models/models.dart';
 import 'package:sarsys_domain/src/core/proj4d.dart';
-import 'package:sarsys_domain/src/tracking/tracking.dart';
 
 class TrackingUtils {
   /// Calculate average speed from distance and duration

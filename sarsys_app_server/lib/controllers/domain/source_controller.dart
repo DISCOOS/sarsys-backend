@@ -67,9 +67,6 @@ class SourceController extends EntityController<TrackingCommand, Tracking> {
   APISchemaObject documentEntityObject(APIDocumentContext context) => APISchemaObject.object({
         "uuid": documentUUID()..description = "Foreign key to unique source identifier.",
         "type": documentSourceType(),
-        "exists": APISchemaObject.boolean()
-          ..description = "Flag is true if source exists"
-          ..isReadOnly = true,
       })
         ..required = [
           'uuid',
@@ -82,6 +79,6 @@ class SourceController extends EntityController<TrackingCommand, Tracking> {
     ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
     ..enumerated = [
       'device',
-      'tracking',
+      'trackable',
     ];
 }

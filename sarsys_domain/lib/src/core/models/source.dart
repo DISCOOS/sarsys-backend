@@ -24,4 +24,4 @@ class SourceModel extends Equatable {
   List<Object> get props => [uuid, type];
 }
 
-enum SourceType { manual, device, tracking }
+enum SourceType { device, trackable }

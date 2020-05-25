@@ -990,6 +990,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         previous: previous ?? this.data,
       );
 
+  /// Append-only operations allowed
   static const ops = ['add', 'replace', 'move'];
 
   DomainEvent _change(
