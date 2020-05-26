@@ -16,17 +16,15 @@ else
 	endif
 endif
 
-DOCKER_STATE = $(shell docker info >/dev/null 2>&1)
-
 .PHONY: \
 	check commit test serve document models snapshot localhost \
 	build push publish apply delete restart rollback status eventstore \
-    docker_is_up
+    docker_is_up #verify_image
 
 .SILENT: \
 	check commit test serve document models snapshot localhost \
 	build push publish apply delete restart rollback status eventstore \
-	docker_is_up
+	docker_is_up #verify_image
 
 check:
 	if [[ `git status --porcelain` ]]; then echo 'You have changes, aborting.'; exit 1; else echo "No changes"; fi
@@ -60,16 +58,30 @@ snapshot:
 	echo "[✓] Building dart snapshot bin/main.snapshot finished"
 
 docker_is_up:
-	if [[ $(DOCKER_STATE) -ne 0 ]]; then echo \
-		"Docker does not seem to be running, run it first and retry"; \
-		exit 1; \
-	else echo "Docker is running"; fi
+	docker info >/dev/null 2>&1
+	echo "Docker is running"
 
 build: docker_is_up test document snapshot
 	echo "Build docker image..."
 	docker pull google/dart
 	docker build --no-cache -t discoos/sarsys_app_server:latest .
 	echo "[✓] Build docker image finished"
+
+#verify_image: docker_is_up
+#	docker run \
+#		-p 80:8082  \
+#		-v /Users/kengu/src/git/sarsys-backend/sarsys_app_server/.data:/var/lib/sarsys  \
+#		--env EVENTSTORE_HOST=http://0.0.0.0  \
+#		--env EVENTSTORE_PORT=2113  \
+#		--env EVENTSTORE_LOGIN=admin  \
+#		--env EVENTSTORE_PASSWORD=changeit  \
+#		--env TENANT=discoos  \
+#		--env AUTH_ENABLED=false  \
+#		--env DATA_PATH=/var/lib/sarsys  \
+#		--name sarsys_app_server_test  \
+#		discoos/sarsys_app_server:latest
+#	docker inspect --format "{{json .State.Health }}" tester
+
 
 localhost:
 	echo "Start SarSys App Server as docker container ..."
