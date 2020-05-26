@@ -355,6 +355,9 @@ class SarSysAppServerChannel extends ApplicationChannel {
     logger.info("AUTHORIZATION is ${config.auth.enabled ? 'ENABLED' : 'DISABLED'}");
     if (config.auth.enabled) {
       logger.info("OpenID Connect Provider BASE URL is ${config.auth.baseUrl}");
+      logger.info("OpenID Connect Provider Issuer is ${config.auth.issuer}");
+      logger.info("OpenID Connect Provider Audience is ${config.auth.audience}");
+      logger.info("OpenID Connect Provider Roles Claims are ${config.auth.rolesClaims}");
     }
 
     // Ensure that data path exists?

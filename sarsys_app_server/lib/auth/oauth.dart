@@ -77,7 +77,7 @@ class AccessTokenValidator extends AuthValidator {
 
   List<String> _toRoles(JsonWebTokenClaims claims) => config.rolesClaims.fold(
         <String>[],
-        (roles, claim) => roles..addAll(claims.toJson().elementAt<List<String>>(claim) ?? []),
+        (roles, claim) => roles..addAll(List.from(claims.toJson().elementAt<List>(claim)) ?? []),
       );
 
   List<AuthScope> _toScopes(Map<String, dynamic> claims, List<AuthScope> scopes) {
