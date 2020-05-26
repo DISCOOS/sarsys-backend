@@ -105,7 +105,7 @@ class AuthConfig extends Configuration {
   /// Path to roles claim in JWT
   ///
   @optionalConfiguration
-  String rolesClaim;
+  List<String> rolesClaims;
 
   /// Required scopes list
   ///

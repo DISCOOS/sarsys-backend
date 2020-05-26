@@ -8,7 +8,9 @@ auth:
   audience: sarsys-app
   issuer: https://id.discoos.io/auth/realms/DISCOOS
   baseUrl: https://id.discoos.io/auth/realms/DISCOOS
-  rolesClaim: roles
+  rolesClaims:
+    - roles
+    - realm_access_roles
   required:
     - roles:personnel
 eventstore:

@@ -62,6 +62,7 @@ data:
   AUTH_ISSUER: "https://id.discoos.io/auth/realms/DISCOOS"
   AUTH_BASE_URL: "https://id.discoos.io/auth/realms/DISCOOS"
   AUTH_ROLES_CLAIM: "roles"
+  AUTH_REALM_ACCESS_ROLES_CLAIM: "realm_access_roles"
 
 ---
 apiVersion: v1

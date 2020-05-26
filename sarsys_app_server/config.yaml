@@ -11,7 +11,9 @@ auth:
   audience: $AUTH_AUDIENCE
   issuer: $AUTH_ISSUER
   baseUrl: $AUTH_BASE_URL
-  rolesClaim: $AUTH_ROLES_CLAIM
+  rolesClaims:
+    - $AUTH_ROLES_CLAIM
+    - $AUTH_REALM_ACCESS_ROLES_CLAIM
   required:
     - roles:personnel
 
