@@ -16,12 +16,17 @@ else
 	endif
 endif
 
-
+DOCKER_STATE = $(shell docker info >/dev/null 2>&1)
 
 .PHONY: \
-	check commit test serve document models snapshot localhost build push publish apply delete restart rollback status eventstore
+	check commit test serve document models snapshot localhost \
+	build push publish apply delete restart rollback status eventstore \
+    docker_is_up
+
 .SILENT: \
-	check commit test serve document models snapshot localhost build push publish apply delete restart rollback status eventstore
+	check commit test serve document models snapshot localhost \
+	build push publish apply delete restart rollback status eventstore \
+	docker_is_up
 
 check:
 	if [[ `git status --porcelain` ]]; then echo 'You have changes, aborting.'; exit 1; else echo "No changes"; fi
@@ -54,7 +59,13 @@ snapshot:
 		--port 8082 --instances 1 --config config.src.yaml --training=true
 	echo "[✓] Building dart snapshot bin/main.snapshot finished"
 
-build: test document snapshot
+docker_is_up:
+	if [[ $(DOCKER_STATE) -ne 0 ]]; then echo \
+		"Docker does not seem to be running, run it first and retry"; \
+		exit 1; \
+	else echo "Docker is running"; fi
+
+build: docker_is_up test document snapshot
 	echo "Build docker image..."
 	docker pull google/dart
 	docker build --no-cache -t discoos/sarsys_app_server:latest .
