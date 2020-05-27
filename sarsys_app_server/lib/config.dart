@@ -111,6 +111,12 @@ class AuthConfig extends Configuration {
   ///
   @optionalConfiguration
   List<String> required;
+
+  @override
+  String toString() {
+    return 'AuthConfig{enabled: $enabled, issuer: $issuer, audience: $audience, '
+        'baseUrl: $baseUrl, rolesClaims: $rolesClaims, required: $required}';
+  }
 }
 
 class EvenStoreConfig extends Configuration {

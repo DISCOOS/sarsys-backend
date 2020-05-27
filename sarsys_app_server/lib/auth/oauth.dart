@@ -71,7 +71,7 @@ class AccessTokenValidator extends AuthValidator {
         (isWrongIss = token.issuer != Uri.tryParse(config.issuer))) {
       logger.info(
         "Invalid grant: Reason {isNull: $isNull, isExpired: $isExpired, "
-        "isWrongAud: $isWrongAud, isWrongIss: $isWrongIss for subject: ${token?.subject}}, $token",
+        "isWrongAud: $isWrongAud, isWrongIss: $isWrongIss for subject: ${token?.subject}}, $token, $config",
       );
       throw AuthServerException(AuthRequestError.invalidGrant, null);
     }
