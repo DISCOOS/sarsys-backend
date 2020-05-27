@@ -14,6 +14,9 @@ class AccessTokenValidator extends AuthValidator {
   final AuthConfig config;
   final JsonWebKeyStore keyStore;
 
+  /// Logger instance
+  final Logger logger = Logger("AccessTokenValidator");
+
   /// Returns an [Authorization] if [authorizationData] is valid.
   @override
   FutureOr<Authorization> validate<T>(
@@ -38,40 +41,68 @@ class AccessTokenValidator extends AuthValidator {
       throw AuthServerException(AuthRequestError.invalidRequest, null);
     }
 
-    final token = await _toToken(accessToken);
-    if (token == null ||
-        token.isExpired ||
-        !token.audience.contains(config.audience) ||
-        token.issuer != Uri.parse(config.issuer)) {
-      throw AuthServerException(AuthRequestError.invalidGrant, null);
-    }
+    final token = await parseToken(accessToken);
+    _verifyGrant(token);
 
     if (scopesRequired != null) {
-      if (!AuthScope.verify(scopesRequired, token.scopes)) {
-        throw AuthServerException(AuthRequestError.invalidScope, null);
-      }
+      _verifyScopes(scopesRequired, token);
     }
 
     return Authorization(token.clientID, token.resourceOwnerIdentifier, this, scopes: token.scopes);
   }
 
-  Future<OAuth2Token> _toToken(String accessToken) async {
-    final jwt = await JsonWebToken.decodeAndVerify(
-      accessToken,
-      keyStore,
-      allowedArguments: [
-        'RS256',
-      ],
-    );
+  void _verifyScopes(List<AuthScope> scopesRequired, OAuth2Token token) {
+    if (!AuthScope.verify(scopesRequired, token.scopes)) {
+      logger.info(
+        "Invalid scope: {Token for subject ${token?.subject} contains scopes ${token?.scopes}",
+      );
+      throw AuthServerException(AuthRequestError.invalidScope, null);
+    }
+  }
+
+  void _verifyGrant(OAuth2Token token) {
+    bool isNull;
+    bool isExpired;
+    bool isWrongAud;
+    bool isWrongIss;
+    if ((isNull = token == null) ||
+        (isExpired = token.isExpired) ||
+        (isWrongAud = !token.audience.contains(config.audience)) ||
+        (isWrongIss = token.issuer != Uri.tryParse(config.issuer))) {
+      logger.info(
+        "Invalid grant: Reason {isNull: $isNull, isExpired: $isExpired, "
+        "isWrongAud: $isWrongAud, isWrongIss: $isWrongIss for subject: ${token?.subject}}, $token",
+      );
+      logger.info(
+        "Invalid grant: Token isNull: $isNull, isExpired: $isExpired, "
+        "isWrongAud: $isWrongAud, isWrongIss: $isWrongIss for subject: ${token?.subject}} ",
+      );
+
+      throw AuthServerException(AuthRequestError.invalidGrant, null);
+    }
+  }
+
+  Future<OAuth2Token> parseToken(String accessToken) async {
+    JsonWebToken jwt;
+    try {
+      jwt = await JsonWebToken.decodeAndVerify(
+        accessToken,
+        keyStore,
+      );
+    } on Exception {
+      logger.info("Invalid token: $accessToken");
+      throw AuthServerException(AuthRequestError.invalidToken, null);
+    }
 
     return OAuth2Token()
       ..type = 'bearer'
-      ..clientID = jwt.claims.getTyped<String>('client_id')
-      ..issuer = jwt.claims.issuer
-      ..issueDate = jwt.claims.issuedAt
-      ..audience = jwt.claims.getTypedList<String>('aud')
       ..accessToken = accessToken
+      ..issuer = jwt.claims.issuer
+      ..subject = jwt.claims.subject
+      ..issueDate = jwt.claims.issuedAt
       ..expirationDate = jwt.claims.expiry
+      ..audience = jwt.claims.getTypedList<String>('aud')
+      ..clientID = jwt.claims.getTyped<String>('client_id')
       ..scopes = _toScopes({'roles': _toRoles(jwt.claims)}, []);
   }
 
@@ -98,5 +129,12 @@ class AccessTokenValidator extends AuthValidator {
 
 class OAuth2Token extends AuthToken {
   Uri issuer;
+  String subject;
   List<String> audience;
+
+  @override
+  String toString() {
+    return 'OAuth2Token{subject: $subject, issuer: $issuer, '
+        'audience: $audience, scopes: $scopes, accessToken: $accessToken}';
+  }
 }
