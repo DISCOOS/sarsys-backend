@@ -117,7 +117,7 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
               'unit_leader',
               'personnel',
             ],
-          "onboarding": APISchemaObject.boolean()
+          "onboarded": APISchemaObject.boolean()
             ..description = "Show onboarding before next login"
             ..defaultValue = true,
           "firstSetup": APISchemaObject.boolean()
