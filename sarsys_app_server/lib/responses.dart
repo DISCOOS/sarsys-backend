@@ -94,5 +94,6 @@ Response conflict(
         'type': enumName(type),
         'mine': mine,
         'yours': yours,
+        'error': error,
       },
     );
