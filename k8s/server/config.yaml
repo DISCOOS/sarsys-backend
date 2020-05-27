@@ -14,7 +14,7 @@ data:
   EVENTSTORE_HOST: "http://eventstore.sarsys.svc.cluster.local"
   EVENTSTORE_PORT: "2113"
   AUTH_ENABLED: "true"
-  AUTH_AUDIENCE: "sarsys-web"
+  AUTH_AUDIENCE: "sarsys-app"
   AUTH_ISSUER: "https://id.discoos.io/auth/realms/DISCOOS"
   AUTH_BASE_URL: "https://id.discoos.io/auth/realms/DISCOOS"
   AUTH_ROLES_CLAIM: "roles"
