@@ -51,9 +51,22 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       await primary.execute(onCreated(aggregate, managedUuid));
       return Response.created("${toLocation(request)}/$managedUuid");
     } on AggregateExists catch (e) {
-      return Response.conflict(body: e.message);
+      return conflict(
+        ConflictType.merge,
+        e.message,
+      );
     } on EntityExists catch (e) {
-      return Response.conflict(body: e.message);
+      return conflict(
+        ConflictType.merge,
+        e.message,
+      );
+    } on ConflictNotReconcilable catch (e) {
+      return conflict(
+        ConflictType.merge,
+        e.message,
+        mine: e.mine,
+        yours: e.yours,
+      );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } on SchemaException catch (e) {

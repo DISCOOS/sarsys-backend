@@ -90,12 +90,19 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
         }),
       );
       return events.isEmpty ? Response.noContent() : Response.noContent();
-    } on InvalidOperation catch (e) {
-      return Response.badRequest(body: e.message);
+    } on ConflictNotReconcilable catch (e) {
+      return conflict(
+        ConflictType.merge,
+        e.message,
+        mine: e.mine,
+        yours: e.yours,
+      );
     } on SchemaException catch (e) {
       return Response.badRequest(body: e.message);
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
+    } on InvalidOperation catch (e) {
+      return Response.badRequest(body: e.message);
     } on Failure catch (e) {
       return Response.serverError(body: e.message);
     }

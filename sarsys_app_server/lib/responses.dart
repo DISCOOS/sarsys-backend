@@ -73,3 +73,26 @@ Map<String, dynamic> toValueData<T extends AggregateRoot>(String uuid, String ty
       "type": type,
       "data": data,
     };
+
+enum ConflictType {
+  merge,
+  exists,
+  deleted,
+}
+
+/// Represents a 409 response.
+Response conflict(
+  ConflictType type,
+  String error, {
+  Map<String, dynamic> headers,
+  List<Map<String, dynamic>> mine,
+  List<Map<String, dynamic>> yours,
+}) =>
+    Response.conflict(
+      headers: headers,
+      body: {
+        'type': enumName(type),
+        'mine': mine,
+        'yours': yours,
+      },
+    );

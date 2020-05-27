@@ -73,15 +73,15 @@ class WrongExpectedEventVersion extends InvalidOperation {
 class ConflictNotReconcilable extends InvalidOperation {
   const ConflictNotReconcilable(
     String message, {
-    @required this.local,
-    @required this.remote,
+    @required this.mine,
+    @required this.yours,
   }) : super(message);
-  final Iterable<Map<String, dynamic>> local;
-  final Iterable<Map<String, dynamic>> remote;
+  final List<Map<String, dynamic>> mine;
+  final List<Map<String, dynamic>> yours;
 
   @override
   String toString() {
-    return '$runtimeType{local: $local, remote: $remote}';
+    return '$runtimeType{local: $mine, remote: $yours}';
   }
 }
 

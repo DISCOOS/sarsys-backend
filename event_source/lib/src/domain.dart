@@ -471,8 +471,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// throwing [WrongExpectedEventVersion].
   ///
   /// Throws an [ConflictNotReconcilable] if concurrent changes was made on same
-  /// [AggregateRoot.data], which implies a manual merge must be performed.
-  /// This failure is not recoverable.
+  /// [AggregateRoot.data], which implies a manual merge must be performed by then
+  /// consumer. This failure is not recoverable.
   ///
   /// Throws an [SocketException] failure if calls on [EventStore.connection] fails.
   /// This failure is not recoverable.
@@ -1458,8 +1458,13 @@ class ThreeWayMerge extends MergeStrategy {
       if (conflicts.isNotEmpty) {
         throw ConflictNotReconcilable(
           'Unable to reconcile ${conflicts.length} conflicts',
-          local: conflicts.map((op) => op['path']).map((path) => head.firstWhere((op) => op['path'] == path)),
-          remote: conflicts,
+          mine: conflicts
+              .map((op) => op['path'])
+              .map((path) => head.firstWhere(
+                    (op) => op['path'] == path,
+                  ))
+              .toList(),
+          yours: conflicts.toList(),
         );
       }
     }

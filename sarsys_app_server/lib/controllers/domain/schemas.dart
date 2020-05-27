@@ -157,6 +157,31 @@ APISchemaObject documentValueResponse(
       ..description = "Value Object Response"
       ..isReadOnly = true;
 
+APISchemaObject documentConflict(
+  APIDocumentContext context,
+) =>
+    APISchemaObject.object({
+      "type": APISchemaObject.string()
+        ..description = "Conflict type"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+        ..isReadOnly = true
+        ..enumerated = [
+          'merge',
+          'exists',
+          'deleted',
+        ],
+      "mine": APISchemaObject.map(ofType: APIType.object)
+        ..description = "JsonPatch diffs between remote base and head of event stream"
+        ..isReadOnly = true,
+      "yours": APISchemaObject.map(ofType: APIType.object)
+        ..description = "JsonPatch diffs between remote base and request body"
+        ..isReadOnly = true,
+    })
+      ..description = "Conflict Error object with JsonPatch diffs for "
+          "manually applying mine or your changes locally before the "
+          "operation trying again."
+      ..isReadOnly = true;
+
 //////////////////////////////////
 // GeoJSON documentation
 //////////////////////////////////

@@ -83,16 +83,26 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       return Response.created(
         "${toLocation(request)}/${data[repository.uuidFieldName]}",
       );
-    } on AggregateExists catch (e) {
-      return Response.conflict(body: e.message);
     } on UUIDIsNull {
       return Response.badRequest(body: "Field [uuid] in $aggregateType is required");
-    } on InvalidOperation catch (e) {
-      return Response.badRequest(body: e.message);
     } on SchemaException catch (e) {
       return Response.badRequest(body: e.message);
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
+    } on AggregateExists catch (e) {
+      return conflict(
+        ConflictType.exists,
+        e.message,
+      );
+    } on ConflictNotReconcilable catch (e) {
+      return conflict(
+        ConflictType.merge,
+        e.message,
+        mine: e.mine,
+        yours: e.yours,
+      );
+    } on InvalidOperation catch (e) {
+      return Response.badRequest(body: e.message);
     } on Failure catch (e) {
       return Response.serverError(body: e.message);
     }
@@ -115,12 +125,19 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       return Response.notFound(body: e.message);
     } on UUIDIsNull {
       return Response.badRequest(body: "Field [uuid] in $aggregateType is required");
-    } on InvalidOperation catch (e) {
-      return Response.badRequest(body: e.message);
+    } on ConflictNotReconcilable catch (e) {
+      return conflict(
+        ConflictType.merge,
+        e.message,
+        mine: e.mine,
+        yours: e.yours,
+      );
     } on SchemaException catch (e) {
       return Response.badRequest(body: e.message);
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
+    } on InvalidOperation catch (e) {
+      return Response.badRequest(body: e.message);
     } on Failure catch (e) {
       return Response.serverError(body: e.message);
     }
