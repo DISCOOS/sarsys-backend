@@ -73,11 +73,6 @@ class AccessTokenValidator extends AuthValidator {
         "Invalid grant: Reason {isNull: $isNull, isExpired: $isExpired, "
         "isWrongAud: $isWrongAud, isWrongIss: $isWrongIss for subject: ${token?.subject}}, $token",
       );
-      logger.info(
-        "Invalid grant: Token isNull: $isNull, isExpired: $isExpired, "
-        "isWrongAud: $isWrongAud, isWrongIss: $isWrongIss for subject: ${token?.subject}} ",
-      );
-
       throw AuthServerException(AuthRequestError.invalidGrant, null);
     }
   }
