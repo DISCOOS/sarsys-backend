@@ -505,14 +505,22 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   void _processExecuteQueue() async {
     while (_executeQueue.isNotEmpty) {
       // Get next operation that is going to be executed
-      final operation = await _execute(_executeQueue.first);
+      final operation = _executeQueue.first;
+      try {
+        await _execute(operation);
+      } on Exception catch (error, stackTrace) {
+        operation.completer.completeError(
+          error,
+          stackTrace,
+        );
+      }
       // Only remove after execution is completed
       _executeQueue.remove(operation);
     }
   }
 
   /// Execute next command in queue
-  Future<_ExecuteOperation> _execute(_ExecuteOperation operation) async {
+  Future<void> _execute(_ExecuteOperation operation) async {
     try {
       T aggregate;
       final command = operation.command;
@@ -550,7 +558,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     } on Exception catch (e, stackTrace) {
       operation.completer.completeError(e, stackTrace);
     }
-    return operation;
   }
 
   /// Check if this [Repository] contains any aggregates with [AggregateRoot.isChanged]
