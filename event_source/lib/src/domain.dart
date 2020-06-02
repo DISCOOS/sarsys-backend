@@ -620,6 +620,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       _pushQueue.add(operation);
       return operation.completer.future;
     }
+    logger.severe(toDebugString());
     throw ConcurrentWriteOperation(
       'Push ${aggregate.runtimeType} ${aggregate.uuid} failed: '
       'a concurrent write operation to stream ${store.toInstanceStream(aggregate.uuid)} was attempted: '
@@ -687,6 +688,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         logger.severe(
           'Failed to push aggregate $aggregate: $e, stacktrace: $stackTrace',
         );
+        logger.severe(toDebugString());
       }
     }
     return operation;
@@ -810,6 +812,16 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       },
     };
   }
+
+  String toDebugString() => '$runtimeType: {'
+      'ready: $ready, '
+      'count: $count, '
+      'canonicalStream: ${store.canonicalStream}}, '
+      'aggregates: {${_aggregates.values.map((value) => '{'
+          'uuid: ${value.uuid}, '
+          'instanceStream: ${store.toInstanceStream(value.uuid)}, '
+          'currentEventNumber: ${store.current(uuid: value.uuid)}, '
+          '}').join(', ')}}';
 }
 
 class _ExecuteOperation<S extends Command> {
@@ -1418,6 +1430,9 @@ abstract class MergeStrategy {
       }
       repository.logger.severe(
         'Aborted automatic merge after $max retries: $e with stacktrace: $stacktrace',
+      );
+      repository.logger.severe(
+        repository.toDebugString(),
       );
       throw EventVersionReconciliationFailed(e, attempt);
     }

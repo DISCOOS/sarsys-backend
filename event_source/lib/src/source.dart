@@ -159,7 +159,8 @@ class EventStore {
   /// is the same as for the [canonicalStream] if
   /// [useInstanceStreams] is false.
   ///
-  /// If [stream] is given, this takes precedence and returns event number this stream.
+  /// If [stream] is given, this takes precedence and
+  /// returns the event number for this stream.
   ///
   /// If stream does not exist, [EventNumber.none] is returned.
   ///
@@ -400,7 +401,9 @@ class EventStore {
       );
     }
     throw WriteFailed(
-      'Failed to push changes to $stream: ${events.map((event) => event.runtimeType)}: ${result.statusCode} ${result.reasonPhrase}',
+      'Failed to push changes to $stream: '
+      '${events.map((event) => event.runtimeType)}: '
+      '${result.statusCode} ${result.reasonPhrase}',
     );
   }
 
@@ -631,6 +634,7 @@ class EventStore {
   /// Assert that current event number for [stream] is caught up with last known event
   void _assertCurrentVersion(String stream, EventNumber actual) {
     if (_current[stream] < actual) {
+      logger.severe(toDebugString());
       throw EventNumberMismatch(
         stream,
         _current[stream],
@@ -638,6 +642,15 @@ class EventStore {
         'Catch up failed',
       );
     }
+  }
+
+  EventNumber _assertMonotone(EventNumber previous, SourceEvent next) {
+    if (previous.value != next.number.value - 1) {
+      logger.severe(toDebugString());
+      throw InvalidOperation('EventNumber not monotone increasing, current: $previous, '
+          'next: ${next.number} in event ${next.type} with uuid: ${next.uuid}');
+    }
+    return next.number;
   }
 
   /// This stream will only contain [DomainEvent] pushed to remote stream
@@ -696,13 +709,16 @@ class EventStore {
     _disposed = true;
   }
 
-  EventNumber _assertMonotone(EventNumber previous, SourceEvent next) {
-    if (previous.value != next.number.value - 1) {
-      throw InvalidOperation('EventNumber not monotone increasing, current: $previous, '
-          'next: ${next.number} in event ${next.type} with uuid: ${next.uuid}');
-    }
-    return next.number;
-  }
+  String toDebugString() => '$runtimeType: {'
+      'count: ${_store.length}, '
+      'canonicalStream: $canonicalStream}, '
+      'aggregates: {${_store.keys.map((uuid) => '{'
+          'aggregate: $uuid, '
+          'events: {count: ${_store[uuid]?.length ?? 0}, '
+          'sourced: ${_store[uuid]?.map((e) => e.type)}}, '
+          'instanceStream: ${toInstanceStream(uuid)}, '
+          'currentEventNumber: ${current(uuid: uuid)}, '
+          '}').join(', ')}}';
 }
 
 /// Class for handling a subscription with automatic reconnection on failures
