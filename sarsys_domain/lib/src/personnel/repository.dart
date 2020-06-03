@@ -1,3 +1,5 @@
+import 'package:meta/meta.dart';
+
 import 'package:event_source/event_source.dart';
 import 'package:sarsys_domain/src/tracking/tracking.dart';
 
@@ -6,8 +8,10 @@ import 'commands.dart';
 import 'events.dart';
 
 class PersonnelRepository extends Repository<PersonnelCommand, Personnel> {
-  PersonnelRepository(EventStore store, this.trackings)
-      : super(store: store, processors: {
+  PersonnelRepository(
+    EventStore store, {
+    @required this.trackings,
+  }) : super(store: store, processors: {
           PersonnelRegistered: (event) => PersonnelRegistered(
                 uuid: event.uuid,
                 data: event.data,

@@ -87,8 +87,11 @@ Future main() async {
     expectResponse(await harness.agent.post("/api/app-configs", body: body), 201, body: null);
     expectResponse(await harness.agent.delete("/api/app-configs/$uuid"), 204);
 
-    // Expect Device with same uuid was co-created
+    // Expect Device with same uuid was co-deleted
     expectResponse(await harness.agent.get("/api/devices/$uuid"), 404);
+    final response = expectResponse(await harness.agent.get("/api/devices"), 200);
+    final actual = Map.from(await response.body.decode());
+    expect(actual.elementAt('total'), 0, reason: 'Expected Device was co-deleted');
   }, timeout: const Timeout.factor(100));
 
   test("GET /api/app-configs returns status code 200 with offset=1 and limit=2", () async {
@@ -107,11 +110,80 @@ Future main() async {
     expect(actual['limit'], equals(2));
     expect(actual['entries'].length, equals(2));
   });
+
+  test("Multiple POST /api/app-configs/ with same udid does not create multiple devices", () async {
+    harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
+    harness.eventStoreMockServer.withStream(typeOf<AppConfig>().toColonCase());
+    await harness.channel.manager.get<AppConfigRepository>().readyAsync();
+    await harness.channel.manager.get<DeviceRepository>().readyAsync();
+    final udid = Uuid().v4();
+    final uuid1 = Uuid().v4();
+    final uuid2 = Uuid().v4();
+    final body1 = _createData(uuid1, udid: udid);
+    final body2 = _createData(uuid2, udid: udid);
+    expectResponse(await harness.agent.post("/api/app-configs", body: body1), 201, body: null);
+    expectResponse(await harness.agent.post("/api/app-configs", body: body2), 201, body: null);
+
+    // Expect Device with given udid was co-created
+    final response = expectResponse(await harness.agent.get("/api/devices"), 200);
+    final actual = Map.from(await response.body.decode());
+    expect(actual.elementAt('total'), 1, reason: 'Expected only one Device was co-created');
+    expect(
+      actual.elementAt('entries/0/data'),
+      {
+        'uuid': udid,
+        'type': 'app',
+        'network': 'sarsys',
+        'status': 'available',
+      },
+      reason: 'Expected Device with given uuid was co-created',
+    );
+  });
+
+  test("Multiple DELETE /api/app-configs/ with same udid does not delete device until last", () async {
+    harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
+    harness.eventStoreMockServer.withStream(typeOf<AppConfig>().toColonCase());
+    await harness.channel.manager.get<AppConfigRepository>().readyAsync();
+    await harness.channel.manager.get<DeviceRepository>().readyAsync();
+    final udid = Uuid().v4();
+    final uuid1 = Uuid().v4();
+    final uuid2 = Uuid().v4();
+    final body1 = _createData(uuid1, udid: udid);
+    final body2 = _createData(uuid2, udid: udid);
+    expectResponse(await harness.agent.post("/api/app-configs", body: body1), 201, body: null);
+    expectResponse(await harness.agent.post("/api/app-configs", body: body2), 201, body: null);
+
+    // Delete first app-config
+    expectResponse(await harness.agent.delete("/api/app-configs/$uuid1"), 204, body: null);
+
+    // Expect device to still exist
+    final response1 = expectResponse(await harness.agent.get("/api/devices"), 200);
+    final actual1 = Map.from(await response1.body.decode());
+    expect(actual1.elementAt('total'), 1, reason: 'Expected only one Device was co-created');
+    expect(
+      actual1.elementAt('entries/0/data'),
+      {
+        'uuid': udid,
+        'type': 'app',
+        'network': 'sarsys',
+        'status': 'available',
+      },
+      reason: 'Expected Device with given uuid was co-created',
+    );
+
+    // Delete last app-config
+    expectResponse(await harness.agent.delete("/api/app-configs/$uuid2"), 204, body: null);
+
+    // Expect device to be deleted
+    final response2 = expectResponse(await harness.agent.get("/api/devices"), 200);
+    final actual2 = Map.from(await response2.body.decode());
+    expect(actual2.elementAt('total'), 0, reason: 'Expected only Device was co-deleted');
+  });
 }
 
-Map<String, Object> _createData(String uuid) => {
+Map<String, Object> _createData(String uuid, {String udid}) => {
       "uuid": "$uuid",
-      "udid": "$uuid",
+      "udid": "${udid ?? uuid}",
       "demo": true,
       "demoRole": "commander",
       "onboarded": true,

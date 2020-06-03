@@ -128,29 +128,49 @@ class OperationRepository extends Repository<OperationCommand, Operation> {
   @override
   void willStartProcessingEvents() {
     // Remove Mission from 'missions' list when deleted
-    rule<MissionDeleted>((_) => AssociationRule(
-          (source, target) => RemoveMissionFromOperation(
-            get(target),
-            toAggregateUuid(source),
-          ),
-          target: this,
-          targetField: 'missions',
-          intent: Action.delete,
-        ));
+    rule<MissionDeleted>(newRemoveMissionRule);
 
     // Remove Unit from 'units' list when deleted
-    rule<UnitDeleted>((repository) => AssociationRule(
-          (source, target) => RemoveUnitFromOperation(
-            get(target),
-            toAggregateUuid(source),
-          ),
-          target: this,
-          targetField: 'units',
-          intent: Action.delete,
-        ));
+    rule<UnitDeleted>(newRemoveUnitRule);
 
     super.willStartProcessingEvents();
   }
+
+  AggregateRule newRemoveUnitRule(_) => AssociationRule(
+        (source, target) => RemoveUnitFromOperation(
+          get(target),
+          toAggregateUuid(source),
+        ),
+        target: this,
+        targetField: 'units',
+        intent: Action.delete,
+        //
+        // Relation: 'units-to-operation'
+        //
+        // - will remove unit
+        //   from 'units' list
+        //   when deleted
+        //
+        cardinality: Cardinality.any,
+      );
+
+  AssociationRule newRemoveMissionRule(_) => AssociationRule(
+        (source, target) => RemoveMissionFromOperation(
+          get(target),
+          toAggregateUuid(source),
+        ),
+        target: this,
+        targetField: 'missions',
+        intent: Action.delete,
+        //
+        // Relation: 'missions-to-operation'
+        //
+        // - will remove mission
+        //   from 'missions' list
+        //   when deleted
+        //
+        cardinality: Cardinality.any,
+      );
 
   @override
   Operation create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => Operation(

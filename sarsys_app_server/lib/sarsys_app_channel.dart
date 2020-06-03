@@ -109,6 +109,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
           '/api/app-configs[/:uuid]',
           () => AppConfigController(
                 manager.get<AppConfigRepository>(),
+                manager.get<DeviceRepository>(),
                 requestValidator,
               ))
       ..secure(
@@ -432,13 +433,22 @@ class SarSysAppServerChannel extends ApplicationChannel {
 
     // Register dependent repositories
     manager.register<AppConfig>(
-      (store) => AppConfigRepository(store, manager.get<DeviceRepository>()),
+      (store) => AppConfigRepository(
+        store,
+        devices: manager.get<DeviceRepository>(),
+      ),
     );
     manager.register<Unit>(
-      (store) => UnitRepository(store, manager.get<TrackingRepository>()),
+      (store) => UnitRepository(
+        store,
+        trackings: manager.get<TrackingRepository>(),
+      ),
     );
     manager.register<Personnel>(
-      (store) => PersonnelRepository(store, manager.get<TrackingRepository>()),
+      (store) => PersonnelRepository(
+        store,
+        trackings: manager.get<TrackingRepository>(),
+      ),
     );
 
     // Defer repository builds so that isolates are

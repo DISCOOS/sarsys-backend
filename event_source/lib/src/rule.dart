@@ -13,7 +13,7 @@ import 'domain.dart';
 /// Should always return an [AggregateRule]
 typedef RuleBuilder = AggregateRule Function(Repository repository);
 
-/// [Command] builder function for given [AggregateRoot] and [DomainEvent]
+/// [Command] builder function for given [DomainEvent] and [AggregateRoot.uuid]
 ///
 /// If function returns a [Command] it must be executed. Return null if
 /// nothing should be execution.
@@ -76,6 +76,15 @@ class Range {
   }
 }
 
+enum CardinalityType {
+  any,
+  o2o,
+  o2m,
+  m2o,
+  m2m,
+  none,
+}
+
 /// Cardinality class
 /// see https://en.wikipedia.org/wiki/Cardinality_(data_modeling)
 class Cardinality {
@@ -108,6 +117,21 @@ class Cardinality {
   bool get isM2M => this == m2m;
   bool get isNone => this == none;
 
+  CardinalityType get type {
+    if (isAny) {
+      return CardinalityType.any;
+    } else if (isO2O) {
+      return CardinalityType.o2o;
+    } else if (isO2M) {
+      return CardinalityType.o2m;
+    } else if (isM2O) {
+      return CardinalityType.o2m;
+    } else if (isM2M) {
+      return CardinalityType.o2m;
+    }
+    return CardinalityType.none;
+  }
+
   String toUML() => '${left.toUML()} <-> ${right.toUML()}';
 
   @override
@@ -136,23 +160,29 @@ class CardinalityException extends RuleException {
 abstract class AggregateRule {
   AggregateRule(
     this.builder,
-    this.target,
-    this.targetField, {
+    this.target, {
     this.local = true,
   });
 
+  /// Process local events only
   final bool local;
+
+  /// Target [Repository] for executing commands
   final Repository target;
-  final String targetField;
+
+  /// [Command] builder function
   final CommandBuilder builder;
 
-  Future<Iterable<String>> evaluate(DomainEvent event);
+  /// Returns list of [AggregateRoot.uuid]
+  /// that this rule should be applied on
+  Future<Iterable<String>> appliesTo(DomainEvent event);
 
+  /// Framework calls this method
   Future<Iterable<DomainEvent>> call(DomainEvent event) async {
     if (event.local == local) {
-      final roots = await evaluate(event);
-      final result = await Future.wait(roots.map(
-        (target) => execute(event, target),
+      final values = await appliesTo(event);
+      final result = await Future.wait(values.map(
+        (uuid) => execute(event, uuid),
       ));
       return result.fold<List<DomainEvent>>(
         <DomainEvent>[],
@@ -162,8 +192,9 @@ abstract class AggregateRule {
     return null;
   }
 
-  Future<Iterable<DomainEvent>> execute(DomainEvent event, String value) async {
-    final command = builder(event, value);
+  /// Execute rule for given aggregate
+  Future<Iterable<DomainEvent>> execute(DomainEvent event, String uuid) async {
+    final command = builder(event, uuid);
     if (command != null) {
       return await target.execute(
         command,
@@ -178,9 +209,9 @@ abstract class AggregateRule {
 class AssociationRule extends AggregateRule {
   AssociationRule(
     CommandBuilder builder, {
-    @required Repository target,
-    @required String targetField,
     @required this.intent,
+    @required Repository target,
+    @required this.targetField,
     Repository source,
     String sourceField,
     bool local = true,
@@ -190,47 +221,58 @@ class AssociationRule extends AggregateRule {
         super(
           builder,
           target,
-          targetField,
           local: local,
         );
 
+  /// Source [Repository] which events are applied
   final Repository source;
-
-  /// [MapX] path to field in [source] repository
-  final String sourceField;
 
   /// Get intended action if rule applies
   final Action intent;
 
+  /// [MapX] path to field in [source] repository
+  final String sourceField;
+
+  /// [MapX] path to field in [target] repository
+  final String targetField;
+
   /// Get expected cardinality between source and target
   final Cardinality cardinality;
 
-  /// Check if given value is an [AggregateRoot] reference object
-  bool isReference(value) => value is Map<String, dynamic> && value.hasPath('${source.uuidFieldName}');
-
   @override
-  Future<Iterable<String>> evaluate(DomainEvent event) async {
-    var aggregates = <String>[];
-    final value = _toSourceValue(event);
-    if (value != null) {
-      aggregates = find(target, targetField, value);
+  Future<Iterable<String>> appliesTo(DomainEvent event) async {
+    // Ensure distinct target uuids
+    var targets = <String>{};
+    final reference = _toSourceValue(event);
+    if (reference != null) {
+      final uuids = find(target, targetField, reference);
+      if (uuids.isNotEmpty == true) {
+        targets.addAll(uuids);
+      }
+      switch (intent) {
+        case Action.create:
+          if (_shouldCreate(reference, targets)) {
+            targets = {
+              targetField == target.uuidFieldName ? reference : Uuid().v4(),
+            };
+          } else {
+            targets.clear();
+          }
+          break;
+        case Action.update:
+          // TODO: Handle replaced aggregate reference
+          break;
+        case Action.delete:
+          if (!_shouldDelete(reference, targets)) {
+            targets.clear();
+          }
+          break;
+      }
     }
-    switch (intent) {
-      case Action.create:
-        if (aggregates.isEmpty) {
-          aggregates.add(
-            targetField == target.uuidFieldName ? value : Uuid().v4(),
-          );
-        }
-        break;
-      case Action.delete:
-      case Action.update:
-        break;
-    }
-    return aggregates;
+    return targets;
   }
 
-  String _toSourceValue(DomainEvent event) {
+  dynamic _toSourceValue(DomainEvent event) {
     final uuid = source.toAggregateUuid(event);
     if (sourceField != source.uuidFieldName) {
       final value = event.previous?.elementAt(sourceField);
@@ -256,5 +298,54 @@ class AssociationRule extends AggregateRule {
       return value == match;
     }
     return false;
+  }
+
+  bool _shouldCreate(dynamic reference, Iterable<String> targets) {
+    // Prevent aggregate being created
+    // with uuid from same reference value
+    if (targetField == target.uuidFieldName && target.contains(reference)) {
+      return false;
+    }
+
+    switch (cardinality.type) {
+      case CardinalityType.any:
+      case CardinalityType.m2m:
+        // Always create targets
+        return true;
+      case CardinalityType.m2o:
+      case CardinalityType.o2o:
+        // Do not create when targets exists already
+        return targets.isEmpty;
+      case CardinalityType.o2m:
+        // Only create targets if one
+        // source exists with given reference value
+        return find(source, sourceField, reference).length == 1;
+      case CardinalityType.none:
+      default:
+        // Do not create if an relation will
+        // be created (same as distinct)
+        return find(source, sourceField, reference).isEmpty && targets.isEmpty;
+    }
+  }
+
+  bool _shouldDelete(dynamic reference, Iterable<String> targets) {
+    // Prevent that does not exist being deleted
+    if (targetField == target.uuidFieldName && !target.contains(reference)) {
+      return false;
+    }
+
+    switch (cardinality.type) {
+      case CardinalityType.o2o:
+      case CardinalityType.o2m:
+      case CardinalityType.m2o:
+      case CardinalityType.m2m:
+        // Do not delete until last source is deleted
+        return find(source, sourceField, reference).isEmpty && targets.isNotEmpty;
+      case CardinalityType.any:
+      case CardinalityType.none:
+      default:
+        // Only delete if relation exists
+        return targets.isNotEmpty;
+    }
   }
 }

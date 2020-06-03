@@ -26,8 +26,13 @@ class OperationController extends AggregateController<OperationCommand, sar.Oper
   Future<Response> getAll({
     @Bind.query('offset') int offset = 0,
     @Bind.query('limit') int limit = 20,
+    @Bind.query('deleted') bool deleted = false,
   }) {
-    return super.getAll(offset: offset, limit: limit);
+    return super.getAll(
+      offset: offset,
+      limit: limit,
+      deleted: deleted,
+    );
   }
 
   @override

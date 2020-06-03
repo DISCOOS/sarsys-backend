@@ -1,5 +1,7 @@
+import 'package:meta/meta.dart';
+
 import 'package:event_source/event_source.dart';
-import 'package:sarsys_domain/src/personnel/events.dart';
+import 'package:sarsys_domain/src/personnel/personnel.dart';
 import 'package:sarsys_domain/src/tracking/tracking.dart';
 
 import 'aggregate.dart';
@@ -7,8 +9,10 @@ import 'commands.dart';
 import 'events.dart';
 
 class UnitRepository extends Repository<UnitCommand, Unit> {
-  UnitRepository(EventStore store, this.trackings)
-      : super(store: store, processors: {
+  UnitRepository(
+    EventStore store, {
+    @required this.trackings,
+  }) : super(store: store, processors: {
           UnitCreated: (event) => UnitCreated(
                 uuid: event.uuid,
                 data: event.data,
@@ -99,8 +103,16 @@ class UnitRepository extends Repository<UnitCommand, Unit> {
           toAggregateUuid(source),
         ),
         target: this,
-        targetField: 'personnels',
         intent: Action.delete,
+        targetField: 'personnels',
+        //
+        // Relation: 'personnels-to-unit'
+        //
+        // - will remove personnel
+        //   from 'personnels' list
+        //   when deleted
+        //
+        cardinality: Cardinality.any,
       );
 
   @override

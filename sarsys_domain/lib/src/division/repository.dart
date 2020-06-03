@@ -61,12 +61,12 @@ class DivisionRepository extends Repository<DivisionCommand, Division> {
   @override
   void willStartProcessingEvents() {
     // Remove Department from 'departments' list when deleted
-    rule<DepartmentDeleted>(newDeleteRule);
+    rule<DepartmentDeleted>(newRemoveRule);
 
     super.willStartProcessingEvents();
   }
 
-  AggregateRule newDeleteRule(_) => AssociationRule(
+  AggregateRule newRemoveRule(_) => AssociationRule(
         (source, target) => RemoveDepartmentFromDivision(
           get(target),
           toAggregateUuid(source),
@@ -74,6 +74,14 @@ class DivisionRepository extends Repository<DivisionCommand, Division> {
         target: this,
         targetField: 'departments',
         intent: Action.delete,
+        //
+        // Relation: 'departments-to-division'
+        //
+        // - will remove department
+        //   from 'departments' list
+        //   when deleted
+        //
+        cardinality: Cardinality.any,
       );
 
   @override

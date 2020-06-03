@@ -43,18 +43,28 @@ class OrganisationRepository extends Repository<OrganisationCommand, Organisatio
   @override
   void willStartProcessingEvents() {
     // Remove Division from 'divisions' list when deleted
-    rule<DivisionDeleted>((_) => AssociationRule(
-          (source, target) => RemoveDivisionFromOrganisation(
-            get(target),
-            toAggregateUuid(source),
-          ),
-          target: this,
-          targetField: 'divisions',
-          intent: Action.delete,
-        ));
+    rule<DivisionDeleted>(newRemoveDivisionRule);
 
     super.willStartProcessingEvents();
   }
+
+  AggregateRule newRemoveDivisionRule(_) => AssociationRule(
+        (source, target) => RemoveDivisionFromOrganisation(
+          get(target),
+          toAggregateUuid(source),
+        ),
+        target: this,
+        targetField: 'divisions',
+        intent: Action.delete,
+        //
+        // Relation: 'divisions-to-organisation'
+        //
+        // - will remove division
+        //   from 'divisions' list
+        //   when deleted
+        //
+        cardinality: Cardinality.any,
+      );
 
   @override
   Organisation create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => Organisation(

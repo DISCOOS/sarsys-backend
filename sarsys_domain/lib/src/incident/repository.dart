@@ -104,28 +104,49 @@ class IncidentRepository extends Repository<IncidentCommand, Incident> implement
   @override
   void willStartProcessingEvents() {
     // Remove Operation from 'operations' list when deleted
-    rule<OperationDeleted>((_) => AssociationRule(
-          (source, target) => RemoveOperationFromIncident(
-            get(target),
-            toAggregateUuid(source),
-          ),
-          target: this,
-          targetField: 'operations',
-          intent: Action.delete,
-        ));
+    rule<OperationDeleted>(newRemoveOperationRule);
 
     // Remove Subject from 'subjects' list when deleted
-    rule<SubjectDeleted>((_) => AssociationRule(
-          (source, target) => RemoveSubjectFromIncident(
-            get(target),
-            toAggregateUuid(source),
-          ),
-          target: this,
-          targetField: 'subjects',
-          intent: Action.delete,
-        ));
+    rule<SubjectDeleted>(newRemoveSubjectRule);
+
     super.willStartProcessingEvents();
   }
+
+  AssociationRule newRemoveSubjectRule(_) => AssociationRule(
+        (source, target) => RemoveSubjectFromIncident(
+          get(target),
+          toAggregateUuid(source),
+        ),
+        target: this,
+        targetField: 'subjects',
+        intent: Action.delete,
+        //
+        // Relation: 'subjects-to-incident'
+        //
+        // - will remove subject
+        //   from 'subjects' list
+        //   when deleted
+        //
+        cardinality: Cardinality.any,
+      );
+
+  AssociationRule newRemoveOperationRule(_) => AssociationRule(
+        (source, target) => RemoveOperationFromIncident(
+          get(target),
+          toAggregateUuid(source),
+        ),
+        target: this,
+        targetField: 'operations',
+        intent: Action.delete,
+        //
+        // Relation: 'operations-to-incident'
+        //
+        // - will remove operation
+        //   from 'operations' list
+        //   when deleted
+        //
+        cardinality: Cardinality.any,
+      );
 
   @override
   Incident create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => Incident(

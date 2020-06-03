@@ -49,10 +49,22 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   Future<Response> getAll({
     @Bind.query('offset') int offset = 0,
     @Bind.query('limit') int limit = 20,
+    @Bind.query('deleted') bool deleted = false,
   }) async {
     try {
-      final events = repository.getAll(offset: offset, limit: limit).toList();
-      return okAggregatePaged(repository.count, offset, limit, events);
+      final events = repository
+          .getAll(
+            offset: offset,
+            limit: limit,
+            deleted: deleted,
+          )
+          .toList();
+      return okAggregatePaged(
+        repository.count(deleted: deleted),
+        offset,
+        limit,
+        events,
+      );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } on Failure catch (e) {
@@ -179,6 +191,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   Future<Response> waitForRuleResult<T extends Event>(
     Response response, {
     bool fail = false,
+    bool test(Response response),
     List<int> statusCodes = const [
       HttpStatus.ok,
       HttpStatus.created,
@@ -188,7 +201,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       milliseconds: 100,
     ),
   }) async {
-    if (statusCodes.contains(response.statusCode)) {
+    if (statusCodes.contains(response.statusCode) && (test == null || test(response))) {
       try {
         await repository.onRuleResult
             .firstWhere(
@@ -211,6 +224,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     Response response, {
     @required List<Type> expected,
     bool fail = false,
+    bool test(Response response),
     List<int> statusCodes = const [
       HttpStatus.ok,
       HttpStatus.created,
@@ -220,7 +234,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       milliseconds: 100,
     ),
   }) async {
-    if (statusCodes.contains(response.statusCode)) {
+    if (statusCodes.contains(response.statusCode) && (test == null || test(response))) {
       try {
         await repository.onRuleResult
             // Match expected events

@@ -3,8 +3,10 @@ import 'package:event_source/event_source.dart';
 import 'package:sarsys_domain/sarsys_domain.dart';
 
 class AppConfigRepository extends Repository<AppConfigCommand, AppConfig> {
-  AppConfigRepository(EventStore store, this.devices)
-      : super(store: store, processors: {
+  AppConfigRepository(
+    EventStore store, {
+    @required this.devices,
+  }) : super(store: store, processors: {
           AppConfigCreated: (event) => AppConfigCreated(
                 uuid: event.uuid,
                 data: event.data,
@@ -38,40 +40,59 @@ class AppConfigRepository extends Repository<AppConfigCommand, AppConfig> {
     super.willStartProcessingEvents();
   }
 
-  AggregateRule newDeleteRule(_) => AssociationRule(
-        // TODO: Handle multiple app-configs with same udid
-        (source, target) => DeleteDevice(
-          {uuidFieldName: target},
-        ),
-        target: devices,
-        sourceField: 'udid',
-        targetField: uuidFieldName,
-        intent: Action.delete,
-        cardinality: Cardinality.none,
+  @override
+  AppConfig create(
+    Map<String, Process> processors,
+    String uuid,
+    Map<String, dynamic> data,
+  ) =>
+      AppConfig(
+        uuid,
+        processors,
+        data: data,
       );
 
   AggregateRule newCreateRule(_) => AssociationRule(
-        // TODO: Handle multiple app-configs with same udid
-        (source, target) => CreateDevice(
+        (source, tuuid) => CreateDevice(
           {
             "type": "app",
             "network": "sarsys",
             "status": "available",
-            uuidFieldName: target,
+            uuidFieldName: tuuid,
           },
         ),
+        source: this,
+        target: devices,
+        sourceField: 'udid',
+        intent: Action.create,
+        targetField: uuidFieldName,
+        //
+        // Relation: 'app-configs-to-device'
+        //
+        // - will create device when
+        //   first app-config referencing
+        //   it is created
+        //
+        cardinality: Cardinality.m2o,
+      );
+
+  AggregateRule newDeleteRule(_) => AssociationRule(
+        (source, target) => DeleteDevice(
+          {uuidFieldName: target},
+        ),
+        source: this,
         target: devices,
         sourceField: 'udid',
         targetField: uuidFieldName,
-        intent: Action.create,
-        cardinality: Cardinality.none,
-      );
-
-  @override
-  AppConfig create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => AppConfig(
-        uuid,
-        processors,
-        data: data,
+        intent: Action.delete,
+        //
+        // Relation: 'app-configs-to-device'
+        //
+        // - will delete device when
+        //   last app-config referencing
+        //   it is deleted
+        //
+        cardinality: Cardinality.m2o,
       );
 }
 
@@ -81,6 +102,8 @@ class AppConfig extends AggregateRoot<AppConfigCreated, AppConfigDeleted> {
     Map<String, Process> processors, {
     Map<String, dynamic> data = const {},
   }) : super(uuid, processors, data);
+
+  String get udid => data?.elementAt('udid');
 }
 
 //////////////////////////////////////

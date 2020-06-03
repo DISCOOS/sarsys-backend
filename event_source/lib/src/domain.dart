@@ -347,7 +347,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   Iterable<T> get aggregates => List.unmodifiable(_aggregates.values);
 
   /// Get number of aggregates
-  int get count => _aggregates.length;
+  int count({bool deleted = false}) => _aggregates.values.where((test) => deleted || !test.isDeleted).length;
 
   /// Get aggregate uuid from event
   String toAggregateUuid(Event event) => event.data[uuidFieldName] as String;
@@ -742,10 +742,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           : null);
 
   /// Get all aggregate roots.
-  Iterable<T> getAll({int offset = 0, int limit = 20}) => _aggregates.values.toPage(
-        offset: offset,
-        limit: limit,
-      );
+  Iterable<T> getAll({int offset = 0, int limit = 20, bool deleted = false}) =>
+      _aggregates.values.where((test) => deleted || !test.isDeleted).toPage(
+            offset: offset,
+            limit: limit,
+          );
 
   Map<String, dynamic> _asAggregateData(S command) {
     switch (command.action) {
@@ -815,7 +816,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   String toDebugString() => '$runtimeType: {'
       'ready: $ready, '
-      'count: $count, '
+      'count: ${count()}, '
       'canonicalStream: ${store.canonicalStream}}, '
       'aggregates: {${_aggregates.values.map((value) => '{'
           'uuid: ${value.uuid}, '

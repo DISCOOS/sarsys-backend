@@ -29,7 +29,7 @@ Future main() async {
     final ready = await repository.readyAsync();
     // Assert repository state
     expect(ready, equals(true), reason: 'Repository should be ready');
-    expect(repository.count, equals(0), reason: 'Repository should be empty');
+    expect(repository.count(), equals(0), reason: 'Repository should be empty');
   });
 
   test('Each tracking instance shall only be owned by one service', () async {
@@ -69,7 +69,7 @@ Future main() async {
         ]));
 
     // Assert - states
-    expect(repo.count, equals(2));
+    expect(repo.count(), equals(2));
     expect(service1.managed.length, equals(1));
     expect(service2.managed.length, equals(1));
     expect(service1.managed, isNot(equals(service2.managed)));
@@ -297,7 +297,7 @@ void _assertStates(
 }) {
   final tracking = trackingRepo.get(tuuid);
   final tracks = tracking.asEntityArray('tracks');
-  expect(trackingRepo.count, equals(trackingCount));
+  expect(trackingRepo.count(), equals(trackingCount));
   expect(service.managed.length, equals(trackingCount));
   expect(service.managed, contains(tuuid));
   expect(service.sources.keys, equals({duuid}));

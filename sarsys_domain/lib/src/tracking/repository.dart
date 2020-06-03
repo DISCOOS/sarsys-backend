@@ -75,37 +75,39 @@ class TrackingRepository extends Repository<TrackingCommand, Tracking> {
               ),
         });
 
-  AssociationRule newCreateRule(_) {
-    return AssociationRule(
-      // Only create if tracking does not exist
-      (source, target) => target != null && !exists(target)
-          ? CreateTracking(
-              {uuidFieldName: target},
-            )
-          : null,
-      target: this,
-      sourceField: 'tracking/uuid',
-      targetField: uuidFieldName,
-      intent: Action.create,
-      cardinality: Cardinality.none,
-    );
-  }
+  AssociationRule newCreateRule(_) => AssociationRule(
+        (source, target) => CreateTracking({
+          uuidFieldName: target,
+        }),
+        target: this,
+        sourceField: 'tracking/uuid',
+        targetField: uuidFieldName,
+        intent: Action.create,
+        //
+        // Relation: 'aggregate-to-tracking'
+        //
+        // - will only create tracking
+        //   when aggregate is created
+        //
+        cardinality: Cardinality.o2o,
+      );
 
-  AssociationRule newDeleteRule(_) {
-    return AssociationRule(
-      // Only delete if tracking exist
-      (source, target) => exists(target)
-          ? DeleteTracking(
-              {uuidFieldName: target},
-            )
-          : null,
-      target: this,
-      sourceField: 'tracking/uuid',
-      targetField: uuidFieldName,
-      intent: Action.delete,
-      cardinality: Cardinality.none,
-    );
-  }
+  AssociationRule newDeleteRule(_) => AssociationRule(
+        (source, target) => DeleteTracking({
+          uuidFieldName: target,
+        }),
+        target: this,
+        sourceField: 'tracking/uuid',
+        targetField: uuidFieldName,
+        intent: Action.delete,
+        //
+        // Relation: 'aggregate-to-tracking'
+        //
+        // - will only delete tracking
+        //   when aggregate is deleted
+        //
+        cardinality: Cardinality.o2o,
+      );
 
   @override
   Tracking create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => Tracking(

@@ -21,7 +21,7 @@ Future main() async {
     final ready = await repository.readyAsync();
     // Assert repository state
     expect(ready, equals(true), reason: 'Repository should be ready');
-    expect(repository.count, equals(0), reason: 'Repository should be empty');
+    expect(repository.count(), equals(0), reason: 'Repository should be empty');
   });
 
   test('Repository should emit events with correct patches', () async {
@@ -227,7 +227,7 @@ Future main() async {
     final foo2 = repo2.get(uuid);
 
     // Assert catch-up event from repo1
-    expect(repo2.count, equals(1));
+    expect(repo2.count(), equals(1));
     expect([remote], containsAll(events));
     expect(foo1.data, containsPair('property1', 'value1'));
     expect(foo2.data, containsPair('property1', 'value1'));
@@ -260,7 +260,7 @@ Future main() async {
     await repo.push(foo);
 
     // Assert conflict resolved
-    expect(repo.count, equals(1));
+    expect(repo.count(), equals(1));
     expect(foo.data, containsPair('property1', 'value1'));
     expect(foo.data, containsPair('property2', 'value2'));
     expect(foo.data, containsPair('property3', 'value3'));
@@ -293,13 +293,13 @@ Future main() async {
     await expectLater(repo.push(foo), throwsA(const TypeMatcher<ConflictNotReconcilable>()));
 
     // Assert conflict resolved
-    expect(repo.count, equals(1));
+    expect(repo.count(), equals(1));
     expect(foo.data, containsPair('property1', 'value1'));
     expect(foo.data, containsPair('property2', 'value2'));
     expect(foo.data, containsPair('property3', 'value3'));
   });
 
-  test('Repository should consume events with stategy RoundRobin', () async {
+  test('Repository should consume events with strategy RoundRobin', () async {
     // Arrange
     final repo1 = harness.get<FooRepository>(instance: 1)..compete(consume: 1);
     final repo2 = harness.get<FooRepository>(instance: 2)..compete(consume: 1);
@@ -329,12 +329,12 @@ Future main() async {
     // Assert
     await repo1.store.asStream().first;
     final foo1 = repo1.get(uuid1);
-    expect(repo1.count, equals(1));
+    expect(repo1.count(), equals(1));
     expect(foo1.data, containsPair('property1', 'value1'));
 
     await repo2.store.asStream().first;
     final foo2 = repo2.get(uuid2);
-    expect(repo2.count, equals(1));
+    expect(repo2.count(), equals(1));
     expect(foo2.data, containsPair('property2', 'value2'));
   });
 

@@ -1,3 +1,4 @@
+import 'package:event_source/event_source.dart';
 import 'package:sarsys_app_server/controllers/domain/schemas.dart';
 import 'package:sarsys_app_server/controllers/event_source/aggregate_controller.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
@@ -9,16 +10,23 @@ import 'app_config.dart';
 /// A ResourceController that handles
 /// [/api/app-config](http://localhost/api/client.html#/AppConfig) [Request]s
 class AppConfigController extends AggregateController<AppConfigCommand, AppConfig> {
-  AppConfigController(AppConfigRepository repository, JsonValidation validation)
+  AppConfigController(AppConfigRepository repository, this.devices, JsonValidation validation)
       : super(repository, validation: validation, tag: 'Tenant');
+
+  final DeviceRepository devices;
 
   @override
   @Operation.get()
   Future<Response> getAll({
     @Bind.query('offset') int offset = 0,
     @Bind.query('limit') int limit = 20,
+    @Bind.query('deleted') bool deleted = false,
   }) {
-    return super.getAll(offset: offset, limit: limit);
+    return super.getAll(
+      offset: offset,
+      limit: limit,
+      deleted: deleted,
+    );
   }
 
   @override
@@ -30,12 +38,15 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
   @override
   @Operation.post()
   Future<Response> create(@Bind.body() Map<String, dynamic> data) async {
-    return await waitForRuleResult<DeviceCreated>(
+    return waitForRuleResult<DeviceCreated>(
       await super.create(data),
       fail: true,
       timeout: const Duration(milliseconds: 1000),
+      test: (_) => shouldWaitForDeviceCreated(data),
     );
   }
+
+  bool shouldWaitForDeviceCreated(Map<String, dynamic> data) => !devices.contains(data.elementAt('udid'));
 
   @override
   @Operation('PATCH', 'uuid')
@@ -52,12 +63,18 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
     @Bind.path('uuid') String uuid, {
     @Bind.body() Map<String, dynamic> data,
   }) async {
-    // Wait for rules to complete
-    return await waitForRuleResult<DeviceDeleted>(
+    final last = shouldWaitForDeviceDeleted(uuid);
+    return waitForRuleResult<DeviceDeleted>(
       await super.delete(uuid, data: data),
       fail: true,
+      test: (_) => last,
       timeout: const Duration(milliseconds: 1000),
     );
+  }
+
+  bool shouldWaitForDeviceDeleted(String uuid) {
+    final config = repository.get(uuid, createNew: false);
+    return repository.aggregates.where((test) => !test.isDeleted).where((test) => test.udid == config.udid).length == 1;
   }
 
   @override
