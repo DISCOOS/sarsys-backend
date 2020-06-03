@@ -1,4 +1,4 @@
-FROM google/dart
+FROM google/dart:2.8.2
 MAINTAINER DISCO Open Source <admin@discoos.org>
 
 WORKDIR /app
