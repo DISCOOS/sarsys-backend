@@ -1,4 +1,4 @@
-imageTag: release-5.0.7
+imageTag: release-5.0.8
 clusterSize: 3
 nodeSelector: 
  doks.digitalocean.com/node-pool: k8s-3

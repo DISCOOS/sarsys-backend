@@ -3,7 +3,7 @@ import 'package:meta/meta.dart';
 import 'core.dart';
 
 /// Base class for failures
-abstract class Failure {
+abstract class Failure implements Exception {
   const Failure(this.message);
   final String message;
 
