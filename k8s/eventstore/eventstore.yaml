@@ -5,6 +5,7 @@ nodeSelector:
 persistence:
   enabled: true
   storageClass: do-block-storage-retain
+  size: 50Gi
 resources:
   limits:
     cpu: 1600m
