@@ -124,6 +124,8 @@ class RepositoryManager {
         backlog.map((command) => _prepare(command)),
         cleanUp: (prepared) => backlog.removeAll(prepared),
       );
+      _timer?.cancel();
+      _timer = null;
       completer.complete();
     } on Exception catch (e, stackTrace) {
       if (attempt < max) {
@@ -213,6 +215,8 @@ class RepositoryManager {
         ),
         cleanUp: (built) => backlog.removeAll(built),
       );
+      _timer?.cancel();
+      _timer = null;
       completer.complete();
     } on Exception catch (e, stackTrace) {
       if (attempt < max) {

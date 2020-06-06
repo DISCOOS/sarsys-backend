@@ -358,7 +358,7 @@ Future main() async {
     await repo.readyAsync();
 
     // Act - execute pushes without awaiting the result
-    final results = await _createMultiple(repo);
+    final results = await Future.wait<Iterable<DomainEvent>>(_createMultiple(repo).cast());
 
     // Assert - strict order
     final events = _assertStrictOrder(results);
@@ -375,12 +375,13 @@ Future main() async {
     await repo2.readyAsync();
 
     // Act - execute pushes and await the results
-    final results1 = await _createMultiple(repo1);
-    final results2 = await _createMultiple(repo2);
+    final requests1 = _createMultiple(repo1);
+    final requests2 = _createMultiple(repo2);
+    final requests = List.from(requests1)..addAll(requests2);
+    final results = await Future.wait<Iterable<DomainEvent>>(requests.cast());
 
     // Assert - strict order
-    _assertStrictOrder(results1);
-    _assertStrictOrder(results2);
+    _assertStrictOrder(results);
   });
 
   test('Repository should throw ConcurrentWriteOperation if aggregate is changed after push is scheduled', () async {
@@ -432,10 +433,10 @@ void _assertUniqueEvents(Repository repo, Iterable<DomainEvent> events) {
   expect(expected, equals(actual));
 }
 
-Future<List<Iterable<DomainEvent>>> _createMultiple(FooRepository repo) async {
-  final operations = [];
+List<Future<Iterable<DomainEvent>>> _createMultiple(FooRepository repo) {
+  final operations = <Future<Iterable<DomainEvent>>>[];
   for (var i = 0; i < 10; i++) {
     operations.add(repo.push(repo.get(Uuid().v4(), data: {'index': i})));
   }
-  return await Future.wait<Iterable<DomainEvent>>(operations.cast());
+  return operations;
 }
