@@ -240,6 +240,8 @@ class TestStream {
   final Map<String, List<Map<String, dynamic>>> _cached = {};
   final List<Map<String, Map<String, dynamic>>> _instances = [];
 
+  List<Map<String, Map<String, dynamic>>> get instances => List.unmodifiable(_instances);
+
   /// Get [SourceEvent] from [DomainEvent]
   static Map<String, dynamic> fromDomainEvent(
     DomainEvent event, {

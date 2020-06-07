@@ -91,7 +91,7 @@ class EventSourceHarness {
 
   final Map<int, List<RepositoryManager>> _managers = {};
 
-  void add({
+  void addServer({
     @required int port,
   }) {
     _servers.putIfAbsent(
@@ -109,7 +109,7 @@ class EventSourceHarness {
 
   void install() {
     if (_servers.isEmpty) {
-      add(port: 4000);
+      addServer(port: 4000);
     }
 
     setUpAll(() async {

@@ -1,4 +1,5 @@
 import 'package:event_source/src/error.dart';
+import 'package:event_source/src/mock.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
@@ -10,10 +11,16 @@ Future main() async {
     ..withTenant()
     ..withPrefix()
     ..withLogger()
+//    ..withStream(
+//      '\$ce-discoos:test:foo',
+//      useCanonicalName: true,
+//      useInstanceStreams: true,
+//    )
     ..withRepository<Foo>((store) => FooRepository(store), instances: 2)
     ..withProjections(projections: ['\$by_category', '\$by_event_type'])
-    ..add(port: 4000)
-    ..add(port: 4001)
+    ..addServer(port: 4000)
+    ..addServer(port: 4001)
+    ..addServer(port: 4002)
     ..install();
 
   test('EventStore throws WrongExpectedEventVersion on second concurrent write', () async {
@@ -31,4 +38,50 @@ Future main() async {
     expect(await events1.asStream().first, equals([isA<FooCreated>()]));
     await expectLater(events2, throwsA(isA<WrongExpectedEventVersion>()));
   });
+
+  test('EventStore should catchup after replay', () async {
+    // Arrange
+    final repo1 = await _createStreamsAndReplay(harness, 4000, 3);
+    final repo2 = await _createStreamsAndReplay(harness, 4001, 3);
+    final repo3 = await _createStreamsAndReplay(harness, 4002, 3);
+
+    // Act - create new instance stream
+    final uuid = Uuid().v4();
+    final foo = repo1.get(uuid, data: {'property1': 'value1'});
+    await repo1.push(foo);
+    await repo2.store.asStream().first;
+    await repo3.store.asStream().first;
+
+    // Assert instances
+    expect(repo1.count(), equals(4));
+    expect(repo2.count(), equals(4));
+    expect(repo3.count(), equals(4));
+  });
+}
+
+Future<FooRepository> _createStreamsAndReplay(EventSourceHarness harness, int port, int count) async {
+  final repo = harness.get<FooRepository>(port: port);
+  await repo.readyAsync();
+  final stream = harness.server(port: port).getStream(repo.store.aggregate);
+  for (var i = 0; i < count; i++) {
+    _createStream(stream);
+  }
+  await repo.replay();
+  return repo;
+}
+
+Map<String, Map<String, dynamic>> _createStream(
+  TestStream stream,
+) {
+  return stream.append('${stream.instanceStream}-${stream.instances.length}', [
+    TestStream.asSourceEvent<FooUpdated>(
+      Uuid().v4(),
+      {'property1': 'value1'},
+      {
+        'property1': 'value1',
+        'property2': 'value2',
+        'property3': 'value3',
+      },
+    )
+  ]);
 }

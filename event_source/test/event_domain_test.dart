@@ -12,8 +12,9 @@ Future main() async {
     ..withLogger()
     ..withRepository<Foo>((store) => FooRepository(store), instances: 2)
     ..withProjections(projections: ['\$by_category', '\$by_event_type'])
-    ..add(port: 4000)
-    ..add(port: 4001)
+    ..addServer(port: 4000)
+    ..addServer(port: 4001)
+    ..addServer(port: 4002)
     ..install();
 
   test('Repository should support build operation', () async {
@@ -216,21 +217,17 @@ Future main() async {
     // Arrange
     final repo1 = harness.get<FooRepository>(port: 4000);
     final repo2 = harness.get<FooRepository>(port: 4001);
+    final repo3 = harness.get<FooRepository>(port: 4002);
     await repo1.readyAsync();
     await repo2.readyAsync();
+    await repo3.readyAsync();
 
-    // Act
-    final uuid = Uuid().v4();
-    final foo1 = repo1.get(uuid, data: {'property1': 'value1'});
-    final events = await repo1.push(foo1);
-    final remote = await repo2.store.asStream().first;
-    final foo2 = repo2.get(uuid);
-
-    // Assert catch-up event from repo1
-    expect(repo2.count(), equals(1));
-    expect([remote], containsAll(events));
-    expect(foo1.data, containsPair('property1', 'value1'));
-    expect(foo2.data, containsPair('property1', 'value1'));
+    await _assertCatchUp(repo1, repo2, repo3, 1);
+    await _assertCatchUp(repo1, repo2, repo3, 2);
+    await _assertCatchUp(repo1, repo2, repo3, 3);
+    await _assertCatchUp(repo1, repo2, repo3, 4);
+    await _assertCatchUp(repo1, repo2, repo3, 5);
+    await _assertCatchUp(repo1, repo2, repo3, 6);
   });
 
   test('Repository should resolve concurrent remote modification on push', () async {
@@ -409,7 +406,27 @@ Future main() async {
     expect(events, isA<Future<Iterable<DomainEvent>>>());
     expect(() => repo.push(foo), throwsA(isA<ConcurrentWriteOperation>()));
     expect(await events, isA<Iterable<DomainEvent>>());
-  }, timeout: Timeout.factor(100));
+  });
+}
+
+Future _assertCatchUp(FooRepository repo1, FooRepository repo2, FooRepository repo3, int count) async {
+  // Act
+  final uuid = Uuid().v4();
+  final foo1 = repo1.get(uuid, data: {'property1': 'value1'});
+  final events = await repo1.push(foo1);
+  final remote1 = await repo2.store.asStream().first;
+  final remote2 = await repo3.store.asStream().first;
+  final foo2 = repo2.get(uuid);
+  final foo3 = repo3.get(uuid);
+
+  // Assert catch-up event from repo1
+  expect(repo2.count(), equals(count));
+  expect(repo3.count(), equals(count));
+  expect([remote1], containsAll(events));
+  expect([remote2], containsAll(events));
+  expect(foo1.data, containsPair('property1', 'value1'));
+  expect(foo2.data, containsPair('property1', 'value1'));
+  expect(foo3.data, containsPair('property1', 'value1'));
 }
 
 Iterable<DomainEvent> _assertStrictOrder(List<Iterable<DomainEvent>> results) {
