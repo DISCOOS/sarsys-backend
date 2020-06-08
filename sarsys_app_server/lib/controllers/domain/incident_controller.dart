@@ -126,7 +126,7 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
         "status": documentStatus(),
         "resolution": documentResolution(),
         "timestamp": APISchemaObject.string()
-          ..description = "When transition occured"
+          ..description = "When transition occurred"
           ..format = 'date-time',
       })
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;

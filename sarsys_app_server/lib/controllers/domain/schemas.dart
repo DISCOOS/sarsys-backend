@@ -7,6 +7,22 @@ APISchemaObject documentUUID() => APISchemaObject.string()
   ..description = "A [universally unique identifier](https://en.wikipedia.org/wiki/Universally_unique_identifier).";
 
 // TODO: Use https://pub.dev/packages/password to hash pass codes in streams?
+APISchemaObject documentAuthor() => APISchemaObject.object(
+      {
+        "userId": APISchemaObject.string()..description = "Author user id",
+        "timestamp": APISchemaObject.string()
+          ..description = "When modification occurred"
+          ..format = 'date-time',
+      },
+    )
+      ..description = "Pass codes for access rights to spesific Incident instance"
+      ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+      ..required = [
+        'commander',
+        'personnel',
+      ];
+
+// TODO: Use https://pub.dev/packages/password to hash pass codes in streams?
 APISchemaObject documentPassCodes() => APISchemaObject.object(
       {
         "commander": APISchemaObject.string()..description = "Passcode for access with Commander rights",

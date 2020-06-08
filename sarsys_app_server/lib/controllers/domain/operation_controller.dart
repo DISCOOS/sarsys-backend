@@ -1,3 +1,4 @@
+import 'package:sarsys_app_server/controllers/domain/schemas.dart';
 import 'package:sarsys_app_server/controllers/event_source/controllers.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_domain/sarsys_domain.dart' as sar;
@@ -92,6 +93,7 @@ class OperationController extends AggregateController<OperationCommand, sar.Oper
             ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
           "name": APISchemaObject.string()..description = "Name of operation scene",
           "type": documentType(),
+          "author": documentAuthor(),
           "status": documentStatus(),
           "resolution": documentOperationResolution(),
           "transitions": APISchemaObject.array(ofSchema: documentTransition())
@@ -99,7 +101,9 @@ class OperationController extends AggregateController<OperationCommand, sar.Oper
             ..description = "State transitions (read only)",
           "reference": APISchemaObject.string()..description = "External reference from requesting authority",
           "justification": APISchemaObject.string()..description = "Justification for responding",
-          "commander": context.schema['UUID']..description = "Uuid of personnel in command",
+          "commander": APISchemaObject.object({
+            "uuid": context.schema['UUID']..description = "Uuid of personnel in command",
+          }),
           "talkgroups": APISchemaObject.array(ofSchema: context.schema['TalkGroup'])
             ..description = "List of talk gropus in use"
             ..isReadOnly = true,
@@ -162,7 +166,7 @@ class OperationController extends AggregateController<OperationCommand, sar.Oper
       'planned',
       'enroute',
       'onscene',
-      'finished',
+      'completed',
     ];
 
   /// OperationResolution - Entity object

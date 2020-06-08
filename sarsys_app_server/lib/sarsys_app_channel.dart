@@ -654,6 +654,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     ..register('UUID', documentUUID())
     ..register('Conflict', documentConflict(context))
     ..register('PassCodes', documentPassCodes())
+    ..register('Author', documentAuthor())
     ..register('Coordinates', documentCoordinates(context))
     ..register('Geometry', documentGeometry(context))
     ..register('Point', documentPoint(context))

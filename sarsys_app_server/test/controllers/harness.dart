@@ -200,7 +200,9 @@ Map<String, dynamic> createOperation(String uuid) => {
       "resolution": "unresolved",
       "reference": "string",
       "justification": "string",
-      "commander": "string",
+      "commander": {
+        "uuid": "string",
+      },
       "ipp": createLocation(),
       "meetup": createLocation(),
       "missions": ["string"],
