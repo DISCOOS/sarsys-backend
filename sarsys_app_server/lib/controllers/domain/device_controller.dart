@@ -11,11 +11,8 @@ class DeviceController extends AggregateController<DeviceCommand, Device> {
       : super(repository,
             validation: validation,
             readOnly: const [
-              'type',
-              'status',
               'position',
               'messages',
-              'allocatedTo',
               'transitions',
             ],
             tag: "Devices");
@@ -80,8 +77,8 @@ class DeviceController extends AggregateController<DeviceCommand, Device> {
   @override
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object({
         "uuid": context.schema['UUID']..description = "Unique device id",
-        "type": documentType()..isReadOnly = true,
-        "status": documentStatus()..isReadOnly = true,
+        "type": documentType(),
+        "status": documentStatus(),
         "name": APISchemaObject.string()..description = "Device name",
         "alias": APISchemaObject.string()..description = "Device alias",
         "network": APISchemaObject.string()..description = "Device network name",
@@ -91,11 +88,12 @@ class DeviceController extends AggregateController<DeviceCommand, Device> {
           ..defaultValue = true,
         "position": documentPosition(context)
           ..description = "Current position"
+          // Use PUT /api/device/{duuid}/position
           ..isReadOnly = true,
         "allocatedTo": documentAggregateRef(
           context,
-          description: "Incident which device is allocated to",
-          defaultType: 'Incident',
+          description: "Operation which device is allocated to",
+          defaultType: 'Operation',
         ),
         "transitions": APISchemaObject.array(ofSchema: documentTransition())
           ..description = "State transitions (read only)"
