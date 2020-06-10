@@ -15,6 +15,7 @@ class OperationController extends AggregateController<OperationCommand, sar.Oper
           readOnly: const [
             'incident',
             'objectives',
+            'talkgroups',
             'messages',
             'transitions',
           ],
@@ -107,8 +108,9 @@ class OperationController extends AggregateController<OperationCommand, sar.Oper
             ..isReadOnly = true
             ..description = "State transitions (read only)",
           "talkgroups": APISchemaObject.array(ofSchema: context.schema['TalkGroup'])
-            ..description = "List of talk groups in use",
+            ..description = "List of talk gropus in use",
           "objectives": APISchemaObject.array(ofSchema: context.schema['Objective'])
+            ..isReadOnly = true
             ..description = "List of Operation objectives",
           "missions": APISchemaObject.array(ofSchema: context.schema['UUID'])
             ..isReadOnly = true
