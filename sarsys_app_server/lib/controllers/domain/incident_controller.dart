@@ -84,18 +84,20 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
           "exercise": APISchemaObject.boolean()..description = "Exercise flag",
           "status": documentStatus(),
           "resolution": documentResolution(),
-          "transitions": APISchemaObject.array(ofSchema: documentTransition())
-            ..isReadOnly = true
-            ..description = "State transitions (read only)",
           "occurred": APISchemaObject.string()
             ..description = "When Incident occurred"
             ..format = 'date-time',
+          "transitions": APISchemaObject.array(ofSchema: documentTransition())
+            ..isReadOnly = true
+            ..description = "State transitions (read only)",
           "clues": APISchemaObject.array(ofSchema: context.schema['Clue'])
-            ..description = "List of Clues for planning and response"
-            ..isReadOnly = true,
+            ..isReadOnly = true
+            ..description = "List of Clues for planning and response",
           "subjects": APISchemaObject.array(ofSchema: context.schema['UUID'])
+            ..isReadOnly = true
             ..description = "List of uuids of Subjects impacted by this Incident",
           "operations": APISchemaObject.array(ofSchema: context.schema['UUID'])
+            ..isReadOnly = true
             ..description = "List of uuids of Operations responding to this Incident",
           "messages": APISchemaObject.array(ofSchema: context.schema['Message'])
             ..isReadOnly = true

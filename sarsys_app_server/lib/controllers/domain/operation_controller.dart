@@ -96,29 +96,31 @@ class OperationController extends AggregateController<OperationCommand, sar.Oper
           "author": documentAuthor(),
           "status": documentStatus(),
           "resolution": documentOperationResolution(),
-          "transitions": APISchemaObject.array(ofSchema: documentTransition())
-            ..isReadOnly = true
-            ..description = "State transitions (read only)",
           "reference": APISchemaObject.string()..description = "External reference from requesting authority",
           "justification": APISchemaObject.string()..description = "Justification for responding",
           "commander": APISchemaObject.object({
             "uuid": context.schema['UUID']..description = "Uuid of personnel in command",
           }),
-          "talkgroups": APISchemaObject.array(ofSchema: context.schema['TalkGroup'])
-            ..description = "List of talk gropus in use"
-            ..isReadOnly = true,
           "ipp": context.schema['Location']..description = "Initial planning point",
           "meetup": context.schema['Location']..description = "On scene meeting point",
+          "passcodes": context.schema['PassCodes']..description = "Passcodes for Operation access rights",
+          "transitions": APISchemaObject.array(ofSchema: documentTransition())
+            ..isReadOnly = true
+            ..description = "State transitions (read only)",
+          "talkgroups": APISchemaObject.array(ofSchema: context.schema['TalkGroup'])
+            ..description = "List of talk gropus in use",
           "objectives": APISchemaObject.array(ofSchema: context.schema['Objective'])
-            ..description = "List of Operation objectives"
-            ..isReadOnly = true,
+            ..isReadOnly = true
+            ..description = "List of Operation objectives",
           "missions": APISchemaObject.array(ofSchema: context.schema['UUID'])
+            ..isReadOnly = true
             ..description = "List of uuid of Missions executed by this operation",
           "units": APISchemaObject.array(ofSchema: context.schema['UUID'])
+            ..isReadOnly = true
             ..description = "List of uuid of Units mobilized for this operation",
           "personnels": APISchemaObject.array(ofSchema: context.schema['UUID'])
+            ..isReadOnly = true
             ..description = "List of uuid of Personnels mobilized for this operation",
-          "passcodes": context.schema['PassCodes']..description = "Passcodes for Operation access rights",
           "messages": APISchemaObject.array(ofSchema: context.schema['Message'])
             ..isReadOnly = true
             ..description = "List of messages added to Operation",
