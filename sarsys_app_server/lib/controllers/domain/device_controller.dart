@@ -79,8 +79,8 @@ class DeviceController extends AggregateController<DeviceCommand, Device> {
         "uuid": context.schema['UUID']..description = "Unique device id",
         "type": documentType(),
         "status": documentStatus(),
-        "name": APISchemaObject.string()..description = "Device name",
         "alias": APISchemaObject.string()..description = "Device alias",
+        "number": APISchemaObject.string()..description = "Device number",
         "network": APISchemaObject.string()..description = "Device network name",
         "networkId": APISchemaObject.string()..description = "Device identifier on network",
         "manual": APISchemaObject.boolean()

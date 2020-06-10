@@ -354,8 +354,8 @@ Map<String, Object> createPosition({String type = 'manual'}) => {
 
 Map<String, dynamic> createDevice(String uuid) => {
       "uuid": "$uuid",
-      "name": "string",
       "alias": "string",
+      "number": "string",
       "network": "string",
       "networkId": "string",
     };
