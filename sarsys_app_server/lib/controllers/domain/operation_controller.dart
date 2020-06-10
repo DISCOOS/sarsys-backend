@@ -101,7 +101,6 @@ class OperationController extends AggregateController<OperationCommand, sar.Oper
           "commander": APISchemaObject.object({
             "uuid": context.schema['UUID'],
           })
-            ..isNullable = true
             ..description = "Reference to personnel in command",
           "ipp": documentLocation(context)..description = "Initial planning point",
           "meetup": documentLocation(context)..description = "On scene meeting point",

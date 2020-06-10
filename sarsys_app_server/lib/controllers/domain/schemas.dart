@@ -52,7 +52,6 @@ APISchemaObject documentAggregateRef(
       "type": APISchemaObject.string()
         ..description = "Aggregate Root Type"
         ..isReadOnly = true
-        ..isNullable = true
         ..defaultValue = defaultType,
     })
       ..description = description
