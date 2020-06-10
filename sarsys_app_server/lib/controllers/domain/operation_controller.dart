@@ -132,6 +132,7 @@ class OperationController extends AggregateController<OperationCommand, sar.Oper
           'uuid',
           'name',
           'type',
+          'passcodes',
           'justification',
         ];
 
@@ -209,11 +210,5 @@ class OperationController extends AggregateController<OperationCommand, sar.Oper
         },
       )
         ..description = "Address Schema (value object)"
-        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
-        ..required = [
-          'lines',
-          'city',
-          'postalCode',
-          'countryCode',
-        ];
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
 }

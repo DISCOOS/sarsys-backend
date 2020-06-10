@@ -18,8 +18,8 @@ APISchemaObject documentAuthor() => APISchemaObject.object(
       ..description = "Pass codes for access rights to spesific Incident instance"
       ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
       ..required = [
-        'commander',
-        'personnel',
+        'userId',
+        'timestamp',
       ];
 
 // TODO: Use https://pub.dev/packages/password to hash pass codes in streams?
@@ -29,7 +29,7 @@ APISchemaObject documentPassCodes() => APISchemaObject.object(
         "personnel": APISchemaObject.string()..description = "Passcode for access with Personnel rights",
       },
     )
-      ..description = "Pass codes for access rights to spesific Incident instance"
+      ..description = "Pass codes for access rights to specific Incident instance"
       ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
       ..required = [
         'commander',
