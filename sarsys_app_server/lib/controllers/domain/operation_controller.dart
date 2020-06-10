@@ -186,12 +186,8 @@ class OperationController extends AggregateController<OperationCommand, sar.Oper
   APISchemaObject documentLocation(APIDocumentContext context) => APISchemaObject.object(
         {
           "point": documentPoint(context)..description = "Location point",
-          "address": documentAddress()
-            ..isNullable = true
-            ..description = "Location address",
-          "description": APISchemaObject.string()
-            ..isNullable = true
-            ..description = "Location description",
+          "address": documentAddress()..description = "Location address",
+          "description": APISchemaObject.string()..description = "Location description",
         },
       )
         ..description = "Location Schema (value object)"
@@ -204,13 +200,20 @@ class OperationController extends AggregateController<OperationCommand, sar.Oper
   APISchemaObject documentAddress() => APISchemaObject.object(
         {
           "lines": APISchemaObject.array(ofType: APIType.string)
-            ..description = "Pass codes for authorizing access to Operation data"
-            ..type = APIType.string,
-          "city": APISchemaObject.string()..description = "City name",
-          "postalCode": APISchemaObject.string()..description = "Postal, state or zip code",
-          "countryCode": APISchemaObject.string()..description = "ISO 3166 country code",
+            ..isNullable = true
+            ..description = "Address lines",
+          "city": APISchemaObject.string()
+            ..isNullable = true
+            ..description = "City name",
+          "postalCode": APISchemaObject.string()
+            ..isNullable = true
+            ..description = "Postal, state or zip code",
+          "countryCode": APISchemaObject.string()
+            ..isNullable = true
+            ..description = "ISO 3166 country code",
         },
       )
+        ..isNullable = true
         ..description = "Address Schema (value object)"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
 }

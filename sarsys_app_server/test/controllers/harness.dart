@@ -185,8 +185,8 @@ Map<String, dynamic> createPoint() => {
       "coordinates": [0.0, 0.0]
     };
 
-Map<String, String> createAddress() => {
-      "lines": "string",
+Map<String, dynamic> createAddress() => {
+      "lines": ["string"],
       "city": "string",
       "postalCode": "string",
       "countryCode": "string",
