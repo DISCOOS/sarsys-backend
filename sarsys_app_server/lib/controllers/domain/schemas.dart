@@ -29,7 +29,7 @@ APISchemaObject documentPassCodes() => APISchemaObject.object(
         "personnel": APISchemaObject.string()..description = "Passcode for access with Personnel rights",
       },
     )
-      ..description = "Pass codes for access rights to specific Incident instance"
+      ..description = "Passcodes for Operation access rights"
       ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
       ..required = [
         'commander',

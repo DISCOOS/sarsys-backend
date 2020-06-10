@@ -99,11 +99,13 @@ class OperationController extends AggregateController<OperationCommand, sar.Oper
           "reference": APISchemaObject.string()..description = "External reference from requesting authority",
           "justification": APISchemaObject.string()..description = "Justification for responding",
           "commander": APISchemaObject.object({
-            "uuid": context.schema['UUID']..description = "Uuid of personnel in command",
-          }),
-          "ipp": context.schema['Location']..description = "Initial planning point",
-          "meetup": context.schema['Location']..description = "On scene meeting point",
-          "passcodes": context.schema['PassCodes']..description = "Passcodes for Operation access rights",
+            "uuid": context.schema['UUID'],
+          })
+            ..isNullable = true
+            ..description = "Reference to personnel in command",
+          "ipp": documentLocation(context)..description = "Initial planning point",
+          "meetup": documentLocation(context)..description = "On scene meeting point",
+          "passcodes": documentPassCodes()..description = "Passcodes for Operation access rights",
           "transitions": APISchemaObject.array(ofSchema: documentTransition())
             ..isReadOnly = true
             ..description = "State transitions (read only)",
@@ -130,10 +132,6 @@ class OperationController extends AggregateController<OperationCommand, sar.Oper
         // POST only
         ..required = [
           'uuid',
-          'name',
-          'type',
-          'passcodes',
-          'justification',
         ];
 
   APISchemaObject documentTransition() => APISchemaObject.object({
@@ -187,9 +185,13 @@ class OperationController extends AggregateController<OperationCommand, sar.Oper
   /// Location - Value object
   APISchemaObject documentLocation(APIDocumentContext context) => APISchemaObject.object(
         {
-          "point": context.schema['Point']..description = "Location point",
-          "address": context.schema['Address']..description = "Location address",
-          "description": APISchemaObject.string()..description = "Location description",
+          "point": documentPoint(context)..description = "Location point",
+          "address": documentAddress()
+            ..isNullable = true
+            ..description = "Location address",
+          "description": APISchemaObject.string()
+            ..isNullable = true
+            ..description = "Location description",
         },
       )
         ..description = "Location Schema (value object)"
