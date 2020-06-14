@@ -77,15 +77,15 @@ class DivisionController extends AggregateController<DivisionCommand, Division> 
           ..isReadOnly = true
           ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
         "name": APISchemaObject.string()..description = "Division name",
-        "alias": APISchemaObject.string()..description = "Division alias",
+        "suffix": APISchemaObject.string()..description = "FleetMap number suffix",
         "departments": APISchemaObject.array(
           ofSchema: context.schema['UUID'],
         )..description = "List of unique department uuids",
+        "active": APISchemaObject.boolean()..description = "Division status",
       })
         ..description = "Division Schema (aggregate root)"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
           'uuid',
-          'name',
         ];
 }

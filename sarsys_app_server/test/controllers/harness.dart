@@ -302,22 +302,24 @@ Map<String, dynamic> createUnit(String uuid, {String tuuid}) => {
 Map<String, dynamic> createOrganisation(String uuid) => {
       "uuid": "$uuid",
       "name": "string",
-      "alias": "string",
-      "icon": "https://icon.com",
+      "suffix": "string",
       "divisions": ["string"],
+      "active": true,
     };
 
 Map<String, dynamic> createDivision(String uuid) => {
       "uuid": "$uuid",
       "name": "string",
-      "alias": "string",
+      "suffix": "string",
       "departments": ["string"],
+      "active": true,
     };
 
 Map<String, dynamic> createDepartment(String uuid) => {
       "uuid": "$uuid",
       "name": "string",
-      "alias": "string",
+      "suffix": "string",
+      "active": true,
     };
 
 Map<String, dynamic> createTracking(String uuid) => {

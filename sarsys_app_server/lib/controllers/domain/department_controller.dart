@@ -77,12 +77,12 @@ class DepartmentController extends AggregateController<DepartmentCommand, Depart
           ..isReadOnly = true
           ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
         "name": APISchemaObject.string()..description = "Department name",
-        "alias": APISchemaObject.string()..description = "Department alias",
+        "suffix": APISchemaObject.string()..description = "FleetMap number suffix",
+        "active": APISchemaObject.boolean()..description = "Department status",
       })
         ..description = "Department Schema (aggregate root)"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
           'uuid',
-          'name',
         ];
 }

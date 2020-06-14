@@ -74,19 +74,16 @@ class OrganisationController extends AggregateController<OrganisationCommand, Or
         {
           "uuid": context.schema['UUID']..description = "Unique Organisation id",
           "name": APISchemaObject.string()..description = "Organisation name",
-          "alias": APISchemaObject.string()..description = "Organisation alias",
-          "icon": APISchemaObject.string()
-            ..format = "uri"
-            ..description = "Organisation icon",
+          "suffix": APISchemaObject.string()..description = "FleetMap number suffix",
           "divisions": APISchemaObject.array(
             ofSchema: context.schema['UUID'],
-          )..description = "List of division uuids"
+          )..description = "List of division uuids",
+          "active": APISchemaObject.boolean()..description = "Organisation status",
         },
       )
         ..description = "Organisation Schema (aggregate root)"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
           'uuid',
-          'name',
         ];
 }
