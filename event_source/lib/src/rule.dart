@@ -291,7 +291,7 @@ class AssociationRule extends AggregateRule {
       .toList();
 
   bool contains(AggregateRoot aggregate, String field, String match) {
-    final value = aggregate.data[field];
+    final value = aggregate.data.elementAt(field);
     if (value is List) {
       return value.contains(match);
     } else if (value is String) {
