@@ -427,33 +427,41 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   }
 
   /// [DomainEvent] type to constraint definitions
-  final Map<Type, RuleBuilder> _rules = {};
+  final Map<Type, List<RuleBuilder>> _rules = {};
   final StreamController<Event> _ruleController = StreamController.broadcast();
 
   /// Get stream of rule results
   Stream<Event> get onRuleResult => _ruleController.stream;
 
   /// Register rule (invariant) for given DomainEvent [E]
-  void rule<E extends DomainEvent>(RuleBuilder builder, {bool unique = true}) {
+  void rule<E extends DomainEvent>(RuleBuilder builder, {bool unique = false}) {
     final type = typeOf<E>();
     if (unique && _rules.containsKey(type)) {
       final message = 'Rule for event $type already registered';
       logger.severe(message);
       throw InvalidOperation(message);
     }
-    store.bus.register<E>(this);
-    _rules.putIfAbsent(type, () => builder);
+    final builders = _rules.update(
+      type,
+      (builders) => builders..add(builder),
+      ifAbsent: () => [builder],
+    );
+    if (builders.length == 1) {
+      store.bus.register<E>(this);
+    }
   }
 
   @override
   void handle(DomainEvent message) async {
     if (message.local && _rules.isNotEmpty) {
       try {
-        final builder = _rules[message.runtimeType];
-        if (builder != null) {
-          final handler = builder(this);
-          final events = await handler(message);
-          events?.forEach(_ruleController.add);
+        final builders = _rules[message.runtimeType];
+        if (builders?.isNotEmpty == true) {
+          builders.forEach((builder) async {
+            final handler = builder(this);
+            final events = await handler(message);
+            events?.forEach(_ruleController.add);
+          });
         }
       } on Exception catch (e) {
         logger.severe('Failed to enforce invariant for $message in $runtimeType, failed with: $e');
