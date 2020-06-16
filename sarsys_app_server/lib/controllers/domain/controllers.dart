@@ -1,3 +1,4 @@
+export 'affiliation_controller.dart';
 export 'clue_controller.dart';
 export 'department_controller.dart';
 export 'device_controller.dart';
@@ -17,6 +18,7 @@ export 'operation_talk_group_controller.dart';
 export 'operation_unit_controller.dart';
 export 'organisation_controller.dart';
 export 'organisation_division_controller.dart';
+export 'person_controller.dart';
 export 'personnel_controller.dart';
 export 'source_controller.dart';
 export 'subject_controllers.dart';

@@ -113,6 +113,18 @@ class SarSysAppServerChannel extends ApplicationChannel {
                 requestValidator,
               ))
       ..secure(
+          '/api/persons[/:uuid]',
+          () => PersonController(
+                manager.get<PersonRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/affiliations[/:uuid]',
+          () => AffiliationController(
+                manager.get<AffiliationRepository>(),
+                requestValidator,
+              ))
+      ..secure(
           '/api/incidents[/:uuid]',
           () => IncidentController(
                 manager.get<IncidentRepository>(),
@@ -424,18 +436,21 @@ class SarSysAppServerChannel extends ApplicationChannel {
     manager.register<Incident>((store) => IncidentRepository(store));
     manager.register<Subject>((store) => SubjectRepository(store));
     manager.register<Mission>((store) => MissionRepository(store));
-    manager.register<Organisation>((store) => OrganisationRepository(store));
-    manager.register<Department>((store) => DepartmentRepository(store));
-    manager.register<Division>((store) => DivisionRepository(store));
-    manager.register<sar.Operation>((store) => OperationRepository(store));
-    manager.register<Tracking>((store) => TrackingRepository(store));
     manager.register<Device>((store) => DeviceRepository(store));
+    manager.register<Tracking>((store) => TrackingRepository(store));
+    manager.register<Affiliation>((store) => AffiliationRepository(store));
 
     // Register dependent repositories
     manager.register<AppConfig>(
       (store) => AppConfigRepository(
         store,
         devices: manager.get<DeviceRepository>(),
+      ),
+    );
+    manager.register<sar.Operation>(
+      (store) => OperationRepository(
+        store,
+        incidents: manager.get<IncidentRepository>(),
       ),
     );
     manager.register<Unit>(
@@ -448,6 +463,32 @@ class SarSysAppServerChannel extends ApplicationChannel {
       (store) => PersonnelRepository(
         store,
         trackings: manager.get<TrackingRepository>(),
+      ),
+    );
+    manager.register<Person>(
+      (store) => PersonRepository(
+        store,
+        affiliations: manager.get<AffiliationRepository>(),
+      ),
+    );
+    manager.register<Organisation>(
+      (store) => OrganisationRepository(
+        store,
+        affiliations: manager.get<AffiliationRepository>(),
+      ),
+    );
+    manager.register<Division>(
+      (store) => DivisionRepository(
+        store,
+        organisations: manager.get<OrganisationRepository>(),
+        affiliations: manager.get<AffiliationRepository>(),
+      ),
+    );
+    manager.register<Department>(
+      (store) => DepartmentRepository(
+        store,
+        divisions: manager.get<DivisionRepository>(),
+        affiliations: manager.get<AffiliationRepository>(),
       ),
     );
 
@@ -501,9 +542,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
     messages.register<TrackingTrackChanged>(manager.bus);
     messages.register<TrackingPositionChanged>(manager.bus);
     messages.register<TrackingInformationUpdated>(manager.bus);
-    messages.register<IncidentResolved>(manager.bus);
-    messages.register<IncidentResolved>(manager.bus);
-    messages.register<IncidentResolved>(manager.bus);
     messages.register<IncidentResolved>(manager.bus);
     // TODO: MessageChannel - Add Operation events
     // TODO: MessageChannel - Add Unit events

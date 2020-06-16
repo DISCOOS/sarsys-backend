@@ -55,8 +55,9 @@ APISchemaObject documentAggregateRef(
         ..defaultValue = defaultType,
     })
       ..description = description
+      ..isReadOnly = true
       ..required = ['uuid']
-      ..isReadOnly = true;
+      ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
 
 //////////////////////////////////
 // Response documentation
