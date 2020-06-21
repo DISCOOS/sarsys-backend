@@ -4,6 +4,7 @@ import 'package:http/http.dart';
 import 'package:event_source/event_source.dart';
 import 'package:jose/jose.dart';
 import 'package:sarsys_app_server/auth/any.dart';
+import 'package:sarsys_app_server/controllers/domain/affiliation_temporary_controller.dart';
 import 'package:sarsys_app_server/controllers/domain/device_position_controller.dart';
 import 'package:sarsys_app_server/controllers/domain/unit_personnel_controller.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
@@ -121,6 +122,13 @@ class SarSysAppServerChannel extends ApplicationChannel {
       ..secure(
           '/api/affiliations[/:uuid]',
           () => AffiliationController(
+                manager.get<AffiliationRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/affiliations/temporary',
+          () => AffiliationTemporaryController(
+                manager.get<PersonRepository>(),
                 manager.get<AffiliationRepository>(),
                 requestValidator,
               ))

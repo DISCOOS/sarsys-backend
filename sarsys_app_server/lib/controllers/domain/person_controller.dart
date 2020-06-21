@@ -85,6 +85,7 @@ class PersonController extends AggregateController<PersonCommand, Person> {
           "lname": APISchemaObject.string()..description = "Last name",
           "phone": APISchemaObject.string()..description = "Phone number",
           "email": APISchemaObject.string()..description = "E-mail address",
+          "userId": APISchemaObject.string()..description = "Authenticated used id",
           "temporary": APISchemaObject.boolean()..description = "Temporary person",
         },
       )
