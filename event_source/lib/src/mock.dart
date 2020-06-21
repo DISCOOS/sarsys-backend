@@ -64,8 +64,14 @@ class EventStoreMockServer {
         orElse: () => null,
       );
       if (route == null) {
+//        if (request.method == 'POST') {
+//          print(request.uri.path);
+//        }
         _notFound(request);
       } else {
+//        if (request.method == 'POST') {
+//          print(request.uri.path);
+//        }
         await route.handle(request);
       }
       _log(
@@ -214,7 +220,23 @@ class TestRoute {
   final String path;
   final FutureOr Function(HttpRequest request) handle;
 
-  bool isMatch(HttpRequest request) => request.uri.path.startsWith(path);
+  bool isMatch(HttpRequest request) {
+    final test = request.uri.path;
+    final matches = test.startsWith(path);
+    // Hack - workaround for unable
+    // to make regexp work directly
+    if (matches && _isPathPrefix(test)) {
+//      print('HttpRequest.path=$test');
+//      print('TestRoute.path=$path');
+      return true;
+    }
+    return false;
+  }
+
+  bool _isPathPrefix(String test) => (test.length == path.length ||
+      test.length > path.length &&
+          (test.substring(path.length, path.length + 1).startsWith('\/') ||
+              test.substring(path.length).startsWith(RegExp(r'-\d*$'))));
 }
 
 class TestStream {

@@ -247,19 +247,32 @@ abstract class Command<T extends DomainEvent> extends Message {
   Type get emits => typeOf<T>();
 
   /// Add value to list in given field
-  static Map<String, dynamic> addToList<T>(Map<String, dynamic> data, String field, T value) => Map.from(data)
-    ..update(
-      field,
-      (operations) => List<T>.from(operations as List)..add(value),
-      ifAbsent: () => [value],
-    );
+  static Map<String, dynamic> addToList<T>(
+    Map<String, dynamic> data,
+    String field,
+    Iterable<T> items,
+  ) =>
+      Map.from(data)
+        ..update(
+          field,
+          (current) => List<T>.from(current as List)..addAll(items),
+          ifAbsent: () => items,
+        );
 
   /// Remove value from list in given field
-  static Map<String, dynamic> removeFromList<T>(Map<String, dynamic> data, String field, T value) => Map.from(data)
-    ..update(
-      field,
-      (operations) => List<T>.from(operations as List)..remove(value),
-    );
+  static Map<String, dynamic> removeFromList<T>(
+    Map<String, dynamic> data,
+    String field,
+    Iterable<T> items,
+  ) =>
+      Map.from(data)
+        ..update(
+          field,
+          (operations) => List<T>.from(operations as List)
+            ..removeWhere(
+              (item) => items.contains(item),
+            ),
+        );
 
   @override
   bool operator ==(Object other) =>

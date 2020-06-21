@@ -3,8 +3,8 @@ import 'package:meta/meta.dart';
 import 'core.dart';
 
 /// Base class for failures
-abstract class Failure implements Exception {
-  const Failure(this.message);
+abstract class EventSourceException implements Exception {
+  const EventSourceException(this.message);
   final String message;
 
   @override
@@ -14,7 +14,7 @@ abstract class Failure implements Exception {
 }
 
 /// Thrown when an invalid operation is attempted
-class InvalidOperation extends Failure {
+class InvalidOperation extends EventSourceException {
   const InvalidOperation(String message) : super(message);
 }
 
@@ -86,7 +86,7 @@ class ConflictNotReconcilable extends InvalidOperation {
 }
 
 /// Thrown when an write failed
-class WriteFailed extends Failure {
+class WriteFailed extends EventSourceException {
   const WriteFailed(String message) : super(message);
 }
 
@@ -113,11 +113,11 @@ class MultipleAggregatesWithChanges extends WriteFailed {
 }
 
 /// Thrown when an stream [AtomFeed] operation failed
-class FeedFailed extends Failure {
+class FeedFailed extends EventSourceException {
   const FeedFailed(String message) : super(message);
 }
 
 /// Thrown when an stream [Event] subscription failed
-class SubscriptionFailed extends Failure {
+class SubscriptionFailed extends EventSourceException {
   const SubscriptionFailed(String message) : super(message);
 }

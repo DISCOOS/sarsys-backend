@@ -147,7 +147,7 @@ class Cardinality {
 }
 
 /// General [AggregateRule] failure
-class RuleException extends Failure {
+class RuleException extends EventSourceException {
   RuleException(String message) : super(message);
 }
 

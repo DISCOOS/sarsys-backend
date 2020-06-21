@@ -565,8 +565,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       }
       final events = aggregate.isChanged ? await push(aggregate, maxAttempts: operation.maxAttempts) : <DomainEvent>[];
       operation.completer.complete(events);
-    } on Failure catch (e, stackTrace) {
-      operation.completer.completeError(e, stackTrace);
     } on Exception catch (e, stackTrace) {
       operation.completer.completeError(e, stackTrace);
     }
@@ -764,13 +762,13 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     switch (command.action) {
       case Action.create:
         if (_aggregates.containsKey(command.uuid)) {
-          throw AggregateExists('Aggregate ${command.uuid} exists');
+          throw AggregateExists('${typeOf<T>()} ${command.uuid} exists');
         }
         break;
       case Action.update:
       case Action.delete:
         if (!_aggregates.containsKey(command.uuid)) {
-          throw AggregateNotFound('Aggregate ${command.uuid} does not exists');
+          throw AggregateNotFound('${typeOf<T>()} ${command.uuid} does not exists');
         }
         break;
     }
@@ -779,7 +777,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   Map<String, dynamic> _asEntityData(EntityCommand command) {
     if (!_aggregates.containsKey(command.uuid)) {
-      throw AggregateNotFound('Aggregate ${command.uuid} does not exist');
+      throw AggregateNotFound('${typeOf<T>()} ${command.uuid} does not exist');
     }
     var index;
     final data = {};
@@ -791,7 +789,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     switch (command.action) {
       case Action.create:
         if (array.contains(command.entityId)) {
-          throw EntityExists('Entity ${command.entityId} exists');
+          throw EntityExists('Entity ${command.aggregateField} ${command.entityId} exists');
         }
         var id = command.entityId ?? array.nextId;
         final entities = array.add(command.data, id: id);
@@ -810,7 +808,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
       case Action.delete:
         if (!array.contains(command.entityId)) {
-          throw EntityNotFound('Entity ${command.entityId} does not exists');
+          throw EntityNotFound('Entity ${command.aggregateField} ${command.entityId} does not exists');
         }
         index = array.indexOf(command.entityId);
         final entities = array.remove(command.entityId);
