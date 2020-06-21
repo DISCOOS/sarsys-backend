@@ -3,15 +3,16 @@ import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:strings/strings.dart';
 
 /// A basic ResourceController for ReadModel requests
-class AggregateLookupController<T extends AggregateRoot> extends ResourceController {
+class AggregateLookupController<S extends Command, T extends AggregateRoot> extends ResourceController {
   AggregateLookupController(this.field, this.primary, this.foreign, {this.tag});
   final String tag;
   final String field;
   final Repository primary;
-  final Repository<Command, T> foreign;
+  final Repository<S, T> foreign;
 
   Type get aggregateType => typeOf<T>();
   Type get primaryType => primary.aggregateType;
+  Type get foreignType => foreign.aggregateType;
 
   @override
   FutureOr<RequestOrResponse> willProcessRequest(Request req) => primary.ready && foreign.ready
@@ -44,8 +45,8 @@ class AggregateLookupController<T extends AggregateRoot> extends ResourceControl
       return okAggregatePaged(uuids.length, offset, limit, aggregates);
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
-    } on Failure catch (e) {
-      return Response.serverError(body: e.message);
+    } on Exception catch (e) {
+      return Response.serverError(body: e);
     } on Error catch (e) {
       return Response.serverError(body: e);
     }

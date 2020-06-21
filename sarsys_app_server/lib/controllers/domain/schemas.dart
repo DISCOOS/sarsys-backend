@@ -59,6 +59,16 @@ APISchemaObject documentAggregateRef(
       ..required = ['uuid']
       ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
 
+APISchemaObject documentAggregateList(
+  APIDocumentContext context, {
+  String defaultType,
+  String description = "List of Aggregate Root uuids",
+}) =>
+    APISchemaObject.array(ofSchema: documentUUID())
+      ..description = description
+      ..isReadOnly = true
+      ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
+
 //////////////////////////////////
 // Response documentation
 //////////////////////////////////

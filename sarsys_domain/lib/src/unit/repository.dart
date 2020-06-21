@@ -1,7 +1,7 @@
 import 'package:meta/meta.dart';
 
 import 'package:event_source/event_source.dart';
-import 'package:sarsys_domain/src/personnel/personnel.dart';
+import 'package:sarsys_domain/src/operation/repository.dart';
 import 'package:sarsys_domain/src/tracking/tracking.dart';
 
 import 'aggregate.dart';
@@ -12,6 +12,7 @@ class UnitRepository extends Repository<UnitCommand, Unit> {
   UnitRepository(
     EventStore store, {
     @required this.trackings,
+    @required this.operations,
   }) : super(store: store, processors: {
           UnitCreated: (event) => UnitCreated(
                 uuid: event.uuid,
@@ -82,22 +83,21 @@ class UnitRepository extends Repository<UnitCommand, Unit> {
         });
 
   final TrackingRepository trackings;
+  final OperationRepository operations;
 
   @override
   void willStartProcessingEvents() {
-    // Remove Personnel from 'personnels' list when deleted
-    rule<PersonnelDeleted>(newDeleteRule);
-
-    // Co-create Tracking with Unit
+    // Co-create and co-created Tracking with Unit
     rule<UnitCreated>(trackings.newCreateRule);
-
-    // Co-delete Tracking with Unit
     rule<UnitDeleted>(trackings.newDeleteRule);
+
+    // Remove Unit from 'units' list in Operation when deleted
+    rule<UnitDeleted>(operations.newRemoveUnitRule);
 
     super.willStartProcessingEvents();
   }
 
-  AggregateRule newDeleteRule(_) => AssociationRule(
+  AggregateRule newRemovePersonnelRule(_) => AssociationRule(
         (source, target) => RemovePersonnelFromUnit(
           get(target),
           toAggregateUuid(source),

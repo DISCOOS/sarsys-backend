@@ -1,12 +1,17 @@
+import 'package:meta/meta.dart';
+
 import 'package:event_source/event_source.dart';
+import 'package:sarsys_domain/src/operation/repository.dart';
 
 import 'aggregate.dart';
 import 'commands.dart';
 import 'events.dart';
 
 class MissionRepository extends Repository<MissionCommand, Mission> {
-  MissionRepository(EventStore store)
-      : super(store: store, processors: {
+  MissionRepository(
+    EventStore store, {
+    @required this.operations,
+  }) : super(store: store, processors: {
           MissionCreated: (event) => MissionCreated(
                 uuid: event.uuid,
                 data: event.data,
@@ -98,6 +103,16 @@ class MissionRepository extends Repository<MissionCommand, Mission> {
                 created: event.created,
               ),
         });
+
+  final OperationRepository operations;
+
+  @override
+  void willStartProcessingEvents() {
+    // Remove Mission from 'missions' list when deleted
+    rule<MissionDeleted>(operations.newRemoveMissionRule);
+
+    super.willStartProcessingEvents();
+  }
 
   @override
   Mission create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => Mission(

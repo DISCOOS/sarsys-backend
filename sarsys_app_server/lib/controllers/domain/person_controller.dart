@@ -55,7 +55,7 @@ class PersonController extends AggregateController<PersonCommand, Person> {
     final count = affiliations.findPerson(uuid).length;
     final response = await super.delete(uuid, data: data);
     if (count > 0) {
-      return await waitForRuleResult<AffiliationDeleted>(
+      return await withResponseWaitForRuleResult<AffiliationDeleted>(
         response,
         count: count,
         fail: true,

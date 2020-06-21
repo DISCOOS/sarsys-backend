@@ -34,10 +34,8 @@ Future main() async {
       harness,
       uri: '/api/incidents',
       uuid: incidentUuid,
-      data: incident,
       listField: 'subjects',
       uuids: [
-        'string',
         subjectUuid,
       ],
     );
@@ -52,7 +50,7 @@ Future main() async {
     await harness.agent.post("/api/incidents/$uuid/subjects", body: _createData(Uuid().v4()));
     await harness.agent.post("/api/incidents/$uuid/subjects", body: _createData(Uuid().v4()));
     await harness.agent.post("/api/incidents/$uuid/subjects", body: _createData(Uuid().v4()));
-    final response = expectResponse(await harness.agent.get("/api/subjects?offset=1&limit=2"), 200);
+    final response = expectResponse(await harness.agent.get("/api/incidents/$uuid/subjects?offset=1&limit=2"), 200);
     final actual = await response.body.decode();
     expect(actual['total'], equals(4));
     expect(actual['offset'], equals(1));
@@ -71,7 +69,10 @@ Future main() async {
     expectResponse(await harness.agent.delete("/api/subjects/$subjectUuid"), 204);
     final response = expectResponse(await harness.agent.get("/api/incidents/$incidentUuid"), 200);
     final actual = await response.body.decode();
-    expect(actual['data'], equals(incident));
+    expect(
+      actual['data'],
+      equals(incident..addAll({'subjects': []})),
+    );
   });
 }
 

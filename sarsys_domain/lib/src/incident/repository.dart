@@ -1,6 +1,4 @@
 import 'package:event_source/event_source.dart';
-import 'package:sarsys_domain/src/operation/events.dart';
-import 'package:sarsys_domain/src/subject/events.dart';
 
 import 'aggregate.dart';
 import 'commands.dart';
@@ -100,17 +98,6 @@ class IncidentRepository extends Repository<IncidentCommand, Incident> implement
                 created: event.created,
               )
         });
-
-  @override
-  void willStartProcessingEvents() {
-    // Remove Operation from 'operations' list when deleted
-    rule<OperationDeleted>(newRemoveOperationRule);
-
-    // Remove Subject from 'subjects' list when deleted
-    rule<SubjectDeleted>(newRemoveSubjectRule);
-
-    super.willStartProcessingEvents();
-  }
 
   AssociationRule newRemoveSubjectRule(_) => AssociationRule(
         (source, target) => RemoveSubjectFromIncident(

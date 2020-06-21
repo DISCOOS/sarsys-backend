@@ -30,22 +30,22 @@ class UpdateDivisionInformation extends DivisionCommand<DivisionInformationUpdat
 class AddDepartmentToDivision extends DivisionCommand<DepartmentAddedToDivision> {
   AddDepartmentToDivision(
     Division division,
-    String operationUuid,
+    String duuid,
   ) : super(
           Action.update,
           uuid: division.uuid,
-          data: Command.addToList<String>(division.data, 'departments', operationUuid),
+          data: Command.addToList<String>(division.data, 'departments', [duuid]),
         );
 }
 
 class RemoveDepartmentFromDivision extends DivisionCommand<DepartmentRemovedFromDivision> {
   RemoveDepartmentFromDivision(
     Division division,
-    String operationUuid,
+    String duuid,
   ) : super(
           Action.update,
           uuid: division.uuid,
-          data: Command.removeFromList<String>(division.data, 'departments', operationUuid),
+          data: Command.removeFromList<String>(division.data, 'departments', [duuid]),
         );
 }
 

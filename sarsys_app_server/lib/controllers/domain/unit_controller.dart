@@ -39,20 +39,20 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
     return super.getByUuid(uuid);
   }
 
-  @override
-  @Operation.post()
-  Future<Response> create(@Bind.body() Map<String, dynamic> data) async {
-    final hasTracking = data?.elementAt('tracking/uuid') != null;
-    final response = await super.create(data);
-    if (hasTracking) {
-      return await waitForRuleResult<TrackingCreated>(
-        response,
-        fail: true,
-        timeout: const Duration(milliseconds: 10000),
-      );
-    }
-    return response;
-  }
+//  @override
+//  @Operation.post()
+//  Future<Response> create(@Bind.body() Map<String, dynamic> data) async {
+//    final hasTracking = data?.elementAt('tracking/uuid') != null;
+//    final response = await super.create(data);
+//    if (hasTracking) {
+//      return await withResponseWaitForRuleResult<TrackingCreated>(
+//        response,
+//        fail: true,
+//        timeout: const Duration(milliseconds: 10000),
+//      );
+//    }
+//    return response;
+//  }
 
   @override
   @Operation('PATCH', 'uuid')
@@ -72,12 +72,12 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
     final hasTracking = repository.get(uuid, createNew: false)?.data?.elementAt('tracking/uuid') != null;
     final response = await super.delete(uuid, data: data);
     if (hasTracking) {
-      return await waitForRuleResults(response, expected: [
-        UnitRemovedFromOperation,
-        TrackingDeleted,
-      ]);
+      return await withResponseWaitForRuleResults(response, expected: {
+        UnitRemovedFromOperation: 1,
+        TrackingDeleted: 1,
+      });
     }
-    return await waitForRuleResult<UnitRemovedFromOperation>(
+    return await withResponseWaitForRuleResult<UnitRemovedFromOperation>(
       response,
     );
   }

@@ -1,20 +1,24 @@
+import 'package:meta/meta.dart';
+
 import 'package:event_source/event_source.dart';
-import 'package:sarsys_domain/src/division/events.dart';
+import 'package:sarsys_domain/src/affiliation/repository.dart';
 
 import 'aggregate.dart';
 import 'commands.dart';
 import 'events.dart';
 
 class OrganisationRepository extends Repository<OrganisationCommand, Organisation> {
-  OrganisationRepository(EventStore store)
-      : super(store: store, processors: {
+  OrganisationRepository(
+    EventStore store, {
+    @required this.affiliations,
+  }) : super(store: store, processors: {
           OrganisationCreated: (event) => OrganisationCreated(
                 uuid: event.uuid,
                 data: event.data,
                 local: event.local,
                 created: event.created,
               ),
-          OrganisationInfomationUpdated: (event) => OrganisationInfomationUpdated(
+          OrganisationInformationUpdated: (event) => OrganisationInformationUpdated(
                 uuid: event.uuid,
                 data: event.data,
                 local: event.local,
@@ -40,10 +44,13 @@ class OrganisationRepository extends Repository<OrganisationCommand, Organisatio
               ),
         });
 
+  final AffiliationRepository affiliations;
+
   @override
   void willStartProcessingEvents() {
-    // Remove Division from 'divisions' list when deleted
-    rule<DivisionDeleted>(newRemoveDivisionRule);
+    // Delete all organisation-to-affiliation
+    // relations if any exist
+    rule<OrganisationDeleted>(affiliations.newDeleteOrganisationRule);
 
     super.willStartProcessingEvents();
   }

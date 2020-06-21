@@ -64,9 +64,13 @@ class JsonValidation {
       errors.removeWhere((error) => error.message.contains('required prop missing:'));
     }
     if (errors.isNotEmpty) {
-      throw SchemaException("Schema $type has ${errors.length} errors: $errors");
+      throw toException(type, errors);
     }
   }
+
+  static SchemaException toException(String type, List<ValidationError> errors) => SchemaException(
+        "Schema $type has ${errors.length} errors: $errors",
+      );
 }
 
 abstract class Validator {

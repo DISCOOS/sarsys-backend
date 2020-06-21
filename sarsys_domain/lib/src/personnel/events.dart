@@ -5,8 +5,8 @@ import 'package:event_source/event_source.dart';
 // Personnel Domain Events
 //////////////////////////////////////
 
-class PersonnelRegistered extends DomainEvent {
-  PersonnelRegistered({
+class PersonnelMobilized extends DomainEvent {
+  PersonnelMobilized({
     @required String uuid,
     @required DateTime created,
     @required Map<String, dynamic> data,
@@ -14,7 +14,7 @@ class PersonnelRegistered extends DomainEvent {
   }) : super(
           uuid: uuid,
           local: local,
-          type: '$PersonnelRegistered',
+          type: '$PersonnelMobilized',
           created: created,
           data: data,
         );
@@ -30,21 +30,6 @@ class PersonnelInformationUpdated extends DomainEvent {
           uuid: uuid,
           local: local,
           type: '$PersonnelInformationUpdated',
-          created: created,
-          data: data,
-        );
-}
-
-class PersonnelMobilized extends DomainEvent {
-  PersonnelMobilized({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
-          type: '$PersonnelMobilized',
           created: created,
           data: data,
         );

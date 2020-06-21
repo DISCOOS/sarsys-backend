@@ -7,7 +7,14 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// [/api/incidents/{uuid}/Departments](http://localhost/api/client.html#/Department) requests
 class DepartmentController extends AggregateController<DepartmentCommand, Department> {
   DepartmentController(DepartmentRepository repository, JsonValidation validation)
-      : super(repository, validation: validation, readOnly: const ['division'], tag: "Departments");
+      : super(
+          repository,
+          validation: validation,
+          readOnly: const ['division'],
+          tag: "Departments",
+        );
+
+  AffiliationRepository get affiliations => (repository as DepartmentRepository).affiliations;
 
   @override
   @Operation.get()
@@ -30,12 +37,6 @@ class DepartmentController extends AggregateController<DepartmentCommand, Depart
   }
 
   @override
-  @Operation.post()
-  Future<Response> create(@Bind.body() Map<String, dynamic> data) {
-    return super.create(data);
-  }
-
-  @override
   @Operation('PATCH', 'uuid')
   Future<Response> update(
     @Bind.path('uuid') String uuid,
@@ -50,8 +51,15 @@ class DepartmentController extends AggregateController<DepartmentCommand, Depart
     @Bind.path('uuid') String uuid, {
     @Bind.body() Map<String, dynamic> data,
   }) async {
-    return await waitForRuleResult<DepartmentRemovedFromDivision>(
-      await super.delete(uuid, data: data),
+    final count = affiliations.findDepartment(uuid).length;
+    final response = await super.delete(uuid, data: data);
+    return await withResponseWaitForRuleResults(
+      response,
+      expected: {
+        AffiliationDeleted: count,
+        // Can not exist without division
+        DepartmentRemovedFromDivision: 1,
+      },
     );
   }
 
@@ -59,7 +67,7 @@ class DepartmentController extends AggregateController<DepartmentCommand, Depart
   DepartmentCommand onCreate(Map<String, dynamic> data) => CreateDepartment(data);
 
   @override
-  DepartmentCommand onUpdate(Map<String, dynamic> data) => UpdateDepartment(data);
+  DepartmentCommand onUpdate(Map<String, dynamic> data) => UpdateDepartmentInformation(data);
 
   @override
   DepartmentCommand onDelete(Map<String, dynamic> data) => DeleteDepartment(data);

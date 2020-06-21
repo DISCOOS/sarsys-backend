@@ -9,7 +9,14 @@ class OrganisationController extends AggregateController<OrganisationCommand, Or
   OrganisationController(
     OrganisationRepository organisations,
     JsonValidation validation,
-  ) : super(organisations, validation: validation, tag: 'Organisations');
+  ) : super(
+          organisations,
+          validation: validation,
+          readOnly: const ['divisions'],
+          tag: 'Organisations',
+        );
+
+  AffiliationRepository get affiliations => (repository as OrganisationRepository).affiliations;
 
   @override
   @Operation.get()
@@ -51,8 +58,17 @@ class OrganisationController extends AggregateController<OrganisationCommand, Or
   Future<Response> delete(
     @Bind.path('uuid') String uuid, {
     @Bind.body() Map<String, dynamic> data,
-  }) {
-    return super.delete(uuid, data: data);
+  }) async {
+    final count = affiliations.findOrganisation(uuid).length;
+    final response = await super.delete(uuid, data: data);
+    if (count > 0) {
+      return await withResponseWaitForRuleResult<AffiliationDeleted>(
+        response,
+        count: count,
+        fail: true,
+      );
+    }
+    return response;
   }
 
   @override

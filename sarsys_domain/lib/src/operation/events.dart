@@ -96,6 +96,40 @@ class OperationDeleted extends DomainEvent {
 }
 
 //////////////////////////////////////
+// Personnel Domain Events
+//////////////////////////////////////
+
+class PersonnelAddedToOperation extends DomainEvent {
+  PersonnelAddedToOperation({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+    @required bool local,
+  }) : super(
+          uuid: uuid,
+          local: local,
+          type: '$PersonnelAddedToOperation',
+          created: created,
+          data: data,
+        );
+}
+
+class PersonnelRemovedFromOperation extends DomainEvent {
+  PersonnelRemovedFromOperation({
+    @required String uuid,
+    @required DateTime created,
+    @required Map<String, dynamic> data,
+    @required bool local,
+  }) : super(
+          uuid: uuid,
+          local: local,
+          type: '$PersonnelRemovedFromOperation',
+          created: created,
+          data: data,
+        );
+}
+
+//////////////////////////////////////
 // Mission Domain Events
 //////////////////////////////////////
 

@@ -15,6 +15,8 @@ class OperationController extends AggregateController<OperationCommand, sar.Oper
           readOnly: const [
             'incident',
             'objectives',
+            'missions',
+            'units',
             'talkgroups',
             'messages',
             'transitions',
@@ -43,12 +45,6 @@ class OperationController extends AggregateController<OperationCommand, sar.Oper
   }
 
   @override
-  @Operation.post()
-  Future<Response> create(@Bind.body() Map<String, dynamic> data) {
-    return super.create(data);
-  }
-
-  @override
   @Operation('PATCH', 'uuid')
   Future<Response> update(
     @Bind.path('uuid') String uuid,
@@ -63,7 +59,7 @@ class OperationController extends AggregateController<OperationCommand, sar.Oper
     @Bind.path('uuid') String uuid, {
     @Bind.body() Map<String, dynamic> data,
   }) async {
-    return await waitForRuleResult<OperationRemovedFromIncident>(
+    return await withResponseWaitForRuleResult<OperationRemovedFromIncident>(
       await super.delete(uuid, data: data),
     );
   }
@@ -199,8 +195,7 @@ class OperationController extends AggregateController<OperationCommand, sar.Oper
   APISchemaObject documentAddress() => APISchemaObject.object(
         {
           "lines": APISchemaObject.array(ofType: APIType.string)
-            ..description = "Pass codes for authorizing access to Operation data"
-            ..type = APIType.string,
+            ..description = "Pass codes for authorizing access to Operation data",
           "city": APISchemaObject.string()..description = "City name",
           "postalCode": APISchemaObject.string()..description = "Postal, state or zip code",
           "countryCode": APISchemaObject.string()..description = "ISO 3166 country code",

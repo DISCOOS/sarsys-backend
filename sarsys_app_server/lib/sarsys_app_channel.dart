@@ -181,6 +181,14 @@ class SarSysAppServerChannel extends ApplicationChannel {
                 requestValidator,
               ))
       ..secure(
+          '/api/operations/:uuid/personnels',
+          () => OperationPersonnelController(
+                manager.get<OperationRepository>(),
+                manager.get<PersonnelRepository>(),
+                manager.get<AffiliationRepository>(),
+                requestValidator,
+              ))
+      ..secure(
           '/api/operations/:uuid/missions',
           () => OperationMissionController(
                 manager.get<OperationRepository>(),
@@ -434,8 +442,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
   }) {
     // Register independent repositories
     manager.register<Incident>((store) => IncidentRepository(store));
-    manager.register<Subject>((store) => SubjectRepository(store));
-    manager.register<Mission>((store) => MissionRepository(store));
     manager.register<Device>((store) => DeviceRepository(store));
     manager.register<Tracking>((store) => TrackingRepository(store));
     manager.register<Affiliation>((store) => AffiliationRepository(store));
@@ -447,22 +453,37 @@ class SarSysAppServerChannel extends ApplicationChannel {
         devices: manager.get<DeviceRepository>(),
       ),
     );
+    manager.register<Subject>(
+      (store) => SubjectRepository(
+        store,
+        incidents: manager.get<IncidentRepository>(),
+      ),
+    );
     manager.register<sar.Operation>(
       (store) => OperationRepository(
         store,
         incidents: manager.get<IncidentRepository>(),
       ),
     );
+    manager.register<Mission>(
+      (store) => MissionRepository(
+        store,
+        operations: manager.get<OperationRepository>(),
+      ),
+    );
     manager.register<Unit>(
       (store) => UnitRepository(
         store,
         trackings: manager.get<TrackingRepository>(),
+        operations: manager.get<OperationRepository>(),
       ),
     );
     manager.register<Personnel>(
       (store) => PersonnelRepository(
         store,
+        units: manager.get<UnitRepository>(),
         trackings: manager.get<TrackingRepository>(),
+        operations: manager.get<OperationRepository>(),
       ),
     );
     manager.register<Person>(
@@ -688,6 +709,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     ..register('EntityPageResponse', documentEntityPageResponse(context))
     ..register('ValueResponse', documentValueResponse(context))
     ..register('AggregateRef', documentAggregateRef(context))
+    ..register('AggregateList', documentAggregateList(context))
     ..register('ID', documentID())
     ..register('UUID', documentUUID())
     ..register('Conflict', documentConflict(context))

@@ -2,6 +2,7 @@ import 'package:meta/meta.dart';
 
 import 'package:event_source/event_source.dart';
 import 'package:sarsys_app_server/controllers/domain/schemas.dart';
+import 'package:sarsys_app_server/controllers/event_source/policy.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 
@@ -67,8 +68,8 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
-    } on Failure catch (e) {
-      return Response.serverError(body: e.message);
+    } on Exception catch (e) {
+      return Response.serverError(body: e);
     } on Error catch (e) {
       return Response.serverError(body: e);
     }
@@ -83,8 +84,8 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       return okAggregate(repository.get(uuid));
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
-    } on Failure catch (e) {
-      return Response.serverError(body: e.message);
+    } on Exception catch (e) {
+      return Response.serverError(body: e);
     }
   }
 
@@ -115,8 +116,8 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
-    } on Failure catch (e) {
-      return Response.serverError(body: e.message);
+    } on Exception catch (e) {
+      return Response.serverError(body: e);
     }
   }
 
@@ -150,8 +151,8 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       return serviceUnavailable(body: "Eventstore unavailable: $e");
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
-    } on Failure catch (e) {
-      return Response.serverError(body: e.message);
+    } on Exception catch (e) {
+      return Response.serverError(body: e);
     }
   }
 
@@ -180,18 +181,19 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       return Response.badRequest(body: e.message);
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
-    } on Failure catch (e) {
-      return Response.serverError(body: e.message);
+    } on Exception catch (e) {
+      return Response.serverError(body: e);
     }
   }
 
   S onDelete(Map<String, dynamic> data) => throw UnsupportedError("Update not implemented");
 
   /// Wait for given rule result from stream of results
-  Future<Response> waitForRuleResult<T extends Event>(
+  Future<Response> withResponseWaitForRuleResult<T extends Event>(
     Response response, {
-    bool fail = false,
+    bool fail = true,
     bool test(Response response),
+    int count = 1,
     List<int> statusCodes = const [
       HttpStatus.ok,
       HttpStatus.created,
@@ -203,27 +205,24 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   }) async {
     if (statusCodes.contains(response.statusCode) && (test == null || test(response))) {
       try {
-        await repository.onRuleResult
-            .firstWhere(
-              (event) => event is T,
-            )
-            .timeout(timeout);
-      } on Exception catch (e, stackTrace) {
-        if (fail) {
-          final message = "Waiting for ${typeOf<T>()} timed out after $timeout";
-          logger.severe('$message: $e: $stackTrace');
-          return Response.serverError(body: {'error': message});
-        }
+        await PolicyUtils.waitForRuleResult(
+          repository,
+          count: count,
+          fail: fail,
+          timeout: timeout,
+        );
+      } on Exception catch (e) {
+        return Response.serverError(body: {'error': e});
       }
     }
     return response;
   }
 
   /// Wait for given rule result from stream of results
-  Future<Response> waitForRuleResults(
+  Future<Response> withResponseWaitForRuleResults(
     Response response, {
-    @required List<Type> expected,
-    bool fail = false,
+    @required Map<Type, int> expected,
+    bool fail = true,
     bool test(Response response),
     List<int> statusCodes = const [
       HttpStatus.ok,
@@ -236,21 +235,15 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   }) async {
     if (statusCodes.contains(response.statusCode) && (test == null || test(response))) {
       try {
-        await repository.onRuleResult
-            // Match expected events
-            .where((event) => expected.contains(event.runtimeType))
-            // Match against expected number
-            .take(expected.length)
-            // Complete when last event is received
-            .last
-            // Fail on time
-            .timeout(timeout);
-      } on Exception catch (e, stackTrace) {
-        if (fail) {
-          final message = "Waiting for ${typeOf<T>()} timed out after $timeout";
-          logger.severe('$message: $e: $stackTrace');
-          return Response.serverError(body: {'error': message});
-        }
+        await PolicyUtils.waitForRuleResults(
+          repository,
+          fail: fail,
+          logger: logger,
+          timeout: timeout,
+          expected: expected,
+        );
+      } on Exception catch (e) {
+        return Response.serverError(body: {'error': e});
       }
     }
     return response;

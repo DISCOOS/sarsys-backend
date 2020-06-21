@@ -38,7 +38,7 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
   @override
   @Operation.post()
   Future<Response> create(@Bind.body() Map<String, dynamic> data) async {
-    return waitForRuleResult<DeviceCreated>(
+    return withResponseWaitForRuleResult<DeviceCreated>(
       await super.create(data),
       fail: true,
       timeout: const Duration(milliseconds: 1000),
@@ -64,7 +64,7 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
     @Bind.body() Map<String, dynamic> data,
   }) async {
     final last = shouldWaitForDeviceDeleted(uuid);
-    return waitForRuleResult<DeviceDeleted>(
+    return withResponseWaitForRuleResult<DeviceDeleted>(
       await super.delete(uuid, data: data),
       fail: true,
       test: (_) => last,
@@ -151,7 +151,7 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
             ..description = "Lock idle device (no user interactions) after in given number of seconds"
             ..defaultValue = 2700, // 45 minutes
           "orgId": APISchemaObject.string()
-            ..description = "Default organization identifier"
+            ..description = "Default Organisation identifier"
             ..defaultValue = "61",
           "divId": APISchemaObject.string()
             ..description = "Default division identifier"

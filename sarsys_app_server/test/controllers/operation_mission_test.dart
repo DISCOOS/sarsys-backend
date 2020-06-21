@@ -1,4 +1,5 @@
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
+import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
 import 'package:event_source/event_source.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
@@ -11,48 +12,40 @@ Future main() async {
     ..install(restartForEachTest: true);
 
   test("POST /api/operation/{uuid}/mission adds mission to aggregate list", () async {
-    await _install(harness);
-    final operationUuid = Uuid().v4();
-    final operation = createOperation(operationUuid);
-    expectResponse(await harness.agent.post("/api/operations", body: operation), 201, body: null);
-    final missionUuid = Uuid().v4();
-    final mission = _createData(missionUuid);
+    final ouuid = await _prepare(harness);
+    final muuid = Uuid().v4();
+    final mission = _createData(muuid);
     expectResponse(
-      await harness.agent.post("/api/operations/$operationUuid/missions", body: mission),
+      await harness.agent.post("/api/operations/$ouuid/missions", body: mission),
       201,
       body: null,
     );
     await expectAggregateReference(
       harness,
       uri: '/api/missions',
-      childUuid: missionUuid,
+      childUuid: muuid,
       child: mission,
       parentField: 'operation',
-      parentUuid: operationUuid,
+      parentUuid: ouuid,
     );
     await expectAggregateInList(
       harness,
       uri: '/api/operations',
-      uuid: operationUuid,
-      data: operation,
+      uuid: ouuid,
       listField: 'missions',
       uuids: [
-        'string',
-        missionUuid,
+        muuid,
       ],
     );
   });
 
   test("GET /api/operation/{uuid}/missions returns status code 200 with offset=1 and limit=2", () async {
-    await _install(harness);
-    final uuid = Uuid().v4();
-    final operation = createOperation(uuid);
-    expectResponse(await harness.agent.post("/api/operations", body: operation), 201, body: null);
-    await harness.agent.post("/api/operations/$uuid/missions", body: _createData(Uuid().v4()));
-    await harness.agent.post("/api/operations/$uuid/missions", body: _createData(Uuid().v4()));
-    await harness.agent.post("/api/operations/$uuid/missions", body: _createData(Uuid().v4()));
-    await harness.agent.post("/api/operations/$uuid/missions", body: _createData(Uuid().v4()));
-    final response = expectResponse(await harness.agent.get("/api/missions?offset=1&limit=2"), 200);
+    final ouuid = await _prepare(harness);
+    await harness.agent.post("/api/operations/$ouuid/missions", body: _createData(Uuid().v4()));
+    await harness.agent.post("/api/operations/$ouuid/missions", body: _createData(Uuid().v4()));
+    await harness.agent.post("/api/operations/$ouuid/missions", body: _createData(Uuid().v4()));
+    await harness.agent.post("/api/operations/$ouuid/missions", body: _createData(Uuid().v4()));
+    final response = expectResponse(await harness.agent.get("/api/operations/$ouuid/missions?offset=1&limit=2"), 200);
     final actual = await response.body.decode();
     expect(actual['total'], equals(4));
     expect(actual['offset'], equals(1));
@@ -61,26 +54,33 @@ Future main() async {
   });
 
   test("DELETE /api/missions/{uuid} should remove {uuid} from missions list in operation", () async {
-    await _install(harness);
-    final operationUuid = Uuid().v4();
-    final operation = createOperation(operationUuid);
-    expectResponse(await harness.agent.post("/api/operations", body: operation), 201, body: null);
-    final missionUuid = Uuid().v4();
-    final body = _createData(missionUuid);
-    expectResponse(await harness.agent.post("/api/operations/$operationUuid/missions", body: body), 201, body: null);
-    expectResponse(await harness.agent.delete("/api/missions/$missionUuid"), 204);
-    final response = expectResponse(await harness.agent.get("/api/operations/$operationUuid"), 200);
-    final actual = await response.body.decode();
-    expect(actual['data'], equals(operation));
+    final ouuid = await _prepare(harness);
+    final muuid = Uuid().v4();
+    final mission = _createData(muuid);
+    expectResponse(await harness.agent.post("/api/operations/$ouuid/missions", body: mission), 201, body: null);
+    expectResponse(await harness.agent.delete("/api/missions/$muuid"), 204);
+    await expectAggregateInList(
+      harness,
+      uri: '/api/operations',
+      uuid: ouuid,
+      listField: 'missions',
+      uuids: [],
+    );
   });
 }
 
-Future _install(SarSysHarness harness) async {
-  harness.eventStoreMockServer
-    ..withStream(typeOf<Operation>().toColonCase())
-    ..withStream(typeOf<Mission>().toColonCase());
+Future<String> _prepare(SarSysHarness harness) async {
+  harness.eventStoreMockServer.withStream(typeOf<Incident>().toColonCase());
+  harness.eventStoreMockServer.withStream(typeOf<sar.Operation>().toColonCase());
+  harness.eventStoreMockServer.withStream(typeOf<Mission>().toColonCase());
+  await harness.channel.manager.get<IncidentRepository>().readyAsync();
   await harness.channel.manager.get<OperationRepository>().readyAsync();
   await harness.channel.manager.get<MissionRepository>().readyAsync();
+  final iuuid = Uuid().v4();
+  expectResponse(await harness.agent.post("/api/incidents", body: createIncident(iuuid)), 201);
+  final ouuid = Uuid().v4();
+  expectResponse(await harness.agent.post("/api/incidents/$iuuid/operations", body: createOperation(ouuid)), 201);
+  return ouuid;
 }
 
 Map<String, Object> _createData(String uuid) => createMission(uuid);

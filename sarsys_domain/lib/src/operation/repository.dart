@@ -1,14 +1,17 @@
+import 'package:meta/meta.dart';
+
 import 'package:event_source/event_source.dart';
-import 'package:sarsys_domain/src/mission/events.dart';
-import 'package:sarsys_domain/src/unit/events.dart';
+import 'package:sarsys_domain/sarsys_domain.dart';
 
 import 'aggregate.dart';
 import 'commands.dart';
 import 'events.dart';
 
 class OperationRepository extends Repository<OperationCommand, Operation> {
-  OperationRepository(EventStore store)
-      : super(store: store, processors: {
+  OperationRepository(
+    EventStore store, {
+    @required this.incidents,
+  }) : super(store: store, processors: {
           OperationRegistered: (event) => OperationRegistered(
                 uuid: event.uuid,
                 data: event.data,
@@ -16,30 +19,6 @@ class OperationRepository extends Repository<OperationCommand, Operation> {
                 created: event.created,
               ),
           OperationInformationUpdated: (event) => OperationInformationUpdated(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          MissionAddedToOperation: (event) => OperationStarted(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          MissionRemovedFromOperation: (event) => MissionRemovedFromOperation(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          UnitAddedToOperation: (event) => UnitAddedToOperation(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          UnitRemovedFromOperation: (event) => UnitRemovedFromOperation(
                 uuid: event.uuid,
                 data: event.data,
                 local: event.local,
@@ -123,15 +102,50 @@ class OperationRepository extends Repository<OperationCommand, Operation> {
                 local: event.local,
                 created: event.created,
               ),
+          PersonnelAddedToOperation: (event) => PersonnelAddedToOperation(
+                uuid: event.uuid,
+                data: event.data,
+                local: event.local,
+                created: event.created,
+              ),
+          PersonnelRemovedFromOperation: (event) => PersonnelRemovedFromOperation(
+                uuid: event.uuid,
+                data: event.data,
+                local: event.local,
+                created: event.created,
+              ),
+          UnitAddedToOperation: (event) => UnitAddedToOperation(
+                uuid: event.uuid,
+                data: event.data,
+                local: event.local,
+                created: event.created,
+              ),
+          UnitRemovedFromOperation: (event) => UnitRemovedFromOperation(
+                uuid: event.uuid,
+                data: event.data,
+                local: event.local,
+                created: event.created,
+              ),
+          MissionAddedToOperation: (event) => MissionAddedToOperation(
+                uuid: event.uuid,
+                data: event.data,
+                local: event.local,
+                created: event.created,
+              ),
+          MissionRemovedFromOperation: (event) => MissionRemovedFromOperation(
+                uuid: event.uuid,
+                data: event.data,
+                local: event.local,
+                created: event.created,
+              ),
         });
+
+  final IncidentRepository incidents;
 
   @override
   void willStartProcessingEvents() {
-    // Remove Mission from 'missions' list when deleted
-    rule<MissionDeleted>(newRemoveMissionRule);
-
-    // Remove Unit from 'units' list when deleted
-    rule<UnitDeleted>(newRemoveUnitRule);
+    // Remove Operation from 'operations' list when deleted
+    rule<OperationDeleted>(incidents.newRemoveOperationRule);
 
     super.willStartProcessingEvents();
   }
@@ -149,6 +163,24 @@ class OperationRepository extends Repository<OperationCommand, Operation> {
         //
         // - will remove unit
         //   from 'units' list
+        //   when deleted
+        //
+        cardinality: Cardinality.any,
+      );
+
+  AssociationRule newRemovePersonnelRule(_) => AssociationRule(
+        (source, target) => RemovePersonnelFromOperation(
+          get(target),
+          toAggregateUuid(source),
+        ),
+        target: this,
+        targetField: 'personnels',
+        intent: Action.delete,
+        //
+        // Relation: 'personnels-to-operation'
+        //
+        // - will remove mission
+        //   from 'personnels' list
         //   when deleted
         //
         cardinality: Cardinality.any,

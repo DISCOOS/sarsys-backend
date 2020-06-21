@@ -43,12 +43,6 @@ class MissionController extends AggregateController<MissionCommand, Mission> {
   }
 
   @override
-  @Operation.post()
-  Future<Response> create(@Bind.body() Map<String, dynamic> data) {
-    return super.create(data);
-  }
-
-  @override
   @Operation('PATCH', 'uuid')
   Future<Response> update(
     @Bind.path('uuid') String uuid,
@@ -63,7 +57,7 @@ class MissionController extends AggregateController<MissionCommand, Mission> {
     @Bind.path('uuid') String uuid, {
     @Bind.body() Map<String, dynamic> data,
   }) async {
-    return await waitForRuleResult<MissionRemovedFromOperation>(
+    return await withResponseWaitForRuleResult<MissionRemovedFromOperation>(
       await super.delete(uuid, data: data),
     );
   }

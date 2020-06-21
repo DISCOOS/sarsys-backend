@@ -55,14 +55,18 @@ class DeleteUnit extends UnitCommand<UnitDeleted> {
 // Unit Personnel commands
 //////////////////////////////////
 
-class AddPersonnelToUnit extends UnitCommand<PersonnelAddedToUnit> {
-  AddPersonnelToUnit(
+class AssignPersonnelToUnit extends UnitCommand<PersonnelAddedToUnit> {
+  AssignPersonnelToUnit(
     Unit unit,
     String puuid,
   ) : super(
           Action.update,
           uuid: unit.uuid,
-          data: Command.addToList<String>(unit.data, 'personnels', puuid),
+          data: Command.addToList<String>(
+            unit.data,
+            'personnels',
+            [puuid],
+          ),
         );
 }
 
@@ -73,7 +77,11 @@ class RemovePersonnelFromUnit extends UnitCommand<PersonnelRemovedFromUnit> {
   ) : super(
           Action.update,
           uuid: unit.uuid,
-          data: Command.removeFromList<String>(unit.data, 'personnels', puuid),
+          data: Command.removeFromList<String>(
+            unit.data,
+            'personnels',
+            [puuid],
+          ),
         );
 }
 

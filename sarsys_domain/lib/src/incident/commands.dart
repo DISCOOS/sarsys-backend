@@ -30,44 +30,44 @@ class UpdateIncidentInformation extends IncidentCommand<IncidentInformationUpdat
 class AddOperationToIncident extends IncidentCommand<OperationAddedToIncident> {
   AddOperationToIncident(
     Incident incident,
-    String operationUuid,
+    String ouuid,
   ) : super(
           Action.update,
           uuid: incident.uuid,
-          data: Command.addToList<String>(incident.data, 'operations', operationUuid),
+          data: Command.addToList<String>(incident.data, 'operations', [ouuid]),
         );
 }
 
 class RemoveOperationFromIncident extends IncidentCommand<OperationRemovedFromIncident> {
   RemoveOperationFromIncident(
     Incident incident,
-    String operationUuid,
+    String ouuid,
   ) : super(
           Action.update,
           uuid: incident.uuid,
-          data: Command.removeFromList<String>(incident.data, 'operations', operationUuid),
+          data: Command.removeFromList<String>(incident.data, 'operations', [ouuid]),
         );
 }
 
 class AddSubjectToIncident extends IncidentCommand<SubjectAddedToIncident> {
   AddSubjectToIncident(
     Incident incident,
-    String operationUuid,
+    String suuid,
   ) : super(
           Action.update,
           uuid: incident.uuid,
-          data: Command.addToList<String>(incident.data, 'subjects', operationUuid),
+          data: Command.addToList<String>(incident.data, 'subjects', [suuid]),
         );
 }
 
 class RemoveSubjectFromIncident extends IncidentCommand<SubjectRemovedFromIncident> {
   RemoveSubjectFromIncident(
     Incident incident,
-    String operationUuid,
+    String suuid,
   ) : super(
           Action.update,
           uuid: incident.uuid,
-          data: Command.removeFromList<String>(incident.data, 'subjects', operationUuid),
+          data: Command.removeFromList<String>(incident.data, 'subjects', [suuid]),
         );
 }
 

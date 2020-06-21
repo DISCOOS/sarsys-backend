@@ -95,7 +95,7 @@ Future main() async {
     expectResponse(await harness.agent.post("/api/incidents", body: incident), 201, body: null);
     final clue = createMessage('1');
     expectResponse(await harness.agent.post("/api/incidents/$uuid/messages", body: clue), 201, body: null);
-    expectResponse(await harness.agent.delete("/api/incidents/$uuid"), 204);
+    expectResponse(await harness.agent.delete("/api/incidents/$uuid/messages/1"), 204);
   });
 }
 

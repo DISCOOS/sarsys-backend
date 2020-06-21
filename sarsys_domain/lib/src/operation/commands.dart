@@ -34,22 +34,48 @@ class UpdateOperationInformation extends OperationCommand<OperationInformationUp
 class AddMissionToOperation extends OperationCommand<MissionAddedToOperation> {
   AddMissionToOperation(
     Operation operation,
-    String operationUuid,
+    String muuid,
   ) : super(
           Action.update,
           uuid: operation.uuid,
-          data: Command.addToList<String>(operation.data, 'missions', operationUuid),
+          data: Command.addToList<String>(operation.data, 'missions', [muuid]),
         );
 }
 
 class RemoveMissionFromOperation extends OperationCommand<MissionRemovedFromOperation> {
   RemoveMissionFromOperation(
     Operation incident,
-    String operationUuid,
+    String muuid,
   ) : super(
           Action.update,
           uuid: incident.uuid,
-          data: Command.removeFromList<String>(incident.data, 'missions', operationUuid),
+          data: Command.removeFromList<String>(incident.data, 'missions', [muuid]),
+        );
+}
+
+//////////////////////////////////
+// Operation Personnel commands
+//////////////////////////////////
+
+class AddPersonnelToOperation extends OperationCommand<PersonnelAddedToOperation> {
+  AddPersonnelToOperation(
+    Operation operation,
+    String puuid,
+  ) : super(
+          Action.update,
+          uuid: operation.uuid,
+          data: Command.addToList<String>(operation.data, 'personnels', [puuid]),
+        );
+}
+
+class RemovePersonnelFromOperation extends OperationCommand<PersonnelRemovedFromOperation> {
+  RemovePersonnelFromOperation(
+    Operation operation,
+    String puuid,
+  ) : super(
+          Action.update,
+          uuid: operation.uuid,
+          data: Command.removeFromList<String>(operation.data, 'personnels', [puuid]),
         );
 }
 
@@ -60,22 +86,22 @@ class RemoveMissionFromOperation extends OperationCommand<MissionRemovedFromOper
 class AddUnitToOperation extends OperationCommand<UnitAddedToOperation> {
   AddUnitToOperation(
     Operation operation,
-    String operationUuid,
+    String uuuid,
   ) : super(
           Action.update,
           uuid: operation.uuid,
-          data: Command.addToList<String>(operation.data, 'units', operationUuid),
+          data: Command.addToList<String>(operation.data, 'units', [uuuid]),
         );
 }
 
 class RemoveUnitFromOperation extends OperationCommand<UnitRemovedFromOperation> {
   RemoveUnitFromOperation(
-    Operation incident,
-    String operationUuid,
+    Operation operation,
+    String uuuid,
   ) : super(
           Action.update,
-          uuid: incident.uuid,
-          data: Command.removeFromList<String>(incident.data, 'units', operationUuid),
+          uuid: operation.uuid,
+          data: Command.removeFromList<String>(operation.data, 'units', [uuuid]),
         );
 }
 

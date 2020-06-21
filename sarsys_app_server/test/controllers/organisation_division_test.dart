@@ -11,47 +11,39 @@ Future main() async {
     ..install(restartForEachTest: true);
 
   test("POST /api/organisation/{uuid}/division adds division to aggregate list", () async {
-    await _install(harness);
-    final organisationUuid = Uuid().v4();
-    final organisation = createOrganisation(organisationUuid);
-    expectResponse(await harness.agent.post("/api/organisations", body: organisation), 201, body: null);
-    final divisionUuid = Uuid().v4();
-    final division = _createData(divisionUuid);
+    final orguuid = await _prepare(harness);
+    final divuuid = Uuid().v4();
+    final division = _createData(divuuid);
     expectResponse(
-      await harness.agent.post("/api/organisations/$organisationUuid/divisions", body: division),
+      await harness.agent.post("/api/organisations/$orguuid/divisions", body: division),
       201,
       body: null,
     );
     await expectAggregateReference(
       harness,
       uri: '/api/divisions',
-      childUuid: divisionUuid,
+      childUuid: divuuid,
       child: division,
       parentField: 'organisation',
-      parentUuid: organisationUuid,
+      parentUuid: orguuid,
     );
     await expectAggregateInList(
       harness,
       uri: '/api/organisations',
-      uuid: organisationUuid,
-      data: organisation,
+      uuid: orguuid,
       listField: 'divisions',
       uuids: [
-        'string',
-        divisionUuid,
+        divuuid,
       ],
     );
   });
 
   test("GET /api/organisation/{uuid}/divisions returns status code 200 with offset=1 and limit=2", () async {
-    await _install(harness);
-    final uuid = Uuid().v4();
-    final organisation = createOrganisation(uuid);
-    expectResponse(await harness.agent.post("/api/organisations", body: organisation), 201, body: null);
-    await harness.agent.post("/api/organisations/$uuid/divisions", body: _createData(Uuid().v4()));
-    await harness.agent.post("/api/organisations/$uuid/divisions", body: _createData(Uuid().v4()));
-    await harness.agent.post("/api/organisations/$uuid/divisions", body: _createData(Uuid().v4()));
-    await harness.agent.post("/api/organisations/$uuid/divisions", body: _createData(Uuid().v4()));
+    final orguuid = await _prepare(harness);
+    await harness.agent.post("/api/organisations/$orguuid/divisions", body: _createData(Uuid().v4()));
+    await harness.agent.post("/api/organisations/$orguuid/divisions", body: _createData(Uuid().v4()));
+    await harness.agent.post("/api/organisations/$orguuid/divisions", body: _createData(Uuid().v4()));
+    await harness.agent.post("/api/organisations/$orguuid/divisions", body: _createData(Uuid().v4()));
     final response = expectResponse(await harness.agent.get("/api/divisions?offset=1&limit=2"), 200);
     final actual = await response.body.decode();
     expect(actual['total'], equals(4));
@@ -61,27 +53,31 @@ Future main() async {
   });
 
   test("DELETE /api/divisions/{uuid} should remove {uuid} from divisions list in organisation", () async {
-    await _install(harness);
-    final organisationUuid = Uuid().v4();
-    final organisation = createOrganisation(organisationUuid);
-    expectResponse(await harness.agent.post("/api/organisations", body: organisation), 201, body: null);
-    final divisionUuid = Uuid().v4();
-    final body = _createData(divisionUuid);
-    expectResponse(await harness.agent.post("/api/organisations/$organisationUuid/divisions", body: body), 201,
-        body: null);
-    expectResponse(await harness.agent.delete("/api/divisions/$divisionUuid"), 204);
-    final response = expectResponse(await harness.agent.get("/api/organisations/$organisationUuid"), 200);
-    final actual = await response.body.decode();
-    expect(actual['data'], equals(organisation));
+    final orguuid = await _prepare(harness);
+    final divuuid = Uuid().v4();
+    final body = _createData(divuuid);
+    expectResponse(await harness.agent.post("/api/organisations/$orguuid/divisions", body: body), 201, body: null);
+    expectResponse(await harness.agent.delete("/api/divisions/$divuuid"), 204);
+    await expectAggregateInList(
+      harness,
+      uri: '/api/organisations',
+      uuid: orguuid,
+      listField: 'divisions',
+      uuids: [],
+    );
   });
 }
 
-Future _install(SarSysHarness harness) async {
+Future<String> _prepare(SarSysHarness harness) async {
   harness.eventStoreMockServer
     ..withStream(typeOf<Organisation>().toColonCase())
     ..withStream(typeOf<Division>().toColonCase());
   await harness.channel.manager.get<OrganisationRepository>().readyAsync();
   await harness.channel.manager.get<DivisionRepository>().readyAsync();
+  final orguuid = Uuid().v4();
+  final organisation = createOrganisation(orguuid);
+  expectResponse(await harness.agent.post("/api/organisations", body: organisation), 201, body: null);
+  return orguuid;
 }
 
 Map<String, Object> _createData(String uuid) => createDivision(uuid);

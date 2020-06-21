@@ -1,22 +1,76 @@
+import 'package:aqueduct/aqueduct.dart';
 import 'package:sarsys_app_server/controllers/event_source/controllers.dart';
-import 'package:sarsys_domain/sarsys_domain.dart' as sar;
+import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
+import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
 import 'package:sarsys_app_server/validation/validation.dart';
 
 /// Implement controller for field `missions` in [sar.Operation]
 class OperationMissionController
-    extends AggregateListController<sar.MissionCommand, sar.Mission, sar.OperationCommand, sar.Operation> {
+    extends AggregateListController<MissionCommand, Mission, OperationCommand, sar.Operation> {
   OperationMissionController(
-    sar.OperationRepository primary,
-    sar.MissionRepository foreign,
+    OperationRepository primary,
+    MissionRepository foreign,
     JsonValidation validation,
-  ) : super('missions', primary, foreign, validation, tag: 'Operations > Missions');
+  ) : super('missions', primary, foreign, validation,
+            readOnly: const [
+              'operation',
+              'parts',
+              'results',
+              'assignedTo',
+              'transitions',
+              'messages',
+            ],
+            tag: 'Operations > Missions');
 
   @override
-  sar.CreateMission onCreate(String uuid, Map<String, dynamic> data) => sar.CreateMission(data);
+  @Operation.post('uuid')
+  Future<Response> create(
+    @Bind.path('uuid') String uuid,
+    @Bind.body() Map<String, dynamic> data,
+  ) =>
+      super.create(uuid, data);
 
   @override
-  sar.AddMissionToOperation onCreated(sar.Operation aggregate, String foreignUuid) => sar.AddMissionToOperation(
+  CreateMission onCreate(String uuid, Map<String, dynamic> data) => CreateMission(data);
+
+  @override
+  AddMissionToOperation onCreated(sar.Operation aggregate, String fuuid) => onAdd(
         aggregate,
-        foreignUuid,
+        fuuid,
       );
+
+  @override
+  AddMissionToOperation onAdd(sar.Operation aggregate, String fuuid) => AddMissionToOperation(
+        aggregate,
+        fuuid,
+      );
+
+  @override
+  UpdateMissionInformation onAdded(
+    sar.Operation aggregate,
+    String fuuid,
+  ) =>
+      UpdateMissionInformation(toForeignRef(
+        aggregate,
+        fuuid,
+      ));
+
+  @override
+  RemoveMissionFromOperation onRemove(
+    sar.Operation aggregate,
+    String fuuid,
+  ) =>
+      RemoveMissionFromOperation(
+        aggregate,
+        fuuid,
+      );
+
+  @override
+  UpdateMissionInformation onRemoved(
+    sar.Operation aggregate,
+    String fuuid,
+  ) =>
+      UpdateMissionInformation(toForeignNullRef(
+        fuuid,
+      ));
 }

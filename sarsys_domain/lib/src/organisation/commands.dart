@@ -21,7 +21,7 @@ class CreateOrganisation extends OrganisationCommand<OrganisationCreated> {
   ) : super(Action.create, data: data);
 }
 
-class UpdateOrganisation extends OrganisationCommand<OrganisationInfomationUpdated> {
+class UpdateOrganisation extends OrganisationCommand<OrganisationInformationUpdated> {
   UpdateOrganisation(
     Map<String, dynamic> data,
   ) : super(Action.update, data: data);
@@ -30,22 +30,22 @@ class UpdateOrganisation extends OrganisationCommand<OrganisationInfomationUpdat
 class AddDivisionToOrganisation extends OrganisationCommand<DivisionAddedToOrganisation> {
   AddDivisionToOrganisation(
     Organisation organisation,
-    String operationUuid,
+    String duuid,
   ) : super(
           Action.update,
           uuid: organisation.uuid,
-          data: Command.addToList<String>(organisation.data, 'divisions', operationUuid),
+          data: Command.addToList<String>(organisation.data, 'divisions', [duuid]),
         );
 }
 
 class RemoveDivisionFromOrganisation extends OrganisationCommand<DivisionRemovedFromOrganisation> {
   RemoveDivisionFromOrganisation(
     Organisation organisation,
-    String operationUuid,
+    String duuid,
   ) : super(
           Action.update,
           uuid: organisation.uuid,
-          data: Command.removeFromList<String>(organisation.data, 'divisions', operationUuid),
+          data: Command.removeFromList<String>(organisation.data, 'divisions', [duuid]),
         );
 }
 

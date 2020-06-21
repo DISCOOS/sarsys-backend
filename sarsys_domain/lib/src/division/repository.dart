@@ -1,13 +1,19 @@
+import 'package:meta/meta.dart';
+
 import 'package:event_source/event_source.dart';
-import 'package:sarsys_domain/src/department/events.dart';
+import 'package:sarsys_domain/src/affiliation/repository.dart';
+import 'package:sarsys_domain/src/organisation/repository.dart';
 
 import 'aggregate.dart';
 import 'commands.dart';
 import 'events.dart';
 
 class DivisionRepository extends Repository<DivisionCommand, Division> {
-  DivisionRepository(EventStore store)
-      : super(store: store, processors: {
+  DivisionRepository(
+    EventStore store, {
+    @required this.organisations,
+    @required this.affiliations,
+  }) : super(store: store, processors: {
           DivisionRegistered: (event) => DivisionRegistered(
                 uuid: event.uuid,
                 data: event.data,
@@ -58,15 +64,22 @@ class DivisionRepository extends Repository<DivisionCommand, Division> {
               ),
         });
 
+  final OrganisationRepository organisations;
+  final AffiliationRepository affiliations;
+
   @override
   void willStartProcessingEvents() {
-    // Remove Department from 'departments' list when deleted
-    rule<DepartmentDeleted>(newRemoveRule);
+    // Remove division from 'divisions' list when deleted
+    rule<DivisionDeleted>(organisations.newRemoveDivisionRule);
+
+    // Delete all division-to-affiliation
+    // relations if any exist
+    rule<DivisionDeleted>(affiliations.newDeleteDivisionRule);
 
     super.willStartProcessingEvents();
   }
 
-  AggregateRule newRemoveRule(_) => AssociationRule(
+  AggregateRule newRemoveDepartmentRule(_) => AssociationRule(
         (source, target) => RemoveDepartmentFromDivision(
           get(target),
           toAggregateUuid(source),

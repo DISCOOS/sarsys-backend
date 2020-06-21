@@ -13,33 +13,31 @@ Future main() async {
 
   test("POST /api/incident/{uuid}/operation adds operation to aggregate list", () async {
     await _install(harness);
-    final incidentUuid = Uuid().v4();
-    final incident = createIncident(incidentUuid);
+    final iuuid = Uuid().v4();
+    final incident = createIncident(iuuid);
     expectResponse(await harness.agent.post("/api/incidents", body: incident), 201, body: null);
-    final operationUuid = Uuid().v4();
-    final operation = _createData(operationUuid);
+    final ouuid = Uuid().v4();
+    final operation = _createData(ouuid);
     expectResponse(
-      await harness.agent.post("/api/incidents/$incidentUuid/operations", body: operation),
+      await harness.agent.post("/api/incidents/$iuuid/operations", body: operation),
       201,
       body: null,
     );
     await expectAggregateReference(
       harness,
       uri: '/api/operations',
-      childUuid: operationUuid,
+      childUuid: ouuid,
       child: operation,
       parentField: 'incident',
-      parentUuid: incidentUuid,
+      parentUuid: iuuid,
     );
     await expectAggregateInList(
       harness,
       uri: '/api/incidents',
-      uuid: incidentUuid,
-      data: incident,
+      uuid: iuuid,
       listField: 'operations',
       uuids: [
-        'string',
-        operationUuid,
+        ouuid,
       ],
     );
   });
@@ -53,7 +51,7 @@ Future main() async {
     await harness.agent.post("/api/incidents/$uuid/operations", body: _createData(Uuid().v4()));
     await harness.agent.post("/api/incidents/$uuid/operations", body: _createData(Uuid().v4()));
     await harness.agent.post("/api/incidents/$uuid/operations", body: _createData(Uuid().v4()));
-    final response = expectResponse(await harness.agent.get("/api/operations?offset=1&limit=2"), 200);
+    final response = expectResponse(await harness.agent.get("/api/incidents/$uuid/operations?offset=1&limit=2"), 200);
     final actual = await response.body.decode();
     expect(actual['total'], equals(4));
     expect(actual['offset'], equals(1));
@@ -63,16 +61,19 @@ Future main() async {
 
   test("DELETE /api/operations/{uuid} should remove {uuid} from operations list in incident", () async {
     await _install(harness);
-    final incidentUuid = Uuid().v4();
-    final incident = createIncident(incidentUuid);
+    final iuuid = Uuid().v4();
+    final incident = createIncident(iuuid);
     expectResponse(await harness.agent.post("/api/incidents", body: incident), 201, body: null);
-    final operationUuid = Uuid().v4();
-    final body = _createData(operationUuid);
-    expectResponse(await harness.agent.post("/api/incidents/$incidentUuid/operations", body: body), 201, body: null);
-    expectResponse(await harness.agent.delete("/api/operations/$operationUuid"), 204);
-    final response = expectResponse(await harness.agent.get("/api/incidents/$incidentUuid"), 200);
+    final ouuid = Uuid().v4();
+    final body = _createData(ouuid);
+    expectResponse(await harness.agent.post("/api/incidents/$iuuid/operations", body: body), 201, body: null);
+    expectResponse(await harness.agent.delete("/api/operations/$ouuid"), 204);
+    final response = expectResponse(await harness.agent.get("/api/incidents/$iuuid"), 200);
     final actual = await response.body.decode();
-    expect(actual['data'], equals(incident));
+    expect(
+      actual['data'],
+      equals(incident..addAll({'operations': []})),
+    );
   });
 }
 

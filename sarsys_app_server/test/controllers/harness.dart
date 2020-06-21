@@ -3,6 +3,7 @@ import 'package:event_source/event_source.dart';
 import 'package:jaguar_jwt/jaguar_jwt.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:test/test.dart';
+import 'package:meta/meta.dart';
 
 export 'package:event_source/event_source.dart';
 export 'package:aqueduct_test/aqueduct_test.dart';
@@ -72,15 +73,14 @@ Future expectAggregateInList(
   SarSysHarness harness, {
   String uri,
   String uuid,
-  Map<String, dynamic> data,
   String listField,
   List<String> uuids,
 }) async {
   final response = expectResponse(await harness.agent.get("$uri/$uuid"), 200);
   final actual = await response.body.decode();
   expect(
-    actual['data'],
-    equals(data..addAll({listField: uuids})),
+    Map.from(actual['data'] as Map).elementAt(listField),
+    equals(uuids),
   );
 }
 
@@ -155,8 +155,6 @@ Map<String, dynamic> createIncident(String uuid) => {
       "status": "registered",
       "resolution": "unresolved",
       "occurred": DateTime.now().toIso8601String(),
-      "subjects": ["string"],
-      "operations": ["string"]
     };
 
 Map<String, dynamic> createClue(String id) => {
@@ -205,9 +203,6 @@ Map<String, dynamic> createOperation(String uuid) => {
       },
       "ipp": createLocation(),
       "meetup": createLocation(),
-      "missions": ["string"],
-      "units": ["string"],
-      "personnels": ["string"],
       "passcodes": {"commander": "string", "personnel": "string"},
     };
 
@@ -279,13 +274,47 @@ Map<String, dynamic> createMissionResult(String id) => {
       }
     };
 
-Map<String, dynamic> createPersonnel(String uuid, {String tuuid}) => {
+Map<String, dynamic> createPerson(String uuid) => {
       "uuid": "$uuid",
       "fname": "string",
       "lname": "string",
       "phone": "string",
-      "status": "mobilized",
-      if (tuuid != null) "tracking": {"uuid": tuuid}
+      "email": "string",
+      "temporary": false,
+    };
+
+Map<String, dynamic> createPersonnel(
+  String uuid, {
+  String auuid,
+  String ouuid,
+  String uuuid,
+  String tuuid,
+}) =>
+    {
+      "uuid": "$uuid",
+      "status": "alerted",
+      if (tuuid != null) "tracking": {"uuid": tuuid},
+      if (ouuid != null) "operation": {"uuid": ouuid},
+      if (uuuid != null) "unit": {"uuid": uuuid},
+      if (auuid != null) "affiliation": {"uuid": auuid},
+    };
+
+Map<String, dynamic> createAffiliation(
+  String uuid, {
+  @required String puuid,
+  @required String orguuid,
+  String divuuid,
+  String depuuid,
+}) =>
+    {
+      "uuid": "$uuid",
+      "type": "member",
+      "standby": "available",
+      "active": true,
+      if (puuid != null) "person": {"uuid": puuid},
+      if (orguuid != null) "org": {"uuid": orguuid},
+      if (divuuid != null) "div": {"uuid": divuuid},
+      if (depuuid != null) "dep": {"uuid": depuuid},
     };
 
 Map<String, dynamic> createUnit(String uuid, {String tuuid}) => {
@@ -295,7 +324,6 @@ Map<String, dynamic> createUnit(String uuid, {String tuuid}) => {
       "phone": "string",
       "callsign": "string",
       "status": "mobilized",
-      "personnels": ["string"],
       if (tuuid != null) "tracking": {"uuid": tuuid}
     };
 
@@ -303,7 +331,6 @@ Map<String, dynamic> createOrganisation(String uuid) => {
       "uuid": "$uuid",
       "name": "string",
       "suffix": "string",
-      "divisions": ["string"],
       "active": true,
     };
 
@@ -311,7 +338,6 @@ Map<String, dynamic> createDivision(String uuid) => {
       "uuid": "$uuid",
       "name": "string",
       "suffix": "string",
-      "departments": ["string"],
       "active": true,
     };
 

@@ -7,7 +7,14 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// [/api/incidents/{uuid}/Divisions](http://localhost/api/client.html#/Division) requests
 class DivisionController extends AggregateController<DivisionCommand, Division> {
   DivisionController(DivisionRepository repository, JsonValidation validation)
-      : super(repository, validation: validation, readOnly: const ['organisation'], tag: "Divisions");
+      : super(
+          repository,
+          validation: validation,
+          readOnly: const ['organisation', 'departments'],
+          tag: "Divisions",
+        );
+
+  AffiliationRepository get affiliations => (repository as DivisionRepository).affiliations;
 
   @override
   @Operation.get()
@@ -30,12 +37,6 @@ class DivisionController extends AggregateController<DivisionCommand, Division> 
   }
 
   @override
-  @Operation.post()
-  Future<Response> create(@Bind.body() Map<String, dynamic> data) {
-    return super.create(data);
-  }
-
-  @override
   @Operation('PATCH', 'uuid')
   Future<Response> update(
     @Bind.path('uuid') String uuid,
@@ -50,8 +51,16 @@ class DivisionController extends AggregateController<DivisionCommand, Division> 
     @Bind.path('uuid') String uuid, {
     @Bind.body() Map<String, dynamic> data,
   }) async {
-    return await waitForRuleResult<DivisionRemovedFromOrganisation>(
-      await super.delete(uuid, data: data),
+    final count = affiliations.findDivision(uuid).length;
+    final response = await super.delete(uuid, data: data);
+    return await withResponseWaitForRuleResults(
+      response,
+      expected: {
+        AffiliationDeleted: count,
+        // Can not exist without organisation
+        DivisionRemovedFromOrganisation: 1,
+      },
+      fail: true,
     );
   }
 

@@ -30,12 +30,6 @@ class SubjectController extends AggregateController<SubjectCommand, Subject> {
   }
 
   @override
-  @Operation.post()
-  Future<Response> create(@Bind.body() Map<String, dynamic> data) {
-    return super.create(data);
-  }
-
-  @override
   @Operation('PATCH', 'uuid')
   Future<Response> update(
     @Bind.path('uuid') String uuid,
@@ -50,7 +44,7 @@ class SubjectController extends AggregateController<SubjectCommand, Subject> {
     @Bind.path('uuid') String uuid, {
     @Bind.body() Map<String, dynamic> data,
   }) async {
-    return await waitForRuleResult<SubjectRemovedFromIncident>(
+    return await withResponseWaitForRuleResult<SubjectRemovedFromIncident>(
       await super.delete(uuid, data: data),
     );
   }

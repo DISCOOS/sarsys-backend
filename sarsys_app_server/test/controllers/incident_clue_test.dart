@@ -11,8 +11,7 @@ Future main() async {
     ..install(restartForEachTest: true);
 
   test("POST /api/incidents/{uuid}/clues returns status code 201 with empty body", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Incident>().toColonCase());
-    await harness.channel.manager.get<IncidentRepository>().readyAsync();
+    await _prepare(harness);
     final uuid = Uuid().v4();
     final incident = _createData(uuid);
     expectResponse(await harness.agent.post("/api/incidents", body: incident), 201, body: null);
@@ -21,8 +20,7 @@ Future main() async {
   });
 
   test("GET /api/incidents/{uuid}/clues returns status code 200", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Incident>().toColonCase());
-    await harness.channel.manager.get<IncidentRepository>().readyAsync();
+    await _prepare(harness);
     final uuid = Uuid().v4();
     final incident = _createData(uuid);
     expectResponse(await harness.agent.post("/api/incidents", body: incident), 201, body: null);
@@ -37,8 +35,7 @@ Future main() async {
   });
 
   test("GET /api/incidents/{uuid}/clues/{id} returns status code 200", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Incident>().toColonCase());
-    await harness.channel.manager.get<IncidentRepository>().readyAsync();
+    await _prepare(harness);
     final uuid = Uuid().v4();
     final incident = _createData(uuid);
     expectResponse(await harness.agent.post("/api/incidents", body: incident), 201, body: null);
@@ -55,8 +52,7 @@ Future main() async {
   });
 
   test("PATCH /api/incidents/{uuid}/clues/{id} is idempotent", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Incident>().toColonCase());
-    await harness.channel.manager.get<IncidentRepository>().readyAsync();
+    await _prepare(harness);
     final uuid = Uuid().v4();
     final incident = _createData(uuid);
     expectResponse(await harness.agent.post("/api/incidents", body: incident), 201, body: null);
@@ -72,8 +68,7 @@ Future main() async {
   });
 
   test("PATCH /api/incidents/{uuid} on entity object lists should not be allowed", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Incident>().toColonCase());
-    await harness.channel.manager.get<IncidentRepository>().readyAsync();
+    await _prepare(harness);
     final uuid = Uuid().v4();
     final incident = _createData(uuid);
     expectResponse(await harness.agent.post("/api/incidents", body: incident), 201, body: null);
@@ -87,8 +82,7 @@ Future main() async {
   });
 
   test("DELETE /api/incidents/{uuid}/clues/{id} returns status code 204", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Incident>().toColonCase());
-    await harness.channel.manager.get<IncidentRepository>().readyAsync();
+    await _prepare(harness);
     final uuid = Uuid().v4();
     final incident = _createData(uuid);
     expectResponse(await harness.agent.post("/api/incidents", body: incident), 201, body: null);
@@ -96,6 +90,11 @@ Future main() async {
     expectResponse(await harness.agent.post("/api/incidents/$uuid/clues", body: clue), 201, body: null);
     expectResponse(await harness.agent.delete("/api/incidents/$uuid"), 204);
   });
+}
+
+Future _prepare(SarSysHarness harness) async {
+  harness.eventStoreMockServer.withStream(typeOf<Incident>().toColonCase());
+  await harness.channel.manager.get<IncidentRepository>().readyAsync();
 }
 
 Map<String, Object> _createData(String uuid) => createIncident(uuid);
