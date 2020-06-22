@@ -1,4 +1,5 @@
 import 'package:aqueduct/aqueduct.dart';
+import 'package:meta/meta.dart';
 import 'package:event_source/event_source.dart';
 
 import 'package:sarsys_app_server/controllers/event_source/controllers.dart';
@@ -6,15 +7,17 @@ import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 
-/// A ResourceController that creates
-/// affiliations for temporary persons
-class AffiliationTemporaryController extends AggregateController<AffiliationCommand, Affiliation> {
-  AffiliationTemporaryController(
+/// A ResourceController that onboard
+/// new person with given affiliation
+class AffiliationPersonController extends AggregateController<AffiliationCommand, Affiliation> {
+  AffiliationPersonController(
     this.persons,
     AffiliationRepository affiliations,
-    JsonValidation validation,
-  ) : super(affiliations, validation: validation, tag: 'Affiliations > Temporary');
+    JsonValidation validation, {
+    @required this.temporary,
+  }) : super(affiliations, validation: validation, tag: 'Affiliations > Onboard');
 
+  final bool temporary;
   final PersonRepository persons;
 
   @override
@@ -32,14 +35,14 @@ class AffiliationTemporaryController extends AggregateController<AffiliationComm
               "${typeOf<Person>()}",
               Map.from(data['person'] as Map)
                 ..addAll({
-                  // Ensure person is temporary
-                  'temporary': true,
+                  // Ensure person state
+                  'temporary': temporary,
                 }))),
         );
-      } else if (person.data.elementAt('temporary') != true) {
+      } else if (person.data.elementAt('temporary') != temporary) {
         return conflict(
           ConflictType.exists,
-          'Person $puuid already exists as permanent',
+          'Person $puuid already exists as ${temporary ? 'permanent' : 'temporary'}',
         );
       }
       final affiliation = data.elementAt('affiliation');
@@ -100,7 +103,7 @@ class AffiliationTemporaryController extends AggregateController<AffiliationComm
               'person',
               'affiliation',
             ],
-          description: "Temporary Affiliation Request",
+          description: "Onboard Affiliation Request",
           required: true,
         );
         break;

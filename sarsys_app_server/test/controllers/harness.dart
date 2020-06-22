@@ -274,13 +274,13 @@ Map<String, dynamic> createMissionResult(String id) => {
       }
     };
 
-Map<String, dynamic> createPerson(String uuid) => {
+Map<String, dynamic> createPerson(String uuid, {bool temporary = false}) => {
       "uuid": "$uuid",
       "fname": "string",
       "lname": "string",
       "phone": "string",
       "email": "string",
-      "temporary": false,
+      "temporary": temporary,
     };
 
 Map<String, dynamic> createPersonnel(

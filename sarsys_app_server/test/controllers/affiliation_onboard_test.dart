@@ -9,7 +9,7 @@ Future main() async {
     ..withEventStoreMock()
     ..install(restartForEachTest: true);
 
-  test("POST /api/affiliations/temporary returns status code 201 with empty body", () async {
+  test("POST /api/affiliations/onboard returns status code 201 with empty body", () async {
     final auuid = Uuid().v4();
     final puuid = Uuid().v4();
     final orguuid = Uuid().v4();
@@ -20,22 +20,22 @@ Future main() async {
       'person': person,
       'affiliation': affiliation,
     };
-    expectResponse(await harness.agent.post("/api/affiliations/temporary", body: body), 201, body: null);
+    expectResponse(await harness.agent.post("/api/affiliations/onboard", body: body), 201, body: null);
   });
 
-  test("POST /api/affiliations/temporary returns status code 409 when permanent person exists", () async {
+  test("POST /api/affiliations/onboard returns status code 409 when temporary person exists", () async {
     final auuid = Uuid().v4();
     final puuid = Uuid().v4();
     final orguuid = Uuid().v4();
     await _prepare(harness, puuid: puuid, orguuid: orguuid);
-    final person = createPerson(puuid);
+    final person = createPerson(puuid, temporary: true);
     final affiliation = createAffiliation(auuid, puuid: puuid, orguuid: orguuid);
     final body = {
       'person': person,
       'affiliation': affiliation,
     };
     expectResponse(await harness.agent.post("/api/persons", body: person), 201);
-    expectResponse(await harness.agent.post("/api/affiliations/temporary", body: body), 409, body: null);
+    expectResponse(await harness.agent.post("/api/affiliations/onboard", body: body), 409, body: null);
   });
 }
 

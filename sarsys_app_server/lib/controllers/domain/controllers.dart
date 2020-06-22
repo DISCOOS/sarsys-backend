@@ -1,7 +1,9 @@
 export 'affiliation_controller.dart';
+export 'affiliation_person_controller.dart';
 export 'clue_controller.dart';
 export 'department_controller.dart';
 export 'device_controller.dart';
+export 'device_position_controller.dart';
 export 'division_controller.dart';
 export 'division_department_controller.dart';
 export 'incident_controller.dart';
@@ -26,3 +28,4 @@ export 'subject_controllers.dart';
 export 'track_controller.dart';
 export 'tracking_controller.dart';
 export 'unit_controller.dart';
+export 'unit_personnel_controller.dart';

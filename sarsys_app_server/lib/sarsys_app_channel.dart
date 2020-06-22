@@ -4,9 +4,7 @@ import 'package:http/http.dart';
 import 'package:event_source/event_source.dart';
 import 'package:jose/jose.dart';
 import 'package:sarsys_app_server/auth/any.dart';
-import 'package:sarsys_app_server/controllers/domain/affiliation_temporary_controller.dart';
-import 'package:sarsys_app_server/controllers/domain/device_position_controller.dart';
-import 'package:sarsys_app_server/controllers/domain/unit_personnel_controller.dart';
+import 'package:sarsys_app_server/controllers/domain/controllers.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/controllers/messages.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
@@ -127,10 +125,19 @@ class SarSysAppServerChannel extends ApplicationChannel {
               ))
       ..secure(
           '/api/affiliations/temporary',
-          () => AffiliationTemporaryController(
+          () => AffiliationPersonController(
                 manager.get<PersonRepository>(),
                 manager.get<AffiliationRepository>(),
                 requestValidator,
+                temporary: true,
+              ))
+      ..secure(
+          '/api/affiliations/onboard',
+          () => AffiliationPersonController(
+                manager.get<PersonRepository>(),
+                manager.get<AffiliationRepository>(),
+                requestValidator,
+                temporary: false,
               ))
       ..secure(
           '/api/incidents[/:uuid]',
