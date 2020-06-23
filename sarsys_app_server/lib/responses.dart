@@ -6,6 +6,13 @@ import 'package:event_source/event_source.dart';
 String toLocation(Request request) => "http://${request.raw.connectionInfo.remoteAddress.host}"
     ":${request.raw.connectionInfo.localPort}${request.raw.uri}";
 
+// Check if response is an error
+bool isError(Response response) => !const [
+      HttpStatus.ok,
+      HttpStatus.created,
+      HttpStatus.noContent,
+    ].contains(response.statusCode);
+
 /// Represents a 503 response.
 Response serviceUnavailable({Map<String, dynamic> headers, dynamic body}) => Response(
       HttpStatus.serviceUnavailable,

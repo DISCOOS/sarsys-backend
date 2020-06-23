@@ -79,6 +79,12 @@ class ConflictNotReconcilable extends InvalidOperation {
   final List<Map<String, dynamic>> mine;
   final List<Map<String, dynamic>> yours;
 
+  factory ConflictNotReconcilable.empty(String message) => ConflictNotReconcilable(
+        message,
+        mine: const [],
+        yours: const [],
+      );
+
   @override
   String toString() {
     return '$runtimeType{local: $mine, remote: $yours}';

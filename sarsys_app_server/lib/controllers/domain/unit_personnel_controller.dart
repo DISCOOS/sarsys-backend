@@ -18,6 +18,15 @@ class UnitPersonnelController extends AggregateListController<PersonnelCommand, 
         );
 
   @override
+  @Operation.get('uuid')
+  Future<Response> get(
+    @Bind.path('uuid') String uuid, {
+    @Bind.query('offset') int offset = 0,
+    @Bind.query('limit') int limit = 20,
+  }) =>
+      super.get(uuid, offset: offset, limit: limit);
+
+  @override
   @Operation('PATCH', 'uuid')
   Future<Response> add(
     @Bind.path('uuid') String uuid,

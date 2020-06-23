@@ -285,6 +285,14 @@ class SarSysAppServerChannel extends ApplicationChannel {
                 requestValidator,
               ))
       ..secure(
+          '/api/organisations/:uuid/import',
+          () => OrganisationImportController(
+                manager.get<OrganisationRepository>(),
+                manager.get<DivisionRepository>(),
+                manager.get<DepartmentRepository>(),
+                requestValidator,
+              ))
+      ..secure(
           '/api/organisations/:uuid/divisions',
           () => OrganisationDivisionController(
                 manager.get<OrganisationRepository>(),

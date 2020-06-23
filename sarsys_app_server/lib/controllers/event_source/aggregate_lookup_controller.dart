@@ -25,7 +25,7 @@ class AggregateLookupController<S extends Command, T extends AggregateRoot> exte
   // Aggregate Operations
   //////////////////////////////////
 
-  @Operation.get('uuid')
+  /// Add @Operation.get('uuid') to activate
   Future<Response> get(
     @Bind.path('uuid') String uuid, {
     @Bind.query('offset') int offset = 0,
@@ -88,14 +88,14 @@ class AggregateLookupController<S extends Command, T extends AggregateRoot> exte
         ));
   }
 
-  String _toName() => aggregateType.toDelimiterCase(' ');
+  String toName() => aggregateType.toDelimiterCase(' ');
 
   @override
   String documentOperationSummary(APIDocumentContext context, Operation operation) {
     String summary;
     switch (operation.method) {
       case "GET":
-        summary = "Get all ${_toName()}s";
+        summary = "Get all ${toName()}s";
         break;
     }
     return summary;
@@ -134,8 +134,8 @@ class AggregateLookupController<S extends Command, T extends AggregateRoot> exte
           APIParameter.path('uuid')
             ..description = '$primaryType uuid'
             ..isRequired = true,
-          APIParameter.query('offset')..description = 'Start with ${_toName()} number equal to offset. Default is 0.',
-          APIParameter.query('limit')..description = 'Maximum number of ${_toName()} to fetch. Default is 20.',
+          APIParameter.query('offset')..description = 'Start with ${toName()} number equal to offset. Default is 0.',
+          APIParameter.query('limit')..description = 'Maximum number of ${toName()} to fetch. Default is 20.',
         ];
     }
     return super.documentOperationParameters(context, operation);

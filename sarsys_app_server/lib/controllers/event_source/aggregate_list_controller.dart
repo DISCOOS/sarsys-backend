@@ -334,13 +334,13 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
   String documentOperationSummary(APIDocumentContext context, Operation operation) {
     switch (operation.method) {
       case "POST":
-        return "Create ${_toName()} and add uuid to $field in $primaryType";
+        return "Create ${toName()} and add uuid to $field in $primaryType";
       case "PUT":
-        return "Replace ${_toName()} fuuids in $field in $primaryType";
+        return "Replace ${toName()} fuuids in $field in $primaryType";
       case "PATCH":
-        return "Add ${_toName()} fuuids to $field in $primaryType";
+        return "Add ${toName()} fuuids to $field in $primaryType";
       case "DELETE":
-        return "Remove ${_toName()} fuuids from $field in $primaryType";
+        return "Remove ${toName()} fuuids from $field in $primaryType";
     }
     return super.documentOperationSummary(context, operation);
   }
@@ -352,13 +352,11 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       case "PUT":
       case "PATCH":
       case "DELETE":
-        return "${documentOperationSummary(context, operation)}. Ids MUST BE unique for each ${_toName()}. "
+        return "${documentOperationSummary(context, operation)}. Ids MUST BE unique for each ${toName()}. "
             "Use a [universally unique identifier](https://en.wikipedia.org/wiki/Universally_unique_identifier).";
     }
     return super.documentOperationSummary(context, operation);
   }
-
-  String _toName() => aggregateType.toDelimiterCase(' ');
 
   @override
   Map<String, APIResponse> documentOperationResponses(APIDocumentContext context, Operation operation) {

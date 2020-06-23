@@ -20,6 +20,15 @@ class DivisionDepartmentController
         );
 
   @override
+  @Operation.get('uuid')
+  Future<Response> get(
+    @Bind.path('uuid') String uuid, {
+    @Bind.query('offset') int offset = 0,
+    @Bind.query('limit') int limit = 20,
+  }) =>
+      super.get(uuid, offset: offset, limit: limit);
+
+  @override
   @Operation.post('uuid')
   Future<Response> create(
     @Bind.path('uuid') String uuid,
