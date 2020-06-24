@@ -528,6 +528,8 @@ class EventStore {
 
   /// Handle event from subscriptions
   void _onSubscriptionEvent(Repository repository, SourceEvent event) {
+    AggregateRoot aggregate;
+
     try {
       logger.fine(
         '${repository.runtimeType}: _onSubscriptionEvent: ${event.runtimeType}'
@@ -558,7 +560,7 @@ class EventStore {
         _update(uuid, [event]);
 
         // Catch up with stream
-        final aggregate = repository.get(uuid);
+        aggregate = repository.get(uuid);
         if (aggregate.isApplied(event) == false) {
           aggregate.apply(
             repository.toDomainEvent(event),
@@ -585,7 +587,11 @@ class EventStore {
         );
       }
     } catch (e, stacktrace) {
-      logger.network('Failed to process $event, got error $e with stacktrace: $stacktrace', e, stacktrace);
+      logger.network(
+        'Failed to process $event for $aggregate, got error $e with stacktrace: $stacktrace',
+        e,
+        stacktrace,
+      );
     }
   }
 
@@ -854,7 +860,7 @@ class SubscriptionController<T extends Repository> {
     }
   }
 
-  Future _retry(repository) async {
+  Future _retry(T repository) async {
     try {
       _timer.cancel();
       _timer = null;
