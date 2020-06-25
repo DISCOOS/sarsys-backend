@@ -10,28 +10,61 @@ Future main() async {
     ..withEventStoreMock()
     ..install(restartForEachTest: true);
 
-  test("PATCH /api/organisation/{uuid}/import creates division and department", () async {
+  test("PATCH /api/organisation/{uuid}/import creates divisions and departments", () async {
     final ouuid = await _prepare(harness);
-    final divuuid = Uuid().v4();
-    final depuuid = Uuid().v4();
-    final dep = {
-      'uuid': depuuid,
+    final divuuid1 = Uuid().v4();
+    final divuuid2 = Uuid().v4();
+    final depuuid1 = Uuid().v4();
+    final depuuid2 = Uuid().v4();
+    final depuuid3 = Uuid().v4();
+    final depuuid4 = Uuid().v4();
+    final dep1 = {
+      'uuid': depuuid1,
       'name': "Dep1",
       'suffix': "1",
       'active': true,
     };
-    final div = {
-      'uuid': divuuid,
+    final dep2 = {
+      'uuid': depuuid2,
+      'name': "Dep2",
+      'suffix': "1",
+      'active': true,
+    };
+    final dep3 = {
+      'uuid': depuuid3,
+      'name': "Dep3",
+      'suffix': "1",
+      'active': true,
+    };
+    final dep4 = {
+      'uuid': depuuid4,
+      'name': "Dep4",
+      'suffix': "1",
+      'active': true,
+    };
+    final div1 = {
+      'uuid': divuuid1,
       'name': "Div1",
       'suffix': "1",
       'active': true,
       'departments': [
-        dep,
+        dep1,
+        dep2,
+      ]
+    };
+    final div2 = {
+      'uuid': divuuid2,
+      'name': "Div2",
+      'suffix': "1",
+      'active': true,
+      'departments': [
+        dep3,
+        dep4,
       ]
     };
     final tree = {
       'uuid': ouuid,
-      'divisions': [div]
+      'divisions': [div1, div2]
     };
     expectResponse(
       await harness.agent.execute('patch', "/api/organisations/$ouuid/import", body: tree),
@@ -43,31 +76,33 @@ Future main() async {
     expect(
         actualOrg.elementAt('data'),
         containsPair('divisions', [
-          divuuid,
+          divuuid1,
+          divuuid2,
         ]));
-    final response2 = expectResponse(await harness.agent.get("/api/divisions/$divuuid"), 200);
+    final response2 = expectResponse(await harness.agent.get("/api/divisions/$divuuid1"), 200);
     final actualDiv = await response2.body.decode() as Map<String, dynamic>;
     expect(
         actualDiv,
         containsPair(
           'data',
-          div
+          div1
             ..addAll({
               'departments': [
-                depuuid,
+                depuuid1,
+                depuuid2,
               ],
               'organisation': {'uuid': ouuid}
             }),
         ));
-    final response3 = expectResponse(await harness.agent.get("/api/departments/$depuuid"), 200);
+    final response3 = expectResponse(await harness.agent.get("/api/departments/$depuuid1"), 200);
     final actualDep = await response3.body.decode() as Map<String, dynamic>;
     expect(
         actualDep,
         containsPair(
           'data',
-          dep
+          dep1
             ..addAll({
-              'division': {'uuid': divuuid}
+              'division': {'uuid': divuuid1}
             }),
         ));
   });

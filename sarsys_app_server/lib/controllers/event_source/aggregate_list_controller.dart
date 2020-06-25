@@ -47,10 +47,9 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       if (!primary.exists(uuid)) {
         return Response.notFound(body: "$primaryType $uuid not found");
       }
-      final aggregate = primary.get(uuid);
       final fuuid = data[foreign.uuidFieldName] as String;
       await doCreate(fuuid, validate("${typeOf<S>()}", data)..addAll(toParentRef(uuid)));
-      await doCreated(aggregate, fuuid);
+      await doCreated(primary.get(uuid), fuuid);
       return Response.created("${toLocation(request)}/$fuuid");
     } on AggregateExists catch (e) {
       return conflict(
@@ -106,9 +105,8 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       }
       await Future.forEach(list, (String fuuid) async {
         // Get updated parent aggregate
-        final parent = primary.get(uuid);
-        await doAdd(parent, fuuid);
-        await doAdded(parent, fuuid);
+        await doAdd(primary.get(uuid), fuuid);
+        await doAdded(primary.get(uuid), fuuid);
       });
       return Response.noContent();
     } on AggregateExists catch (e) {
@@ -166,9 +164,8 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       // Wait for each command to complete
       await Future.forEach(list, (String fuuid) async {
         // Get updated parent aggregate
-        final parent = primary.get(uuid);
-        await doReplace(parent, fuuid);
-        await doReplaced(parent, fuuid);
+        await doReplace(primary.get(uuid), fuuid);
+        await doReplaced(primary.get(uuid), fuuid);
       });
       return Response.noContent();
     } on AggregateExists catch (e) {
@@ -226,9 +223,8 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       // Wait for each command to complete
       await Future.forEach(list, (String fuuid) async {
         // Get updated parent aggregate
-        final parent = primary.get(uuid);
-        await doRemove(parent, fuuid);
-        await doRemoved(parent, fuuid);
+        await doRemove(primary.get(uuid), fuuid);
+        await doRemoved(primary.get(uuid), fuuid);
       });
       return Response.noContent();
     } on AggregateExists catch (e) {
