@@ -873,10 +873,10 @@ class _PushOperation {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is _PushOperation && runtimeType == other.runtimeType && aggregate == other.aggregate;
+      other is _PushOperation && runtimeType == other.runtimeType && aggregate.uuid == other.aggregate.uuid;
 
   @override
-  int get hashCode => aggregate.hashCode;
+  int get hashCode => aggregate.uuid.hashCode;
 
   @override
   String toString() {

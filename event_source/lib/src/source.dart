@@ -528,70 +528,74 @@ class EventStore {
 
   /// Handle event from subscriptions
   void _onSubscriptionEvent(Repository repository, SourceEvent event) {
-    AggregateRoot aggregate;
+    final uuid = repository.toAggregateUuid(event);
+    var aggregate = repository.get(uuid, createNew: false);
 
-    try {
-      logger.fine(
-        '${repository.runtimeType}: _onSubscriptionEvent: ${event.runtimeType}'
-        '{type: ${event.type}, uuid: ${event.uuid}}',
-      );
-      _subscriptions[repository.runtimeType]?.connected(
-        repository,
-        connection,
-      );
+    // Only catchup if aggregate is not
+    // changed locally. If updated before
+    // write-op is completed, a concurrent
+    // write will happened and information
+    // will be lost.
+    if (aggregate?.isChanged != true) {
+      try {
+        logger.fine(
+          '${repository.runtimeType}: _onSubscriptionEvent: ${event.runtimeType}'
+          '{type: ${event.type}, uuid: ${event.uuid}}',
+        );
+        _subscriptions[repository.runtimeType]?.connected(
+          repository,
+          connection,
+        );
 
-      // Prepare event sourcing
-      final uuid = repository.toAggregateUuid(event);
-      final stream = toInstanceStream(uuid);
-      final actual = current(uuid: uuid);
-      final process = isEmpty || event.number > actual;
-      logger.finer(
-        '${repository.runtimeType}: _onSubscriptionEvent: '
-        'process: $process, isEmpty: $isEmpty, '
-        'current: $actual, received: ${event.number}, '
-        'stream: $stream, isInstanceStream: $useInstanceStreams, numbers: $_current',
-      );
+        // Prepare event sourcing
+        final stream = toInstanceStream(uuid);
+        final actual = current(uuid: uuid);
+        final process = isEmpty || event.number > actual;
+        logger.finer(
+          '${repository.runtimeType}: _onSubscriptionEvent: '
+          'process: $process, isEmpty: $isEmpty, '
+          'current: $actual, received: ${event.number}, '
+          'stream: $stream, isInstanceStream: $useInstanceStreams, numbers: $_current',
+        );
 
-      if (process) {
-        // IMPORTANT: append to store before applying to repository
-        // This ensures that the event added to an aggregate during
-        // construction is overwritten with the remote actual
-        // received here.
-        _update(uuid, [event]);
+        if (process) {
+          // IMPORTANT: append to store before applying to repository
+          // This ensures that the event added to an aggregate during
+          // construction is overwritten with the remote actual
+          // received here.
+          _update(uuid, [event]);
 
-        // Catch up with stream
-        aggregate = repository.get(uuid);
-        if (aggregate.isApplied(event) == false) {
-          aggregate.apply(
-            repository.toDomainEvent(event),
+          // Catch up with stream
+          aggregate = repository.get(uuid);
+          if (!aggregate.isApplied(event)) {
+            aggregate.apply(
+              repository.toDomainEvent(event),
+            );
+          }
+          if (aggregate.isChanged) {
+            throw InvalidOperation('Remote event $event modified $aggregate');
+          } else {
+            // Get last number in canonical stream
+            _current[canonicalStream] = _getCanonicalNumber([event]);
+            // Update last number in canonical stream
+            _current[stream] = event.number;
+            // Publish remotely created events.
+            // Handlers can determine events with
+            // local origin using the local field
+            // in each Event
+            _publish([repository.toDomainEvent(event)]);
+          }
+          logger.fine(
+            '${repository.runtimeType}: _onSubscriptionEvent: Processed $event',
           );
         }
-        if (aggregate.isChanged) {
-          final events = _commit(aggregate);
-          if (events.length > 1) {
-            throw InvalidOperation('One source event produced ${events.length} domain events');
-          }
-        } else {
-          // Get last number in canonical stream
-          _current[canonicalStream] = _getCanonicalNumber([event]);
-          // Update last number in canonical stream
-          _current[stream] = event.number;
-          // Publish remotely created events.
-          // Handlers can determine events with
-          // local origin using the local field
-          // in each Event
-          _publish([repository.toDomainEvent(event)]);
-        }
-        logger.fine(
-          '${repository.runtimeType}: _onSubscriptionEvent: Processed $event',
+      } catch (e, stacktrace) {
+        logger.network(
+          'Failed to process $event for $aggregate, got error $e with stacktrace: $stacktrace',
+          e,
+          stacktrace,
         );
       }
-    } catch (e, stacktrace) {
-      logger.network(
-        'Failed to process $event for $aggregate, got error $e with stacktrace: $stacktrace',
-        e,
-        stacktrace,
-      );
     }
   }
 
