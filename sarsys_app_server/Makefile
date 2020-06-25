@@ -18,12 +18,12 @@ endif
 
 .PHONY: \
 	check commit test serve document models snapshot localhost \
-	build push publish apply delete restart rollback status eventstore \
+	build push publish install delete restart rollback status eventstore \
     docker_is_up #verify_image
 
 .SILENT: \
 	check commit test serve document models snapshot localhost \
-	build push publish apply delete restart rollback status eventstore \
+	build push publish install delete restart rollback status eventstore \
 	docker_is_up #verify_image
 
 check:
@@ -117,7 +117,7 @@ publish: check build commit push
     fi
 	echo "[✓] Publish to kubernetes finished"
 
-apply:
+install:
 	echo "Applying SARSys server..."
 	kubectl apply -f ../k8s/server/ns.yaml; \
 	kubectl apply -f ../k8s/server/rbac.yaml; \
