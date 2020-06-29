@@ -938,6 +938,9 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   final Map<String, dynamic> _data = {};
   Map<String, dynamic> get data => Map.from(_data);
 
+  /// Get element at given path
+  T elementAt<T>(String path) => _data.elementAt(path) as T;
+
   /// Number of modifications made
   ///
   /// Use to detect concurrent write modifications
