@@ -92,7 +92,7 @@ class Event extends Message {
       );
 
   /// Get element at given path in [changed]. If not found, [previous] is used instead
-  Map<String, dynamic> elementAt(String path) => changed.elementAt(path) ?? previous.elementAt(path);
+  dynamic elementAt(String path) => changed.elementAt(path) ?? previous.elementAt(path);
 
   /// Test if all data is deleted by evaluating if `data['deleted'] == 'true'`
   bool get isDeleted => data['deleted'] == true;

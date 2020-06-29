@@ -144,6 +144,8 @@ class RepositoryManager {
           StackTrace.current,
         );
       }
+    } on Error catch (e, stackTrace) {
+      completer.completeError(e, stackTrace);
     }
   }
 
@@ -235,6 +237,8 @@ class RepositoryManager {
           StackTrace.current,
         );
       }
+    } on Error catch (e, stackTrace) {
+      completer.completeError(e, stackTrace);
     }
   }
 
@@ -463,8 +467,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
             events?.forEach(_ruleController.add);
           });
         }
-      } on Exception catch (e) {
-        logger.severe('Failed to enforce invariant for $message in $runtimeType, failed with: $e');
+      } catch (e, stackTrace) {
+        logger.severe(
+          'Failed to enforce invariant for $message in $runtimeType, failed with: $e, stackTrace: $stackTrace',
+        );
       }
     }
   }
@@ -520,12 +526,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       final operation = _executeQueue.first;
       try {
         await _execute(operation);
-      } on Exception catch (error, stackTrace) {
-        operation.completer.completeError(
-          error,
-          stackTrace,
-        );
+      } catch (e, stackTrace) {
+        operation.completer.completeError(e, stackTrace);
       }
+
       // Only remove after execution is completed
       _executeQueue.remove(operation);
     }
@@ -556,7 +560,12 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
             aggregate = get(command.uuid, data: data);
             break;
           case Action.update:
-            aggregate = get(command.uuid)..patch(data, emits: command.emits, timestamp: command.created);
+            aggregate = get(command.uuid)
+              ..patch(
+                data,
+                emits: command.emits,
+                timestamp: command.created,
+              );
             break;
           case Action.delete:
             aggregate = get(command.uuid)..delete();
@@ -565,7 +574,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       }
       final events = aggregate.isChanged ? await push(aggregate, maxAttempts: operation.maxAttempts) : <DomainEvent>[];
       operation.completer.complete(events);
-    } on Exception catch (e, stackTrace) {
+    } catch (e, stackTrace) {
       operation.completer.completeError(e, stackTrace);
     }
   }
@@ -692,7 +701,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       } on ConflictNotReconcilable catch (e, stackTrace) {
         // Handle exception and notify listeners on this future
         operation.completer.completeError(e, stackTrace);
-      } on Exception catch (e, stackTrace) {
+      } catch (e, stackTrace) {
         // Handle exception and notify listeners on this future
         operation.completer.completeError(e, stackTrace);
         logger.severe(

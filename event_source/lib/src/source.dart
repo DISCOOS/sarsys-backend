@@ -886,7 +886,7 @@ class SubscriptionController<T extends Repository> {
           maxBackoffTime: maxBackoffTime,
         );
       }
-    } on Exception catch (e, stackTrace) {
+    } catch (e, stackTrace) {
       logger.network('Failed to reconnect: $e: $stackTrace', e, stackTrace);
     }
   }
@@ -1684,7 +1684,7 @@ class _SubscriptionController {
       logger.fine(
         'Listen for events in subscription $name starting from number $_current',
       );
-    } on Exception catch (e, stackTrace) {
+    } catch (e, stackTrace) {
       // Only throw if running
       if (_timer != null && _timer.isActive) {
         _fatal('Failed to catchup to head of stream $name', e, stackTrace);
@@ -1704,7 +1704,7 @@ class _SubscriptionController {
       final request = _requestQueue.first;
       try {
         await request();
-      } on Exception catch (e, stackTrace) {
+      } catch (e, stackTrace) {
         _fatal('Failed to execute $request', e, stackTrace);
       }
       // Only remove after execution is completed
@@ -1753,7 +1753,7 @@ class _SubscriptionController {
       if (feed.isNotEmpty) {
         await _readEventsInFeed(feed);
       }
-    } on Exception catch (e, stackTrace) {
+    } catch (e, stackTrace) {
       // Only throw if running
       if (_timer != null && _timer.isActive) {
         _stopTimer();
@@ -1833,7 +1833,7 @@ class _SubscriptionRequest<T> {
     try {
       response = await execute();
       completer.complete(response);
-    } on Exception catch (e, stackTrace) {
+    } catch (e, stackTrace) {
       completer.completeError(e, stackTrace);
     }
     return response;
