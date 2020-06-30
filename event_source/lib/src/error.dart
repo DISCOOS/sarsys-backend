@@ -96,11 +96,6 @@ class WriteFailed extends EventSourceException {
   const WriteFailed(String message) : super(message);
 }
 
-/// Thrown when a concurrent write operation was attempted
-class ConcurrentWriteOperation extends WriteFailed implements Exception {
-  ConcurrentWriteOperation(String message) : super(message);
-}
-
 /// Thrown when catchup ended in mismatch between current number and number in remote event stream
 class EventNumberMismatch extends WriteFailed implements Exception {
   EventNumberMismatch(String stream, EventNumber current, EventNumber actual, String message)

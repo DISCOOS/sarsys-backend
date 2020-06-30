@@ -497,87 +497,136 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   ///
   /// Throws [WriteFailed] for all other failures. This failure is not recoverable.
   @override
-  FutureOr<Iterable<DomainEvent>> execute(S command, {int maxAttempts = 10}) async =>
-      await _scheduleExecute(command, maxAttempts);
-
-  /// Queue of [Command]s executed in FIFO manner.
-  ///
-  /// This queue ensures that each command is processed in order waiting for push
-  /// operations either failing or completing. This prevents concurrent writes
-  /// which will throw a [ConcurrentWriteOperation] exception.
-  final _executeQueue = ListQueue<_ExecuteOperation>();
-
-  /// Schedule [Command] for execution
-  Future<Iterable<DomainEvent>> _scheduleExecute(S command, int maxAttempts) {
-    final operation = _ExecuteOperation(command, maxAttempts);
-    if (_executeQueue.isEmpty) {
-      // Process LATER but BEFORE any asynchronous
-      // events like Future, Timer or DOM Event
-      scheduleMicrotask(_processExecuteQueue);
+  FutureOr<Iterable<DomainEvent>> execute(S command, {int maxAttempts = 10}) async {
+    T aggregate;
+    final changes = <DomainEvent>[];
+    if (command.uuid == null) {
+      throw UUIDIsNull('Field [${command.uuidFieldName}] is null in $command');
     }
-    _executeQueue.add(operation);
-    return operation.completer.future;
-  }
-
-  /// Execute [_ExecuteOperation] in FIFO-manner until empty
-  void _processExecuteQueue() async {
-    while (_executeQueue.isNotEmpty) {
-      // Get next operation that is going to be executed
-      final operation = _executeQueue.first;
-      try {
-        await _execute(operation);
-      } catch (e, stackTrace) {
-        operation.completer.completeError(e, stackTrace);
+    final exists = contains(command.uuid);
+    if (command is EntityCommand) {
+      final next = _asEntityData(command);
+      aggregate = get(command.uuid);
+      if (!exists) {
+        changes.addAll(aggregate.getUncommittedChanges());
       }
-
-      // Only remove after execution is completed
-      _executeQueue.remove(operation);
-    }
-  }
-
-  /// Execute next command in queue
-  Future<void> _execute(_ExecuteOperation operation) async {
-    try {
-      T aggregate;
-      final command = operation.command;
-      if (command.uuid == null) {
-        throw const UUIDIsNull('Field [uuid] is null');
-      }
-      if (command is EntityCommand) {
-        final next = _asEntityData(command);
-        aggregate = get(command.uuid)
-          ..patch(
-            Map<String, dynamic>.from(next['data']),
-            index: next['index'] as int,
+      changes.add(aggregate.patch(
+        Map<String, dynamic>.from(next['data']),
+        index: next['index'] as int,
+        emits: command.emits,
+        timestamp: command.created,
+        previous: Map<String, dynamic>.from(next['previous']),
+      ));
+    } else {
+      final data = _asAggregateData(command);
+      switch (command.action) {
+        case Action.create:
+          aggregate = get(command.uuid, data: data);
+          changes.addAll(aggregate.getUncommittedChanges());
+          break;
+        case Action.update:
+          aggregate = get(command.uuid);
+          changes.add(aggregate.patch(
+            data,
             emits: command.emits,
             timestamp: command.created,
-            previous: Map<String, dynamic>.from(next['previous']),
-          );
-      } else {
-        final data = _asAggregateData(command);
-        switch (command.action) {
-          case Action.create:
-            aggregate = get(command.uuid, data: data);
-            break;
-          case Action.update:
-            aggregate = get(command.uuid)
-              ..patch(
-                data,
-                emits: command.emits,
-                timestamp: command.created,
-              );
-            break;
-          case Action.delete:
-            aggregate = get(command.uuid)..delete();
-            break;
-        }
+          ));
+          break;
+        case Action.delete:
+          aggregate = get(command.uuid);
+          changes.add(aggregate.delete(
+            timestamp: command.created,
+          ));
+          break;
       }
-      final events = aggregate.isChanged ? await push(aggregate, maxAttempts: operation.maxAttempts) : <DomainEvent>[];
-      operation.completer.complete(events);
-    } catch (e, stackTrace) {
-      operation.completer.completeError(e, stackTrace);
     }
+    return aggregate.isChanged
+        ? await _schedulePush(
+            aggregate.uuid,
+            changes,
+            maxAttempts,
+          )
+        : <DomainEvent>[];
   }
+
+//  /// Queue of [Command]s executed in FIFO manner.
+//  ///
+//  /// This queue ensures that each command is processed in order waiting for push
+//  /// operations either failing or completing. This prevents concurrent writes
+//  /// which will throw a [ConcurrentWriteOperation] exception.
+//  final _executeQueue = ListQueue<_ExecuteOperation>();
+//
+//  /// Schedule [Command] for execution
+//  Future<Iterable<DomainEvent>> _scheduleExecute(S command, int maxAttempts) {
+//    final operation = _ExecuteOperation(command, maxAttempts);
+//    if (_executeQueue.isEmpty) {
+//      // Process LATER but BEFORE any asynchronous
+//      // events like Future, Timer or DOM Event
+//      scheduleMicrotask(_processExecuteQueue);
+//    }
+//    _executeQueue.add(operation);
+//    return operation.completer.future;
+//  }
+//
+//  /// Execute [_ExecuteOperation] in FIFO-manner until empty
+//  void _processExecuteQueue() async {
+//    while (_executeQueue.isNotEmpty) {
+//      // Get next operation that is going to be executed
+//      final operation = _executeQueue.first;
+//      try {
+//        await _execute(operation);
+//      } catch (e, stackTrace) {
+//        operation.completer.completeError(e, stackTrace);
+//      }
+//
+//      // Only remove after execution is completed
+//      _executeQueue.remove(operation);
+//    }
+//  }
+//
+//  /// Execute next command in queue
+//  Future<void> _execute(_ExecuteOperation operation) async {
+//    try {
+//      T aggregate;
+//      final command = operation.command;
+//      if (command.uuid == null) {
+//        throw const UUIDIsNull('Field [uuid] is null');
+//      }
+//      if (command is EntityCommand) {
+//        final next = _asEntityData(command);
+//        aggregate = get(command.uuid)
+//          ..patch(
+//            Map<String, dynamic>.from(next['data']),
+//            index: next['index'] as int,
+//            emits: command.emits,
+//            timestamp: command.created,
+//            previous: Map<String, dynamic>.from(next['previous']),
+//          );
+//      } else {
+//        final data = _asAggregateData(command);
+//        switch (command.action) {
+//          case Action.create:
+//            aggregate = get(command.uuid, data: data);
+//            break;
+//          case Action.update:
+//            aggregate = get(command.uuid)
+//              ..patch(
+//                data,
+//                emits: command.emits,
+//                timestamp: command.created,
+//              );
+//            break;
+//          case Action.delete:
+//            aggregate = get(command.uuid)..delete();
+//            break;
+//        }
+//      }
+//      final events = aggregate.isChanged ? await push(aggregate, maxAttempts: operation.maxAttempts) : <DomainEvent>[];
+//      operation.completer.complete(events);
+//    } catch (e, stackTrace) {
+//      operation.completer.completeError(e, stackTrace);
+//    }
+//  }
 
   /// Check if this [Repository] contains any aggregates with [AggregateRoot.isChanged]
   bool get isChanged => _aggregates.values.any((aggregate) => aggregate.isChanged);
@@ -606,7 +655,13 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   ///
   /// Throws [WriteFailed] for all other failures. This failure is not recoverable.
   Future<Iterable<DomainEvent>> push(T aggregate, {int maxAttempts = 10}) {
-    return aggregate.isChanged ? _schedulePush(aggregate.uuid, maxAttempts) : <DomainEvent>[];
+    return aggregate.isChanged
+        ? _schedulePush(
+            aggregate.uuid,
+            aggregate.getUncommittedChanges(),
+            maxAttempts,
+          )
+        : <DomainEvent>[];
   }
 
   /// Queue of push operations performed in FIFO manner.
@@ -627,24 +682,20 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   final _pushQueue = ListQueue<_PushOperation>();
 
   /// Schedule [_PushOperation] for execution
-  Future<Iterable<DomainEvent>> _schedulePush(String uuid, int maxAttempts) {
+  Future<Iterable<DomainEvent>> _schedulePush(
+    String uuid,
+    Iterable<DomainEvent> changes,
+    int maxAttempts,
+  ) {
     final aggregate = _assertExists(uuid);
-    final operation = _PushOperation(aggregate, maxAttempts);
-    if (!_isConcurrent(operation)) {
-      if (_pushQueue.isEmpty) {
-        // Process LATER but BEFORE any asynchronous
-        // events like Future, Timer or DOM Event
-        scheduleMicrotask(_processPushQueue);
-      }
-      _pushQueue.add(operation);
-      return operation.completer.future;
+    final operation = _PushOperation(aggregate, changes, maxAttempts);
+    if (_pushQueue.isEmpty) {
+      // Process LATER but BEFORE any asynchronous
+      // events like Future, Timer or DOM Event
+      scheduleMicrotask(_processPushQueue);
     }
-    logger.severe(toDebugString());
-    throw ConcurrentWriteOperation(
-      'Push ${aggregate.runtimeType} ${aggregate.uuid} failed: '
-      'a concurrent write operation to stream ${store.toInstanceStream(aggregate.uuid)} was attempted: '
-      'operation: $operation: scheduled operations: ${_pushQueue}',
-    );
+    _pushQueue.add(operation);
+    return operation.completer.future;
   }
 
   T _assertExists(String uuid) {
@@ -655,23 +706,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     return aggregate;
   }
 
-  /// Check if the operation is concurrently modifying the same stream
-  ///
-  /// If instance streams are used, there are one stream per
-  /// [AggregateRoot]. This allows for multiple pending [_PushOperation]
-  /// in the queue.
-  bool _isConcurrent(_PushOperation operation) =>
-      !store.useInstanceStreams && _pushQueue.isNotEmpty ||
-      _pushQueue.contains(
-        operation,
-      );
-
   /// Execute push operations in FIFO-manner until empty
   void _processPushQueue() async {
     while (_pushQueue.isNotEmpty) {
-      // Get next operation that is going to be executed
       final operation = await _push(_pushQueue.first);
-      // Only remove after execution is completed
       _pushQueue.remove(operation);
     }
   }
@@ -679,17 +717,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   Future<_PushOperation> _push(_PushOperation operation) async {
     final aggregate = operation.aggregate;
     try {
-      if (operation.isModified) {
-        operation.completer.completeError(ConcurrentWriteOperation(
-          'Push ${aggregate.runtimeType} ${aggregate.uuid} failed: '
-          'a concurrent modification of ${aggregate.uuid} was attempted',
-        ));
-      } else {
-        logger.fine('Push > $aggregate');
-        // Wait for operation to complete before processing next
-        final events = await store.push(aggregate);
-        operation.completer.complete(events);
-      }
+      logger.fine('Push > $aggregate');
+      await store.push(aggregate);
+      // Only return changes applied by this operation
+      operation.completer.complete(operation.changes);
     } on WrongExpectedEventVersion {
       try {
         // Attempt to automatic merge until maximum attempts
@@ -697,12 +728,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           aggregate,
           operation.maxAttempts,
         );
+        // TODO: Reapply pending commands after successful reconciliation
         operation.completer.complete(events);
       } on ConflictNotReconcilable catch (e, stackTrace) {
-        // Handle exception and notify listeners on this future
         operation.completer.completeError(e, stackTrace);
       } catch (e, stackTrace) {
-        // Handle exception and notify listeners on this future
         operation.completer.completeError(e, stackTrace);
         logger.severe(
           'Failed to push aggregate $aggregate: $e, stacktrace: $stackTrace',
@@ -844,40 +874,40 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           '}').join(', ')}}';
 }
 
-class _ExecuteOperation<S extends Command> {
-  _ExecuteOperation(
-    this.command,
-    this.maxAttempts,
-  );
-  final S command;
-  final int maxAttempts;
-  final completer = Completer<Iterable<DomainEvent>>();
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is _ExecuteOperation && runtimeType == other.runtimeType && command == other.command;
-
-  @override
-  int get hashCode => command.hashCode;
-
-  @override
-  String toString() {
-    return '{command: {uuid: ${command.uuid}, type: ${command.runtimeType}}}';
-  }
-}
+//class _ExecuteOperation<S extends Command> {
+//  _ExecuteOperation(
+//    this.command,
+//    this.maxAttempts,
+//  );
+//  final S command;
+//  final int maxAttempts;
+//  final completer = Completer<Iterable<DomainEvent>>();
+//
+//  @override
+//  bool operator ==(Object other) =>
+//      identical(this, other) ||
+//      other is _ExecuteOperation && runtimeType == other.runtimeType && command == other.command;
+//
+//  @override
+//  int get hashCode => command.hashCode;
+//
+//  @override
+//  String toString() {
+//    return '{command: {uuid: ${command.uuid}, type: ${command.runtimeType}}}';
+//  }
+//}
 
 class _PushOperation {
   _PushOperation(
     this.aggregate,
+    this.changes,
     this.maxAttempts,
-  ) : modifications = aggregate._modifications;
-  final AggregateRoot aggregate;
+  ) : offset = aggregate.modifications;
+  final int offset;
   final int maxAttempts;
+  final AggregateRoot aggregate;
+  final Iterable<DomainEvent> changes;
   final completer = Completer<Iterable<DomainEvent>>();
-  final int modifications;
-
-  bool get isModified => aggregate._modifications != modifications;
 
   @override
   bool operator ==(Object other) =>
@@ -889,9 +919,13 @@ class _PushOperation {
 
   @override
   String toString() {
-    return '{modifications: $modifications, aggregate: '
-        '{uuid: ${aggregate.uuid}, modification: ${aggregate._modifications}, '
-        'pending: ${aggregate._pending.map((e) => e.type)}}}';
+    return '{'
+        'changes: ${changes.map((e) => '${e.type}: ${e.uuid}')}, '
+        'aggregate: {'
+        'uuid: ${aggregate.uuid}, '
+        'modifications: ${aggregate.modifications}, '
+        'pending: ${aggregate._pending.map((e) => '${e.type}: ${e.uuid}')}}'
+        '}';
   }
 }
 
@@ -941,16 +975,20 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// Get element at given path
   T elementAt<T>(String path) => _data.elementAt(path) as T;
 
-  /// Number of modifications made
+  /// Get number of modifications since creations
   ///
-  /// Use to detect concurrent write modifications
-  int _modifications = 0;
+  /// Number of modifications is the sum of
+  /// applied and pending events
+  int get modifications => _applied.length + _pending.length;
 
   /// Local uncommitted changes
   final _pending = <DomainEvent>[];
 
   /// [Message.uuid]s of applied events
   final _applied = <String>{};
+
+  /// Get uuids of applied events
+  Iterable<String> get applied => List.from(_applied);
 
   /// Check if event is applied
   bool isApplied(Event event) => _applied.contains(event.uuid);
@@ -1064,18 +1102,34 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
 
   // TODO: Add support for detecting tombstone (delete) events
   /// Delete aggregate root
-  DomainEvent delete() => _apply(
-        _deleted(),
+  DomainEvent delete({DateTime timestamp}) => _apply(
+        _deleted(timestamp ?? DateTime.now()),
         isChanged: true,
         isNew: false,
       );
 
-  /// Get uncommitted changes and clear internal cache
-  Iterable<DomainEvent> commit() {
-    final changes = _pending.toList();
-    _pending.clear();
-    _applied.addAll(changes.map((e) => e.uuid));
-    return changes;
+  /// Apply changes and clear internal cache
+  Iterable<DomainEvent> commit({Iterable<DomainEvent> changes}) {
+    // Partial commit?
+    if (changes?.isNotEmpty == true) {
+      // Already applied?
+      final duplicates = changes.where((e) => _applied.contains(e.uuid));
+      if (duplicates.isNotEmpty) {
+        throw InvalidOperation(
+          'Failed to commit $changes to $this: events $duplicates already committed',
+        );
+      }
+      // Not starting successively from head of changes?
+      if (_pending.take(changes.length).map((e) => e.uuid) == changes.map((e) => e.uuid)) {
+        throw WriteFailed(
+          'Failed to commit $changes to $this: did not match head of uncommitted changes $_pending',
+        );
+      }
+    }
+    final committed = changes ?? _pending;
+    _pending.removeWhere((e) => committed.contains(e));
+    _applied.addAll(committed.map((e) => e.uuid));
+    return committed;
   }
 
   /// Get aggregate updated event.
@@ -1106,7 +1160,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
 
   /// Get aggregate deleted event. Invoked from [Repository]
   @protected
-  DomainEvent _deleted() => _process(
+  DomainEvent _deleted(DateTime timestamp) => _process(
         uuid,
         typeOf<D>(),
         asDataPatch(
@@ -1115,7 +1169,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
           deleted: true,
           previous: data,
         ),
-        DateTime.now(),
+        timestamp,
       );
 
   static Map<String, dynamic> asDataPatch(
@@ -1207,7 +1261,6 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
       }
     }
     if (isChanged) {
-      _modifications++;
       _pending.add(event);
     } else {
       _applied.add(event.uuid);
@@ -1244,7 +1297,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
 
   @override
   String toString() {
-    return '$runtimeType{$uuidFieldName: $uuid, modifications: $_modifications, pending: $_pending, applied: $_applied}';
+    return '$runtimeType{$uuidFieldName: $uuid, modifications: $modifications, pending: $_pending, applied: $_applied}';
   }
 }
 
@@ -1435,16 +1488,27 @@ abstract class MergeStrategy {
         // Add again and remove initial event
         aggregate = repository.get(aggregate.uuid).._clear();
       }
-      // Reapply events as local changes
-      events.forEach((event) => aggregate._apply(
-            event,
-            isChanged: true,
-            isNew: isNew,
-          ));
-      // IMPORTANT: Do not call Repository.push as this
-      // will add the operation to the queue resulting
-      // in a live-lock situation where two async operations
-      // are waiting on each other to complete
+
+      // Rebase 'previous' and 'changed' by
+      // applying patches to them again before
+      // reapplying events as local changes
+      final base = aggregate.data;
+      var previous = base;
+      events.forEach((event) {
+        final next = event.rebase(previous);
+        aggregate._apply(
+          next,
+          isChanged: true,
+          isNew: isNew,
+        );
+        previous = next.changed;
+      });
+
+      // IMPORTANT: Do not call Repository.push here
+      // as this will add the operation to the queue
+      // resulting in a live-lock situation where two
+      // async operations are waiting on each other to
+      // complete
       return await repository.store.push(aggregate);
     } on WrongExpectedEventVersion catch (e, stacktrace) {
       // Try again?
@@ -1475,7 +1539,7 @@ class ThreeWayMerge extends MergeStrategy {
       // This implies that an instance stream with
       // same id was concurrently created. Since the
       // aggregate was removed from store with rollback
-      // above a, any retry must get a new aggregate
+      // above any retry must get a new aggregate
       // instance before another push is attempted
       await _catchup();
       return events;

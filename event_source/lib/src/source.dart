@@ -308,9 +308,9 @@ class EventStore {
   Iterable<Event> get(String uuid) => List.from(_store[uuid] ?? []);
 
   /// Commit events to local storage.
-  Iterable<DomainEvent> _commit(AggregateRoot aggregate) {
+  Iterable<DomainEvent> _commit(AggregateRoot aggregate, Iterable<DomainEvent> changes) {
     _assertState();
-    final events = aggregate.commit();
+    final events = aggregate.commit(changes: changes);
 
     // Do not save during replay
     if (bus.replaying == false && events.isNotEmpty) {
@@ -361,7 +361,7 @@ class EventStore {
     return canonicalStream;
   }
 
-  /// Push changes in [aggregate] to to appropriate instance stream.
+  /// Push given [changes] in [aggregate] to appropriate instance stream.
   ///
   /// If [snapshot] is given, this state is pushed and result
   /// applied to [aggregate] if push succeeded.
@@ -380,19 +380,19 @@ class EventStore {
       return [];
     }
     final stream = toInstanceStream(aggregate.uuid);
-    final events = aggregate.getUncommittedChanges();
+    final changes = aggregate.getUncommittedChanges();
     final number = _toExpectedVersion(stream);
     final result = await connection.writeEvents(
       stream: stream,
-      events: events,
       version: number,
+      events: changes,
     );
     if (result.isCreated) {
       // Commit all changes after successful write
-      _commit(aggregate);
+      _commit(aggregate, changes);
       // Check if commits caught up with last known event in aggregate instance stream
       _assertCurrentVersion(stream, result.actual);
-      return events;
+      return changes;
     } else if (result.isWrongESNumber) {
       throw WrongExpectedEventVersion(
         result.reasonPhrase,
@@ -402,10 +402,34 @@ class EventStore {
     }
     throw WriteFailed(
       'Failed to push changes to $stream: '
-      '${events.map((event) => event.runtimeType)}: '
+      '${changes.map((event) => event.runtimeType)}: '
       '${result.statusCode} ${result.reasonPhrase}',
     );
   }
+
+//  Iterable<DomainEvent> _assertChanges(
+//    String stream,
+//    AggregateRoot aggregate,
+//    Iterable<DomainEvent> changes,
+//  ) {
+//    final all = aggregate.getUncommittedChanges();
+//    if (changes != null) {
+//      // Already applied?
+//      final duplicates = changes.where((e) => aggregate.applied.contains(e.uuid));
+//      if (duplicates.isNotEmpty) {
+//        throw WriteFailed(
+//          'Failed to push $changes to $stream: events $duplicates already applied',
+//        );
+//      }
+//      // Not starting successively from head of changes?
+//      if (all.take(changes.length).map((e) => e.uuid) == changes.map((e) => e.uuid)) {
+//        throw WriteFailed(
+//          'Failed to push $changes to $stream: did not match head of uncommitted changes $all',
+//        );
+//      }
+//    }
+//    return changes ?? aggregate.getUncommittedChanges();
+//  }
 
   /// Get expected version number for given stream.
   ///

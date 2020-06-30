@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:equatable/equatable.dart';
+import 'package:json_patch/json_patch.dart';
 import 'package:meta/meta.dart';
 import 'package:uuid/uuid.dart';
 
@@ -127,6 +128,21 @@ class DomainEvent extends Event {
           local: local,
           created: created ?? DateTime.now(),
         );
+
+  DomainEvent rebase(Map<String, dynamic> base) {
+    final changed = JsonPatch.apply(base, patches, strict: false);
+    return DomainEvent(
+      uuid: uuid,
+      type: type,
+      local: local,
+      created: created,
+      data: data
+        ..addAll({
+          'previous': base,
+          'changed': changed,
+        }),
+    );
+  }
 
   @override
   String toString() {

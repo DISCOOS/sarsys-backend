@@ -251,9 +251,13 @@ Future main() async {
         },
       )
     ]);
-    foo.patch({'property3': 'value3'}, emits: FooUpdated);
 
     // Act
+    foo.patch({'property3': 'value3'}, emits: FooUpdated);
+    await repo.push(foo);
+    foo.patch({'property4': 'value4'}, emits: FooUpdated);
+    await repo.push(foo);
+    foo.patch({'property5': 'value5'}, emits: FooUpdated);
     await repo.push(foo);
 
     // Assert conflict resolved
@@ -261,6 +265,8 @@ Future main() async {
     expect(foo.data, containsPair('property1', 'value1'));
     expect(foo.data, containsPair('property2', 'value2'));
     expect(foo.data, containsPair('property3', 'value3'));
+    expect(foo.data, containsPair('property4', 'value4'));
+    expect(foo.data, containsPair('property5', 'value5'));
   });
 
   test('Repository should fail on push when manual merge is needed', () async {
@@ -349,7 +355,7 @@ Future main() async {
     await expectLater(() => repo2.push(foo1), throwsA(isA<AggregateNotFound>()));
   });
 
-  test('Repository should enforce strict order of in-proc push operations', () async {
+  test('Repository should enforce strict order of in-proc create aggregate operations', () async {
     // Arrange
     final repo = harness.get<FooRepository>();
     await repo.readyAsync();
@@ -364,7 +370,65 @@ Future main() async {
     _assertUniqueEvents(repo, events);
   });
 
-  test('Repository should enforce strict order of concurrent push operations ', () async {
+  test('Repository should enforce strict incremental order of in-proc command executions', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
+    final uuid = Uuid().v4();
+    final foo = repo.get(uuid, data: {'property1': 0});
+    final created = await repo.push(foo);
+
+    // Act - execute pushes without awaiting the result
+    final results = await Future.wait<Iterable<DomainEvent>>(
+      List.generate(
+        10,
+        (_) => repo.execute(UpdateFoo({'uuid': uuid, 'property1': repo.get(uuid).elementAt<int>('property1') + 1})),
+      ),
+    );
+
+    // Assert - strict order
+    final events = [
+      ...created,
+      ..._assertMonotonePatch(results),
+    ];
+
+    // Assert - unique events
+    _assertUniqueEvents(repo, events);
+  });
+
+  test('Repository should resolve concurrent remote modification on command execute', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    final stream = harness.server().getStream(repo.store.aggregate);
+    await repo.readyAsync();
+
+    // Act - Simulate concurrent modification by manually updating remote stream
+    final uuid = Uuid().v4();
+    final foo = repo.get(uuid, data: {'property1': 'value1'});
+    await repo.push(foo);
+    stream.append('${stream.instanceStream}-0', [
+      TestStream.asSourceEvent<FooUpdated>(
+        uuid,
+        {'property1': 'value1'},
+        {
+          'property1': 'value1',
+          'property2': 'value2',
+          'property3': 'value3',
+        },
+      )
+    ]);
+
+    // Act
+    await repo.execute(UpdateFoo({'uuid': uuid, 'property3': 'value3'}));
+
+    // Assert conflict resolved
+    expect(repo.count(), equals(1));
+    expect(foo.data, containsPair('property1', 'value1'));
+    expect(foo.data, containsPair('property2', 'value2'));
+    expect(foo.data, containsPair('property3', 'value3'));
+  });
+
+  test('Repository should enforce strict order of concurrent create aggregate operations ', () async {
     // Arrange
     final repo1 = harness.get<FooRepository>(port: 4000);
     final repo2 = harness.get<FooRepository>(port: 4001);
@@ -379,33 +443,6 @@ Future main() async {
 
     // Assert - strict order
     _assertStrictOrder(results);
-  });
-
-  test('Repository should throw ConcurrentWriteOperation if aggregate is changed after push is scheduled', () async {
-    // Arrange - start two empty repos both assuming stream-0 to be first write
-    final repo = harness.get<FooRepository>(instance: 1);
-    await repo.readyAsync();
-    final foo = repo.get(Uuid().v4());
-
-    // Assert
-    final events = expectLater(repo.push(foo), throwsA(isA<ConcurrentWriteOperation>()));
-    foo.patch({'property2': 'value2'}, emits: FooUpdated);
-    await events;
-  });
-
-  test('Repository should throw ConcurrentWriteOperation on multiple push without waiting on results', () async {
-    // Arrange
-    final repo = harness.get<FooRepository>();
-    await repo.readyAsync();
-
-    // Act
-    final foo = repo.get(Uuid().v4(), data: {'index': 0});
-
-    // Assert
-    final events = repo.push(foo);
-    expect(events, isA<Future<Iterable<DomainEvent>>>());
-    expect(() => repo.push(foo), throwsA(isA<ConcurrentWriteOperation>()));
-    expect(await events, isA<Iterable<DomainEvent>>());
   });
 }
 
@@ -432,11 +469,35 @@ Future _assertCatchUp(FooRepository repo1, FooRepository repo2, FooRepository re
 Iterable<DomainEvent> _assertStrictOrder(List<Iterable<DomainEvent>> results) {
   final events = <DomainEvent>[];
   for (var i = 0; i < 10; i++) {
-    expect(results[i].length, equals(1));
+    expect(
+      results[i].length,
+      equals(1),
+      reason: 'Should contain one event',
+    );
     final event = results[i].first;
     events.add(event);
     expect(event, isA<FooCreated>());
     expect((event as FooCreated).index, equals(i));
+  }
+  return events;
+}
+
+Iterable<DomainEvent> _assertMonotonePatch(List<Iterable<DomainEvent>> results) {
+  final events = <DomainEvent>[];
+  for (var i = 0; i < 10; i++) {
+    expect(
+      results[i].length,
+      equals(1),
+      reason: 'Result $i should contain one event',
+    );
+    final event = results[i].first;
+    events.add(event);
+    expect(event, isA<FooUpdated>());
+    expect(
+      (event as FooUpdated).data.elementAt('changed/property1'),
+      equals(i + 1),
+      reason: 'Result ${results[i]} should be an monotone increment',
+    );
   }
   return events;
 }
