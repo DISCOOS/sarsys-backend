@@ -356,5 +356,3 @@ Future<String> _prepare(SarSysHarness harness) async {
   expectResponse(await harness.agent.post("/api/organisations", body: organisation), 201, body: null);
   return orguuid;
 }
-
-Map<String, Object> _createData(String uuid) => createDivision(uuid);

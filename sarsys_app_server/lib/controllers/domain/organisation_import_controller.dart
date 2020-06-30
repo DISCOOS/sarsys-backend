@@ -187,7 +187,7 @@ class OrganisationImportController
     final responses = <Response>[];
     if (deps is List) {
       responses.addAll(await Future.wait(List<Map<String, dynamic>>.from(deps).map(
-        (Map<String, dynamic> dep) => _importDep(dep, responses, uuid),
+        (Map<String, dynamic> dep) async => await _importDep(dep, responses, uuid),
       )));
     }
     return responses;

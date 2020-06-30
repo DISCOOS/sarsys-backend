@@ -86,7 +86,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
 
   @visibleForOverriding
   Future doCreated(U aggregate, String fuuid) async {
-    await primary.execute(onCreated(aggregate, fuuid));
+    return await primary.execute(onCreated(aggregate, fuuid));
   }
 
   /// Add @Operation('PATCH', 'uuid') to activate
@@ -103,11 +103,11 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       if (notFound.isNotEmpty) {
         return Response.notFound(body: "${foreignType}s not found: $notFound");
       }
-      await Future.forEach(list, (String fuuid) async {
+      await Future.wait(list.map((String fuuid) async {
         // Get updated parent aggregate
         await doAdd(primary.get(uuid), fuuid);
         await doAdded(primary.get(uuid), fuuid);
-      });
+      }));
       return Response.noContent();
     } on AggregateExists catch (e) {
       return conflict(
@@ -139,12 +139,12 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
 
   @visibleForOverriding
   Future doAdd(U aggregate, String fuuid) async {
-    await primary.execute(onAdd(aggregate, fuuid));
+    return await primary.execute(onAdd(aggregate, fuuid));
   }
 
   @visibleForOverriding
   Future doAdded(U aggregate, String fuuid) async {
-    return foreign.execute(onAdded(aggregate, fuuid));
+    return await foreign.execute(onAdded(aggregate, fuuid));
   }
 
   /// Add @Operation.put('uuid') to activate
@@ -162,11 +162,11 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
         return Response.notFound(body: "${foreignType}s not found: $notFound");
       }
       // Wait for each command to complete
-      await Future.forEach(list, (String fuuid) async {
+      await Future.wait(list.map((String fuuid) async {
         // Get updated parent aggregate
         await doReplace(primary.get(uuid), fuuid);
         await doReplaced(primary.get(uuid), fuuid);
-      });
+      }));
       return Response.noContent();
     } on AggregateExists catch (e) {
       return conflict(
@@ -198,12 +198,12 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
 
   @visibleForOverriding
   Future doReplace(U aggregate, String fuuid) async {
-    await primary.execute(onReplace(aggregate, fuuid));
+    return await primary.execute(onReplace(aggregate, fuuid));
   }
 
   @visibleForOverriding
   Future doReplaced(U aggregate, String fuuid) async {
-    return foreign.execute(onReplaced(aggregate, fuuid));
+    return await foreign.execute(onReplaced(aggregate, fuuid));
   }
 
   /// Add @Operation.delete('uuid') to activate
@@ -221,11 +221,11 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
         return Response.notFound(body: "${foreignType}s not found: $notFound");
       }
       // Wait for each command to complete
-      await Future.forEach(list, (String fuuid) async {
+      await Future.wait(list.map((String fuuid) async {
         // Get updated parent aggregate
         await doRemove(primary.get(uuid), fuuid);
         await doRemoved(primary.get(uuid), fuuid);
-      });
+      }));
       return Response.noContent();
     } on AggregateExists catch (e) {
       return conflict(
@@ -257,12 +257,12 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
 
   @visibleForOverriding
   Future doRemove(U aggregate, String fuuid) async {
-    await primary.execute(onRemove(aggregate, fuuid));
+    return await primary.execute(onRemove(aggregate, fuuid));
   }
 
   @visibleForOverriding
   Future doRemoved(U aggregate, String fuuid) async {
-    return foreign.execute(onRemoved(aggregate, fuuid));
+    return await foreign.execute(onRemoved(aggregate, fuuid));
   }
 
   Iterable<String> toFieldList(Map<String, dynamic> data) {
