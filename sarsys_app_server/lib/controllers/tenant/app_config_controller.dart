@@ -165,6 +165,9 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
           "talkGroupCatalog": APISchemaObject.string()
             ..description = "Default talk group catalog name"
             ..defaultValue = "Oslo",
+          "idpHints": APISchemaObject.array(ofType: APIType.string)
+            ..description = "List of idp hints"
+            ..defaultValue = ["google"],
           "trustedDomains": APISchemaObject.array(ofType: APIType.string)
             ..description = "List of trusted domains"
             ..defaultValue = ["rodekors.org", "discoos.org"],
