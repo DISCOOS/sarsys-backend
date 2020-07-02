@@ -330,7 +330,7 @@ Map<String, dynamic> createUnit(String uuid, {String tuuid}) => {
 Map<String, dynamic> createOrganisation(String uuid) => {
       "uuid": "$uuid",
       "name": "string",
-      "suffix": "string",
+      "prefix": "string",
       "active": true,
     };
 

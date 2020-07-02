@@ -90,7 +90,7 @@ class OrganisationController extends AggregateController<OrganisationCommand, Or
         {
           "uuid": context.schema['UUID']..description = "Unique Organisation id",
           "name": APISchemaObject.string()..description = "Organisation name",
-          "suffix": APISchemaObject.string()..description = "FleetMap number suffix",
+          "prefix": APISchemaObject.string()..description = "FleetMap prefix number",
           "divisions": APISchemaObject.array(
             ofSchema: context.schema['UUID'],
           )..description = "List of division uuids",
