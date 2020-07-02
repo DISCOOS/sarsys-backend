@@ -150,15 +150,6 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
           "securityLockAfter": APISchemaObject.integer()
             ..description = "Lock idle device (no user interactions) after in given number of seconds"
             ..defaultValue = 2700, // 45 minutes
-          "orgId": APISchemaObject.string()
-            ..description = "Default Organisation identifier"
-            ..defaultValue = "61",
-          "divId": APISchemaObject.string()
-            ..description = "Default division identifier"
-            ..defaultValue = "140",
-          "depId": APISchemaObject.string()
-            ..description = "Default department identifier"
-            ..defaultValue = "141",
           "talkGroups": APISchemaObject.array(ofType: APIType.string)
             ..description = "List of default talk group names"
             ..defaultValue = ["Oslo"],
