@@ -125,7 +125,7 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
     ..defaultValue = "available"
     ..enumerated = [
       'available',
-      'shortnotice',
+      'short_notice',
       'unavailable',
     ];
 }
