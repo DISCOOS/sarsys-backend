@@ -309,7 +309,7 @@ Map<String, dynamic> createAffiliation(
     {
       "uuid": "$uuid",
       "type": "member",
-      "standby": "available",
+      "status": "available",
       "active": true,
       if (puuid != null) "person": {"uuid": puuid},
       if (orguuid != null) "org": {"uuid": orguuid},

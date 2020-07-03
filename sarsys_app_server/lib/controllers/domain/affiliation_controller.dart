@@ -94,7 +94,7 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
           defaultType: 'Department',
         ),
         "type": documentAffiliationType(),
-        "standby": documentAffiliationStandbyStatus(),
+        "status": documentAffiliationStandbyStatus(),
         "active": APISchemaObject.boolean()..description = "Affiliation status flag"
       })
         ..isReadOnly = true
