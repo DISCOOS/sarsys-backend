@@ -68,9 +68,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
-    } on Exception catch (e) {
-      return Response.serverError(body: e);
-    } on Error catch (e) {
+    } catch (e) {
       return Response.serverError(body: e);
     }
   }
@@ -84,7 +82,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       return okAggregate(repository.get(uuid));
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
-    } on Exception catch (e) {
+    } catch (e) {
       return Response.serverError(body: e);
     }
   }
@@ -116,7 +114,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
-    } on Exception catch (e) {
+    } catch (e) {
       return Response.serverError(body: e);
     }
   }
@@ -151,7 +149,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       return serviceUnavailable(body: "Eventstore unavailable: $e");
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
-    } on Exception catch (e) {
+    } catch (e) {
       return Response.serverError(body: e);
     }
   }
@@ -181,7 +179,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       return Response.badRequest(body: e.message);
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
-    } on Exception catch (e) {
+    } catch (e) {
       return Response.serverError(body: e);
     }
   }
@@ -211,7 +209,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
           fail: fail,
           timeout: timeout,
         );
-      } on Exception catch (e) {
+      } catch (e) {
         return Response.serverError(body: {'error': e});
       }
     }
@@ -242,7 +240,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
           timeout: timeout,
           expected: expected,
         );
-      } on Exception catch (e) {
+      } catch (e) {
         return Response.serverError(body: {'error': e});
       }
     }

@@ -66,7 +66,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
-    } on Exception catch (e) {
+    } catch (e) {
       return Response.serverError(body: e);
     }
   }
@@ -97,7 +97,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       return Response.notFound(body: e.message);
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
-    } on Exception catch (e) {
+    } catch (e) {
       return Response.serverError(body: e);
     }
   }
@@ -124,7 +124,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       return Response.badRequest(body: e.message);
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
-    } on Exception catch (e) {
+    } catch (e) {
       return Response.serverError(body: e);
     }
   }
@@ -167,7 +167,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       return Response.badRequest(body: e.message);
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
-    } on Exception catch (e) {
+    } catch (e) {
       return Response.serverError(body: e);
     }
   }
@@ -199,7 +199,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       return Response.badRequest(body: e.message);
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
-    } on Exception catch (e) {
+    } catch (e) {
       return Response.serverError(body: e);
     }
   }

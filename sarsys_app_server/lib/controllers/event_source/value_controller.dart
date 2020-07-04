@@ -69,7 +69,7 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
       }
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
-    } on Exception catch (e) {
+    } catch (e) {
       return Response.serverError(body: e);
     }
   }
@@ -103,7 +103,7 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
       return serviceUnavailable(body: "Eventstore unavailable: $e");
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
-    } on Exception catch (e) {
+    } catch (e) {
       return Response.serverError(body: e);
     }
   }

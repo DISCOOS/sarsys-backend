@@ -45,9 +45,7 @@ class AggregateLookupController<S extends Command, T extends AggregateRoot> exte
       return okAggregatePaged(uuids.length, offset, limit, aggregates);
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
-    } on Exception catch (e) {
-      return Response.serverError(body: e);
-    } on Error catch (e) {
+    } catch (e) {
       return Response.serverError(body: e);
     }
   }
