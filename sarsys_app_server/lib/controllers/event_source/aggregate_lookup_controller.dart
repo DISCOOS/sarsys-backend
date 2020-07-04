@@ -39,7 +39,7 @@ class AggregateLookupController<S extends Command, T extends AggregateRoot> exte
       // Foreign uuids that exists
       final uuids = List<String>.from(aggregate.data[field] as List ?? [])
         ..removeWhere(
-          (uuid) => !_exists(uuid, aggregate),
+          (uuid) => !exists(uuid, aggregate),
         );
       final aggregates = uuids.toPage(offset: offset, limit: limit).map(foreign.get).toList();
       return okAggregatePaged(uuids.length, offset, limit, aggregates);
@@ -50,7 +50,7 @@ class AggregateLookupController<S extends Command, T extends AggregateRoot> exte
     }
   }
 
-  bool _exists(String uuid, AggregateRoot parent) {
+  bool exists(String uuid, AggregateRoot parent) {
     final test = foreign.contains(uuid);
     if (!test) {
       logger.fine(

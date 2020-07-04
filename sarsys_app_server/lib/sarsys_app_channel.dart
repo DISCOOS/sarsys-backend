@@ -200,6 +200,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
           () => OperationPersonnelController(
                 manager.get<OperationRepository>(),
                 manager.get<PersonnelRepository>(),
+                manager.get<PersonRepository>(),
                 manager.get<AffiliationRepository>(),
                 requestValidator,
               ))
