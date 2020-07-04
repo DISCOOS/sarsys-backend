@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:sarsys_app_server/controllers/domain/schemas.dart';
 import 'package:sarsys_app_server/controllers/event_source/aggregate_controller.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
@@ -8,8 +10,12 @@ import 'package:event_source/event_source.dart';
 /// A ResourceController that handles
 /// [/api/personnels](http://localhost/api/client.html#/Personnel) requests
 class PersonnelController extends AggregateController<PersonnelCommand, Personnel> {
-  PersonnelController(PersonnelRepository repository, JsonValidation validation)
-      : super(repository,
+  PersonnelController(
+    this.persons,
+    this.affiliations,
+    PersonnelRepository repository,
+    JsonValidation validation,
+  ) : super(repository,
             validation: validation,
             readOnly: const [
               'unit',
@@ -19,24 +25,58 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
             ],
             tag: 'Personnels');
 
+  final PersonRepository persons;
+  final AffiliationRepository affiliations;
+
   @override
   @Operation.get()
   Future<Response> getAll({
-    @Bind.query('offset') int offset = 0,
     @Bind.query('limit') int limit = 20,
+    @Bind.query('offset') int offset = 0,
     @Bind.query('deleted') bool deleted = false,
-  }) {
-    return super.getAll(
-      offset: offset,
-      limit: limit,
-      deleted: deleted,
-    );
+    @Bind.query('expand') List<String> expand = const [],
+  }) async {
+    try {
+      final aggregates = repository.getAll(
+        offset: offset,
+        limit: limit,
+        deleted: deleted,
+      );
+      // Merge personnel with person
+      return Response.ok(
+        toDataPaged(
+          repository.count(deleted: deleted),
+          offset,
+          limit,
+          aggregates.map(_shouldExpand(expand) ? merge : toAggregateData).toList(),
+        ),
+      );
+    } on InvalidOperation catch (e) {
+      return Response.badRequest(body: e.message);
+    } catch (e) {
+      return Response.serverError(body: e);
+    }
   }
 
   @override
   @Operation.get('uuid')
-  Future<Response> getByUuid(@Bind.path('uuid') String uuid) {
-    return super.getByUuid(uuid);
+  Future<Response> getByUuid(
+    @Bind.path('uuid') String uuid, {
+    @Bind.query('expand') List<String> expand = const [],
+  }) async {
+    try {
+      if (!repository.exists(uuid)) {
+        return Response.notFound(body: "$aggregateType $uuid not found");
+      }
+      final aggregate = repository.get(uuid);
+      return Response.ok(
+        _shouldExpand(expand) ? merge(aggregate) : toAggregateData(aggregate),
+      );
+    } on InvalidOperation catch (e) {
+      return Response.badRequest(body: e.message);
+    } catch (e) {
+      return Response.serverError(body: e);
+    }
   }
 
   @override
@@ -62,6 +102,38 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
       TrackingDeleted: hasTracking ? 1 : 0,
       PersonnelRemovedFromUnit: isAssigned ? 1 : 0,
     });
+  }
+
+  bool _shouldExpand(List<String> expand) {
+    if (expand.any((element) => element.toLowerCase() == 'person')) {
+      return true;
+    }
+    if (expand.isNotEmpty) {
+      throw "Invalid query parameter 'expand' values: $expand";
+    }
+    return false;
+  }
+
+  /// Merge [Personnel] with [Person]
+  Map<String, dynamic> merge(Personnel aggregate) {
+    final entry = toAggregateData(aggregate);
+    final personnel = entry.elementAt<Map<String, dynamic>>('data');
+    final auuid = personnel.elementAt<String>('affiliation/uuid');
+    if (auuid != null) {
+      final affiliation = affiliations.get(auuid, createNew: false);
+      if (affiliation != null) {
+        final puuid = affiliation.elementAt<String>('person/uuid');
+        if (puuid != null) {
+          final person = persons.get(puuid, createNew: false);
+          if (person != null) {
+            // Do not overwrite personnel.uuid
+            personnel.addAll(person.data..remove('uuid'));
+          }
+        }
+      }
+    }
+    entry.update('data', (value) => personnel);
+    return entry;
   }
 
   @override
@@ -138,4 +210,18 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
       'leaving',
       'retired',
     ];
+
+  @override
+  List<APIParameter> documentOperationParameters(APIDocumentContext context, Operation operation) {
+    final parameters = super.documentOperationParameters(context, operation);
+    switch (operation.method) {
+      case "GET":
+        parameters.add(
+          APIParameter.query('expand')
+            ..description = "Expand response with information from references. Legal values are: 'person'",
+        );
+        break;
+    }
+    return parameters;
+  }
 }

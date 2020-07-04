@@ -250,6 +250,8 @@ class SarSysAppServerChannel extends ApplicationChannel {
       ..secure(
           '/api/personnels[/:uuid]',
           () => PersonnelController(
+                manager.get<PersonRepository>(),
+                manager.get<AffiliationRepository>(),
                 manager.get<PersonnelRepository>(),
                 requestValidator,
               ))

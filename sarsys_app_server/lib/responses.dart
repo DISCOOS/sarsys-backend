@@ -30,13 +30,22 @@ Map<String, dynamic> toAggregateData(AggregateRoot aggregate) => {
       "data": aggregate.data,
     };
 
-Response okAggregatePaged(int count, int offset, int limit, List<AggregateRoot> aggregates) => Response.ok({
+Response okAggregatePaged(int count, int offset, int limit, List<AggregateRoot> aggregates) => Response.ok(
+      toDataPaged(
+        count,
+        offset,
+        limit,
+        aggregates.map(toAggregateData).toList(),
+      ),
+    );
+
+Map<String, dynamic> toDataPaged(int count, int offset, int limit, List<Map<String, dynamic>> entries) => {
       "total": count,
       "offset": offset,
       "limit": limit,
-      if (offset + aggregates.length < count) "next": offset + aggregates.length,
-      "entries": aggregates.map(toAggregateData).toList() ?? [],
-    });
+      if (offset + entries.length < count) "next": offset + entries.length,
+      "entries": entries,
+    };
 
 Response okEntityPaged<T extends AggregateRoot>(
   String uuid,
