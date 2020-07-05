@@ -374,7 +374,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   @override
   void documentComponents(APIDocumentContext context) {
     super.documentComponents(context);
-    _documentSchemaObjects(context).forEach((name, object) {
+    documentSchemaObjects(context).forEach((name, object) {
       if (object.title?.isNotEmpty == false) {
         object.title = "$name";
       }
@@ -391,7 +391,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     });
   }
 
-  Map<String, APISchemaObject> _documentSchemaObjects(APIDocumentContext context) => {
+  Map<String, APISchemaObject> documentSchemaObjects(APIDocumentContext context) => {
         "$aggregateType": documentAggregateRoot(context),
       }
         ..addAll(documentEntities(context))

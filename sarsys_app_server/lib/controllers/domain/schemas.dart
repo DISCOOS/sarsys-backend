@@ -43,19 +43,20 @@ APISchemaObject documentPassCodes() => APISchemaObject.object(
 APISchemaObject documentAggregateRef(
   APIDocumentContext context, {
   String defaultType,
+  bool readOnly = true,
   String description = "Aggregate Root Reference",
 }) =>
     APISchemaObject.object({
       "uuid": documentUUID()
-        ..description = "Aggregate Root UUID"
-        ..isReadOnly = true,
+        ..description = "${defaultType ?? "Aggregate Root"} UUID"
+        ..isReadOnly = readOnly,
       "type": APISchemaObject.string()
-        ..description = "Aggregate Root Type"
-        ..isReadOnly = true
+        ..description = "${defaultType ?? "Aggregate Root"} Type"
+        ..isReadOnly = readOnly
         ..defaultValue = defaultType,
     })
       ..description = description
-      ..isReadOnly = true
+      ..isReadOnly = readOnly
       ..required = ['uuid']
       ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
 

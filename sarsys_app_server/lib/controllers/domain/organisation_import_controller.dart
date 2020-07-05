@@ -300,12 +300,12 @@ class OrganisationImportController
     context.schema.register(
       '${foreignType}Tree',
       APISchemaObject.object({
-        'divisions': APISchemaObject.array(ofSchema: context.schema['${primaryType}Expanded']),
+        'divisions': APISchemaObject.array(ofSchema: context.schema['${primaryType}Tree']),
       })
-        ..description = "List of ${primaryType}Expanded",
+        ..description = "List of ${primaryType}Tree",
     );
     context.schema.register(
-        '${primaryType}Expanded',
+        '${primaryType}Tree',
         APISchemaObject.object({
           "name": APISchemaObject.string()..description = "Division name",
           "suffix": APISchemaObject.string()..description = "FleetMap number suffix",

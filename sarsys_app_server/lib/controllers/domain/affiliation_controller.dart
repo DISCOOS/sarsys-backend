@@ -75,21 +75,24 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
         "uuid": context.schema['UUID']..description = "Unique Affiliation id",
         "person": documentAggregateRef(
           context,
-          description: "Person reference for PII lookup",
           defaultType: 'Person',
+          description: "Person reference for PII lookup",
         ),
         "org": documentAggregateRef(
           context,
-          description: "Organisation which personnel is affiliated with",
+          readOnly: false,
           defaultType: 'Organisation',
+          description: "Organisation which personnel is affiliated with",
         ),
         "div": documentAggregateRef(
           context,
-          description: "Division which personnel is affiliated with",
+          readOnly: false,
           defaultType: 'Division',
+          description: "Division which personnel is affiliated with",
         ),
         "dep": documentAggregateRef(
           context,
+          readOnly: false,
           description: "Department which personnel is affiliated with",
           defaultType: 'Department',
         ),
@@ -97,7 +100,6 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
         "status": documentAffiliationStandbyStatus(),
         "active": APISchemaObject.boolean()..description = "Affiliation status flag"
       })
-        ..isReadOnly = true
         ..description = "Affiliation information"
         ..required = ['person', 'org']
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
