@@ -6,12 +6,12 @@ mixin RequestValidatorMixin {
   List<Validator> validators;
   List<Validator> _actual;
 
-  Map<String, dynamic> validate(String type, Map<String, dynamic> data, {bool isPatch = false}) {
+  T validate<T>(String type, dynamic data, {bool isPatch = false}) {
     if (validation != null) {
       _actual ??= [ReadOnlyValidator(readOnly)]..addAll(validators ?? []);
       validation.validateBody("$type", data, isPatch: isPatch, validators: _actual);
     }
-    return data;
+    return data as T;
   }
 
   bool hasField(Map<String, dynamic> data, String field) {

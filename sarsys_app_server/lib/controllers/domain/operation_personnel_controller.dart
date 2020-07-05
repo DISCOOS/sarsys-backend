@@ -64,7 +64,6 @@ class OperationPersonnelController
           aggregates.map(_shouldExpand(expand) ? merge : toAggregateData).toList(),
         ),
       );
-      return okAggregatePaged(uuids.length, offset, limit, aggregates);
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } catch (e) {

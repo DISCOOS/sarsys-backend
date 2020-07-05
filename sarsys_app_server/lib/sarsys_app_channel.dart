@@ -124,20 +124,11 @@ class SarSysAppServerChannel extends ApplicationChannel {
                 requestValidator,
               ))
       ..secure(
-          '/api/affiliations/temporary',
-          () => AffiliationPersonController(
-                manager.get<PersonRepository>(),
-                manager.get<AffiliationRepository>(),
-                requestValidator,
-                temporary: true,
-              ))
-      ..secure(
           '/api/affiliations/onboard',
           () => AffiliationPersonController(
                 manager.get<PersonRepository>(),
                 manager.get<AffiliationRepository>(),
                 requestValidator,
-                temporary: false,
               ))
       ..secure(
           '/api/incidents[/:uuid]',

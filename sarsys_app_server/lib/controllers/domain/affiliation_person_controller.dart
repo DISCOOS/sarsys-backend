@@ -1,5 +1,4 @@
 import 'package:aqueduct/aqueduct.dart';
-import 'package:meta/meta.dart';
 import 'package:event_source/event_source.dart';
 
 import 'package:sarsys_app_server/controllers/event_source/controllers.dart';
@@ -13,11 +12,9 @@ class AffiliationPersonController extends AggregateController<AffiliationCommand
   AffiliationPersonController(
     this.persons,
     AffiliationRepository affiliations,
-    JsonValidation validation, {
-    @required this.temporary,
-  }) : super(affiliations, validation: validation, tag: 'Affiliations > Onboard');
+    JsonValidation validation,
+  ) : super(affiliations, validation: validation, tag: 'Affiliations > Onboard');
 
-  final bool temporary;
   final PersonRepository persons;
 
   @override
@@ -28,18 +25,14 @@ class AffiliationPersonController extends AggregateController<AffiliationCommand
       if (puuid == null) {
         return Response.badRequest(body: "Field [person/uuid] in required");
       }
-      final person = persons.get(puuid, createNew: false);
-      if (person == null) {
+      final current = persons.get(puuid, createNew: false);
+      final person = validate<Map<String, dynamic>>("${typeOf<Person>()}", data['person']);
+      final temporary = person.elementAt<bool>('temporary');
+      if (current == null) {
         await persons.execute(
-          CreatePerson(validate(
-              "${typeOf<Person>()}",
-              Map.from(data['person'] as Map)
-                ..addAll({
-                  // Ensure person state
-                  'temporary': temporary,
-                }))),
+          CreatePerson(person),
         );
-      } else if (person.data.elementAt('temporary') != temporary) {
+      } else if (current.data.elementAt('temporary') != temporary) {
         return conflict(
           ConflictType.exists,
           'Person $puuid already exists as ${temporary ? 'permanent' : 'temporary'}',

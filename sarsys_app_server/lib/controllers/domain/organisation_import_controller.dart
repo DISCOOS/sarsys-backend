@@ -85,7 +85,7 @@ class OrganisationImportController
   }
 
   List<Map<String, dynamic>> _validate(String uuid, Map<String, dynamic> data) {
-    final tree = validate("${aggregateType}Tree", data);
+    final tree = validate<Map<String, dynamic>>("${aggregateType}Tree", data);
     final divs = List<Map<String, dynamic>>.from(tree.elementAt('divisions') ?? []);
     final deps = divs.fold<List<Map<String, dynamic>>>(
       <Map<String, dynamic>>[],
