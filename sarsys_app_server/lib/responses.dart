@@ -100,7 +100,9 @@ enum ConflictType {
 Response conflict(
   ConflictType type,
   String error, {
+  String code,
   Map<String, dynamic> headers,
+  Map<String, dynamic> base,
   List<Map<String, dynamic>> mine,
   List<Map<String, dynamic>> yours,
 }) =>
@@ -108,6 +110,8 @@ Response conflict(
       headers: headers,
       body: {
         'type': enumName(type),
+        'code': code,
+        'base': base,
         'mine': mine,
         'yours': yours,
         'error': error,

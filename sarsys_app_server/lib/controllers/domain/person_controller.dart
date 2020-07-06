@@ -2,6 +2,7 @@ import 'package:sarsys_app_server/controllers/event_source/aggregate_controller.
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
+import 'package:event_source/event_source.dart';
 
 /// A ResourceController that handles
 /// [/api/persons](http://localhost/api/client.html#/Person) requests
@@ -34,6 +35,21 @@ class PersonController extends AggregateController<PersonCommand, Person> {
   @override
   @Operation.post()
   Future<Response> create(@Bind.body() Map<String, dynamic> data) async {
+    // UserId must be unique among all Persons
+    final userId = data.elementAt<String>('userId');
+    if (userId != null) {
+      final duplicate = repository.aggregates.firstWhere(
+        (person) => person.data.elementAt('userId') == userId,
+        orElse: () => null,
+      );
+      if (duplicate != null) {
+        return conflict(
+          ConflictType.exists,
+          "User ${duplicate.uuid} exists with userId $userId",
+          base: duplicate.data,
+        );
+      }
+    }
     return super.create(data);
   }
 
