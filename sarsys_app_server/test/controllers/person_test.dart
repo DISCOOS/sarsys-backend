@@ -1,4 +1,5 @@
 import 'package:sarsys_domain/sarsys_domain.dart';
+import 'package:event_source/event_source.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 
@@ -14,6 +15,20 @@ Future main() async {
     final uuid = Uuid().v4();
     final body = _createData(uuid);
     expectResponse(await harness.agent.post("/api/persons", body: body), 201, body: null);
+  });
+
+  test("POST /api/persons/ returns status code 409 on duplicate userId", () async {
+    await _prepare(harness);
+    final uuid = Uuid().v4();
+    final body = _createData(uuid, userId: '1234');
+    expectResponse(await harness.agent.post("/api/persons", body: body), 201, body: null);
+    final response = expectResponse(
+      await harness.agent.post("/api/persons", body: Map.from(body)..addAll({'uuid': Uuid().v4()})),
+      409,
+    );
+    final conflict = await response.body.decode() as Map<String, dynamic>;
+    expect(conflict.elementAt('type'), 'exists');
+    expect(conflict.elementAt('base'), equals(body));
   });
 
   test("GET /api/persons/{uuid} returns status code 200", () async {
@@ -76,4 +91,4 @@ Future _prepare(SarSysHarness harness) async {
   await harness.channel.manager.get<PersonRepository>().readyAsync();
 }
 
-Map<String, Object> _createData(String uuid) => createPerson(uuid);
+Map<String, Object> _createData(String uuid, {String userId}) => createPerson(uuid, userId: userId);

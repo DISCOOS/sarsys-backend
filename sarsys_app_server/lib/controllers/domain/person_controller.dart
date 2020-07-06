@@ -47,6 +47,7 @@ class PersonController extends AggregateController<PersonCommand, Person> {
           ConflictType.exists,
           "User ${duplicate.uuid} exists with userId $userId",
           base: duplicate.data,
+          code: 'duplicate_user_id',
         );
       }
     }

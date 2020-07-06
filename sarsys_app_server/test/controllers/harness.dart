@@ -148,7 +148,7 @@ String createBearerToken(String jwt) => "Bearer $jwt";
 //////////////////////////////////
 
 Map<String, dynamic> createIncident(String uuid) => {
-      "uuid": "$uuid",
+      "uuid": uuid,
       "name": "string",
       "summary": "string",
       "type": "lost",
@@ -171,7 +171,7 @@ Map<String, dynamic> createClue(String id) => {
     };
 
 Map<String, dynamic> createSubject(String uuid) => {
-      "uuid": "$uuid",
+      "uuid": uuid,
       "name": "string",
       "situation": "string",
       "type": "person",
@@ -191,7 +191,7 @@ Map<String, dynamic> createAddress() => {
     };
 
 Map<String, dynamic> createOperation(String uuid) => {
-      "uuid": "$uuid",
+      "uuid": uuid,
       "name": "string",
       "type": "search",
       "status": "planned",
@@ -234,7 +234,7 @@ Map<String, dynamic> createLocation() => {
     };
 
 Map<String, dynamic> createMission(String uuid) => {
-      "uuid": "$uuid",
+      "uuid": uuid,
       "description": "string",
       "type": "search",
       "status": "created",
@@ -274,13 +274,14 @@ Map<String, dynamic> createMissionResult(String id) => {
       }
     };
 
-Map<String, dynamic> createPerson(String uuid, {bool temporary = false}) => {
-      "uuid": "$uuid",
+Map<String, dynamic> createPerson(String uuid, {String userId, bool temporary = false}) => {
+      "uuid": uuid,
       "fname": "string",
       "lname": "string",
       "phone": "string",
       "email": "string",
       "temporary": temporary,
+      if (userId != null) "userId": userId,
     };
 
 Map<String, dynamic> createPersonnel(
@@ -291,7 +292,7 @@ Map<String, dynamic> createPersonnel(
   String tuuid,
 }) =>
     {
-      "uuid": "$uuid",
+      "uuid": uuid,
       "status": "alerted",
       if (tuuid != null) "tracking": {"uuid": tuuid},
       if (ouuid != null) "operation": {"uuid": ouuid},
@@ -307,7 +308,7 @@ Map<String, dynamic> createAffiliation(
   String depuuid,
 }) =>
     {
-      "uuid": "$uuid",
+      "uuid": uuid,
       "type": "member",
       "status": "available",
       "active": true,
@@ -318,7 +319,7 @@ Map<String, dynamic> createAffiliation(
     };
 
 Map<String, dynamic> createUnit(String uuid, {String tuuid}) => {
-      "uuid": "$uuid",
+      "uuid": uuid,
       "type": "team",
       "number": 0,
       "phone": "string",
@@ -328,32 +329,32 @@ Map<String, dynamic> createUnit(String uuid, {String tuuid}) => {
     };
 
 Map<String, dynamic> createOrganisation(String uuid) => {
-      "uuid": "$uuid",
+      "uuid": uuid,
       "name": "string",
       "prefix": "string",
       "active": true,
     };
 
 Map<String, dynamic> createDivision(String uuid) => {
-      "uuid": "$uuid",
+      "uuid": uuid,
       "name": "string",
       "suffix": "string",
       "active": true,
     };
 
 Map<String, dynamic> createDepartment(String uuid) => {
-      "uuid": "$uuid",
+      "uuid": uuid,
       "name": "string",
       "suffix": "string",
       "active": true,
     };
 
 Map<String, dynamic> createTracking(String uuid) => {
-      "uuid": "$uuid",
+      "uuid": uuid,
     };
 
 Map<String, dynamic> createSource({String uuid = 'string', String type = 'device'}) => {
-      'uuid': '$uuid',
+      'uuid': uuid,
       'type': '$type',
     };
 
@@ -381,7 +382,7 @@ Map<String, Object> createPosition({String type = 'manual'}) => {
     };
 
 Map<String, dynamic> createDevice(String uuid) => {
-      "uuid": "$uuid",
+      "uuid": uuid,
       "alias": "string",
       "number": "string",
       "network": "string",

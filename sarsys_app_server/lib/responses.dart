@@ -109,11 +109,11 @@ Response conflict(
     Response.conflict(
       headers: headers,
       body: {
+        'error': error,
         'type': enumName(type),
-        'code': code,
-        'base': base,
+        'code': code ?? enumName(type),
         'mine': mine,
         'yours': yours,
-        'error': error,
+        if (base != null) 'base': base,
       },
     );
