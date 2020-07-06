@@ -73,14 +73,17 @@ class WrongExpectedEventVersion extends InvalidOperation {
 class ConflictNotReconcilable extends InvalidOperation {
   const ConflictNotReconcilable(
     String message, {
+    @required this.base,
     @required this.mine,
     @required this.yours,
   }) : super(message);
+  final Map<String, dynamic> base;
   final List<Map<String, dynamic>> mine;
   final List<Map<String, dynamic>> yours;
 
   factory ConflictNotReconcilable.empty(String message) => ConflictNotReconcilable(
         message,
+        base: const {},
         mine: const [],
         yours: const [],
       );

@@ -1567,6 +1567,7 @@ class ThreeWayMerge extends MergeStrategy {
       if (conflicts.isNotEmpty) {
         throw ConflictNotReconcilable(
           'Unable to reconcile ${conflicts.length} conflicts',
+          base: base,
           mine: conflicts
               .map((op) => op['path'])
               .map((path) => head.firstWhere(
