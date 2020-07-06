@@ -78,6 +78,8 @@ extension IterableX<T> on Iterable<T> {
     }
     return skip(offset).take(limit);
   }
+
+  T get firstOrNull => isNotEmpty ? first : null;
 }
 
 extension LoggerX on Logger {
