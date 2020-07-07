@@ -44,6 +44,15 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
           body: "Repository ${repository.runtimeType} is unavailable: build pending",
         );
 
+  /// Check if exist. Preform catchup if
+  /// not found before checking again.
+  Future<bool> exists(String uuid) async {
+    if (!repository.exists(uuid)) {
+      await repository.catchUp();
+    }
+    return repository.exists(uuid);
+  }
+
   //////////////////////////////////
   // Entity Operations
   //////////////////////////////////
@@ -51,7 +60,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
   /// Add @Operation.get('uuid') to activate
   Future<Response> getAll(@Bind.path('uuid') String uuid) async {
     try {
-      if (!repository.exists(uuid)) {
+      if (!await exists(uuid)) {
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
       final aggregate = repository.get(uuid);
@@ -77,7 +86,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     @Bind.path('id') String id,
   ) async {
     try {
-      if (!repository.exists(uuid)) {
+      if (!await exists(uuid)) {
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
       final aggregate = repository.get(uuid);
@@ -108,7 +117,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     @Bind.body() Map<String, dynamic> data,
   ) async {
     try {
-      if (!repository.exists(uuid)) {
+      if (!await exists(uuid)) {
         return Response.notFound(body: "$aggregateType $uuid does not exists");
       }
       final aggregate = repository.get(uuid);
@@ -138,7 +147,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     @Bind.body() Map<String, dynamic> data,
   ) async {
     try {
-      if (!repository.exists(uuid)) {
+      if (!await exists(uuid)) {
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
       final aggregate = repository.get(uuid);
@@ -181,7 +190,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     @Bind.body() Map<String, dynamic> data,
   }) async {
     try {
-      if (!repository.exists(uuid)) {
+      if (!await exists(uuid)) {
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
       final aggregate = repository.get(uuid);

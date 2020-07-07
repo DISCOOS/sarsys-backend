@@ -44,7 +44,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
     @Bind.body() Map<String, dynamic> data,
   ) async {
     try {
-      if (!primary.exists(uuid)) {
+      if (!await exists(primary, uuid)) {
         return Response.notFound(body: "$primaryType $uuid not found");
       }
       final fuuid = data[foreign.uuidFieldName] as String;
@@ -95,7 +95,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
     @Bind.body() Map<String, dynamic> data,
   ) async {
     try {
-      if (!primary.exists(uuid)) {
+      if (!await exists(primary, uuid)) {
         return Response.notFound(body: "$primaryType $uuid not found");
       }
       final list = toFieldList(data);
@@ -153,7 +153,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
     @Bind.body() Map<String, dynamic> data,
   ) async {
     try {
-      if (!primary.exists(uuid)) {
+      if (!await exists(primary, uuid)) {
         return Response.notFound(body: "$primaryType $uuid not found");
       }
       final list = toFieldList(data);
@@ -212,7 +212,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
     @Bind.body() Map<String, dynamic> data,
   ) async {
     try {
-      if (!primary.exists(uuid)) {
+      if (!await exists(primary, uuid)) {
         return Response.notFound(body: "$primaryType $uuid not found");
       }
       final list = toFieldList(data);

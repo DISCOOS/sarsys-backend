@@ -42,6 +42,15 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
           body: "Repository ${repository.runtimeType} is unavailable: build pending",
         );
 
+  /// Check if exist. Preform catchup if
+  /// not found before checking again.
+  Future<bool> exists(String uuid) async {
+    if (!repository.exists(uuid)) {
+      await repository.catchUp();
+    }
+    return repository.exists(uuid);
+  }
+
   //////////////////////////////////
   // Entity Operations
   //////////////////////////////////
@@ -51,7 +60,7 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
     @Bind.path('uuid') String uuid,
   ) async {
     try {
-      if (!repository.exists(uuid)) {
+      if (!await exists(uuid)) {
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
       final aggregate = repository.get(uuid);
@@ -80,7 +89,7 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
     @Bind.body() Map<String, dynamic> data,
   ) async {
     try {
-      if (!repository.exists(uuid)) {
+      if (!await exists(uuid)) {
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
       final events = await repository.execute(

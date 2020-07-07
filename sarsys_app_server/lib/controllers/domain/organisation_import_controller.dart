@@ -38,7 +38,7 @@ class OrganisationImportController
     @Bind.body() Map<String, dynamic> data,
   ) async {
     try {
-      if (!primary.exists(uuid)) {
+      if (!await exists(primary, uuid)) {
         return Response.notFound(body: "$primaryType $uuid not found");
       }
       final list = _validate(uuid, data);

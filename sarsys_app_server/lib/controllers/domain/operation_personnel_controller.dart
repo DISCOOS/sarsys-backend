@@ -39,15 +39,11 @@ class OperationPersonnelController
     @Bind.query('expand') List<String> expand = const [],
   }) async {
     try {
-      if (!primary.exists(uuid)) {
+      if (!await exists(primary, uuid)) {
         return Response.notFound(body: "$primaryType $uuid not found");
       }
-      final aggregate = primary.get(uuid);
       // Foreign uuids that exists
-      final uuids = List<String>.from(aggregate.data[field] as List ?? [])
-        ..removeWhere(
-          (uuid) => !exists(uuid, aggregate),
-        );
+      final uuids = await removeForeign(uuid);
       final aggregates = uuids
           .toPage(
             offset: offset,

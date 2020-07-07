@@ -63,7 +63,7 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
     @Bind.query('expand') List<String> expand = const [],
   }) async {
     try {
-      if (!repository.exists(uuid)) {
+      if (!await exists(uuid)) {
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
       final aggregate = repository.get(uuid);

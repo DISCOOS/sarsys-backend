@@ -21,6 +21,15 @@ class AggregateLookupController<S extends Command, T extends AggregateRoot> exte
           body: "Repositories ${[primary.runtimeType, foreign.runtimeType].join(', ')} are unavailable: build pending",
         );
 
+  /// Check if exist. Preform catchup if
+  /// not found before checking again.
+  Future<bool> exists<T extends AggregateRoot>(Repository repository, String uuid) async {
+    if (!repository.contains(uuid)) {
+      await repository.catchUp();
+    }
+    return repository.contains(uuid) && !repository.get(uuid).isDeleted;
+  }
+
   //////////////////////////////////
   // Aggregate Operations
   //////////////////////////////////
@@ -32,15 +41,10 @@ class AggregateLookupController<S extends Command, T extends AggregateRoot> exte
     @Bind.query('limit') int limit = 20,
   }) async {
     try {
-      if (!primary.exists(uuid)) {
+      if (!await exists(primary, uuid)) {
         return Response.notFound(body: "$primaryType $uuid not found");
       }
-      final aggregate = primary.get(uuid);
-      // Foreign uuids that exists
-      final uuids = List<String>.from(aggregate.data[field] as List ?? [])
-        ..removeWhere(
-          (uuid) => !exists(uuid, aggregate),
-        );
+      final uuids = await removeForeign(uuid);
       final aggregates = uuids.toPage(offset: offset, limit: limit).map(foreign.get).toList();
       return okAggregatePaged(uuids.length, offset, limit, aggregates);
     } on InvalidOperation catch (e) {
@@ -50,14 +54,17 @@ class AggregateLookupController<S extends Command, T extends AggregateRoot> exte
     }
   }
 
-  bool exists(String uuid, AggregateRoot parent) {
-    final test = foreign.contains(uuid);
-    if (!test) {
-      logger.fine(
-        "${typeOf<T>()}{${foreign.uuidFieldName}: $uuid} not found in aggregate list '$field' in $parent",
-      );
+  Future<List<String>> removeForeign(String uuid) async {
+    final delete = <String>[];
+    final aggregate = primary.get(uuid);
+    final uuids = List<String>.from(aggregate.data[field] as List ?? []);
+    for (String uuid in aggregate.data[field] as List<String> ?? []) {
+      if (!await exists(foreign, uuid)) {
+        delete.add(uuid);
+      }
     }
-    return test && !foreign.get(uuid).isDeleted;
+    uuids.removeWhere(delete.contains);
+    return uuids;
   }
 
   //////////////////////////////////

@@ -236,9 +236,6 @@ class EventStore {
     );
 
     if (result.isOK) {
-      // Catch-up with last event number in canonical stream
-//      _current[canonicalStream] = _getCanonicalNumber(result.events);
-
       // Group events by aggregate uuid
       final eventsPerAggregate = groupBy<SourceEvent, String>(
         result.events,
