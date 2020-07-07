@@ -101,7 +101,7 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
         "active": APISchemaObject.boolean()..description = "Affiliation status flag"
       })
         ..description = "Affiliation information"
-        ..required = ['person', 'org']
+        ..required = ['person']
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
 
   @override
