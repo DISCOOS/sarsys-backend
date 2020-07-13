@@ -58,7 +58,7 @@ class AggregateLookupController<S extends Command, T extends AggregateRoot> exte
     final delete = <String>[];
     final aggregate = primary.get(uuid);
     final uuids = List<String>.from(aggregate.data[field] as List ?? []);
-    for (String uuid in aggregate.data[field] as List<String> ?? []) {
+    for (String uuid in uuids) {
       if (!await exists(foreign, uuid)) {
         delete.add(uuid);
       }
