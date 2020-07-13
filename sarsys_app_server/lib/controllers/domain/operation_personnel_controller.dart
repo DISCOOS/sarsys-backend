@@ -90,7 +90,7 @@ class OperationPersonnelController
           final person = persons.get(puuid, createNew: false);
           if (person != null) {
             // Do not overwrite personnel.uuid
-            personnel.addAll(person.data..remove('uuid'));
+            personnel.addAll({'person': person.data});
           }
         }
       }
