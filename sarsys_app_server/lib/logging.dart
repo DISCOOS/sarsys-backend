@@ -38,6 +38,8 @@ class RemoteLogger {
     if (record.level >= _level) {
       final Event event = Event(
         message: record.message,
+        exception: record.error,
+        stackTrace: record.stackTrace,
         level: _toSeverityLevel(record),
         release: Platform.environment["IMAGE"],
         serverName: Platform.environment["NODE_NAME"],
