@@ -152,6 +152,7 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
         {
           "uuid": context.schema['UUID']..description = "Unique Personnel id",
           "status": documentStatus(),
+          "function": documentFunction(),
           "operation": documentAggregateRef(
             context,
             description: "Operation which this personnel is allocated to",
@@ -207,6 +208,17 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
       'onscene',
       'leaving',
       'retired',
+    ];
+
+  /// Personnel function - Value Object
+  APISchemaObject documentFunction() => APISchemaObject.string()
+    ..description = "Personnel function"
+    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+    ..defaultValue = "personnel"
+    ..enumerated = [
+      'personnel',
+      'commander',
+      'unit_leader',
     ];
 
   @override

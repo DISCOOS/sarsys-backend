@@ -294,6 +294,7 @@ Map<String, dynamic> createPersonnel(
     {
       "uuid": uuid,
       "status": "alerted",
+      "function": "personnel",
       if (tuuid != null) "tracking": {"uuid": tuuid},
       if (ouuid != null) "operation": {"uuid": ouuid},
       if (uuuid != null) "unit": {"uuid": uuuid},
