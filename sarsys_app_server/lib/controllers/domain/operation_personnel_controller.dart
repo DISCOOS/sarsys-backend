@@ -42,8 +42,8 @@ class OperationPersonnelController
       if (!await exists(primary, uuid)) {
         return Response.notFound(body: "$primaryType $uuid not found");
       }
-      // Foreign uuids that exists
-      final uuids = await removeForeign(uuid);
+      // Only use uuids that exists
+      final uuids = await removeDeleted(uuid);
       final aggregates = uuids
           .toPage(
             offset: offset,
@@ -57,7 +57,7 @@ class OperationPersonnelController
           offset,
           limit,
           // Merge personnel with person?
-          aggregates.map(_shouldExpand(expand) ? merge : toAggregateData).toList(),
+          aggregates.map(_shouldExpand(expand) ? merge : toAggregateData),
         ),
       );
     } on InvalidOperation catch (e) {
@@ -72,7 +72,7 @@ class OperationPersonnelController
       return true;
     }
     if (expand.isNotEmpty) {
-      throw "Invalid query parameter 'expand' values: $expand";
+      throw "Invalid query parameter 'expand' values: $expand, expected any of: {person}";
     }
     return false;
   }

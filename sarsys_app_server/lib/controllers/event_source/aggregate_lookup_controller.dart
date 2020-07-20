@@ -44,7 +44,7 @@ class AggregateLookupController<S extends Command, T extends AggregateRoot> exte
       if (!await exists(primary, uuid)) {
         return Response.notFound(body: "$primaryType $uuid not found");
       }
-      final uuids = await removeForeign(uuid);
+      final uuids = await removeDeleted(uuid);
       final aggregates = uuids.toPage(offset: offset, limit: limit).map(foreign.get).toList();
       return okAggregatePaged(uuids.length, offset, limit, aggregates);
     } on InvalidOperation catch (e) {
@@ -54,7 +54,7 @@ class AggregateLookupController<S extends Command, T extends AggregateRoot> exte
     }
   }
 
-  Future<List<String>> removeForeign(String uuid) async {
+  Future<List<String>> removeDeleted(String uuid) async {
     final delete = <String>[];
     final aggregate = primary.get(uuid);
     final uuids = List<String>.from(aggregate.data[field] as List ?? []);

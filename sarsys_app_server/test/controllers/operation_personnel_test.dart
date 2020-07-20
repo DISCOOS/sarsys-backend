@@ -99,7 +99,7 @@ Future _testGetAll(SarSysHarness harness, {bool expand = false}) async {
   expect(actual['offset'], equals(1));
   expect(actual['limit'], equals(2));
   expect(actual['entries'].length, equals(2));
-  expect(actual.elementAt('entries/0/data/person/fname'), expand ? equals('string') : isNull);
+  expect(actual.elementAt('entries/0/data/person/fname'), expand ? equals('fname') : isNull);
 }
 
 Future<String> _prepare(SarSysHarness harness) async {

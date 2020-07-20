@@ -1,3 +1,4 @@
+import 'package:event_source/event_source.dart';
 import 'package:sarsys_app_server/controllers/domain/schemas.dart';
 import 'package:sarsys_app_server/controllers/event_source/aggregate_controller.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
@@ -8,28 +9,133 @@ import 'package:sarsys_app_server/validation/validation.dart';
 /// [/api/affiliations](http://localhost/api/client.html#/Affiliations) requests
 class AffiliationController extends AggregateController<AffiliationCommand, Affiliation> {
   AffiliationController(
+    this.persons,
     AffiliationRepository affiliations,
     JsonValidation validation,
   ) : super(affiliations, validation: validation, tag: 'Affiliations');
 
+  final PersonRepository persons;
+
   @override
   @Operation.get()
   Future<Response> getAll({
-    @Bind.query('offset') int offset = 0,
+    @Bind.query('filter') String filter,
     @Bind.query('limit') int limit = 20,
+    @Bind.query('offset') int offset = 0,
     @Bind.query('deleted') bool deleted = false,
-  }) {
-    return super.getAll(
-      offset: offset,
-      limit: limit,
-      deleted: deleted,
-    );
+    @Bind.query('expand') List<String> expand = const [],
+  }) async {
+    try {
+      final shouldMerge = _shouldMerge(expand);
+      final shouldFilter = filter?.isNotEmpty == true;
+
+      // Get aggregates
+      final aggregates = repository.aggregates
+          .where((a) => deleted || !a.isDeleted)
+          .where((a) => !shouldFilter || _match(merge(a), filter));
+
+      // Get actual page
+      final page = aggregates.toPage(
+        offset: offset,
+        limit: limit,
+      );
+
+      return Response.ok(
+        toDataPaged(
+          aggregates.length,
+          offset,
+          limit,
+          page.map(shouldMerge ? merge : toAggregateData),
+        ),
+      );
+    } on InvalidOperation catch (e) {
+      return Response.badRequest(body: e.message);
+    } catch (e) {
+      return Response.serverError(body: e);
+    }
+  }
+
+  static const keys = [
+    'org',
+    'div',
+    'dep',
+    'uuid',
+    'data',
+    'type',
+    'fname',
+    'lname',
+    'email',
+    'phone',
+    'status',
+    'person',
+  ];
+
+  bool _match(Map<String, dynamic> a, String filter) {
+    final patterns = filter.toLowerCase().split(' ');
+    final searchable = _toSearchable(a, keys).toLowerCase();
+    return patterns.any(searchable.contains);
+  }
+
+  String _toSearchable(dynamic data, [List<String> keys = const []]) {
+    if (data is List) {
+      return data.map((value) => _toSearchable(value, keys)).join(' ');
+    } else if (data is Map) {
+      return data.keys
+          .where((key) => keys.isEmpty || keys.contains(key))
+          .map((key) => _toSearchable(data[key], keys))
+          .join(' ');
+    }
+    return "$data";
+  }
+
+  bool _shouldMerge(List<String> expand) {
+    if (expand.any((element) => element.toLowerCase() == 'person')) {
+      return true;
+    }
+    if (expand.isNotEmpty) {
+      throw "Invalid query parameter 'expand' values: $expand, expected any of: {person}";
+    }
+    return false;
+  }
+
+  /// Merge [Affiliation] with [Person]
+  Map<String, dynamic> merge(Affiliation aggregate) {
+    final entry = toAggregateData(aggregate);
+    final affiliation = entry.elementAt<Map<String, dynamic>>('data');
+    final puuid = affiliation.elementAt<String>('person/uuid');
+    entry.update('data', (value) => _mergePerson(puuid, affiliation));
+    return entry;
+  }
+
+  Map<String, dynamic> _mergePerson(String puuid, Map<String, dynamic> affiliation) {
+    if (puuid != null) {
+      final person = persons.get(puuid, createNew: false);
+      if (person != null) {
+        return Map.from(affiliation)..addAll({'person': person.data});
+      }
+    }
+    return affiliation;
   }
 
   @override
   @Operation.get('uuid')
-  Future<Response> getByUuid(@Bind.path('uuid') String uuid) {
-    return super.getByUuid(uuid);
+  Future<Response> getByUuid(
+    @Bind.path('uuid') String uuid, {
+    @Bind.query('expand') List<String> expand = const [],
+  }) async {
+    try {
+      if (!await exists(uuid)) {
+        return Response.notFound(body: "$aggregateType $uuid not found");
+      }
+      final aggregate = repository.get(uuid);
+      return Response.ok(
+        _shouldMerge(expand) ? merge(aggregate) : toAggregateData(aggregate),
+      );
+    } on InvalidOperation catch (e) {
+      return Response.badRequest(body: e.message);
+    } catch (e) {
+      return Response.serverError(body: e);
+    }
   }
 
   @override

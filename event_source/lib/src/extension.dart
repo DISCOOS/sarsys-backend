@@ -49,8 +49,8 @@ extension MapX on Map {
   /// equivalent to map['name1']['name2']['name3'].
   ///
   /// Returns [null] if not found
-  T elementAt<T>(String path) {
-    final parts = path.split('/');
+  T elementAt<T>(String path, {String delimiter = '/'}) {
+    final parts = path.split(delimiter);
     dynamic found = parts.skip(parts.first.isEmpty ? 1 : 0).fold(this, (parent, name) {
       if (parent is Map<String, dynamic>) {
         if (parent.containsKey(name)) {

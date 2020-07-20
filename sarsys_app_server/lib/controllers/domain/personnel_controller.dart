@@ -46,7 +46,7 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
           repository.count(deleted: deleted),
           offset,
           limit,
-          aggregates.map(_shouldExpand(expand) ? merge : toAggregateData).toList(),
+          aggregates.map(_shouldExpand(expand) ? merge : toAggregateData),
         ),
       );
     } on InvalidOperation catch (e) {

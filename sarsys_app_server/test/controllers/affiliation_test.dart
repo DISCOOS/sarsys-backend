@@ -1,3 +1,4 @@
+import 'package:event_source/event_source.dart';
 import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
@@ -20,31 +21,27 @@ Future main() async {
   });
 
   test("GET /api/affiliations/{uuid} returns status code 200", () async {
-    final auuid = Uuid().v4();
-    final puuid = Uuid().v4();
-    final orguuid = Uuid().v4();
-    await _prepare(harness, puuid: puuid, orguuid: orguuid);
-    final body = _createData(auuid, puuid: puuid, orguuid: orguuid);
-    expectResponse(await harness.agent.post("/api/affiliations", body: body), 201, body: null);
-    final response = expectResponse(await harness.agent.get("/api/affiliations/$auuid"), 200);
-    final actual = await response.body.decode();
-    expect(actual['data'], equals(body));
+    await _testGet(harness, expand: false);
   });
 
-  test("GET /api/affiliations returns status code 200 with offset=1 and limit=2", () async {
-    final puuid = Uuid().v4();
-    final orguuid = Uuid().v4();
-    await _prepare(harness, puuid: puuid, orguuid: orguuid);
-    await harness.agent.post("/api/affiliations", body: _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid));
-    await harness.agent.post("/api/affiliations", body: _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid));
-    await harness.agent.post("/api/affiliations", body: _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid));
-    await harness.agent.post("/api/affiliations", body: _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid));
-    final response = expectResponse(await harness.agent.get("/api/affiliations?offset=1&limit=2"), 200);
-    final actual = await response.body.decode();
-    expect(actual['total'], equals(4));
-    expect(actual['offset'], equals(1));
-    expect(actual['limit'], equals(2));
-    expect(actual['entries'].length, equals(2));
+  test("GET /api/affiliations/{uuid} returns status code 200 with expand=person", () async {
+    await _testGet(harness, expand: true);
+  });
+
+  test("GET /api/affiliations returns status code 200 with offset=1&limit=2", () async {
+    await _testGetAll(harness, expand: false);
+  });
+
+  test("GET /api/affiliations returns status code 200 with offset=1&limit=2&expand=person", () async {
+    await _testGetAll(harness, expand: true);
+  });
+
+  test("GET /api/affiliations returns status code 200 with offset=1&limit=2&filter=fname", () async {
+    await _testGetAll(harness, filter: true);
+  });
+
+  test("GET /api/affiliations returns status code 200 with offset=1&limit=2&expand=person&filter=fname", () async {
+    await _testGetAll(harness, expand: true, filter: true);
   });
 
   test("PATCH /api/affiliations/{uuid} is idempotent", () async {
@@ -142,6 +139,59 @@ Future main() async {
     expectResponse(await harness.agent.get("/api/affiliations/${a3.elementAt('uuid')}"), 404);
     expectResponse(await harness.agent.get("/api/affiliations/${a4.elementAt('uuid')}"), 404);
   });
+}
+
+Future _testGet(SarSysHarness harness, {bool expand = false}) async {
+  final auuid = Uuid().v4();
+  final puuid = Uuid().v4();
+  final orguuid = Uuid().v4();
+  await _prepare(harness, puuid: puuid, orguuid: orguuid);
+  final body = _createData(auuid, puuid: puuid, orguuid: orguuid);
+  expectResponse(await harness.agent.post("/api/affiliations", body: body), 201, body: null);
+  final response = expectResponse(
+    await harness.agent.get("/api/affiliations/$auuid${expand ? '?expand=person' : ''}"),
+    200,
+  );
+  final actual = await response.body.decode() as Map<String, dynamic>;
+  final person = expand ? createPerson(puuid) : <String, dynamic>{};
+  expect(
+    actual['data'],
+    equals(
+      body..addAll({if (expand) 'person': person}),
+    ),
+  );
+  expect(actual.elementAt('data/person/fname'), expand ? equals('fname') : isNull);
+}
+
+Future _testGetAll(
+  SarSysHarness harness, {
+  bool expand = false,
+  bool filter = false,
+}) async {
+  final puuid = Uuid().v4();
+  final orguuid = Uuid().v4();
+  await _prepare(harness, puuid: puuid, orguuid: orguuid);
+  await harness.agent.post(
+    "/api/affiliations",
+    body: _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid),
+  );
+  await harness.agent.post("/api/affiliations", body: _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid));
+  await harness.agent.post("/api/affiliations", body: _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid));
+  await harness.agent.post("/api/affiliations", body: _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid));
+  final query = <String>[
+    if (filter) 'filter=fname',
+    if (expand) 'expand=person',
+  ];
+  final response = expectResponse(
+    await harness.agent.get("/api/affiliations?offset=1&limit=2&${query.join('&')}"),
+    200,
+  );
+  final actual = await response.body.decode() as Map<String, dynamic>;
+  expect(actual['total'], equals(4));
+  expect(actual['offset'], equals(1));
+  expect(actual['limit'], equals(2));
+  expect(actual['entries'].length, equals(2));
+  expect(actual.elementAt('entries/0/data/person/fname'), expand ? equals('fname') : isNull);
 }
 
 Future _prepare(
