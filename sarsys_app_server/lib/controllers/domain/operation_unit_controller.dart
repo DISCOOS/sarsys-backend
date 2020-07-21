@@ -21,6 +21,7 @@ class OperationUnitController extends AggregateListController<UnitCommand, Unit,
           readOnly: const [
             'operation',
             'messages',
+            'personnels',
             'transitions',
           ],
           tag: 'Operations > Units',

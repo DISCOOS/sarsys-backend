@@ -14,6 +14,7 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
           readOnly: const [
             'operation',
             'messages',
+            'personnels',
             'transitions',
           ],
           tag: 'Units',
@@ -38,21 +39,6 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
   Future<Response> getByUuid(@Bind.path('uuid') String uuid) {
     return super.getByUuid(uuid);
   }
-
-//  @override
-//  @Operation.post()
-//  Future<Response> create(@Bind.body() Map<String, dynamic> data) async {
-//    final hasTracking = data?.elementAt('tracking/uuid') != null;
-//    final response = await super.create(data);
-//    if (hasTracking) {
-//      return await withResponseWaitForRuleResult<TrackingCreated>(
-//        response,
-//        fail: true,
-//        timeout: const Duration(milliseconds: 10000),
-//      );
-//    }
-//    return response;
-//  }
 
   @override
   @Operation('PATCH', 'uuid')
@@ -120,7 +106,8 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
             ..isReadOnly = true
             ..description = "State transitions (read only)",
           "personnels": APISchemaObject.array(ofSchema: context.schema['UUID'])
-            ..description = "List of uuid of Personnels assigned to this unit",
+            ..description = "List of uuid of Personnels assigned to this unit"
+            ..isReadOnly = true,
           "messages": APISchemaObject.array(ofSchema: context.schema['Message'])
             ..isReadOnly = true
             ..description = "List of messages added to Incident",
