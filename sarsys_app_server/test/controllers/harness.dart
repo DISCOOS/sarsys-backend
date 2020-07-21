@@ -328,13 +328,14 @@ Map<String, dynamic> createAffiliation(
       if (depuuid != null) "dep": {"uuid": depuuid},
     };
 
-Map<String, dynamic> createUnit(String uuid, {String tuuid}) => {
+Map<String, dynamic> createUnit(String uuid, {String tuuid, List<String> puuids = const []}) => {
       "uuid": uuid,
       "type": "team",
       "number": 0,
       "phone": "string",
       "callsign": "string",
       "status": "mobilized",
+      if (puuids.isNotEmpty) "personnels": puuids,
       if (tuuid != null) "tracking": {"uuid": tuuid}
     };
 

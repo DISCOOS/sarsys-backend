@@ -109,7 +109,7 @@ abstract class PolicyUtils {
     } on Exception catch (e, stackTrace) {
       if (fail) {
         final message = "Waiting for $expected timed out after $timeout. Actual was: $actual";
-        logger.severe('$message: $e: $stackTrace');
+        logger?.severe('$message: $e: $stackTrace');
         throw message;
       }
     }

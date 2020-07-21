@@ -208,6 +208,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
           () => OperationUnitController(
                 manager.get<OperationRepository>(),
                 manager.get<UnitRepository>(),
+                manager.get<PersonnelRepository>(),
                 requestValidator,
               ))
       ..secure(
@@ -258,6 +259,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
           '/api/units[/:uuid]',
           () => UnitController(
                 manager.get<UnitRepository>(),
+                manager.get<PersonnelRepository>(),
                 requestValidator,
               ))
       ..secure(

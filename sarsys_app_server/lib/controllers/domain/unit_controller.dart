@@ -7,18 +7,22 @@ import 'package:event_source/event_source.dart';
 /// A ResourceController that handles
 /// [/api/incidents/{uuid}/units](http://localhost/api/client.html#/Unit) requests
 class UnitController extends AggregateController<UnitCommand, Unit> {
-  UnitController(UnitRepository repository, JsonValidation validation)
-      : super(
+  UnitController(
+    UnitRepository repository,
+    this.personnels,
+    JsonValidation validation,
+  ) : super(
           repository,
           validation: validation,
           readOnly: const [
             'operation',
             'messages',
-            'personnels',
             'transitions',
           ],
           tag: 'Units',
         );
+
+  final PersonnelRepository personnels;
 
   @override
   @Operation.get()
@@ -45,8 +49,16 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
   Future<Response> update(
     @Bind.path('uuid') String uuid,
     @Bind.body() Map<String, dynamic> data,
-  ) {
-    return super.update(uuid, data..remove('tracking'));
+  ) async {
+    final _personnels = List<String>.from(
+      data.elementAt('personnels') ?? <String>[],
+    );
+    final notFound = _personnels.where((puuid) => !personnels.exists(puuid));
+    if (notFound.isNotEmpty) {
+      return Response.notFound(body: "Personnels not found: ${notFound.join(', ')}");
+    }
+    final response = await super.update(uuid, data);
+    return response;
   }
 
   @override
@@ -106,8 +118,7 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
             ..isReadOnly = true
             ..description = "State transitions (read only)",
           "personnels": APISchemaObject.array(ofSchema: context.schema['UUID'])
-            ..description = "List of uuid of Personnels assigned to this unit"
-            ..isReadOnly = true,
+            ..description = "List of uuid of Personnels assigned to this unit",
           "messages": APISchemaObject.array(ofSchema: context.schema['Message'])
             ..isReadOnly = true
             ..description = "List of messages added to Incident",

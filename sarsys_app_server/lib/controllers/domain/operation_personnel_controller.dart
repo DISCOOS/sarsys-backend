@@ -120,7 +120,7 @@ class OperationPersonnelController
 
   @override
   @visibleForOverriding
-  Future<Iterable<Event>> doCreate(String fuuid, Map<String, dynamic> data) async {
+  Future<Iterable<DomainEvent>> doCreate(String fuuid, Map<String, dynamic> data) async {
     final isAssigned = data?.elementAt('unit/uuid') != null;
     final hasTracking = data?.elementAt('tracking/uuid') != null;
     final events = await super.doCreate(fuuid, data);

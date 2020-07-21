@@ -68,6 +68,8 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
         mine: e.mine,
         yours: e.yours,
       );
+    } on AggregateNotFound catch (e) {
+      return Response.notFound(body: e.message);
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } on SchemaException catch (e) {
@@ -80,12 +82,12 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
   }
 
   @visibleForOverriding
-  Future<Iterable<Event>> doCreate(String fuuid, Map<String, dynamic> data) async {
+  Future<Iterable<DomainEvent>> doCreate(String fuuid, Map<String, dynamic> data) async {
     return await foreign.execute(onCreate(fuuid, data));
   }
 
   @visibleForOverriding
-  Future doCreated(U aggregate, String fuuid) async {
+  Future<Iterable<DomainEvent>> doCreated(U aggregate, String fuuid) async {
     return await primary.execute(onCreated(aggregate, fuuid));
   }
 
@@ -126,6 +128,8 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
         mine: e.mine,
         yours: e.yours,
       );
+    } on AggregateNotFound catch (e) {
+      return Response.notFound(body: e.message);
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } on SchemaException catch (e) {
@@ -138,12 +142,12 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
   }
 
   @visibleForOverriding
-  Future doAdd(U aggregate, String fuuid) async {
+  Future<Iterable<DomainEvent>> doAdd(U aggregate, String fuuid) async {
     return await primary.execute(onAdd(aggregate, fuuid));
   }
 
   @visibleForOverriding
-  Future doAdded(U aggregate, String fuuid) async {
+  Future<Iterable<DomainEvent>> doAdded(U aggregate, String fuuid) async {
     return await foreign.execute(onAdded(aggregate, fuuid));
   }
 
@@ -185,6 +189,8 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
         mine: e.mine,
         yours: e.yours,
       );
+    } on AggregateNotFound catch (e) {
+      return Response.notFound(body: e.message);
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } on SchemaException catch (e) {
@@ -197,12 +203,12 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
   }
 
   @visibleForOverriding
-  Future doReplace(U aggregate, String fuuid) async {
+  Future<Iterable<DomainEvent>> doReplace(U aggregate, String fuuid) async {
     return await primary.execute(onReplace(aggregate, fuuid));
   }
 
   @visibleForOverriding
-  Future doReplaced(U aggregate, String fuuid) async {
+  Future<Iterable<DomainEvent>> doReplaced(U aggregate, String fuuid) async {
     return await foreign.execute(onReplaced(aggregate, fuuid));
   }
 
@@ -244,6 +250,8 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
         mine: e.mine,
         yours: e.yours,
       );
+    } on AggregateNotFound catch (e) {
+      return Response.notFound(body: e.message);
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } on SchemaException catch (e) {
@@ -256,12 +264,12 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
   }
 
   @visibleForOverriding
-  Future doRemove(U aggregate, String fuuid) async {
+  Future<Iterable<DomainEvent>> doRemove(U aggregate, String fuuid) async {
     return await primary.execute(onRemove(aggregate, fuuid));
   }
 
   @visibleForOverriding
-  Future doRemoved(U aggregate, String fuuid) async {
+  Future<Iterable<DomainEvent>> doRemoved(U aggregate, String fuuid) async {
     return await foreign.execute(onRemoved(aggregate, fuuid));
   }
 

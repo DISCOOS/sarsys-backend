@@ -12,6 +12,7 @@ class OperationUnitController extends AggregateListController<UnitCommand, Unit,
   OperationUnitController(
     OperationRepository primary,
     UnitRepository foreign,
+    this.personnels,
     JsonValidation validation,
   ) : super(
           'units',
@@ -19,13 +20,14 @@ class OperationUnitController extends AggregateListController<UnitCommand, Unit,
           foreign,
           validation,
           readOnly: const [
-            'operation',
             'messages',
-            'personnels',
+            'operation',
             'transitions',
           ],
           tag: 'Operations > Units',
         );
+
+  final PersonnelRepository personnels;
 
   @override
   @Operation.get('uuid')
@@ -46,18 +48,29 @@ class OperationUnitController extends AggregateListController<UnitCommand, Unit,
 
   @override
   @visibleForOverriding
-  Future<Iterable<Event>> doCreate(String fuuid, Map<String, dynamic> data) async {
-    final isAssigned = data?.elementAt('unit/uuid') != null;
+  Future<Iterable<DomainEvent>> doCreate(String fuuid, Map<String, dynamic> data) async {
+    final uuuid = data?.elementAt<String>('uuid');
     final hasTracking = data?.elementAt('tracking/uuid') != null;
-    final events = await super.doCreate(fuuid, data);
-    if (hasTracking || isAssigned) {
-      await PolicyUtils.waitForRuleResults(
+    final _personnels = List<String>.from(
+      data?.elementAt('personnels') ?? <String>[],
+    );
+    final notFound = _personnels.where((puuid) => !personnels.exists(puuid));
+    if (notFound.isNotEmpty) {
+      throw AggregateNotFound("Personnels not found: ${notFound.join(', ')}");
+    }
+    // Create without personnels
+    final events = await super.doCreate(fuuid, Map.from(data)..remove('personnels'));
+    // Add personnels to unit just created
+    if (_personnels.isNotEmpty) {
+      final unit = foreign.get(uuuid);
+      await Future.wait(_personnels.map((String puuid) async {
+        return foreign.execute(AssignPersonnelToUnit(unit, puuid));
+      }));
+    }
+    if (hasTracking) {
+      await PolicyUtils.waitForRuleResult<TrackingCreated>(
         foreign,
         fail: true,
-        expected: {
-          TrackingCreated: hasTracking ? 1 : 0,
-          UnitAddedToOperation: isAssigned ? 1 : 0,
-        },
         timeout: const Duration(milliseconds: 1000),
       );
     }
