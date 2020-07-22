@@ -105,7 +105,7 @@ Future main() async {
               'division': {'uuid': divuuid1}
             }),
         ));
-  });
+  }, timeout: Timeout.factor(100));
 
   test("PATCH /api/organisation/{uuid}/import updates division and department", () async {
     // Arrange

@@ -43,9 +43,9 @@ class OrganisationImportController
       }
       final list = _validate(uuid, data);
       final responses = <Response>[];
-      await Future.wait(list.map((Map<String, dynamic> div) async {
+      for (var div in list) {
         responses.addAll(await _importDivision(uuid, div));
-      }));
+      }
       final failures = responses.where(isError);
       return failures.isEmpty
           ? okAggregate(primary.get(uuid))
@@ -186,14 +186,14 @@ class OrganisationImportController
   Future<Iterable<Response>> _importDeps(String uuid, dynamic deps) async {
     final responses = <Response>[];
     if (deps is List) {
-      responses.addAll(await Future.wait(List<Map<String, dynamic>>.from(deps).map(
-        (Map<String, dynamic> dep) async => await _importDep(dep, responses, uuid),
-      )));
+      for (var dep in List<Map<String, dynamic>>.from(deps)) {
+        responses.add(await _importDep(dep, uuid));
+      }
     }
     return responses;
   }
 
-  Future<Response> _importDep(Map<String, dynamic> dep, List<Response> responses, String uuid) async {
+  Future<Response> _importDep(Map<String, dynamic> dep, String uuid) async {
     final duuid = dep.elementAt('uuid') as String ?? Uuid().v4();
     if (!departmentController.repository.contains(duuid)) {
       return await _forward(departmentListController).create(
