@@ -418,9 +418,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Get domain event from given event
   DomainEvent toDomainEvent(Event event) {
-    if (event is DomainEvent) {
-      return event;
-    }
     final process = _processors['${event.type}'];
     if (process != null) {
       return process(event);
@@ -719,6 +716,13 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     try {
       logger.fine('Push > $aggregate');
       await store.push(aggregate);
+
+      operation.changes.forEach((e) {
+        if ('${e.runtimeType}' != 'FooCreated') {
+          print(e);
+        }
+      });
+
       // Only return changes applied by this operation
       operation.completer.complete(operation.changes);
     } on WrongExpectedEventVersion {
@@ -1495,7 +1499,7 @@ abstract class MergeStrategy {
       final base = aggregate.data;
       var previous = base;
       events.forEach((event) {
-        final next = event.rebase(previous);
+        final next = repository.toDomainEvent(event.rebase(previous));
         aggregate._apply(
           next,
           isChanged: true,

@@ -537,7 +537,9 @@ class TestStream {
     if (useInstanceStreams) {
       final id = int.tryParse(path.split('-').last);
       if (id >= _instances.length) {
-        _instances.insert(id, LinkedHashMap.from({}));
+        for (var i = _instances.length; i <= id; i++) {
+          _instances.add(LinkedHashMap.from({}));
+        }
       }
       return _instances.elementAt(id);
     }
