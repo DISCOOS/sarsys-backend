@@ -25,18 +25,20 @@ class AffiliationPersonController extends AggregateController<AffiliationCommand
       if (puuid == null) {
         return Response.badRequest(body: "Field [person/uuid] in required");
       }
-      final current = persons.get(puuid, createNew: false);
-      final person = validate<Map<String, dynamic>>("${typeOf<Person>()}", data['person']);
-      final temporary = person.elementAt<bool>('temporary');
-      if (current == null) {
-        await persons.execute(
-          CreatePerson(person),
-        );
-      } else if (current.data.elementAt('temporary') != temporary) {
-        return conflict(
-          ConflictType.exists,
-          'Person $puuid already exists as ${temporary ? 'permanent' : 'temporary'}',
-        );
+      if (!await exists(puuid)) {
+        final current = persons.get(puuid, createNew: false);
+        final person = validate<Map<String, dynamic>>("${typeOf<Person>()}", data['person']);
+        final temporary = person.elementAt<bool>('temporary');
+        if (current == null) {
+          await persons.execute(
+            CreatePerson(person),
+          );
+        } else if (current.data.elementAt('temporary') != temporary) {
+          return conflict(
+            ConflictType.exists,
+            'Person $puuid already exists as ${temporary ? 'permanent' : 'temporary'}',
+          );
+        }
       }
       final affiliation = data.elementAt('affiliation');
       if (affiliation is! Map) {

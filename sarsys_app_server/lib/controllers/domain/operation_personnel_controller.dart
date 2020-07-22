@@ -110,7 +110,7 @@ class OperationPersonnelController
       return Response.badRequest(
         body: "Field [affiliation/uuid] is required",
       );
-    } else if (!affiliations.contains(auuid as String)) {
+    } else if (!await exists(affiliations, auuid as String)) {
       return Response.badRequest(
         body: "Affiliation $uuid not found",
       );
