@@ -18,6 +18,9 @@ import 'models/AtomFeed.dart';
 import 'models/AtomItem.dart';
 import 'results.dart';
 
+const Duration defaultWaitFor = Duration(milliseconds: 1500);
+const Duration defaultPullEvery = Duration(milliseconds: 100);
+
 /// Storage class managing events locally in memory received from event store server
 @sealed
 class EventStore {
@@ -1226,8 +1229,8 @@ class EventStoreConnection {
   Stream<SourceEvent> subscribe({
     @required String stream,
     EventNumber number = EventNumber.last,
-    Duration waitFor = const Duration(milliseconds: 1500),
-    Duration pullEvery = const Duration(milliseconds: 500),
+    Duration waitFor = defaultWaitFor,
+    Duration pullEvery = defaultPullEvery,
   }) {
     _assertState();
 
@@ -1251,7 +1254,7 @@ class EventStoreConnection {
     bool accept = true,
     EventNumber number = EventNumber.last,
     ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
-    Duration pullEvery = const Duration(milliseconds: 500),
+    Duration pullEvery = defaultPullEvery,
   }) {
     _assertState();
 
@@ -1625,8 +1628,8 @@ class _SubscriptionController {
   Stream<SourceEvent> pull({
     @required String stream,
     EventNumber number = EventNumber.last,
-    Duration waitFor = const Duration(milliseconds: 500),
-    Duration pullEvery = const Duration(milliseconds: 500),
+    Duration waitFor = defaultWaitFor,
+    Duration pullEvery = defaultPullEvery,
   }) {
     // Setup
     _accept = false;
@@ -1657,7 +1660,7 @@ class _SubscriptionController {
     bool accept = true,
     EventNumber number = EventNumber.last,
     ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
-    Duration pullEvery = const Duration(milliseconds: 500),
+    Duration pullEvery = defaultPullEvery,
   }) {
     // Setup
     _group = group;
