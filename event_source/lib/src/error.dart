@@ -57,15 +57,17 @@ class EntityExists extends InvalidOperation {
 class WrongExpectedEventVersion extends InvalidOperation {
   const WrongExpectedEventVersion(
     String message, {
+    @required this.stream,
     @required this.expected,
     @required this.actual,
   }) : super(message);
-  final ExpectedVersion expected;
+  final String stream;
   final EventNumber actual;
+  final ExpectedVersion expected;
 
   @override
   String toString() {
-    return '$runtimeType{expected: ${expected.value}, actual: ${actual.value}, message: $message}';
+    return '$runtimeType{stream: $stream, expected: ${expected.value}, actual: ${actual.value}, message: $message}';
   }
 }
 

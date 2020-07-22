@@ -19,7 +19,7 @@ import 'models/AtomItem.dart';
 import 'results.dart';
 
 const Duration defaultWaitFor = Duration(milliseconds: 1500);
-const Duration defaultPullEvery = Duration(milliseconds: 200);
+const Duration defaultPullEvery = Duration(milliseconds: 100);
 
 /// Storage class managing events locally in memory received from event store server
 @sealed
@@ -218,6 +218,8 @@ class EventStore {
       logger.info(
         'Local stream $canonicalStream is at same event number as remote stream ($previous)',
       );
+//      logger.info('---STACKTRACE---');
+//      logger.info(StackTrace.current);
     }
     return count;
   }
@@ -319,7 +321,7 @@ class EventStore {
         events,
       );
       _setEventNumber(aggregate, events);
-      // Publish locally created events.0
+      // Publish locally created events.
       // Handlers can determine events with
       // local origin using the local field
       // in each Event
@@ -381,7 +383,7 @@ class EventStore {
     }
     final stream = toInstanceStream(aggregate.uuid);
     final changes = aggregate.getUncommittedChanges();
-    final number = _toExpectedVersion(stream);
+    final number = toExpectedVersion(stream);
     final result = await connection.writeEvents(
       stream: stream,
       version: number,
@@ -396,6 +398,7 @@ class EventStore {
     } else if (result.isWrongESNumber) {
       throw WrongExpectedEventVersion(
         result.reasonPhrase,
+        stream: stream,
         actual: result.actual,
         expected: result.expected,
       );
@@ -406,30 +409,6 @@ class EventStore {
       '${result.statusCode} ${result.reasonPhrase}',
     );
   }
-
-//  Iterable<DomainEvent> _assertChanges(
-//    String stream,
-//    AggregateRoot aggregate,
-//    Iterable<DomainEvent> changes,
-//  ) {
-//    final all = aggregate.getUncommittedChanges();
-//    if (changes != null) {
-//      // Already applied?
-//      final duplicates = changes.where((e) => aggregate.applied.contains(e.uuid));
-//      if (duplicates.isNotEmpty) {
-//        throw WriteFailed(
-//          'Failed to push $changes to $stream: events $duplicates already applied',
-//        );
-//      }
-//      // Not starting successively from head of changes?
-//      if (all.take(changes.length).map((e) => e.uuid) == changes.map((e) => e.uuid)) {
-//        throw WriteFailed(
-//          'Failed to push $changes to $stream: did not match head of uncommitted changes $all',
-//        );
-//      }
-//    }
-//    return changes ?? aggregate.getUncommittedChanges();
-//  }
 
   /// Get expected version number for given stream.
   ///
@@ -446,7 +425,7 @@ class EventStore {
   /// are guaranteed to receive events in same
   /// order).
   ///
-  ExpectedVersion _toExpectedVersion(String stream) => (_current[stream] ?? EventNumber.none).isNone
+  ExpectedVersion toExpectedVersion(String stream) => (_current[stream] ?? EventNumber.none).isNone
       ? ExpectedVersion.none
       : ExpectedVersion.from(
           _current[stream],
@@ -552,15 +531,14 @@ class EventStore {
 
   /// Handle event from subscriptions
   void _onSubscriptionEvent(Repository repository, SourceEvent event) {
-    final uuid = repository.toAggregateUuid(event);
-    var aggregate = repository.get(uuid, createNew: false);
-
-    // Only catchup if aggregate is not
-    // changed locally. If updated before
+    // Only catchup if repository have no
+    // pending changes. If updated before
     // write-op is completed, a concurrent
     // write will happened and information
     // will be lost.
-    if (aggregate?.isChanged != true) {
+    if (!(repository.isProcessing || repository.isChanged)) {
+      final uuid = repository.toAggregateUuid(event);
+
       try {
         logger.fine(
           '${repository.runtimeType}: _onSubscriptionEvent: ${event.runtimeType}'
@@ -574,7 +552,10 @@ class EventStore {
         // Prepare event sourcing
         final stream = toInstanceStream(uuid);
         final actual = current(uuid: uuid);
-        final process = isEmpty || event.number > actual;
+
+        // Do not process own events twice!
+        final process = (isEmpty || event.number > actual) && _store[uuid]?.contains(event) != true;
+
         logger.finer(
           '${repository.runtimeType}: _onSubscriptionEvent: '
           'process: $process, isEmpty: $isEmpty, '
@@ -590,7 +571,7 @@ class EventStore {
           _update(uuid, [event]);
 
           // Catch up with stream
-          aggregate = repository.get(uuid);
+          final aggregate = repository.get(uuid);
           if (!aggregate.isApplied(event)) {
             aggregate.apply(
               repository.toDomainEvent(event),

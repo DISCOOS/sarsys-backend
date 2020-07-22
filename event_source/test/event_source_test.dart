@@ -2,6 +2,7 @@ import 'package:event_source/src/error.dart';
 import 'package:event_source/src/mock.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
+import 'package:async/async.dart';
 
 import 'foo.dart';
 import 'harness.dart';
@@ -11,11 +12,6 @@ Future main() async {
     ..withTenant()
     ..withPrefix()
     ..withLogger()
-//    ..withStream(
-//      '\$ce-discoos:test:foo',
-//      useCanonicalName: true,
-//      useInstanceStreams: true,
-//    )
     ..withRepository<Foo>((store) => FooRepository(store), instances: 2)
     ..withProjections(projections: ['\$by_category', '\$by_event_type'])
     ..addServer(port: 4000)
@@ -49,14 +45,14 @@ Future main() async {
     final uuid = Uuid().v4();
     final foo = repo1.get(uuid, data: {'property1': 'value1'});
     await repo1.push(foo);
-    await repo2.store.asStream().first;
-    await repo3.store.asStream().first;
+    final pending = StreamGroup.merge([repo2.store.asStream(), repo3.store.asStream()]);
+    await pending.take(2).toList();
 
     // Assert instances
     expect(repo1.count(), equals(4));
     expect(repo2.count(), equals(4));
     expect(repo3.count(), equals(4));
-  });
+  }, timeout: Timeout.factor(100));
 }
 
 Future<FooRepository> _createStreamsAndReplay(EventSourceHarness harness, int port, int count) async {
@@ -64,18 +60,19 @@ Future<FooRepository> _createStreamsAndReplay(EventSourceHarness harness, int po
   await repo.readyAsync();
   final stream = harness.server(port: port).getStream(repo.store.aggregate);
   for (var i = 0; i < count; i++) {
-    _createStream(stream);
+    _createStream(i, stream);
   }
   await repo.replay();
   return repo;
 }
 
 Map<String, Map<String, dynamic>> _createStream(
+  int index,
   TestStream stream,
 ) {
   return stream.append('${stream.instanceStream}-${stream.instances.length}', [
     TestStream.asSourceEvent<FooUpdated>(
-      Uuid().v4(),
+      '$index',
       {'property1': 'value1'},
       {
         'property1': 'value1',
