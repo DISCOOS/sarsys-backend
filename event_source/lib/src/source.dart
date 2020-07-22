@@ -19,7 +19,7 @@ import 'models/AtomItem.dart';
 import 'results.dart';
 
 const Duration defaultWaitFor = Duration(milliseconds: 1500);
-const Duration defaultPullEvery = Duration(milliseconds: 100);
+const Duration defaultPullEvery = Duration(milliseconds: 200);
 
 /// Storage class managing events locally in memory received from event store server
 @sealed

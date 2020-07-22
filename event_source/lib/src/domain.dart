@@ -1478,8 +1478,11 @@ abstract class MergeStrategy {
   Future<Iterable<DomainEvent>> reconcile(AggregateRoot aggregate, int max) => _reconcileWithRetry(aggregate, max, 1);
   Future<Iterable<DomainEvent>> _reconcileWithRetry(AggregateRoot aggregate, int max, int attempt) async {
     try {
-      // Wait for one pull cycle
-      await Future.delayed(defaultPullEvery);
+      // Wait with exponential backoff
+      // until default waitFor is reached
+      await Future.delayed(
+        Duration(milliseconds: toNextTimeout(attempt, defaultWaitFor)),
+      );
 
       final isNew = aggregate.isNew;
       // Keep local state and rollback
