@@ -47,8 +47,7 @@ class Message {
   }
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) || other is Message && runtimeType == other.runtimeType && uuid == other.uuid;
+  bool operator ==(Object other) => identical(this, other) || other is Message && uuid == other.uuid;
   /* &&
           // DO NOT COMPARE - equality is guaranteed by type and uuid
           // data == other.data &&
