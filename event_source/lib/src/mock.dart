@@ -64,22 +64,18 @@ class EventStoreMockServer {
         orElse: () => null,
       );
       if (route == null) {
-//        if (request.method == 'POST') {
-//          print(request.uri.path);
-//        }
         _notFound(request);
       } else {
-//        if (request.method == 'POST') {
-//          print(request.uri.path);
-//        }
         await route.handle(request);
       }
-      _log(
-        'Ports ${request.connectionInfo.remotePort} > ${request.connectionInfo.localPort}: '
-        '${request.method} ${request.uri.path}'
-        '${request.uri.queryParameters.isNotEmpty ? '?${request.uri.query}' : ''} '
-        '> ${request.response.statusCode} ${request.response.reasonPhrase}',
-      );
+      if (!request.uri.path.contains('forward/')) {
+        _log(
+          'Ports ${request.connectionInfo.remotePort} > ${request.connectionInfo.localPort}: '
+          '${request.method} ${request.uri.path}'
+          '${request.uri.queryParameters.isNotEmpty ? '?${request.uri.query}' : ''} '
+          '> ${request.response.statusCode} ${request.response.reasonPhrase}',
+        );
+      }
       await request.response.close();
     });
     _log(
@@ -531,9 +527,6 @@ class TestStream {
   }
 
   Map<String, Map<String, dynamic>> _toEventsFromPath(String path) {
-    if (_instances.isEmpty) {
-      _instances.add(LinkedHashMap.from({}));
-    }
     if (useInstanceStreams) {
       final id = int.tryParse(path.split('-').last);
       if (id >= _instances.length) {
@@ -542,6 +535,8 @@ class TestStream {
         }
       }
       return _instances.elementAt(id);
+    } else if (_instances.isEmpty) {
+      _instances.add(LinkedHashMap.from({}));
     }
     return _instances.first;
   }
