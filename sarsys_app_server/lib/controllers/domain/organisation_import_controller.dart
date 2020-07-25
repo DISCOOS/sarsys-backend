@@ -86,16 +86,33 @@ class OrganisationImportController
 
   List<Map<String, dynamic>> _validate(String uuid, Map<String, dynamic> data) {
     final tree = validate<Map<String, dynamic>>("${aggregateType}Tree", data);
+    final org = primary.get(uuid, createNew: false);
     final divs = List<Map<String, dynamic>>.from(tree.elementAt('divisions') ?? []);
-    final deps = divs.fold<List<Map<String, dynamic>>>(
-      <Map<String, dynamic>>[],
-      (deps, div) => deps..addAll(List<Map<String, dynamic>>.from(div.elementAt('departments') ?? [])),
-    );
 
-    // Check for name conflicts
-    final conflicts = _verifyUniqueNames<Division>(divisionController.repository, divs).toList();
+    // Check for name conflicts with divisions in given organisation
+    final conflicts = _verifyUniqueNames<Division>(
+            List<String>.from(
+              org.data.elementAt('divisions') ?? [],
+            ).where(divisionController.repository.contains).map(divisionController.repository.get),
+            divisionController.repository,
+            divs)
+        .toList();
     conflicts.addAll(
-      _verifyUniqueNames<Department>(departmentController.repository, deps),
+      // Check name conflicts with departments in given department
+      divs.fold<List<String>>(
+          <String>[],
+          (conflicts, div) => conflicts
+            ..addAll(_verifyUniqueNames<Department>(
+              List<String>.from(
+                divisionController.repository
+                        .get(div.elementAt<String>('uuid'), createNew: false)
+                        ?.data
+                        ?.elementAt('departments') ??
+                    [],
+              ).where(departmentController.repository.contains).map(departmentController.repository.get),
+              departmentController.repository,
+              List<Map<String, dynamic>>.from(div.elementAt('departments') ?? []),
+            ))),
     );
 
     // Check for wrong parents
@@ -103,8 +120,13 @@ class OrganisationImportController
     wrongParents.addAll(divs.fold(
       <String>[],
       (errors, div) => List.from(errors)
-        ..addAll(_verifyBelongsTo<Department>(div.elementAt('uuid') as String, 'division',
-            departmentController.repository, List.from(div.elementAt('departments') ?? []))),
+        ..addAll(_verifyBelongsTo<Department>(
+            div.elementAt('uuid') as String,
+            'division',
+            departmentController.repository,
+            List.from(
+              div.elementAt('departments') ?? [],
+            ))),
     ));
 
     if (conflicts.isNotEmpty || wrongParents.isNotEmpty) {
@@ -117,16 +139,30 @@ class OrganisationImportController
   }
 
   Iterable<String> _verifyUniqueNames<T extends AggregateRoot>(
+    Iterable<T> existing,
     Repository<Command, T> repository,
     List<Map<String, dynamic>> aggregates,
-  ) =>
-      aggregates
-          .where((aggregate) => !repository.contains(aggregate.elementAt('uuid')))
-          .where((aggregate) => _findNameConflict<T>(repository.aggregates, aggregate).isNotEmpty)
-          .map(
-            (aggregate) => '${typeOf<T>()} ${aggregate.elementAt('name')} have same name as: '
-                '${_findNameConflict<T>(repository.aggregates, aggregate).map((found) => found.uuid).toList()}',
-          );
+  ) {
+    final conflicts = aggregates
+        .where((aggregate) => !repository.contains(aggregate.elementAt('uuid')))
+        .where((aggregate) => _findNameConflict<T>(existing, aggregate).isNotEmpty)
+        .map(
+          (aggregate) => '${typeOf<T>()} ${aggregate.elementAt('name')} have same name as: '
+              '${_findNameConflict<T>(existing, aggregate).map((found) => found.uuid).toList()}',
+        )
+        .toList();
+    // Check that names in import is unique
+    final duplicates = <String, int>{};
+    aggregates.forEach(
+      (aggregate) => duplicates.update(aggregate.elementAt('name'), (count) => ++count, ifAbsent: () => 1),
+    );
+    duplicates.removeWhere((_, count) => count < 2);
+    conflicts.addAll(
+      duplicates.keys.map((name) => 'Found ${duplicates[name]} ${typeOf<T>()}(s) with $name'),
+    );
+
+    return conflicts;
+  }
 
   Iterable<String> _verifyBelongsTo<T extends AggregateRoot>(
     String uuid,
@@ -149,10 +185,10 @@ class OrganisationImportController
   ) =>
       _find<T>(aggregates, 'name', div);
 
-  Iterable<T> _find<T extends AggregateRoot>(Iterable<T> items, String field, Map<String, dynamic> div) {
+  Iterable<T> _find<T extends AggregateRoot>(Iterable<T> items, String field, Map<String, dynamic> match) {
     return items
-        .where((aggregate) => aggregate.uuid != div.elementAt('uuid'))
-        .where((aggregate) => aggregate.data.elementAt(field) == div.elementAt(field));
+        .where((aggregate) => aggregate.uuid != match.elementAt('uuid'))
+        .where((aggregate) => aggregate.data.elementAt(field) == match.elementAt(field));
   }
 
   Future<Iterable<Response>> _importDivision(String uuid, Map<String, dynamic> div) async {

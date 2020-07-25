@@ -92,7 +92,7 @@ Future main() async {
     final response = expectResponse(await harness.agent.get("/api/devices"), 200);
     final actual = Map.from(await response.body.decode());
     expect(actual.elementAt('total'), 0, reason: 'Expected Device was co-deleted');
-  }, timeout: const Timeout.factor(100));
+  });
 
   test("GET /api/app-configs returns status code 200 with offset=1 and limit=2", () async {
     harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());

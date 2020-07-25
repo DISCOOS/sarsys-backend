@@ -211,7 +211,7 @@ Future main() async {
           'member2': 'value4',
           'member3': 'value3',
         })); // keep, add and replace member values
-  }, timeout: Timeout.factor(100));
+  });
 
   test('Repository should catch-up to head of events in remote stream', () async {
     // Arrange

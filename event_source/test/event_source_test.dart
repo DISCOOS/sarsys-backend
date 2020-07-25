@@ -52,7 +52,7 @@ Future main() async {
     expect(repo1.count(), equals(4));
     expect(repo2.count(), equals(4));
     expect(repo3.count(), equals(4));
-  }, timeout: Timeout.factor(100));
+  });
 }
 
 Future<FooRepository> _createStreamsAndReplay(EventSourceHarness harness, int port, int count) async {

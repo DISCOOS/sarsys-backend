@@ -11,101 +11,14 @@ Future main() async {
     ..install(restartForEachTest: true);
 
   test("PATCH /api/organisation/{uuid}/import creates divisions and departments", () async {
-    final ouuid = await _prepare(harness);
-    final divuuid1 = Uuid().v4();
-    final divuuid2 = Uuid().v4();
-    final depuuid1 = Uuid().v4();
-    final depuuid2 = Uuid().v4();
-    final depuuid3 = Uuid().v4();
-    final depuuid4 = Uuid().v4();
-    final dep1 = {
-      'uuid': depuuid1,
-      'name': "Dep1",
-      'suffix': "1",
-      'active': true,
-    };
-    final dep2 = {
-      'uuid': depuuid2,
-      'name': "Dep2",
-      'suffix': "1",
-      'active': true,
-    };
-    final dep3 = {
-      'uuid': depuuid3,
-      'name': "Dep3",
-      'suffix': "1",
-      'active': true,
-    };
-    final dep4 = {
-      'uuid': depuuid4,
-      'name': "Dep4",
-      'suffix': "1",
-      'active': true,
-    };
-    final div1 = {
-      'uuid': divuuid1,
-      'name': "Div1",
-      'suffix': "1",
-      'active': true,
-      'departments': [
-        dep1,
-        dep2,
-      ]
-    };
-    final div2 = {
-      'uuid': divuuid2,
-      'name': "Div2",
-      'suffix': "1",
-      'active': true,
-      'departments': [
-        dep3,
-        dep4,
-      ]
-    };
-    final tree = {
-      'uuid': ouuid,
-      'divisions': [div1, div2]
-    };
-    expectResponse(
-      await harness.agent.execute('patch', "/api/organisations/$ouuid/import", body: tree),
-      200,
-      body: null,
-    );
-    final response1 = expectResponse(await harness.agent.get("/api/organisations/$ouuid"), 200);
-    final actualOrg = await response1.body.decode() as Map<String, dynamic>;
-    expect(
-        actualOrg.elementAt('data'),
-        containsPair('divisions', [
-          divuuid1,
-          divuuid2,
-        ]));
-    final response2 = expectResponse(await harness.agent.get("/api/divisions/$divuuid1"), 200);
-    final actualDiv = await response2.body.decode() as Map<String, dynamic>;
-    expect(
-        actualDiv,
-        containsPair(
-          'data',
-          div1
-            ..addAll({
-              'departments': [
-                depuuid1,
-                depuuid2,
-              ],
-              'organisation': {'uuid': ouuid}
-            }),
-        ));
-    final response3 = expectResponse(await harness.agent.get("/api/departments/$depuuid1"), 200);
-    final actualDep = await response3.body.decode() as Map<String, dynamic>;
-    expect(
-        actualDep,
-        containsPair(
-          'data',
-          dep1
-            ..addAll({
-              'division': {'uuid': divuuid1}
-            }),
-        ));
-  }, timeout: Timeout.factor(100));
+    await _testImport(harness);
+  });
+
+  test("Multiple PATCH /api/organisation/{uuid}/import", () async {
+    await _testImport(harness);
+    await _testImport(harness);
+    await _testImport(harness);
+  });
 
   test("PATCH /api/organisation/{uuid}/import updates division and department", () async {
     // Arrange
@@ -179,6 +92,71 @@ Future main() async {
               'division': {'uuid': divuuid}
             }),
         ));
+  });
+
+  test("PATCH /api/organisation/{uuid}/import returns 409 on duplicate division names in import data", () async {
+    // Arrange
+    final ouuid = await _prepare(harness);
+    final duuid1 = Uuid().v4();
+    final duuid2 = Uuid().v4();
+    final div1 = {
+      'uuid': duuid1,
+      'name': "Div1",
+      'suffix': "1",
+      'active': true,
+    };
+    final div2 = {
+      'uuid': duuid2,
+      'name': "Div1",
+      'suffix': "1",
+      'active': true,
+    };
+    final tree = {
+      'uuid': ouuid,
+      'divisions': [div1, div2]
+    };
+    expectResponse(
+      await harness.agent.execute('patch', "/api/organisations/$ouuid/import", body: tree),
+      409,
+      body: null,
+    );
+  });
+
+  test("PATCH /api/organisation/{uuid}/import returns 409 on duplicate department names in import data", () async {
+    // Arrange
+    final ouuid = await _prepare(harness);
+    final duuid1 = Uuid().v4();
+    final duuid2 = Uuid().v4();
+    final dep1 = {
+      'uuid': duuid1,
+      'name': "Dep1",
+      'suffix': "1",
+      'active': true,
+    };
+    final dep2 = {
+      'uuid': duuid2,
+      'name': "Dep1",
+      'suffix': "1",
+      'active': true,
+    };
+    final div = {
+      'name': "Div1",
+      'suffix': "1",
+      'active': true,
+      'departments': [
+        dep1,
+        dep2,
+      ],
+    };
+    final tree = {
+      'uuid': ouuid,
+      'divisions': [div]
+    };
+    expectResponse(
+      await harness.agent.execute('patch', "/api/organisations/$ouuid/import", body: tree),
+      409,
+      body: null,
+    );
   });
 
   test("PATCH /api/organisation/{uuid}/import returns 409 when division and department name exists", () async {
@@ -343,6 +321,103 @@ Future main() async {
       'error': 'Aggregates belongs to wrong parents: [Department $depuuid1 belongs to division: $divuuid1]',
     });
   });
+}
+
+Future _testImport(SarSysHarness harness) async {
+  final ouuid = await _prepare(harness);
+  final divuuid1 = Uuid().v4();
+  final divuuid2 = Uuid().v4();
+  final depuuid1 = Uuid().v4();
+  final depuuid2 = Uuid().v4();
+  final depuuid3 = Uuid().v4();
+  final depuuid4 = Uuid().v4();
+  final dep1 = {
+    'uuid': depuuid1,
+    'name': "Dep1",
+    'suffix': "1",
+    'active': true,
+  };
+  final dep2 = {
+    'uuid': depuuid2,
+    'name': "Dep2",
+    'suffix': "1",
+    'active': true,
+  };
+  final dep3 = {
+    'uuid': depuuid3,
+    'name': "Dep3",
+    'suffix': "1",
+    'active': true,
+  };
+  final dep4 = {
+    'uuid': depuuid4,
+    'name': "Dep4",
+    'suffix': "1",
+    'active': true,
+  };
+  final div1 = {
+    'uuid': divuuid1,
+    'name': "Div1",
+    'suffix': "1",
+    'active': true,
+    'departments': [
+      dep1,
+      dep2,
+    ]
+  };
+  final div2 = {
+    'uuid': divuuid2,
+    'name': "Div2",
+    'suffix': "1",
+    'active': true,
+    'departments': [
+      dep3,
+      dep4,
+    ]
+  };
+  final tree = {
+    'uuid': ouuid,
+    'divisions': [div1, div2]
+  };
+  expectResponse(
+    await harness.agent.execute('patch', "/api/organisations/$ouuid/import", body: tree),
+    200,
+    body: null,
+  );
+  final response1 = expectResponse(await harness.agent.get("/api/organisations/$ouuid"), 200);
+  final actualOrg = await response1.body.decode() as Map<String, dynamic>;
+  expect(
+      actualOrg.elementAt('data'),
+      containsPair('divisions', [
+        divuuid1,
+        divuuid2,
+      ]));
+  final response2 = expectResponse(await harness.agent.get("/api/divisions/$divuuid1"), 200);
+  final actualDiv = await response2.body.decode() as Map<String, dynamic>;
+  expect(
+      actualDiv,
+      containsPair(
+        'data',
+        div1
+          ..addAll({
+            'departments': [
+              depuuid1,
+              depuuid2,
+            ],
+            'organisation': {'uuid': ouuid}
+          }),
+      ));
+  final response3 = expectResponse(await harness.agent.get("/api/departments/$depuuid1"), 200);
+  final actualDep = await response3.body.decode() as Map<String, dynamic>;
+  expect(
+      actualDep,
+      containsPair(
+        'data',
+        dep1
+          ..addAll({
+            'division': {'uuid': divuuid1}
+          }),
+      ));
 }
 
 Future<String> _prepare(SarSysHarness harness) async {
