@@ -10,45 +10,36 @@ Future main() async {
     ..withEventStoreMock()
     ..install(restartForEachTest: true);
 
-  test("GET /api/devices/{uuid}/position returns status code 404 if not set", () async {
+  test("GET /api/devices/{uuid}/positions returns status code 405", () async {
     harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
     await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final device = _createData(uuid);
     expectResponse(await harness.agent.post("/api/devices", body: device), 201, body: null);
-    final response = expectResponse(await harness.agent.get("/api/devices/$uuid/position"), 404);
+    final response = expectResponse(await harness.agent.get("/api/devices/$uuid/positions"), 405);
     await response.body.decode();
   });
 
-  test("PATCH /api/devices/{uuid}/position returns status code 204 if set", () async {
+  test("POST /api/devices/{uuid}/positions returns status code 204 if set", () async {
     harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
     await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final device = _createData(uuid);
     expectResponse(await harness.agent.post("/api/devices", body: device), 201, body: null);
-    final position = createPosition();
+    final positions = [
+      createPosition(lat: 1.0),
+      createPosition(lat: 2.0),
+      createPosition(lat: 3.0),
+      createPosition(lat: 4.0),
+    ];
     expectResponse(
-      await harness.agent.execute("PATCH", "/api/devices/$uuid/position", body: position),
+      await harness.agent.post("/api/devices/$uuid/positions", body: positions),
       204,
       body: null,
     );
     final response = expectResponse(await harness.agent.get("/api/devices/$uuid/position"), 200);
     final actual = await response.body.decode();
-    expect(actual['data'], equals(position));
-  });
-
-  test("PATCH /api/devices/{uuid}/position returns status code 400 if position type is illegal", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
-    await harness.channel.manager.get<DeviceRepository>().readyAsync();
-    final uuid = Uuid().v4();
-    final device = _createData(uuid);
-    expectResponse(await harness.agent.post("/api/devices", body: device), 201, body: null);
-    final position = createPosition(type: 'automatic');
-    expectResponse(
-      await harness.agent.execute("PATCH", "/api/devices/$uuid/position", body: position),
-      400,
-      body: null,
-    );
+    expect(actual['data'], equals(positions.last));
   });
 }
 

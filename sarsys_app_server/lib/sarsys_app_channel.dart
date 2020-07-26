@@ -13,7 +13,6 @@ import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
 import 'auth/auth.dart';
 import 'controllers/domain/controllers.dart';
 import 'controllers/domain/schemas.dart';
-import 'controllers/domain/track_controller.dart';
 import 'controllers/system/controllers.dart';
 import 'controllers/tenant/app_config.dart';
 import 'controllers/tenant/controllers.dart';
@@ -342,6 +341,12 @@ class SarSysAppServerChannel extends ApplicationChannel {
       ..secure(
           '/api/devices/:uuid/position',
           () => DevicePositionController(
+                manager.get<DeviceRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/devices/:uuid/positions',
+          () => DevicePositionBatchController(
                 manager.get<DeviceRepository>(),
                 requestValidator,
               ))

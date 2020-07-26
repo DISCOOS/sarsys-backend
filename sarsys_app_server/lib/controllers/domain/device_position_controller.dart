@@ -4,22 +4,11 @@ import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 
-/// A ResourceController that handles
-/// [/api/incidents/{uuid}/messages](http://localhost/api/client.html#/Message) requests
-class DevicePositionController extends ValueController<DeviceCommand, Device> {
+class DevicePositionController extends DevicePositionControllerBase {
   DevicePositionController(DeviceRepository repository, JsonValidation validation)
       : super(
           repository,
-          "Position",
-          "position",
-          validation: validation,
-          tag: "Device > Position",
-          validators: [
-            ValueValidator(
-              '/properties/source',
-              ['manual'],
-            )
-          ],
+          validation,
         );
 
   @override
@@ -30,6 +19,27 @@ class DevicePositionController extends ValueController<DeviceCommand, Device> {
 
   @override
   @Operation('PATCH', 'uuid')
+  Future<Response> update(
+    @Bind.path('uuid') String uuid,
+    @Bind.body() Map<String, dynamic> data,
+  ) =>
+      super.update(
+        uuid,
+        data,
+      );
+}
+
+class DevicePositionControllerBase extends ValueController<DeviceCommand, Device> {
+  DevicePositionControllerBase(DeviceRepository repository, JsonValidation validation)
+      : super(
+          repository,
+          "Position",
+          "position",
+          validation: validation,
+          tag: "Device > Position",
+        );
+
+  @override
   Future<Response> update(
     @Bind.path('uuid') String uuid,
     @Bind.body() Map<String, dynamic> data,

@@ -377,18 +377,29 @@ Map<String, dynamic> createTrack({String id, String uuid = 'string', String type
       ),
     };
 
-Map<String, Object> createPosition({String type = 'manual'}) => {
+Map<String, Object> createPosition({
+  String type = 'manual',
+  double lat = 0.0,
+  double lon = 0.0,
+  double alt,
+  double acc,
+  double speed,
+  double bearing,
+}) =>
+    {
       "type": "Feature",
       "geometry": {
         "type": "Point",
-        "coordinates": [0.0, 0.0]
+        "coordinates": [lat, lon, if (alt != null) alt]
       },
       "properties": {
         "name": "string",
         "description": "string",
-        "accuracy": 0,
+        "source": "$type",
+        if (acc != null) "accuracy": acc,
+        if (speed != null) "speed": speed,
+        if (bearing != null) "bearing": bearing,
         "timestamp": DateTime.now().toIso8601String(),
-        "source": "$type"
       }
     };
 

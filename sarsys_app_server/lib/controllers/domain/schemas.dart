@@ -381,11 +381,13 @@ APISchemaObject documentPosition(
   String description = "Position feature described by a GeoJSON point with accuracy, point type and timestamp",
 }) =>
     documentFeature(context, geometry: context.schema['Point'], properties: {
-      "accuracy": APISchemaObject.number()..description = "Position accuracy",
       "timestamp": APISchemaObject.string()
         ..description = "Timestamp in ISO8601 Date Time String Format"
         ..format = "date-time",
-      "source": documentPositionSource()..isReadOnly = true,
+      "source": documentPositionSource(),
+      "accuracy": APISchemaObject.number()..description = "Position accuracy",
+      "bearing": APISchemaObject.number()..description = "Bearing at given position in degrees",
+      "speed": APISchemaObject.number()..description = "Speed at given position in meter/seconds",
     })
       ..description = description
       ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
