@@ -53,12 +53,12 @@ class AppConfigRepository extends Repository<AppConfigCommand, AppConfig> {
       );
 
   AggregateRule newCreateRule(_) => AssociationRule(
-        (source, tuuid) => CreateDevice(
+        (source, udid) => CreateDevice(
           {
             "type": "app",
             "network": "sarsys",
             "status": "available",
-            uuidFieldName: tuuid,
+            uuidFieldName: udid,
           },
         ),
         source: this,

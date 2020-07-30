@@ -167,8 +167,20 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
           "storage": APISchemaObject.boolean()
             ..description = "Storage access is granted"
             ..defaultValue = false,
+          "locationAlways": APISchemaObject.boolean()
+            ..description = "Location access always is is granted"
+            ..defaultValue = false,
           "locationWhenInUse": APISchemaObject.boolean()
             ..description = "Location access when app is in use is granted"
+            ..defaultValue = false,
+          "locationStoreLocally": APISchemaObject.boolean()
+            ..description = "Store locations locally"
+            ..defaultValue = true,
+          "locationAllowSharing": APISchemaObject.boolean()
+            ..description = "Share locations with operation when personnel"
+            ..defaultValue = true,
+          "activityRecognition": APISchemaObject.boolean()
+            ..description = "Activity recognition access is granted"
             ..defaultValue = false,
           "mapCacheTTL": APISchemaObject.integer()
             ..description = "Number of days downloaded map tiles are cached locally"
