@@ -1190,12 +1190,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     bool isNew,
     bool isChanged,
   }) {
-    if (toAggregateUuid(event) != uuid) {
-      throw InvalidOperation(
-        'Aggregate has $uuid, '
-        'event $event contains ${toAggregateUuid(event)}',
-      );
-    }
+    _assertUuid(event);
 
     // Already applied and caught up with it?
     if (_applied.containsKey(event.uuid) && _applied[event.uuid].created == event.created) {
@@ -1229,10 +1224,23 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     if (isChanged) {
       _pending.add(event);
     } else {
-      _applied.update(event.uuid, (_) => event, ifAbsent: () => event);
+      _applied.update(
+        event.uuid,
+        (_) => event,
+        ifAbsent: () => event,
+      );
     }
 
     return event;
+  }
+
+  void _assertUuid(DomainEvent event) {
+    if (toAggregateUuid(event) != uuid) {
+      throw InvalidOperation(
+        'Aggregate has $uuid, '
+        'event $event contains ${toAggregateUuid(event)}',
+      );
+    }
   }
 
   /// Get array of value objects
