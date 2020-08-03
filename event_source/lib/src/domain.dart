@@ -718,13 +718,21 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           logger.info('---DEBUG---');
           logger.info(toDebugString());
         } // Attempt to automatic merge until maximum attempts
-        final events = await _reconcile(
-          aggregate,
-          operation.maxAttempts,
-        );
-        operation.completer.complete(events);
-      } on ConflictNotReconcilable catch (e, stackTrace) {
-        operation.completer.completeError(e, stackTrace);
+        try {
+          final events = await _reconcile(
+            aggregate,
+            operation.maxAttempts,
+          );
+          operation.completer.complete(events);
+        } on ConflictNotReconcilable catch (e, stackTrace) {
+          operation.completer.completeError(e, stackTrace);
+        } catch (e, stackTrace) {
+          operation.completer.completeError(e, stackTrace);
+          logger.severe(
+            'Failed to push aggregate $aggregate: $e, stacktrace: $stackTrace',
+          );
+          logger.severe(toDebugString());
+        }
       } catch (e, stackTrace) {
         operation.completer.completeError(e, stackTrace);
         logger.severe(

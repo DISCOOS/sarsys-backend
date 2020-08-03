@@ -1249,7 +1249,7 @@ class EventStoreConnection {
       );
     }
     final redirected = await client.post(
-      response.headers['Location'],
+      response.headers['location'],
       headers: headers,
       body: body,
     );
