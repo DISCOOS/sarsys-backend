@@ -1231,7 +1231,7 @@ class EventStoreConnection {
       headers: {
         'Authorization': credentials.header,
         'Content-type': 'application/vnd.eventstore.events+json',
-        'ES-ExpectedVersion': '${version.value}'
+        'ES-ExpectedVersion': '${version.value}',
       },
       body: body,
     );
