@@ -15,7 +15,7 @@ class AggregateLookupController<S extends Command, T extends AggregateRoot> exte
   Type get foreignType => foreign.aggregateType;
 
   @override
-  FutureOr<RequestOrResponse> willProcessRequest(Request req) => primary.ready && foreign.ready
+  FutureOr<RequestOrResponse> willProcessRequest(Request req) => primary.isReady && foreign.isReady
       ? req
       : serviceUnavailable(
           body: "Repositories ${[primary.runtimeType, foreign.runtimeType].join(', ')} are unavailable: build pending",

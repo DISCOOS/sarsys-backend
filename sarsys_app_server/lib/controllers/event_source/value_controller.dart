@@ -36,7 +36,7 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
   final List<Validator> validators;
 
   @override
-  FutureOr<RequestOrResponse> willProcessRequest(Request req) => repository.ready
+  FutureOr<RequestOrResponse> willProcessRequest(Request req) => repository.isReady
       ? req
       : serviceUnavailable(
           body: "Repository ${repository.runtimeType} is unavailable: build pending",

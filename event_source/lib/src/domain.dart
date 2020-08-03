@@ -189,7 +189,9 @@ class RepositoryManager {
   ///
   /// Throws an [RepositoryNotAvailable] if one
   /// or more [Repository] instances failed to build.
-  Future build({
+  ///
+  /// Returns number of events processed
+  Future<int> build({
     int maxAttempts = 10,
     Duration maxBackoffTime = const Duration(seconds: 10),
   }) async {
@@ -197,8 +199,14 @@ class RepositoryManager {
       logger.severe('Build not allowed, prepare is pending');
       throw InvalidOperation('Build not allowed, prepare is pending');
     }
-    final completer = Completer();
-    _buildWithRetries(_stores.keys, maxAttempts, 0, maxBackoffTime, completer);
+    final completer = Completer<int>();
+    _buildWithRetries(
+      _stores.keys,
+      maxAttempts,
+      0,
+      maxBackoffTime,
+      completer,
+    );
     return completer.future;
   }
 
@@ -207,21 +215,24 @@ class RepositoryManager {
     int max,
     int attempt,
     Duration maxBackoffTime,
-    Completer completer,
+    Completer<int> completer,
   ) async {
     final backlog = repositories.toSet();
     try {
-      await Future.wait(
+      final counts = await Future.wait<int>(
         repositories.map(
           (repository) => repository.build(),
         ),
-        cleanUp: (built) => backlog.removeAll(built),
       );
       _timer?.cancel();
       _timer = null;
-      completer.complete();
+      final processed = counts.fold<int>(0, (processed, count) => processed + count);
+      completer.complete(Future.value(
+        processed,
+      ));
     } on Exception catch (e, stackTrace) {
       if (attempt < max) {
+        backlog.removeWhere((repo) => repo.isReady);
         final wait = toNextTimeout(attempt++, maxBackoffTime, exponent: 8);
         logger.info('Wait ${wait}ms before retrying build again (attempt: $attempt)');
         _timer?.cancel();
@@ -330,7 +341,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Flag indicating that [build] succeeded
   bool _ready = false;
-  bool get ready => _ready;
+  bool get isReady => _ready;
 
   Future<bool> readyAsync() async {
     final callback = Completer<bool>();
@@ -376,14 +387,17 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   bool contains(String uuid) => _aggregates.containsKey(uuid);
 
   /// Build repository from local events.
-  Future build() async {
-    await replay();
+  /// Returns number of events processed.
+  Future<int> build() async {
+    final count = await replay();
     subscribe();
     willStartProcessingEvents();
     _ready = true;
+    return count;
   }
 
   /// Replay events into this [Repository]
+  /// Returns number of events processed.
   Future<int> replay() async {
     final events = await store.replay<T>(this);
     if (events == 0) {
@@ -808,7 +822,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   }
 
   String toDebugString() => '$runtimeType: {'
-      'ready: $ready, '
+      'ready: $isReady, '
       'count: ${count()}, '
       'canonicalStream: ${store.canonicalStream}}, '
       'aggregates: {${_aggregates.values.map((value) => '{'

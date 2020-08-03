@@ -550,7 +550,8 @@ class SarSysAppServerChannel extends ApplicationChannel {
       '\$by_category',
       '\$by_event_type',
     ]);
-    await manager.build();
+    final count = await manager.build();
+    logger.info("Processed $count events!");
     logger.info(
       "Built repositories in ${stopwatch.elapsedMilliseconds}ms => ready for aggregate requests!",
     );

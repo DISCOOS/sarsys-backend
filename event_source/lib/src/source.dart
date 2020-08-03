@@ -226,6 +226,7 @@ class EventStore {
 
   /// Catch up with stream from given number
   Future<int> _catchUp(Repository repository, EventNumber number) async {
+    var count = 0;
     // Lower bound is last known event number in stream
     final head = EventNumber(max(current().value, number.value));
     if (head > number) {
@@ -234,40 +235,45 @@ class EventStore {
       );
     }
 
-    // TODO: Read events as stream - implement readEventsAsStream
-    final result = await connection.readAllEvents(
+    final stream = await connection.readEventsAsStream(
       stream: canonicalStream,
       number: head,
     );
 
-    if (result.isOK) {
-      // Group events by aggregate uuid
-      final eventsPerAggregate = groupBy<SourceEvent, String>(
-        result.events,
-        (event) => repository.toAggregateUuid(event),
-      );
+    // Process results as they arrive
+    stream.listen((result) {
+      if (result.isOK) {
+        // Group events by aggregate uuid
+        final eventsPerAggregate = groupBy<SourceEvent, String>(
+          result.events,
+          (event) => repository.toAggregateUuid(event),
+        );
 
-      // Hydrate store with events
-      eventsPerAggregate.forEach(
-        (uuid, events) {
-          _update(uuid, events);
-          _apply(repository, uuid, events);
-          // Publish remotely created events.
-          // Handlers can determine events with
-          // local origin using the local field
-          // in each Event
-          _publish(events.map(repository.toDomainEvent));
-        },
-      );
+        // Hydrate store with events
+        eventsPerAggregate.forEach(
+          (uuid, events) {
+            _updateAll(uuid, events);
+            _applyAll(repository, uuid, events);
+            // Publish remotely created events.
+            // Handlers can determine events with
+            // local origin using the local field
+            // in each Event
+            _publishAll(
+              events.map(repository.toDomainEvent),
+            );
+          },
+        );
 
-      logger.fine(
-        '_catchUp: Current event number for $canonicalStream: ${current()}',
-      );
-    }
-    return result.events.length;
+        count += result.events.length;
+      }
+    });
+
+    await stream.length;
+
+    return count;
   }
 
-  List<Event> _update(String uuid, Iterable<Event> events) => _store.update(
+  List<Event> _updateAll(String uuid, Iterable<Event> events) => _store.update(
         uuid,
         (current) => List.from(current)..addAll(events),
         ifAbsent: () => events.toList(),
@@ -293,7 +299,7 @@ class EventStore {
                 .value);
   }
 
-  void _apply(Repository repository, String uuid, List<SourceEvent> events) {
+  void _applyAll(Repository repository, String uuid, List<SourceEvent> events) {
     final exists = repository.contains(uuid);
     final aggregate = repository.get(uuid);
     final domainEvents = events.map(repository.toDomainEvent);
@@ -303,7 +309,7 @@ class EventStore {
     // Commit remote changes
     aggregate.commit();
     // Catch up with last event in stream
-    _setEventNumber(aggregate, domainEvents);
+    _setEventNumber(aggregate);
   }
 
   /// Get events for given [AggregateRoot.uuid]
@@ -316,21 +322,21 @@ class EventStore {
 
     // Do not save during replay
     if (bus.replaying == false && events.isNotEmpty) {
-      _update(
+      _updateAll(
         aggregate.uuid,
         events,
       );
-      _setEventNumber(aggregate, events);
+      _setEventNumber(aggregate);
       // Publish locally created events.
       // Handlers can determine events with
       // local origin using the local field
       // in each Event
-      _publish(events);
+      _publishAll(events);
     }
     return events;
   }
 
-  void _setEventNumber(AggregateRoot aggregate, Iterable<Event> events) {
+  void _setEventNumber(AggregateRoot aggregate) {
     var append = 0;
     final applied = _store[aggregate.uuid];
     final stream = toInstanceStream(aggregate.uuid);
@@ -347,7 +353,7 @@ class EventStore {
   }
 
   /// Publish events to [bus] and [asStream]
-  void _publish(Iterable<DomainEvent> events) {
+  void _publishAll(Iterable<DomainEvent> events) {
     // Notify later but before next Future
     scheduleMicrotask(() => events.forEach(bus.publish));
     _streamController ??= StreamController.broadcast();
@@ -568,7 +574,7 @@ class EventStore {
           // This ensures that the event added to an aggregate during
           // construction is overwritten with the remote actual
           // received here.
-          _update(uuid, [event]);
+          _updateAll(uuid, [event]);
 
           // Catch up with stream
           final aggregate = repository.get(uuid);
@@ -588,7 +594,7 @@ class EventStore {
             // Handlers can determine events with
             // local origin using the local field
             // in each Event
-            _publish([repository.toDomainEvent(event)]);
+            _publishAll([repository.toDomainEvent(event)]);
           }
           logger.fine(
             '${repository.runtimeType}: _onSubscriptionEvent: Processed $event',
@@ -954,13 +960,14 @@ class EventStoreConnection {
   /// Get atom feed from stream
   Future<FeedResult> getFeed({
     @required String stream,
+    int pageSize,
     EventNumber number = EventNumber.first,
     Direction direction = Direction.forward,
     Duration waitFor = const Duration(milliseconds: 0),
   }) async {
     _assertState();
     final response = await client.get(
-      '$host:$port/streams/$stream${_toFeedUri(number, direction)}',
+      '$host:$port/streams/$stream${_toFeedUri(number, direction, pageSize ?? this.pageSize)}',
       headers: {
         'Authorization': credentials.header,
         'Accept': 'application/vnd.eventstore.atom+json',
@@ -978,6 +985,7 @@ class EventStoreConnection {
   String _toFeedUri(
     EventNumber number,
     Direction direction,
+    int pageSize,
   ) {
     String uri;
     if (number.isFirst) {
@@ -1056,6 +1064,29 @@ class EventStoreConnection {
         created: DateTime.tryParse(data['updated'] as String),
         number: EventNumber(data['content']['eventNumber'] as int),
       );
+
+  /// Read events as paged results and return results as stream
+  Stream<ReadResult> readEventsAsStream({
+    @required String stream,
+    int pageSize = 20,
+    EventNumber number = EventNumber.first,
+    Direction direction = Direction.forward,
+    Duration waitFor = defaultWaitFor,
+  }) {
+    _assertState();
+
+    var controller = _EventStreamController(
+      this,
+    );
+
+    return controller.read(
+      stream: stream,
+      number: number,
+      waitFor: waitFor,
+      pageSize: pageSize,
+      direction: direction,
+    );
+  }
 
   /// Read events in [AtomFeed.entries] and return all in one result
   Future<ReadResult> readAllEvents({
@@ -1482,6 +1513,161 @@ class EventStoreConnection {
       return url.replaceFirst('$host', '${this.host}:$port');
     }
     return url;
+  }
+}
+
+class _EventStreamController {
+  _EventStreamController(this.connection) : logger = connection._logger;
+
+  final Logger logger;
+  final EventStoreConnection connection;
+
+  int _pageSize;
+  int get pageSize => _pageSize;
+
+  String _stream;
+  String get stream => _stream;
+
+  Duration _waitFor;
+  Duration get waitFor => _waitFor;
+
+  EventNumber _number;
+  EventNumber get number => _number;
+
+  Direction _direction;
+  Direction get direction => _direction;
+
+  EventNumber _current;
+  EventNumber get current => _current;
+
+  bool _pause = true;
+
+  StreamController<ReadResult> _controller;
+  StreamController<ReadResult> get controller => _controller;
+
+  Stream<ReadResult> read({
+    @required String stream,
+    int pageSize = 20,
+    bool broadcast = true,
+    EventNumber number = EventNumber.first,
+    Direction direction = Direction.forward,
+    Duration waitFor = defaultWaitFor,
+  }) {
+    // Setup
+    _stream = stream;
+    _number = number;
+    _current = number;
+    _waitFor = waitFor;
+    _pageSize = pageSize;
+    _direction = direction;
+
+    _controller?.close();
+    _controller = broadcast
+        ? StreamController<ReadResult>.broadcast(
+            onListen: _startRead,
+            onCancel: _stopRead,
+          )
+        : StreamController<ReadResult>(
+            onPause: _pauseRead,
+            onCancel: _stopRead,
+            onListen: _startRead,
+            onResume: _startRead,
+          );
+    return controller.stream;
+  }
+
+  void _startRead() async {
+    try {
+      logger.fine(
+        _pause
+            ? 'Started reading events from $stream@$_number in direction $_direction'
+            : 'Resumed reading events from $stream@$_current in direction $_direction',
+      );
+      _pause = false;
+
+      FeedResult feed;
+      do {
+        if (!_pause) {
+          feed = await _readNext();
+        }
+      } while (feed != null && feed.isOK && !(feed.headOfStream || feed.isEmpty));
+
+      _stopRead();
+    } catch (e, stackTrace) {
+      _fatal(
+        'Failed to read stream $_stream@$_number in direction $_direction',
+        e,
+        stackTrace,
+      );
+    }
+  }
+
+  Future<FeedResult> _readNext() async {
+    final feed = await _nextFeed();
+    if (feed.isNotEmpty) {
+      await _readEventsInFeed(feed);
+    }
+    return feed;
+  }
+
+  void _pauseRead() {
+    _pause = true;
+    logger.fine('Paused reading events from stream $_stream');
+  }
+
+  void _stopRead() {
+    if (_controller != null) {
+      logger.fine('Stopped reading events from stream $_stream@$_current');
+      _controller.close();
+      _controller = null;
+    }
+  }
+
+  Future _readEventsInFeed(FeedResult feed) async {
+    if (feed.isOK) {
+      final result = await connection.readEventsInFeed(feed);
+      if (result.isOK) {
+        if (result.isNotEmpty) {
+          final next = result.number + 1;
+          _current = next;
+          // Notify when all actions are done
+          controller.add(result);
+
+          logger.fine(
+            'Read up to $_stream@${next.value - 1}, listening for $next',
+          );
+        }
+      } else {
+        _fatal(
+          'Failed to read events from $_stream@$_current: ${result.statusCode} ${result.reasonPhrase}',
+          '${result.statusCode} ${result.reasonPhrase}',
+          StackTrace.current,
+        );
+      }
+      return result;
+    }
+    _fatal(
+      'Failed to read feed from $_stream@$_current: ${feed.statusCode} ${feed.reasonPhrase}',
+      '${feed.statusCode} ${feed.reasonPhrase}',
+      StackTrace.current,
+    );
+    return feed;
+  }
+
+  Future<FeedResult> _nextFeed() => connection.getFeed(
+        stream: stream,
+        number: current,
+        direction: Direction.forward,
+        waitFor: waitFor,
+        pageSize: _pageSize,
+      );
+
+  void _fatal(String message, Object error, StackTrace stackTrace) {
+    _controller.addError(error, stackTrace);
+    logger.severe(
+      '$message: $error: $stackTrace',
+    );
+    _stopRead();
   }
 }
 

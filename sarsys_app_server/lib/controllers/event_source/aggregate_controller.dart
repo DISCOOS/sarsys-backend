@@ -36,7 +36,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   Type get aggregateType => typeOf<T>();
 
   @override
-  FutureOr<RequestOrResponse> willProcessRequest(Request req) => repository.ready
+  FutureOr<RequestOrResponse> willProcessRequest(Request req) => repository.isReady
       ? req
       : serviceUnavailable(
           body: "Repository ${repository.runtimeType} is unavailable: build pending",
