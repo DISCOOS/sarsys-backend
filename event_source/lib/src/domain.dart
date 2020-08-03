@@ -709,44 +709,45 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         logger.info('instanceEventNumber: ${store.current(uuid: aggregate.uuid)}');
         logger.info('canonicalEventNumber: ${store.current(stream: store.canonicalStream)}');
       }
-    } on WrongExpectedEventVersion catch (e) {
-      try {
-        if (debugConflicts) {
-          logger.info('---CONFLICT---');
-          logger.info('$e');
-          logger.info('$aggregate');
-          logger.info('---DEBUG---');
-          logger.info(toDebugString());
-        } // Attempt to automatic merge until maximum attempts
-        try {
-          final events = await _reconcile(
-            aggregate,
-            operation.maxAttempts,
-          );
-          operation.completer.complete(events);
-        } on ConflictNotReconcilable catch (e, stackTrace) {
-          operation.completer.completeError(e, stackTrace);
-        } catch (e, stackTrace) {
-          operation.completer.completeError(e, stackTrace);
-          logger.severe(
-            'Failed to push aggregate $aggregate: $e, stacktrace: $stackTrace',
-          );
-          logger.severe(toDebugString());
-        }
-      } catch (e, stackTrace) {
-        operation.completer.completeError(e, stackTrace);
-        logger.severe(
-          'Failed to push aggregate $aggregate: $e, stacktrace: $stackTrace',
-        );
-        logger.severe(toDebugString());
-      }
+    } on WrongExpectedEventVersion {
+      return _reconcile(operation);
+    } catch (e, stackTrace) {
+      operation.completer.completeError(e, stackTrace);
+      logger.severe(
+        'Failed to push aggregate $aggregate: $e, stacktrace: $stackTrace',
+      );
+      logger.severe(toDebugString());
     }
     return operation;
   }
 
   /// Attempts to reconcile conflicts between concurrent modifications
-  Future<Iterable<DomainEvent>> _reconcile(AggregateRoot aggregate, int max) =>
-      ThreeWayMerge(this).reconcile(aggregate, max);
+  Future<_PushOperation> _reconcile(_PushOperation operation) async {
+    final aggregate = operation.aggregate;
+    if (debugConflicts) {
+      logger.info('---CONFLICT---');
+      logger.info('$e');
+      logger.info('$aggregate');
+      logger.info('---DEBUG---');
+      logger.info(toDebugString());
+    } // Attempt to automatic merge until maximum attempts
+    try {
+      final events = await ThreeWayMerge(this).reconcile(
+        aggregate,
+        operation.maxAttempts,
+      );
+      operation.completer.complete(events);
+    } on ConflictNotReconcilable catch (e, stackTrace) {
+      operation.completer.completeError(e, stackTrace);
+    } catch (e, stackTrace) {
+      operation.completer.completeError(e, stackTrace);
+      logger.severe(
+        'Failed to push aggregate $aggregate: $e, stacktrace: $stackTrace',
+      );
+      logger.severe(toDebugString());
+    }
+    return operation;
+  }
 
   /// Rollback all changes
   Iterable<Function> rollbackAll() => _aggregates.values.where((aggregate) => aggregate.isChanged).map(
