@@ -1188,8 +1188,8 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
       );
     }
 
-    // Already applied?
-    if (_applied.containsKey(event.uuid)) {
+    // Already applied and caught up with it?
+    if (_applied.containsKey(event.uuid) && _applied[event.uuid].created == event.created) {
       return event;
     }
 
