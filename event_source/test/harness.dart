@@ -35,8 +35,8 @@ class EventSourceHarness {
     bool useCanonicalName = true,
   }) {
     _streams[stream] = {
-      'useInstanceStreams': useInstanceStreams,
       'useCanonicalName': useCanonicalName,
+      'useInstanceStreams': useInstanceStreams,
     };
     return this;
   }

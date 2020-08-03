@@ -443,7 +443,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       // Check if event is already applied
       final aggregate = _aggregates[uuid];
       if (aggregate?.isApplied(event) == true) {
-        return aggregate.getApplied(event.uuid);
+        final applied = aggregate.getApplied(event.uuid);
+        if (applied?.created == event.created) {
+          return aggregate.getApplied(event.uuid);
+        }
       }
 
       // Not applied yet
@@ -922,15 +925,14 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     this.entityIdFieldName = 'id',
     DateTime created,
   }) : _processors = Map.from(processors) {
-    _createdWhen = created ?? DateTime.now();
-    _changedWhen = _createdWhen;
-    _change(
+    _createdBy = _change(
       data ?? {},
       ops,
       typeOf<C>(),
-      DateTime.now(),
+      created ?? DateTime.now(),
       true,
     );
+    _changedBy = _createdBy;
   }
 
   /// Aggregate uuid
@@ -984,17 +986,26 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// Check if uncommitted changes exists
   bool get isChanged => _pending.isNotEmpty;
 
+  /// Get [DomainEvent] that created this aggregate
+  DomainEvent get createdBy => _createdBy;
+  DomainEvent _createdBy;
+
   /// Get [DateTime] of when this [AggregateRoot] was created
-  DateTime get createdWhen => _createdWhen;
-  DateTime _createdWhen;
+  DateTime get createdWhen => _createdBy?.created;
+
+  /// Get [DomainEvent] that last changed this aggregate
+  DomainEvent get changedBy => _changedBy;
+  DomainEvent _changedBy;
 
   /// Get [DateTime] of when this [AggregateRoot] was changed
-  DateTime get changedWhen => _changedWhen;
-  DateTime _changedWhen;
+  DateTime get changedWhen => _changedBy?.created;
+
+  /// Get [DomainEvent] that deleted this aggregate
+  DomainEvent get deletedBy => _deletedBy;
+  DomainEvent _deletedBy;
 
   /// Get [DateTime] of when this [AggregateRoot] was deleted
-  DateTime get deletedWhen => _deletedWhen;
-  DateTime _deletedWhen;
+  DateTime get deletedWhen => _deletedBy?.created;
 
   /// Check if uncommitted changes exists
   bool get isDeleted => _isDeleted;
@@ -1013,7 +1024,6 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     events?.forEach((event) => _apply(
           event,
           isChanged: false,
-          isNew: false,
         ));
     return this;
   }
@@ -1080,7 +1090,6 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
               timestamp: timestamp,
             ),
             isChanged: true,
-            isNew: isNew,
           )
         : null;
   }
@@ -1090,7 +1099,6 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   DomainEvent delete({DateTime timestamp}) => _apply(
         _deleted(timestamp ?? DateTime.now()),
         isChanged: true,
-        isNew: false,
       );
 
   /// Apply changes and clear internal cache
@@ -1181,35 +1189,29 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   void apply(DomainEvent event) => _apply(
         event,
         isChanged: false,
-        isNew: false,
       );
 
   // Apply implementation for internal use
   DomainEvent _apply(
     DomainEvent event, {
-    bool isNew,
     bool isChanged,
   }) {
     _assertUuid(event);
 
-    // Already applied and caught up with it?
-    if (_applied.containsKey(event.uuid) && _applied[event.uuid].created == event.created) {
-      return event;
+    // Already applied?
+    if (_applied.containsKey(event.uuid)) {
+      if (_applied[event.uuid].created != event.created) {
+        _applied[event.uuid] = event;
+        _setModifier(event);
+      }
+      return _applied[event.uuid];
     }
 
     // Set timestamps
-    if (_applied.isEmpty || isNew) {
-      _createdWhen = event.created;
-      _changedWhen = _createdWhen;
-    } else {
-      _changedWhen = event.created;
-    }
+    _setModifier(event);
 
     // Applying events in order is REQUIRED for this to work!
-    if (event.isDeleted) {
-      _isDeleted = true;
-      _deletedWhen = event.created;
-    } else {
+    if (!event.isDeleted) {
       final patches = event.patches;
       if (patches.isNotEmpty) {
         final next = JsonPatch.apply(
@@ -1232,6 +1234,19 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     }
 
     return event;
+  }
+
+  void _setModifier(DomainEvent event) {
+    if (_createdBy == null || _createdBy?.uuid == event.uuid) {
+      _createdBy = event;
+      _changedBy = event;
+    } else {
+      _changedBy = event;
+    }
+    if (event.isDeleted) {
+      _isDeleted = true;
+      _deletedBy = event;
+    }
   }
 
   void _assertUuid(DomainEvent event) {
@@ -1479,7 +1494,6 @@ abstract class MergeStrategy {
         aggregate._apply(
           next,
           isChanged: true,
-          isNew: isNew,
         );
         previous = next.changed;
       });

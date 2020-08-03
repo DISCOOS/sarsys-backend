@@ -127,6 +127,61 @@ Future main() async {
     );
   });
 
+  test('Repository should update field createdBy after create and push', () async {
+    // Arrange
+    final repository = harness.get<FooRepository>();
+    await repository.readyAsync();
+
+    // Act
+    final uuid = Uuid().v4();
+    final foo = repository.get(uuid);
+    final createdBy = foo.createdBy;
+    await repository.push(foo);
+
+    // Allow subscription to catch up
+    await Future.delayed(Duration(milliseconds: 100));
+    final createdWhen = repository.get(uuid).createdWhen;
+
+    // Assert
+    expect(foo.createdBy, equals(createdBy), reason: 'createdBy should not change identity');
+    expect(
+      createdWhen,
+      isNot(equals(createdBy.created)),
+      reason: 'createdBy should change created datetime',
+    );
+  });
+
+  test('Repository should update field updatedBy after patch and push', () async {
+    // Arrange
+    final repository = harness.get<FooRepository>();
+    await repository.readyAsync();
+
+    // Act
+    final uuid = Uuid().v4();
+    final foo = repository.get(uuid);
+    foo.patch({'property': 'patched'}, emits: FooUpdated);
+    final createdBy = foo.createdBy;
+    final changedBy = foo.changedBy;
+    expect(
+      createdBy,
+      isNot(equals(changedBy)),
+      reason: 'Patch should changed updatedBy',
+    );
+    await repository.push(foo);
+
+    // Allow subscription to catch up
+    await Future.delayed(Duration(milliseconds: 100));
+    final changedWhen = repository.get(uuid).changedWhen;
+
+    // Assert
+    expect(foo.changedBy, isNot(equals(changedBy)), reason: 'changedBy should change identity');
+    expect(
+      changedWhen,
+      isNot(equals(changedBy.created)),
+      reason: 'changedBy should change created datetime',
+    );
+  });
+
   test('Repository should only apply operations [add, replace, move] when patching local changes', () async {
     // Arrange
     final repository = harness.get<FooRepository>();

@@ -194,6 +194,14 @@ class DomainEvent extends Event {
         if (index != null) 'index': index,
         if (previous != null) 'previous': previous,
       };
+
+  DomainEvent copyWith({DateTime created}) => DomainEvent(
+        uuid: uuid,
+        data: data,
+        type: type,
+        local: local,
+        created: created,
+      );
 }
 
 class EntityObjectEvent extends DomainEvent {

@@ -567,47 +567,24 @@ class EventStore {
         final stream = toInstanceStream(uuid);
         final actual = current(uuid: uuid);
 
-        // Do not process own events twice!
-        final process = (isEmpty || event.number > actual) && _store[uuid]?.contains(event) != true;
+        // Do not process own events twice unless it is one that was created by me!
+        final unseen = (isEmpty || event.number > actual) && _store[uuid]?.contains(event) != true;
 
         logger.finer(
           '${repository.runtimeType}: _onSubscriptionEvent: '
-          'process: $process, isEmpty: $isEmpty, '
+          'process: $unseen, isEmpty: $isEmpty, '
           'current: $actual, received: ${event.number}, '
           'stream: $stream, isInstanceStream: $useInstanceStreams, numbers: $_current',
         );
 
-        if (process) {
-          // IMPORTANT: append to store before applying to repository
-          // This ensures that the event added to an aggregate during
-          // construction is overwritten with the remote actual
-          // received here.
-          _updateAll(uuid, [event]);
-
-          // Catch up with stream
-          final aggregate = repository.get(uuid);
-          if (!aggregate.isApplied(event)) {
-            aggregate.apply(
-              repository.toDomainEvent(event),
-            );
-          }
-          if (aggregate.isChanged) {
-            throw InvalidOperation('Remote event $event modified $aggregate');
-          } else {
-            // Get last number in canonical stream
-            _current[canonicalStream] = _getCanonicalNumber([event]);
-            // Update last number in canonical stream
-            _current[stream] = event.number;
-            // Publish remotely created events.
-            // Handlers can determine events with
-            // local origin using the local field
-            // in each Event
-            _publishAll([repository.toDomainEvent(event)]);
-          }
-          logger.fine(
-            '${repository.runtimeType}: _onSubscriptionEvent: Processed $event',
-          );
+        if (unseen) {
+          _onUnseen(uuid, stream, event, repository);
+        } else {
+          _onSeen(uuid, stream, event, repository);
         }
+        logger.fine(
+          '${repository.runtimeType}: _onSubscriptionEvent: Processed $event',
+        );
       } catch (e, stacktrace) {
         logger.network(
           'Failed to process $event for $aggregate, got error $e with stacktrace: $stacktrace',
@@ -616,6 +593,62 @@ class EventStore {
         );
       }
     }
+  }
+
+  void _onSeen(
+    String uuid,
+    String stream,
+    SourceEvent event,
+    Repository repository,
+  ) {
+    // Catch up with stream
+    final aggregate = repository.get(uuid);
+
+    // Sanity check
+    if (aggregate.isChanged) {
+      throw InvalidOperation('Remote event $event modified $aggregate');
+    }
+
+    // Apply event with stable created date?
+    final applied = aggregate.getApplied(event.uuid);
+    if (applied == null) {
+      throw InvalidOperation('Remote event $event not seen by $aggregate');
+    }
+    final domainEvent = repository.toDomainEvent(event);
+    aggregate.apply(domainEvent);
+  }
+
+  void _onUnseen(
+    String uuid,
+    String stream,
+    SourceEvent event,
+    Repository repository,
+  ) {
+    // IMPORTANT: append to store before applying to repository
+    // This ensures that the event added to an aggregate during
+    // construction is overwritten with the remote actual
+    // received here.
+    _updateAll(uuid, [event]);
+
+    // Catch up with stream
+    final aggregate = repository.get(uuid);
+    final domainEvent = repository.toDomainEvent(event);
+    if (!aggregate.isApplied(event)) {
+      aggregate.apply(domainEvent);
+    }
+    // Sanity check
+    if (aggregate.isChanged) {
+      throw InvalidOperation('Remote event $event modified $aggregate');
+    }
+    // Get last number in canonical stream
+    _current[canonicalStream] = _getCanonicalNumber([event]);
+    // Update last number in canonical stream
+    _current[stream] = event.number;
+    // Publish remotely created events.
+    // Handlers can determine events with
+    // local origin using the local field
+    // in each Event
+    _publishAll([domainEvent]);
   }
 
   /// Handle subscription completed
