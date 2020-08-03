@@ -110,7 +110,7 @@ class TrackingRepository extends Repository<TrackingCommand, Tracking> {
       );
 
   @override
-  Tracking create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => Tracking(
+  Tracking create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Tracking(
         uuid,
         processors,
         data: data,

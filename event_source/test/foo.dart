@@ -4,7 +4,7 @@ import 'package:event_source/event_source.dart';
 class Foo extends AggregateRoot<FooCreated, FooDeleted> {
   Foo(
     String uuid,
-    Map<String, Process> processors, {
+    Map<String, ProcessCallback> processors, {
     Map<String, dynamic> data = const {},
   }) : super(uuid, processors, data);
 }
@@ -33,7 +33,7 @@ class FooRepository extends Repository<FooCommand, Foo> {
         });
 
   @override
-  Foo create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => Foo(
+  Foo create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Foo(
         uuid,
         processors,
         data: data,

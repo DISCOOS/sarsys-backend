@@ -74,7 +74,7 @@ class OrganisationRepository extends Repository<OrganisationCommand, Organisatio
       );
 
   @override
-  Organisation create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => Organisation(
+  Organisation create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Organisation(
         uuid,
         processors,
         data: data,

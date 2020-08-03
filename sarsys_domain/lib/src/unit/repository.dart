@@ -116,7 +116,7 @@ class UnitRepository extends Repository<UnitCommand, Unit> {
       );
 
   @override
-  Unit create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => Unit(
+  Unit create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Unit(
         uuid,
         processors,
         data: data,

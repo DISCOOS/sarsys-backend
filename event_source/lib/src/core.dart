@@ -41,6 +41,21 @@ class Message {
   String get type => _type ?? '$runtimeType';
   final String _type;
 
+  /// Get element at given path
+  T elementAt<T>(String path) => data.elementAt(path);
+
+  /// Get [List] of type [T] at given path
+  List<T> listAt<T>(String path) {
+    final list = data.elementAt(path);
+    return list == null ? null : List<T>.from(list);
+  }
+
+  /// Get [Map] with keys of type [S] and values of type [T] at given path
+  Map<S, T> mapAt<S, T>(String path) {
+    final map = data.elementAt(path);
+    return map == null ? null : Map<S, T>.from(map);
+  }
+
   @override
   String toString() {
     return '$runtimeType{uuid: $uuid, type: $type}';
@@ -91,17 +106,8 @@ class Event extends Message {
         created: created,
       );
 
-  /// Get element at given path in [changed]. If not found, [previous] is used instead
-  dynamic elementAt(String path) => changed.elementAt(path) ?? previous.elementAt(path);
-
   /// Test if all data is deleted by evaluating if `data['deleted'] == 'true'`
   bool get isDeleted => data['deleted'] == true;
-
-  /// Get changed fields from `data['changed']`
-  Map<String, dynamic> get changed => Map<String, dynamic>.from(data['changed']);
-
-  /// Get changed fields from `data['previous']`. If empty, `data['changed']`is returned instead
-  Map<String, dynamic> get previous => Map<String, dynamic>.from(data['previous'] ?? data['changed']);
 
   /// Get list of JSON Patch methods from `data['patches']`
   List<Map<String, dynamic>> get patches => List<Map<String, dynamic>>.from(data['patches'] as List<dynamic>);
@@ -143,10 +149,51 @@ class DomainEvent extends Event {
     );
   }
 
+  /// Get element at given path in [changed]. If not found, [previous] is used instead
+  @override
+  T elementAt<T>(String path) => changed.elementAt(path) ?? previous.elementAt(path);
+
+  /// Get changed fields from `data['changed']`
+  Map<String, dynamic> get changed => Map<String, dynamic>.from(data['changed']);
+
+  /// Get changed fields from `data['previous']`. If empty, `data['changed']`is returned instead
+  Map<String, dynamic> get previous => Map<String, dynamic>.from(data['previous'] ?? data['changed']);
+
   @override
   String toString() {
     return '$runtimeType{uuid: $uuid, type: $type, created: $created, data: $data}';
   }
+
+  Event toEvent(String uuidFieldName) => Event(
+      uuid: uuid,
+      type: type,
+      local: local,
+      created: created,
+      data: SourceEvent.toData(
+        data?.elementAt<String>('uuid'),
+        uuidFieldName,
+        patches: patches,
+        deleted: isDeleted,
+        index: data?.elementAt<int>('index'),
+      ));
+
+  static Map<String, dynamic> toData(
+    String uuid,
+    String uuidFieldName, {
+    int index,
+    Map<String, dynamic> previous,
+    Map<String, dynamic> changed = const {},
+    List<Map<String, dynamic>> patches = const [],
+    bool deleted = false,
+  }) =>
+      {
+        uuidFieldName: uuid,
+        'changed': changed,
+        'patches': patches,
+        'deleted': deleted,
+        if (index != null) 'index': index,
+        if (previous != null) 'previous': previous,
+      };
 }
 
 class EntityObjectEvent extends DomainEvent {
@@ -222,6 +269,20 @@ class SourceEvent extends Event {
   String toString() {
     return '$runtimeType{uuid: $uuid, type: $type, number: $number, data: $data}';
   }
+
+  static Map<String, dynamic> toData(
+    String uuid,
+    String uuidFieldName, {
+    int index,
+    bool deleted = false,
+    List<Map<String, dynamic>> patches = const [],
+  }) =>
+      {
+        uuidFieldName: uuid,
+        'patches': patches,
+        'deleted': deleted,
+        if (index != null) 'index': index,
+      };
 }
 
 /// Command action types

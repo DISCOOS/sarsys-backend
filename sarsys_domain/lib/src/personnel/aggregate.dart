@@ -5,7 +5,7 @@ import 'events.dart';
 class Personnel extends AggregateRoot<PersonnelMobilized, PersonnelDeleted> {
   Personnel(
     String uuid,
-    Map<String, Process> processors, {
+    Map<String, ProcessCallback> processors, {
     Map<String, dynamic> data = const {},
   }) : super(uuid, processors, data);
 }

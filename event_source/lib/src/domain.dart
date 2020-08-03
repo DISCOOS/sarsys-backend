@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'dart:math';
 
 import 'package:collection/collection.dart';
+import 'package:event_source/event_source.dart';
 import 'package:http/http.dart';
 import 'package:json_patch/json_patch.dart';
 import 'package:logging/logging.dart';
@@ -301,7 +302,7 @@ class RepositoryManager {
 }
 
 /// [Message] type name to [DomainEvent] processor method
-typedef Process = DomainEvent Function(Message message);
+typedef ProcessCallback = DomainEvent Function(Message change);
 
 /// Repository or [AggregateRoot]s as the single responsible for all transactions on each aggregate
 abstract class Repository<S extends Command, T extends AggregateRoot>
@@ -323,7 +324,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   ///
   Repository({
     @required this.store,
-    @required Map<Type, Process> processors,
+    @required Map<Type, ProcessCallback> processors,
     this.uuidFieldName = 'uuid',
     int maxBackoffTimeSeconds = 10,
   })  : _processors = Map.unmodifiable(processors.map(
@@ -361,8 +362,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   final Duration maxBackoffTime;
 
   /// [Message] type name to [DomainEvent] processors
-  final Map<String, Process> _processors;
-  Map<String, Process> get processors => Map.unmodifiable(_processors);
+  final Map<String, ProcessCallback> _processors;
+  Map<String, ProcessCallback> get processors => Map.unmodifiable(_processors);
 
   /// Map of aggregate roots
   final Map<String, T> _aggregates = {};
@@ -377,7 +378,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Create aggregate root with given id. Should only called from within [Repository].
   @protected
   @visibleForOverriding
-  T create(Map<String, Process> processors, String uuid, Map<String, dynamic> data);
+  T create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data);
 
   /// Check given aggregate root exists.
   /// An aggregate exists IFF it repository contains it and it is not deleted
@@ -437,7 +438,41 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   DomainEvent toDomainEvent(Event event) {
     final process = _processors['${event.type}'];
     if (process != null) {
-      return process(event);
+      final uuid = toAggregateUuid(event);
+
+      // Check if event is already applied
+      final aggregate = _aggregates[uuid];
+      if (aggregate?.isApplied(event) == true) {
+        return aggregate.getApplied(event.uuid);
+      }
+
+      // Not applied yet
+      final patches = event.listAt<Map<String, dynamic>>('patches');
+      final changed = event.mapAt<String, dynamic>('changed') ??
+          JsonUtils.apply(
+            aggregate?.data ?? {},
+            patches,
+          );
+      assert(patches != null, 'Patches can not be null');
+      assert(changed != null, 'Changed can not be null');
+
+      return process(
+        Message(
+          uuid: event.uuid,
+          type: event.type,
+          local: event.local,
+          created: event.created,
+          data: DomainEvent.toData(
+            uuid,
+            uuidFieldName,
+            patches: patches,
+            changed: changed,
+            index: event.elementAt<int>('index'),
+            previous: event.mapAt<String, dynamic>('previous'),
+            deleted: event.elementAt<bool>('deleted') ?? aggregate?.isDeleted,
+          ),
+        ),
+      );
     }
     final message = 'Message ${event.type} not recognized';
     logger.severe(message);
@@ -872,7 +907,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   @mustCallSuper
   AggregateRoot(
     this.uuid,
-    Map<String, Process> processors,
+    Map<String, ProcessCallback> processors,
     Map<String, dynamic> data, {
     this.uuidFieldName = 'uuid',
     this.entityIdFieldName = 'id',
@@ -901,7 +936,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   final String entityIdFieldName;
 
   /// [Message] to [DomainEvent] processors
-  final Map<String, Process> _processors;
+  final Map<String, ProcessCallback> _processors;
 
   /// Aggregate root data (weak schema)
   final Map<String, dynamic> _data = {};
@@ -920,13 +955,16 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   final _pending = <DomainEvent>[];
 
   /// [Message.uuid]s of applied events
-  final _applied = <String>{};
+  final _applied = <String, DomainEvent>{};
 
   /// Get uuids of applied events
-  Iterable<String> get applied => List.from(_applied);
+  Iterable<DomainEvent> get applied => List.from(_applied.values);
 
   /// Check if event is applied
-  bool isApplied(Event event) => _applied.contains(event.uuid);
+  bool isApplied(Event event) => _applied.containsKey(event.uuid);
+
+  /// Check if event is applied
+  DomainEvent getApplied(String uuid) => _applied[uuid];
 
   /// Get changed not committed to store
   Iterable<DomainEvent> getUncommittedChanges() => List.from(_pending);
@@ -1018,7 +1056,10 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     Map<String, dynamic> previous,
   }) {
     // Remove all unsupported operations
-    final patches = JsonPatch.diff(_data, data)..removeWhere((diff) => !ops.contains(diff['op']));
+    final patches = JsonPatch.diff(_data, data)
+      ..removeWhere(
+        (diff) => !ops.contains(diff['op']),
+      );
     return isNew || patches.isNotEmpty
         ? _apply(
             _changed(
@@ -1048,7 +1089,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     // Partial commit?
     if (changes?.isNotEmpty == true) {
       // Already applied?
-      final duplicates = changes.where((e) => _applied.contains(e.uuid));
+      final duplicates = changes.where((e) => _applied.containsKey(e.uuid));
       if (duplicates.isNotEmpty) {
         throw InvalidOperation(
           'Failed to commit $changes to $this: events $duplicates already committed',
@@ -1063,7 +1104,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     }
     final committed = changes ?? _pending;
     _pending.removeWhere((e) => committed.contains(e));
-    _applied.addAll(committed.map((e) => e.uuid));
+    _applied.addEntries(committed.map((e) => MapEntry(e.uuid, e)));
     return committed;
   }
 
@@ -1080,9 +1121,8 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     List<Map<String, dynamic>> patches = const [],
   }) =>
       _process(
-        uuid,
         emits,
-        asDataPatch(
+        DomainEvent.toData(
           uuid,
           uuidFieldName,
           index: index,
@@ -1096,9 +1136,8 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// Get aggregate deleted event. Invoked from [Repository]
   @protected
   DomainEvent _deleted(DateTime timestamp) => _process(
-        uuid,
         typeOf<D>(),
-        asDataPatch(
+        DomainEvent.toData(
           uuid,
           uuidFieldName,
           deleted: true,
@@ -1107,39 +1146,22 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         timestamp,
       );
 
-  static Map<String, dynamic> asDataPatch(
-    String uuid,
-    String uuidFieldName, {
-    int index,
-    Map<String, dynamic> previous,
-    Map<String, dynamic> changed = const {},
-    List<Map<String, dynamic>> patches = const [],
-    bool deleted = false,
-  }) =>
-      {
-        uuidFieldName: uuid,
-        'changed': changed,
-        'patches': patches,
-        'deleted': deleted,
-        'previous': previous,
-        if (index != null) 'index': index,
-      };
-
   DomainEvent _process(
-    String uuid,
     Type emits,
     Map<String, dynamic> data,
     DateTime timestamp,
   ) {
     final process = _processors['$emits'];
     if (process != null) {
-      return process(Message(
-        uuid: Uuid().v4(),
-        type: '$emits',
-        data: data,
-        local: true,
-        created: timestamp,
-      ));
+      return process(
+        Message(
+          uuid: Uuid().v4(),
+          type: '$emits',
+          data: data,
+          local: true,
+          created: timestamp,
+        ),
+      );
     }
     throw InvalidOperation('Message ${emits} not recognized');
   }
@@ -1167,7 +1189,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     }
 
     // Already applied?
-    if (_applied.contains(event.uuid)) {
+    if (_applied.containsKey(event.uuid)) {
       return event;
     }
 
@@ -1198,7 +1220,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     if (isChanged) {
       _pending.add(event);
     } else {
-      _applied.add(event.uuid);
+      _applied.update(event.uuid, (_) => event, ifAbsent: () => event);
     }
 
     return event;

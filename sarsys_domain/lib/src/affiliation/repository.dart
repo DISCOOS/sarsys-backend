@@ -92,7 +92,7 @@ class AffiliationRepository extends Repository<AffiliationCommand, Affiliation> 
       );
 
   @override
-  Affiliation create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => Affiliation(
+  Affiliation create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Affiliation(
         uuid,
         processors,
         data: data,

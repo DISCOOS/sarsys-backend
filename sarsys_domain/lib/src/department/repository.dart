@@ -50,7 +50,7 @@ class DepartmentRepository extends Repository<DepartmentCommand, Department> {
   }
 
   @override
-  Department create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => Department(
+  Department create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Department(
         uuid,
         processors,
         data: data,

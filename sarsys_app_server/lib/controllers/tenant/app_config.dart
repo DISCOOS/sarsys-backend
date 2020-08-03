@@ -42,7 +42,7 @@ class AppConfigRepository extends Repository<AppConfigCommand, AppConfig> {
 
   @override
   AppConfig create(
-    Map<String, Process> processors,
+    Map<String, ProcessCallback> processors,
     String uuid,
     Map<String, dynamic> data,
   ) =>
@@ -99,7 +99,7 @@ class AppConfigRepository extends Repository<AppConfigCommand, AppConfig> {
 class AppConfig extends AggregateRoot<AppConfigCreated, AppConfigDeleted> {
   AppConfig(
     String uuid,
-    Map<String, Process> processors, {
+    Map<String, ProcessCallback> processors, {
     Map<String, dynamic> data = const {},
   }) : super(uuid, processors, data);
 

@@ -1,3 +1,5 @@
+import 'package:json_patch/json_patch.dart';
+
 class JsonUtils {
   static const ops = ['add', 'remove', 'replace', 'move'];
 
@@ -11,4 +13,12 @@ class JsonUtils {
       .where((patch) => patch['path'] == (patch['path'] as String).startsWith(path))
       .map((patch) => patch['value'])
       .cast<T>();
+
+  static Map<String, dynamic> apply(Map<String, dynamic> data, List<Map<String, dynamic>> patches) => data == null
+      ? null
+      : JsonPatch.apply(
+          data,
+          patches,
+          strict: false,
+        );
 }

@@ -253,14 +253,16 @@ class EventStore {
         eventsPerAggregate.forEach(
           (uuid, events) {
             _updateAll(uuid, events);
-            _applyAll(repository, uuid, events);
+            final domainEvents = _applyAll(
+              repository,
+              uuid,
+              events,
+            );
             // Publish remotely created events.
             // Handlers can determine events with
             // local origin using the local field
             // in each Event
-            _publishAll(
-              events.map(repository.toDomainEvent),
-            );
+            _publishAll(domainEvents);
           },
         );
 
@@ -290,7 +292,12 @@ class EventStore {
             ? events.length
             // Event numbers in instance streams SHOULD ALWAYS
             // be sorted in an ordered monotone incrementing
-            // manner
+            // manner. This check ensures that if and only if
+            // the assumption is violated, an InvalidOperation
+            // exception is thrown. This ensures that previous
+            // next states can be calculated safely without any
+            // risk of applying patches out-of-order, removing the
+            // need to store these states in each event.
             : events
                 .fold(
                   EventNumber.none,
@@ -299,7 +306,7 @@ class EventStore {
                 .value);
   }
 
-  void _applyAll(Repository repository, String uuid, List<SourceEvent> events) {
+  Iterable<DomainEvent> _applyAll(Repository repository, String uuid, List<SourceEvent> events) {
     final exists = repository.contains(uuid);
     final aggregate = repository.get(uuid);
     final domainEvents = events.map(repository.toDomainEvent);
@@ -310,6 +317,7 @@ class EventStore {
     aggregate.commit();
     // Catch up with last event in stream
     _setEventNumber(aggregate);
+    return domainEvents;
   }
 
   /// Get events for given [AggregateRoot.uuid]
@@ -393,7 +401,7 @@ class EventStore {
     final result = await connection.writeEvents(
       stream: stream,
       version: number,
-      events: changes,
+      events: changes.map((e) => e.toEvent(aggregate.uuidFieldName)),
     );
     if (result.isCreated) {
       // Commit all changes after successful write

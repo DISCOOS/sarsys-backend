@@ -1,6 +1,7 @@
 import 'package:event_source/event_source.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
+import 'package:async/async.dart';
 
 import 'foo.dart';
 import 'harness.dart';
@@ -450,17 +451,49 @@ Future _assertCatchUp(FooRepository repo1, FooRepository repo2, FooRepository re
   // Act
   final uuid = Uuid().v4();
   final foo1 = repo1.get(uuid, data: {'property1': 'value1'});
+
+  // Prepare join
+  final group = StreamGroup();
+  await group.add(repo2.store.asStream());
+  await group.add(repo3.store.asStream());
+
+  // Push to repo 1
   final events = await repo1.push(foo1);
-  final remote1 = await repo2.store.asStream().first;
-  final remote2 = await repo3.store.asStream().first;
+  final domain1 = events.first;
+
+  // Wait for repo 2 and 3 catching up
+  await group.stream.take(2).toList();
+  await group.close();
+
+  // Get actual source events
+  final source2 = repo2.store.events[uuid].last;
+  final source3 = repo3.store.events[uuid].last;
+
+  // Get actual aggregates
   final foo2 = repo2.get(uuid);
   final foo3 = repo3.get(uuid);
+
+  // Get actual domain events
+  final domain2 = repo2.toDomainEvent(source2);
+  final domain3 = repo3.toDomainEvent(source3);
 
   // Assert catch-up event from repo1
   expect(repo2.count(), equals(count));
   expect(repo3.count(), equals(count));
-  expect([remote1], containsAll(events));
-  expect([remote2], containsAll(events));
+  expect([source2], containsAll(events));
+  expect([source3], containsAll(events));
+  expect([domain2], containsAll(events));
+  expect([domain3], containsAll(events));
+
+  // Assert change and state information critical for automatic merge resolution
+  expect(domain2.mapAt('changed'), equals(domain1.mapAt('changed')));
+  expect(domain2.mapAt('previous'), equals(domain1.mapAt('previous')));
+  expect(domain2.listAt('patches'), equals(domain1.listAt('patches')));
+  expect(domain3.mapAt('changed'), equals(domain1.mapAt('changed')));
+  expect(domain3.mapAt('previous'), equals(domain1.mapAt('previous')));
+  expect(domain3.listAt('patches'), equals(domain1.listAt('patches')));
+
+  // Assert data
   expect(foo1.data, containsPair('property1', 'value1'));
   expect(foo2.data, containsPair('property1', 'value1'));
   expect(foo3.data, containsPair('property1', 'value1'));

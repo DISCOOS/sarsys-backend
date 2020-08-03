@@ -115,7 +115,7 @@ class MissionRepository extends Repository<MissionCommand, Mission> {
   }
 
   @override
-  Mission create(Map<String, Process> processors, String uuid, Map<String, dynamic> data) => Mission(
+  Mission create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Mission(
         uuid,
         processors,
         data: data,
