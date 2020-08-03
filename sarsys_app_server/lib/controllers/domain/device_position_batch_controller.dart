@@ -21,16 +21,18 @@ class DevicePositionBatchController extends DevicePositionControllerBase {
     if (!await exists(uuid)) {
       return Response.notFound(body: "$aggregateType $uuid not found");
     }
+    final codes = <int>{};
     final failures = <Response>[];
     for (var position in data) {
       final response = await update(uuid, position);
       if (response.statusCode >= 400) {
+        codes.add(response.statusCode);
         failures.add(response);
       }
     }
     return failures.isEmpty
         ? Response.noContent()
-        : Response.serverError(body: {
+        : Response(codes.length == 1 ? codes.first : HttpStatus.partialContent, {}, {
             'errors': failures
                 .map(
                   (response) => '${response.statusCode}: ${response.body}',

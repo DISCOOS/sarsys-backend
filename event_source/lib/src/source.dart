@@ -212,7 +212,7 @@ class EventStore {
     final actual = current();
     if (count > 0) {
       logger.info(
-        'Caught up from event $next to $actual with $count events from remote stream $canonicalStream',
+        'Caught up from event $previous to $actual with $count events from remote stream $canonicalStream',
       );
     } else {
       logger.info(
