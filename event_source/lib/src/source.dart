@@ -952,6 +952,7 @@ class EventStoreConnection {
     this.host = 'http://127.0.0.1',
     this.port = 2113,
     this.pageSize = 20,
+    this.requireMaster = true,
     this.enforceAddress = true,
     this.credentials = UserCredentials.defaultCredentials,
   });
@@ -959,6 +960,7 @@ class EventStoreConnection {
   final String host;
   final int port;
   final int pageSize;
+  final bool requireMaster;
   final bool enforceAddress;
   final Client client = Client();
   final UserCredentials credentials;
@@ -1225,17 +1227,38 @@ class EventStoreConnection {
         'data': event.data,
       },
     );
+    final url = _toStreamUri(stream);
     final body = json.encode(data.toList());
+    final headers = {
+      'Authorization': credentials.header,
+      'ES-RequireMaster': '$requireMaster',
+      'ES-ExpectedVersion': '${version.value}',
+      'Content-type': 'application/vnd.eventstore.events+json',
+    };
     final response = await client.post(
-      _toStreamUri(stream),
-      headers: {
-        'Authorization': credentials.header,
-        'Content-type': 'application/vnd.eventstore.events+json',
-        'ES-ExpectedVersion': '${version.value}',
-      },
+      url,
+      headers: headers,
       body: body,
     );
-    return WriteResult.from(stream, version, eventIds, response);
+    if (response.statusCode != HttpStatus.temporaryRedirect) {
+      return WriteResult.from(
+        stream,
+        version,
+        eventIds,
+        response,
+      );
+    }
+    final redirected = await client.post(
+      response.headers['Location'],
+      headers: headers,
+      body: body,
+    );
+    return WriteResult.from(
+      stream,
+      version,
+      eventIds,
+      redirected,
+    );
   }
 
   String _toStreamUri(String stream) => '$host:$port/streams/$stream';
