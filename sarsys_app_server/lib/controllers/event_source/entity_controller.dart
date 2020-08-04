@@ -165,6 +165,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       return conflict(
         ConflictType.merge,
         e.message,
+        base: e.base,
         mine: e.mine,
         yours: e.yours,
       );

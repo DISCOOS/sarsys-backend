@@ -70,6 +70,7 @@ class OrganisationImportController
       return conflict(
         ConflictType.merge,
         e.message,
+        base: e.base,
         mine: e.mine,
         yours: e.yours,
       );

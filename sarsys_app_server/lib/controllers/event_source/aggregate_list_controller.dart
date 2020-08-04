@@ -65,6 +65,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       return conflict(
         ConflictType.merge,
         e.message,
+        base: e.base,
         mine: e.mine,
         yours: e.yours,
       );
@@ -125,6 +126,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       return conflict(
         ConflictType.merge,
         e.message,
+        base: e.base,
         mine: e.mine,
         yours: e.yours,
       );
@@ -186,6 +188,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       return conflict(
         ConflictType.merge,
         e.message,
+        base: e.base,
         mine: e.mine,
         yours: e.yours,
       );
@@ -247,6 +250,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       return conflict(
         ConflictType.merge,
         e.message,
+        base: e.base,
         mine: e.mine,
         yours: e.yours,
       );

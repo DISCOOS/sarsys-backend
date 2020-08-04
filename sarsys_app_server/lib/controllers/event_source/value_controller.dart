@@ -103,6 +103,7 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
       return conflict(
         ConflictType.merge,
         e.message,
+        base: e.base,
         mine: e.mine,
         yours: e.yours,
       );

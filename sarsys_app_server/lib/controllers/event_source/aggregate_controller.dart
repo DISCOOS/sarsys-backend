@@ -119,6 +119,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
         ConflictType.merge,
         e.message,
         mine: e.mine,
+        base: e.base,
         yours: e.yours,
       );
     } on InvalidOperation catch (e) {
@@ -149,6 +150,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       return conflict(
         ConflictType.merge,
         e.message,
+        base: e.base,
         mine: e.mine,
         yours: e.yours,
       );

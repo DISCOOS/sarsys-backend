@@ -101,8 +101,8 @@ Response conflict(
   ConflictType type,
   String error, {
   String code,
-  Map<String, dynamic> headers,
   Map<String, dynamic> base,
+  Map<String, dynamic> headers,
   List<Map<String, dynamic>> mine,
   List<Map<String, dynamic>> yours,
 }) =>
