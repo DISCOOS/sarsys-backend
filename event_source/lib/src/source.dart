@@ -218,8 +218,6 @@ class EventStore {
       logger.info(
         'Local stream $canonicalStream is at same event number as remote stream ($previous)',
       );
-//      logger.info('---STACKTRACE---');
-//      logger.info(StackTrace.current);
     }
     return count;
   }

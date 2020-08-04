@@ -449,7 +449,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         }
       }
 
-      // Not applied yet
+      // Get base if exists
+      final base = event.mapAt<String, dynamic>('previous') ?? aggregate?.data;
+
+      // Prepare REQUIRED fields
       final patches = event.listAt<Map<String, dynamic>>('patches');
       final changed = event.mapAt<String, dynamic>('changed') ??
           JsonUtils.apply(
@@ -468,10 +471,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           data: DomainEvent.toData(
             uuid,
             uuidFieldName,
+            previous: base,
             patches: patches,
             changed: changed,
             index: event.elementAt<int>('index'),
-            previous: event.mapAt<String, dynamic>('previous'),
             deleted: event.elementAt<bool>('deleted') ?? aggregate?.isDeleted,
           ),
         ),

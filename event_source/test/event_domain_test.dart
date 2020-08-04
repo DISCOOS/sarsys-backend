@@ -136,6 +136,7 @@ Future main() async {
     final uuid = Uuid().v4();
     final foo = repository.get(uuid);
     final createdBy = foo.createdBy;
+    final createdLocally = createdBy.created;
     await repository.push(foo);
 
     // Allow subscription to catch up
@@ -146,7 +147,7 @@ Future main() async {
     expect(foo.createdBy, equals(createdBy), reason: 'createdBy should not change identity');
     expect(
       createdWhen,
-      isNot(equals(createdBy.created)),
+      isNot(equals(createdLocally)),
       reason: 'createdBy should change created datetime',
     );
   });
