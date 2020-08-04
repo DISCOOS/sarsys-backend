@@ -243,11 +243,12 @@ Future main() async {
     // Assert
     final conflict = await response.body.decode();
     expect(conflict, {
+      'error': 'Aggregates belongs to wrong parents: [Division $divuuid belongs to organisation: $ouuid1]',
       'type': 'merge',
       'code': 'merge',
+      'base': {},
       'mine': [],
       'yours': [],
-      'error': 'Aggregates belongs to wrong parents: [Division $divuuid belongs to organisation: $ouuid1]',
     });
   });
 
@@ -314,11 +315,12 @@ Future main() async {
     // Assert
     final conflict = await response.body.decode();
     expect(conflict, {
+      'error': 'Aggregates belongs to wrong parents: [Department $depuuid1 belongs to division: $divuuid1]',
       'type': 'merge',
       'code': 'merge',
       'mine': [],
       'yours': [],
-      'error': 'Aggregates belongs to wrong parents: [Department $depuuid1 belongs to division: $divuuid1]',
+      'base': {},
     });
   });
 }
