@@ -125,8 +125,8 @@ String createAuthnUnitLeader({List<String> required = const ['personnel']}) => c
       ),
     );
 
-String createAuthnPersonnel({List<String> required = const ['personnel']}) => createBearerToken(
-      createJWT(required),
+String createAuthnPersonnel() => createBearerToken(
+      createJWT(const ['personnel']),
     );
 
 String createJWT(List<String> roles) => issueJwtHS256(
@@ -360,8 +360,9 @@ Map<String, dynamic> createDepartment(String uuid) => {
       "active": true,
     };
 
-Map<String, dynamic> createTracking(String uuid) => {
+Map<String, dynamic> createTracking(String uuid, {String status}) => {
       "uuid": uuid,
+      if (status != null) 'status': status,
     };
 
 Map<String, dynamic> createSource({String uuid = 'string', String type = 'device'}) => {

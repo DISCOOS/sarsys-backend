@@ -129,7 +129,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     }
   }
 
-  S onCreate(Map<String, dynamic> data) => throw UnsupportedError("Create not implemented");
+  S onCreate(Map<String, dynamic> data) => throw UnimplementedError("Create not implemented");
 
   /// Add @Operation('PATCH', 'uuid') to activate
   Future<Response> update(@Bind.path('uuid') String uuid, @Bind.body() Map<String, dynamic> data) async {
@@ -165,7 +165,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     }
   }
 
-  S onUpdate(Map<String, dynamic> data) => throw UnsupportedError("Update not implemented");
+  S onUpdate(Map<String, dynamic> data) => throw UnimplementedError("Update not implemented");
 
   /// Add @Operation('DELETE', 'uuid') to activate
   Future<Response> delete(
@@ -195,7 +195,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     }
   }
 
-  S onDelete(Map<String, dynamic> data) => throw UnsupportedError("Update not implemented");
+  S onDelete(Map<String, dynamic> data) => throw UnimplementedError("Update not implemented");
 
   /// Wait for given rule result from stream of results
   Future<Response> withResponseWaitForRuleResult<T extends Event>(

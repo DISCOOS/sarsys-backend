@@ -321,6 +321,12 @@ class SarSysAppServerChannel extends ApplicationChannel {
                 requestValidator,
               ))
       ..secure(
+          '/api/trackings/:uuid/status',
+          () => TrackingStatusController(
+                manager.get<TrackingRepository>(),
+                requestValidator,
+              ))
+      ..secure(
           '/api/trackings/:tuuid/sources[/:suuid]',
           () => SourceController(
                 manager.get<TrackingRepository>(),

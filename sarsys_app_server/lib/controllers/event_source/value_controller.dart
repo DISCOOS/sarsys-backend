@@ -118,7 +118,7 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
     }
   }
 
-  S onUpdate(String uuid, String type, Map<String, dynamic> data) => throw UnsupportedError("Update not implemented");
+  S onUpdate(String uuid, String type, Map<String, dynamic> data) => throw UnimplementedError("Update not implemented");
 
   //////////////////////////////////
   // Documentation
@@ -159,7 +159,7 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
       case "PATCH":
         return APIRequestBody.schema(
           context.schema[valueType],
-          description: "Update $valueType. Only fields in request are updated.",
+          description: "Update $valueType. Only field $aggregateField is updated.",
           required: true,
         );
         break;

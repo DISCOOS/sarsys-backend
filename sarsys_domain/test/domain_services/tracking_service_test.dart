@@ -110,10 +110,10 @@ Future main() async {
     _assertStates(
       trackingRepo,
       service,
-      tuuid,
-      duuid,
-      'tracking',
-      true,
+      tuuid: tuuid,
+      duuid: duuid,
+      attached: true,
+      status: 'tracking',
     );
 
     // Cleanup
@@ -155,10 +155,10 @@ Future main() async {
     _assertStates(
       trackingRepo,
       service,
-      tuuid,
-      duuid,
-      'tracking',
-      true,
+      tuuid: tuuid,
+      duuid: duuid,
+      attached: true,
+      status: 'tracking',
     );
 
     // Cleanup
@@ -211,10 +211,10 @@ Future main() async {
     _assertStates(
       trackingRepo,
       service,
-      tuuid,
-      duuid,
-      'tracking',
-      true,
+      tuuid: tuuid,
+      duuid: duuid,
+      attached: true,
+      status: 'tracking',
     );
 
     // Cleanup
@@ -275,37 +275,90 @@ Future main() async {
     _assertStates(
       trackingRepo,
       service,
-      tuuid,
-      duuid,
-      'paused',
-      false,
+      tuuid: tuuid,
+      duuid: duuid,
+      attached: false,
+      status: 'paused',
     );
 
+    await service.dispose();
+  });
+
+  test('Tracking services shall detach track on TrackingDeleted', () async {
+    // Arrange
+    final stream = harness.server().getStream('\$et-TrackingCreated');
+    final deviceRepo = harness.get<DeviceRepository>();
+    await deviceRepo.readyAsync();
+    final trackingRepo = harness.get<TrackingRepository>();
+    await trackingRepo.readyAsync();
+
+    // Act - add source before service has consumed first TrackingCreated event
+    final tuuid = await _createTracking(trackingRepo, stream, subscription);
+    await _addTrackingSource(
+      trackingRepo,
+      tuuid,
+      await _createDevice(deviceRepo),
+    );
+    final service = TrackingService(trackingRepo, consume: 1, snapshot: false)..build();
+    await expectLater(
+      service.asStream(),
+      emitsInOrder([
+        isA<TrackingCreated>(),
+        isA<TrackingTrackAdded>(),
+        isA<TrackingStatusChanged>() /* none -> tracking */,
+      ]),
+    );
+
+    _deleteTracking(trackingRepo, stream, subscription, tuuid);
+    await expectLater(
+      service.asStream(),
+      emitsInOrder([
+        isA<TrackingDeleted>(),
+      ]),
+    );
+
+    // Assert - states
+
+    _assertStates(
+      trackingRepo,
+      service,
+      trackCount: 0,
+      trackingCount: 0,
+    );
+
+    // Cleanup
     await service.dispose();
   });
 }
 
 void _assertStates(
   TrackingRepository trackingRepo,
-  TrackingService service,
-  String tuuid,
+  TrackingService service, {
   String duuid,
+  String tuuid,
   String status,
-  bool attached, {
+  bool attached,
   int trackCount = 1,
   int trackingCount = 1,
 }) {
-  final tracking = trackingRepo.get(tuuid);
-  final tracks = tracking.asEntityArray('tracks');
+  final tracking = trackingRepo.get(tuuid, createNew: false);
+  final tracks = tracking?.asEntityArray('tracks');
   expect(trackingRepo.count(), equals(trackingCount));
   expect(service.managed.length, equals(trackingCount));
-  expect(service.managed, contains(tuuid));
-  expect(service.sources.keys, equals({duuid}));
-  expect(service.sources[duuid]?.length, equals(1));
-  expect(service.sources[duuid], equals({tuuid}));
-  expect(tracks.length, equals(trackCount));
-  expect(tracks['1']?.data['status'], contains(attached ? 'attached' : 'detached'));
-  expect(tracking.data.elementAt('status'), equals(status));
+  expect(service.managed, trackingCount == 0 ? isEmpty : contains(tuuid));
+  if (trackCount == 0) {
+    expect(service.sources, isEmpty);
+    expect(tracks, isNull);
+  } else {
+    expect(service.sources.keys, equals({duuid}));
+    expect(service.sources[duuid]?.length, equals(1));
+    expect(service.sources[duuid], equals({tuuid}));
+    expect(tracks.length, equals(trackCount));
+  }
+  if (status?.isNotEmpty == true) {
+    expect(tracks['1']?.data['status'], contains(attached ? 'attached' : 'detached'));
+    expect(tracking.data.elementAt('status'), equals(status));
+  }
 }
 
 Future<String> _createDevice(DeviceRepository repo) async {
@@ -335,4 +388,12 @@ FutureOr _updateDevicePosition(DeviceRepository repo, String uuid, Map<String, d
 FutureOr<String> _removeTrackingSource(TrackingRepository repo, String tuuid, String suuid) async {
   await repo.execute(RemoveSourceFromTracking(tuuid, createSource(uuid: suuid)));
   return suuid;
+}
+
+FutureOr<String> _deleteTracking(TrackingRepository repo, TestStream stream, String subscription, String uuid) async {
+  final events = await repo.execute(DeleteTracking(createTracking(uuid)));
+  stream.append(subscription, [
+    TestStream.fromDomainEvent(events.first),
+  ]);
+  return uuid;
 }

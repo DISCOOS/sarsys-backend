@@ -18,7 +18,7 @@ class TrackingCreated extends DomainEvent {
           type: '$TrackingCreated',
           created: created,
           // Ensure status is set
-          data: {'status': 'created'}..addAll(data),
+          data: {'status': 'empty'}..addAll(data),
         );
   Map<String, dynamic> get position => changed.elementAt('position');
 }

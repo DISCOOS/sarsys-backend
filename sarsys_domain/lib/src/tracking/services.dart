@@ -38,7 +38,9 @@ import 'package:sarsys_domain/src/tracking/tracking_utils.dart';
 /// will copy the track from the previous [Tracking]
 /// instance. In the unlikely event of a source being
 /// concurrently attached to multiple [Tracking] instances,
-/// the track with the most recent timestamp is chosen.
+/// the track with the most recent timestamp is chosen
+/// following a 'last writer wins' strategy.
+///
 /// Managers of previous [Tracking] instances will detach
 /// the source from the track it manages eventually.
 /// This minimises the likelihood that positions are lost
@@ -113,20 +115,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
   FutureOr build({bool init = false}) async {
     // Initialize from snapshot?
     if (snapshot) {
-      Hive.init('$dataPath');
-      _box = await Hive.openBox('$runtimeType');
-      if (init) {
-        await _box.clear();
-      } else {
-        final futures = List<String>.from(_box.values ?? [])
-            .map(
-              (json) => _fromJson(json),
-            )
-            .map(
-              (event) => _replayEvent(event),
-            );
-        await Future.wait(futures);
-      }
+      await _load(init);
     }
 
     // Register events of interest
@@ -157,6 +146,23 @@ class TrackingService extends MessageHandler<DomainEvent> {
     );
     logger.info('Built with consumption count $consume from stream $STREAM');
     return complete;
+  }
+
+  Future _load(bool init) async {
+    Hive.init('$dataPath');
+    _box = await Hive.openBox('$runtimeType');
+    if (init) {
+      await _box.clear();
+    } else {
+      final futures = List<String>.from(_box.values ?? [])
+          .map(
+            (json) => _fromJson(json),
+          )
+          .map(
+            (event) => _replayEvent(event),
+          );
+      await Future.wait(futures);
+    }
   }
 
   bool get isPaused => _subscription?.isPaused;
@@ -225,34 +231,40 @@ class TrackingService extends MessageHandler<DomainEvent> {
 
   /// Build map of all source uuids to its tracking uuids
   void _onTrackingCreated(TrackingCreated event, {bool replay = false}) async {
-    final uuid = repository.toAggregateUuid(event);
-    if (!_managed.contains(uuid)) {
+    final tuuid = repository.toAggregateUuid(event);
+    if (!_managed.contains(tuuid)) {
       // Ensure that tracking is persisted to this instance?
       if (!replay && snapshot) {
-        await _box.put(uuid, _toJson(event));
+        await _box.put(tuuid, _toJson(event));
       }
-      _managed.add(uuid);
-      logger.info('Added tracking $uuid for position processing');
+      _managed.add(tuuid);
+      logger.info('Added tracking $tuuid for position processing');
     }
     // Only attempt to add sources from tracking that exists during replay (stale
-    if (!replay || replay && repository.contains(uuid)) {
-      _addToStream([event], 'Analysing source mappings for tracking $uuid', replay: replay);
-      return _addSources(repository, uuid);
-    } else if (replay && snapshot) {
-      _managed.remove(uuid);
+    if (!replay || replay && repository.contains(tuuid)) {
+      _addToStream([event], 'Analysing source mappings for tracking $tuuid', replay: replay);
+      return _addSources(repository, tuuid);
+    } else if (replay) {
+      await _removeTracking(tuuid);
+      logger.info('Deleted stale tracking $tuuid');
+    }
+  }
+
+  Future _removeTracking(String tuuid) async {
+    _managed.remove(tuuid);
+    _removeSources(tuuid);
+    if (snapshot) {
       // Stale tracking object, remove it from hive
-      await _box.delete(uuid);
-      logger.info('Deleted stale tracking $uuid');
+      await _box.delete(tuuid);
     }
   }
 
   /// Stop management and remove from service
   void _onTrackingDeleted(TrackingDeleted event, {bool replay = false}) async {
-    final uuid = repository.toAggregateUuid(event);
-    if (_managed.contains(uuid) && !replay && snapshot) {
-      _managed.remove(uuid);
-      await _box.delete(uuid);
-      logger.info('Removed tracking $uuid from service');
+    final tuuid = repository.toAggregateUuid(event);
+    if (_managed.contains(tuuid) && !replay) {
+      await _removeTracking(tuuid);
+      _addToStream([event], 'Removed tracking $tuuid from service', replay: replay);
     }
   }
 
@@ -373,29 +385,29 @@ class TrackingService extends MessageHandler<DomainEvent> {
     }
   }
 
-  TrackModel _findTrackManagedByMe(String tracking, String source) =>
+  TrackModel _findTrackManagedByMe(String tuuid, String suuid) =>
       // Only one attached track for each unique source in each manager instance
       _firstOrNull(
-        _sources[source]
+        _sources[suuid]
             // Find all tracking objects managed by me that tracks given source
-            ?.where((managed) => managed == tracking)
+            ?.where((managed) => managed == tuuid)
             // Find source objects in other tracking objects
             ?.map(
-              (other) => _findTrack(TrackingModel.fromJson(repository.get(other).data), source),
+              (other) => _findTrack(TrackingModel.fromJson(repository.get(other).data), suuid),
             )
             // Filter out all detached tracks
             ?.where((track) => track?.status == TrackStatus.attached),
       );
 
-  TrackModel _findTrackManagedByOthers(String tracking, String source) =>
+  TrackModel _findTrackManagedByOthers(String tuuid, String suuid) =>
       // TODO: Select the track with most recent timestamp if multiple was found
       _firstOrNull(
-        _sources[source]
+        _sources[suuid]
             // Find all other tracking objects tracking given source
-            ?.where((other) => other != tracking)
+            ?.where((other) => other != tuuid)
             // Find source objects in other tracking objects
             ?.map(
-              (other) => _findTrack(TrackingModel.fromJson(repository.get(other).data), source),
+              (other) => _findTrack(TrackingModel.fromJson(repository.get(other).data), suuid),
             )
             // Filter out all detached tracks
             ?.where((track) => track?.status == TrackStatus.attached),
@@ -463,11 +475,13 @@ class TrackingService extends MessageHandler<DomainEvent> {
     }
   }
 
-  String _deriveTrackingStatus(Map<String, dynamic> tracking, current) {
+  String _inferTrackingStatus(Map<String, dynamic> tracking, current) {
     final hasSource = (tracking.elementAt(SOURCES) as List).isNotEmpty;
-    final next = ['created'].contains(current)
-        ? (hasSource ? 'tracking' : 'created')
-        : (hasSource ? 'tracking' : (['closed'].contains(current) ? current : 'paused'));
+    final next = ['empty'].contains(current)
+        ? (hasSource ? 'tracking' : 'empty')
+        : (hasSource
+            ? (['paused'].contains(current) ? current : 'tracking')
+            : (['closed'].contains(current) ? current : 'empty'));
     return next;
   }
 
@@ -475,7 +489,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
     try {
       final tracking = repository.get(uuid).data;
       final current = tracking.elementAt('status') ?? 'none';
-      var next = _deriveTrackingStatus(tracking, current);
+      var next = _inferTrackingStatus(tracking, current);
       if (current != next) {
         final events = await repository.execute(UpdateTrackingStatus({
           UUID: uuid,
@@ -556,12 +570,27 @@ class TrackingService extends MessageHandler<DomainEvent> {
   /// Append tracking uuid to list of tracking uuids for given source
   ///
   /// Returns true if number of tracking uuids changed
-  bool _addSource(String source, String tracking) {
+  bool _addSource(String suuid, String tuuid) {
     //
     // TODO: Identify circular reference (will produce reentrant code)
 
-    final length = _sources[source]?.length ?? 0;
-    return length < _sources.update(source, (uuids) => uuids..add(tracking), ifAbsent: () => {tracking}).length;
+    final length = _sources[suuid]?.length ?? 0;
+    return length < _sources.update(suuid, (uuids) => uuids..add(tuuid), ifAbsent: () => {tuuid}).length;
+  }
+
+  /// Remove tracking uuid from list of tracking uuids for given source
+  ///
+  /// Returns true if number of tracking uuids changed
+  bool _removeSources(String tuuid) {
+    final changed = _sources.entries.where((entry) => entry.value.contains(tuuid)).map(
+          (entry) => MapEntry(entry.key, entry.value..remove(tuuid)),
+        );
+    _sources.addEntries(changed);
+    final empty = _sources.entries.where((entry) => entry.value.isEmpty).toList()
+      ..forEach(
+        (entry) => _sources.remove(entry.key),
+      );
+    return changed.isNotEmpty || empty.isNotEmpty;
   }
 
   Future _ensureDetached(DomainEvent event) async {
@@ -601,6 +630,8 @@ class TrackingService extends MessageHandler<DomainEvent> {
       final domain = repository.toDomainEvent(event);
       if (domain is TrackingCreated) {
         await _onTrackingCreated(domain);
+      } else if (domain is TrackingDeleted) {
+        await _onTrackingDeleted(domain);
       }
     } on Exception catch (e, stackTrace) {
       logger.severe(

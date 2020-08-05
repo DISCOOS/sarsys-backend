@@ -1,3 +1,4 @@
+import 'package:aqueduct/aqueduct.dart';
 import 'package:json_schema/json_schema.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 
@@ -8,7 +9,7 @@ class JsonValidation {
   final List<Validator> validators;
 
   /// Get [JsonValidation] with given [validators]
-  JsonValidation withValidations(List<Validator> validators) =>
+  JsonValidation copyWith(List<Validator> validators) =>
       JsonValidation(specification, validators: validators)..validating.addAll(validating);
 
   /// Validate OpenAPI schemas
@@ -131,7 +132,12 @@ class ReadOnlyValidator extends Validator {
 }
 
 class ValueValidator extends Validator {
-  ValueValidator(this.path, this.allowed, {this.required = true});
+  ValueValidator({
+    this.path,
+    this.allowed,
+    this.required = true,
+  });
+
   final String path;
   final bool required;
   final List<dynamic> allowed;

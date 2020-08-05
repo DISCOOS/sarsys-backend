@@ -57,7 +57,7 @@ T _$enumDecodeNullable<T>(Map<T, dynamic> enumValues, dynamic source) {
 }
 
 const _$TrackingStatusEnumMap = <TrackingStatus, dynamic>{
-  TrackingStatus.created: 'created',
+  TrackingStatus.empty: 'empty',
   TrackingStatus.tracking: 'tracking',
   TrackingStatus.paused: 'paused',
   TrackingStatus.closed: 'closed'

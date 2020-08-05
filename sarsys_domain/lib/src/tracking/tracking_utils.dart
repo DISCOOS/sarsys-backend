@@ -126,7 +126,7 @@ class TrackingUtils {
     return tracking.cloneWith(
       sources: sources,
       tracks: tracks,
-      status: derive(tracking.status, sources),
+      status: inferStatus(tracking.status, sources),
     );
   }
 
@@ -143,7 +143,7 @@ class TrackingUtils {
       final sources = tracking.tracks.map((track) => track.source);
       final tracks = tracking.tracks.map((track) => track.cloneWith(status: TrackStatus.attached));
       return tracking.cloneWith(
-        status: derive(TrackingStatus.closed, sources, defaultStatus: TrackingStatus.created),
+        status: inferStatus(TrackingStatus.closed, sources, defaultStatus: TrackingStatus.empty),
         sources: sources.toList(),
         tracks: tracks.toList(),
       );
@@ -178,16 +178,16 @@ class TrackingUtils {
         orElse: () => null,
       );
 
-  static TrackingStatus derive(
+  static TrackingStatus inferStatus(
     TrackingStatus current,
     Iterable<SourceModel> sources, {
     TrackingStatus defaultStatus,
   }) {
     final hasSources = sources.isNotEmpty;
-    final next = [TrackingStatus.created].contains(current)
-        ? (hasSources ? TrackingStatus.tracking : TrackingStatus.created)
+    final next = [TrackingStatus.empty].contains(current)
+        ? (hasSources ? TrackingStatus.tracking : TrackingStatus.empty)
         : (hasSources
-            ? TrackingStatus.tracking
+            ? ([TrackingStatus.paused].contains(current) ? (defaultStatus ?? current) : TrackingStatus.tracking)
             : ([TrackingStatus.closed].contains(current) ? (defaultStatus ?? current) : TrackingStatus.paused));
     return next;
   }

@@ -26,23 +26,6 @@ Future main() async {
     );
   });
 
-//  test("POST /api/trackings/ returns status code 400 when 'position/properties/type/device' is given", () async {
-//    harness.eventStoreMockServer.withStream(typeOf<Tracking>().toColonCase());
-//    await harness.channel.manager.get<TrackingRepository>().readyAsync();
-//    final uuid = Uuid().v4();
-//    final body = _createData(uuid)
-//      ..addAll({
-//        'position': {
-//          'properties': {'type': 'device'},
-//        }
-//      });
-//    expectResponse(
-//      await harness.agent.post("/api/trackings", body: body),
-//      400,
-//      body: 'Schema Tracking has 1 errors: [/position/properties/type: illegal value: device, accepts: [manual]]',
-//    );
-//  });
-
   test("GET /api/trackings/{uuid} returns status code 200", () async {
     harness.eventStoreMockServer.withStream(typeOf<Tracking>().toColonCase());
     await harness.channel.manager.get<TrackingRepository>().readyAsync();

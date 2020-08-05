@@ -10,18 +10,18 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
   TrackingController(TrackingRepository repository, JsonValidation validation)
       : super(
           repository,
-          validation: validation,
           readOnly: const [
-            'status',
-            'position',
-            'distance',
             'speed',
+            'status',
             'effort',
-            'sources',
             'tracks',
             'history',
+            'sources',
+            'distance',
+            'position',
           ],
           tag: "Trackings",
+          validation: validation,
         );
 
   @override
@@ -105,13 +105,18 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
           'uuid',
         ];
 
+  @override
+  Map<String, APISchemaObject> documentValues(APIDocumentContext context) => {
+        'TrackingStatus': documentTrackingStatus(),
+      };
+
   /// TrackingStatus - Value Object
   APISchemaObject documentTrackingStatus() => APISchemaObject.string()
     ..defaultValue = "created"
     ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
     ..enumerated = [
       'none',
-      'created',
+      'empty',
       'tracking',
       'paused',
       'closed',

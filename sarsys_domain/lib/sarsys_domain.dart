@@ -13,4 +13,5 @@ export 'src/person/person.dart';
 export 'src/personnel/personnel.dart';
 export 'src/subject/subject.dart';
 export 'src/tracking/tracking.dart';
+export 'src/core/models/models.dart';
 export 'src/unit/unit.dart';

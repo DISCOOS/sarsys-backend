@@ -138,7 +138,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     }
   }
 
-  S onCreate(String uuid, String type, Map<String, dynamic> data) => throw UnsupportedError("Create not implemented");
+  S onCreate(String uuid, String type, Map<String, dynamic> data) => throw UnimplementedError("Create not implemented");
 
   /// Add @Operation('PATCH', 'uuid', 'id') to active
   Future<Response> update(
@@ -182,7 +182,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     }
   }
 
-  S onUpdate(String uuid, String type, Map<String, dynamic> data) => throw UnsupportedError("Update not implemented");
+  S onUpdate(String uuid, String type, Map<String, dynamic> data) => throw UnimplementedError("Update not implemented");
 
   /// Add @Operation('DELETE', 'uuid', 'id') to active
   Future<Response> delete(
@@ -214,7 +214,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     }
   }
 
-  S onDelete(String uuid, String type, Map<String, dynamic> data) => throw UnsupportedError("Remove not implemented");
+  S onDelete(String uuid, String type, Map<String, dynamic> data) => throw UnimplementedError("Remove not implemented");
 
   //////////////////////////////////
   // Documentation

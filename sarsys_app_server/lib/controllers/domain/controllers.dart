@@ -29,5 +29,6 @@ export 'source_controller.dart';
 export 'subject_controllers.dart';
 export 'track_controller.dart';
 export 'tracking_controller.dart';
+export 'tracking_status_controller.dart';
 export 'unit_controller.dart';
 export 'unit_personnel_controller.dart';
