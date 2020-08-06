@@ -7,11 +7,16 @@ part of 'source.dart';
 // **************************************************************************
 
 SourceModel _$SourceModelFromJson(Map<String, dynamic> json) {
-  return SourceModel(uuid: json['uuid'] as String, type: _$enumDecodeNullable(_$SourceTypeEnumMap, json['type']));
+  return SourceModel(
+      uuid: json['uuid'] as String,
+      type: _$enumDecodeNullable(_$SourceTypeEnumMap, json['type']));
 }
 
 Map<String, dynamic> _$SourceModelToJson(SourceModel instance) =>
-    <String, dynamic>{'uuid': instance.uuid, 'type': _$SourceTypeEnumMap[instance.type]};
+    <String, dynamic>{
+      'uuid': instance.uuid,
+      'type': _$SourceTypeEnumMap[instance.type]
+    };
 
 T _$enumDecode<T>(Map<T, dynamic> enumValues, dynamic source) {
   if (source == null) {
@@ -20,7 +25,8 @@ T _$enumDecode<T>(Map<T, dynamic> enumValues, dynamic source) {
   }
   return enumValues.entries
       .singleWhere((e) => e.value == source,
-          orElse: () => throw ArgumentError('`$source` is not one of the supported values: '
+          orElse: () => throw ArgumentError(
+              '`$source` is not one of the supported values: '
               '${enumValues.values.join(', ')}'))
       .key;
 }
@@ -32,4 +38,7 @@ T _$enumDecodeNullable<T>(Map<T, dynamic> enumValues, dynamic source) {
   return _$enumDecode<T>(enumValues, source);
 }
 
-const _$SourceTypeEnumMap = <SourceType, dynamic>{SourceType.device: 'device', SourceType.trackable: 'trackable'};
+const _$SourceTypeEnumMap = <SourceType, dynamic>{
+  SourceType.device: 'device',
+  SourceType.trackable: 'trackable'
+};

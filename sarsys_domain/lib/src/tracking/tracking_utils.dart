@@ -6,7 +6,7 @@ import 'package:sarsys_domain/src/core/proj4d.dart';
 class TrackingUtils {
   /// Calculate average speed from distance and duration
   static double speed(double distance, Duration duration) =>
-      distance.isNaN == false && duration.inMicroseconds > 0.0 ? distance / duration.inSeconds : 0.0;
+      distance.isNaN == false && duration.inSeconds > 0.0 ? distance / duration.inSeconds : 0.0;
 
   /// Calculate distance from history
   static double distance(
@@ -15,18 +15,18 @@ class TrackingUtils {
     int tail = 2,
   }) {
     distance ??= 0;
-    var offset = max(0, history.length - tail - 1);
+    var offset = max(0, history.length - tail);
     var i = offset + 1;
-    history?.skip(offset)?.forEach((p) {
-      i++;
+    history?.skip(offset)?.where((p) => p.isNotEmpty)?.forEach((p) {
       distance += i < history.length
           ? ProjMath.eucledianDistance(
-              history[i]?.lat ?? p.lat,
-              history[i]?.lon ?? p.lon,
               p.lat,
               p.lon,
+              history[i]?.lat ?? p.lat,
+              history[i]?.lon ?? p.lon,
             )
           : 0.0;
+      i++;
     });
     return distance;
   }
@@ -51,13 +51,13 @@ class TrackingUtils {
       return current;
     } else if (sources.length == 1) {
       final track = find(tracking, sources.first.uuid);
-      return track?.positions?.last ?? current;
+      return track?.positions?.isNotEmpty == true ? track.positions.last : current;
     }
     final tracks = tracking.tracks;
     // Aggregate lat, lon, acc and latest timestamp in tracks
     var sum = tracks.fold<List<num>>(
       [0.0, 0.0, 0.0, 0.0],
-      (sum, track) => track.positions.isEmpty
+      (sum, track) => track.positions?.isNotEmpty != true
           ? sum
           : [
               track.positions.last.lat + sum[0],
@@ -78,7 +78,7 @@ class TrackingUtils {
       properties: PositionModelProps(
         acc: sum[2] / count,
         source: PositionSource.aggregate,
-        timestamp: DateTime.fromMillisecondsSinceEpoch(sum[3]),
+        timestamp: DateTime.fromMillisecondsSinceEpoch(sum[3].toInt()),
       ),
     );
   }
@@ -143,7 +143,7 @@ class TrackingUtils {
       final sources = tracking.tracks.map((track) => track.source);
       final tracks = tracking.tracks.map((track) => track.cloneWith(status: TrackStatus.attached));
       return tracking.cloneWith(
-        status: inferStatus(TrackingStatus.closed, sources, defaultStatus: TrackingStatus.empty),
+        status: inferStatus(TrackingStatus.closed, sources, defaultStatus: TrackingStatus.ready),
         sources: sources.toList(),
         tracks: tracks.toList(),
       );
@@ -184,8 +184,8 @@ class TrackingUtils {
     TrackingStatus defaultStatus,
   }) {
     final hasSources = sources.isNotEmpty;
-    final next = [TrackingStatus.empty].contains(current)
-        ? (hasSources ? TrackingStatus.tracking : TrackingStatus.empty)
+    final next = [TrackingStatus.ready].contains(current)
+        ? (hasSources ? TrackingStatus.tracking : TrackingStatus.ready)
         : (hasSources
             ? ([TrackingStatus.paused].contains(current) ? (defaultStatus ?? current) : TrackingStatus.tracking)
             : ([TrackingStatus.closed].contains(current) ? (defaultStatus ?? current) : TrackingStatus.paused));

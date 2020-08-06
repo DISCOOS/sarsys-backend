@@ -32,7 +32,7 @@ class TrackingStatusController extends ValueController<TrackingCommand, Tracking
       final tracking = repository.get(uuid);
       switch (tracking.elementAt<String>('status') ?? 'none') {
         case 'none':
-        case 'empty':
+        case 'ready':
           return Response.badRequest(
             body: "Tracking is empty",
           );

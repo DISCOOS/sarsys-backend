@@ -116,7 +116,7 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
     ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
     ..enumerated = [
       'none',
-      'empty',
+      'ready',
       'tracking',
       'paused',
       'closed',

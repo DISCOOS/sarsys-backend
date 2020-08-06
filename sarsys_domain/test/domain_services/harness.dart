@@ -271,15 +271,21 @@ Map<String, Object> createPosition({lon = 1.0, lat = 1.0, acc = 1.0}) => {
         'description': 'string',
         'accuracy': acc,
         'timestamp': DateTime.now().toIso8601String(),
-        'type': 'manual'
+        'source': 'manual'
       }
     };
 
-Map<String, dynamic> createDevice(String uuid, {Map<String, dynamic> position}) => {
+Map<String, dynamic> createDevice(
+  String uuid, {
+  Map<String, dynamic> position,
+  bool trackable = true,
+}) =>
+    {
       'uuid': '$uuid',
       'name': 'string',
       'alias': 'string',
       'network': 'string',
       'networkId': 'string',
+      'trackable': trackable,
       if (position != null) 'position': position,
     };

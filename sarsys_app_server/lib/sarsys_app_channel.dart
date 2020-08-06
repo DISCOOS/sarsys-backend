@@ -568,6 +568,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
       manager.get<TrackingRepository>(),
       dataPath: config.data.path,
       snapshot: config.data.enabled,
+      devices: manager.get<DeviceRepository>(),
     );
     await trackingService.build();
   }

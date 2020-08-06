@@ -26,18 +26,29 @@ class CoordinatesModel extends Equatable {
 
   /// Factory constructor for creating a new `Point`  instance
   factory CoordinatesModel.fromJson(List<dynamic> json) => CoordinatesModel(
-        lat: _latFromJson(json),
-        lon: _lonFromJson(json),
-        alt: _altFromJson(json),
+        lat: latFromJson(json),
+        lon: lonFromJson(json),
+        alt: altFromJson(json),
       );
 
-  /// Declare support for serialization to JSON
-  List<double> toJson() => [lat, lon, if (alt != null) alt];
+  /// Declare support for serialization to JSON.
+  /// GeoJSON specifies longitude at index 0,
+  /// latitude at index 1 and altitude at index 2,
+  /// see https://tools.ietf.org/html/rfc7946#section-3.1.1
+  List<double> toJson() => [lon, lat, if (alt != null) alt];
 }
 
-double _latFromJson(Object json) => _toDouble(json, 0);
-double _lonFromJson(Object json) => _toDouble(json, 1);
-double _altFromJson(Object json) => _toDouble(json, 2);
+/// GeoJSON specifies longitude at index 0,
+/// see https://tools.ietf.org/html/rfc7946#section-3.1.1
+double lonFromJson(Object json) => _toDouble(json, 0);
+
+/// GeoJSON specifies latitude at index 1,
+/// see https://tools.ietf.org/html/rfc7946#section-3.1.1
+double latFromJson(Object json) => _toDouble(json, 1);
+
+/// GeoJSON specifies altitude at index 2,
+/// see https://tools.ietf.org/html/rfc7946#section-3.1.1
+double altFromJson(Object json) => _toDouble(json, 2);
 
 double _toDouble(Object json, int index) {
   if (json is List) {

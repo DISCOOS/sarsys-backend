@@ -407,6 +407,7 @@ Map<String, Object> createPosition({
 Map<String, dynamic> createDevice(String uuid) => {
       "uuid": uuid,
       "alias": "string",
+      "trackable": true,
       "number": "string",
       "network": "string",
       "networkId": "string",

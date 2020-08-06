@@ -8,25 +8,35 @@ part of 'tracking.dart';
 
 TrackingModel _$TrackingModelFromJson(Map<String, dynamic> json) {
   return TrackingModel(
-      uuid: json['id'] as String,
+      uuid: json['uuid'] as String,
       status: _$enumDecodeNullable(_$TrackingStatusEnumMap, json['status']),
       speed: (json['speed'] as num)?.toDouble(),
-      effort: json['effort'] == null ? null : Duration(microseconds: json['effort'] as int),
+      effort: json['effort'] == null
+          ? null
+          : Duration(microseconds: json['effort'] as int),
       tracks: (json['tracks'] as List)
-          ?.map((e) => e == null ? null : TrackModel.fromJson(e as Map<String, dynamic>))
+          ?.map((e) =>
+              e == null ? null : TrackModel.fromJson(e as Map<String, dynamic>))
           ?.toList(),
       sources: (json['sources'] as List)
-          ?.map((e) => e == null ? null : SourceModel.fromJson(e as Map<String, dynamic>))
+          ?.map((e) => e == null
+              ? null
+              : SourceModel.fromJson(e as Map<String, dynamic>))
           ?.toList(),
       history: (json['history'] as List)
-          ?.map((e) => e == null ? null : PositionModel.fromJson(e as Map<String, dynamic>))
+          ?.map((e) => e == null
+              ? null
+              : PositionModel.fromJson(e as Map<String, dynamic>))
           ?.toList(),
-      position: json['position'] == null ? null : PositionModel.fromJson(json['position'] as Map<String, dynamic>),
+      position: json['position'] == null
+          ? null
+          : PositionModel.fromJson(json['position'] as Map<String, dynamic>),
       distance: (json['distance'] as num)?.toDouble());
 }
 
-Map<String, dynamic> _$TrackingModelToJson(TrackingModel instance) => <String, dynamic>{
-      'id': instance.uuid,
+Map<String, dynamic> _$TrackingModelToJson(TrackingModel instance) =>
+    <String, dynamic>{
+      'uuid': instance.uuid,
       'status': _$TrackingStatusEnumMap[instance.status],
       'speed': instance.speed,
       'effort': instance.effort?.inMicroseconds,
@@ -44,7 +54,8 @@ T _$enumDecode<T>(Map<T, dynamic> enumValues, dynamic source) {
   }
   return enumValues.entries
       .singleWhere((e) => e.value == source,
-          orElse: () => throw ArgumentError('`$source` is not one of the supported values: '
+          orElse: () => throw ArgumentError(
+              '`$source` is not one of the supported values: '
               '${enumValues.values.join(', ')}'))
       .key;
 }
@@ -57,7 +68,7 @@ T _$enumDecodeNullable<T>(Map<T, dynamic> enumValues, dynamic source) {
 }
 
 const _$TrackingStatusEnumMap = <TrackingStatus, dynamic>{
-  TrackingStatus.empty: 'empty',
+  TrackingStatus.ready: 'ready',
   TrackingStatus.tracking: 'tracking',
   TrackingStatus.paused: 'paused',
   TrackingStatus.closed: 'closed'

@@ -80,7 +80,7 @@ class TrackingModel extends Equatable {
 }
 
 enum TrackingStatus {
-  empty,
+  ready,
   tracking,
   paused,
   closed,

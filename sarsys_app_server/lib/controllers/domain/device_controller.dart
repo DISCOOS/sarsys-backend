@@ -86,6 +86,9 @@ class DeviceController extends AggregateController<DeviceCommand, Device> {
         "manual": APISchemaObject.boolean()
           ..description = "Device registered manually"
           ..defaultValue = true,
+        "trackable": APISchemaObject.boolean()
+          ..description = "Must be true for tracking"
+          ..defaultValue = true,
         "position": documentPosition(context)
           ..description = "Current position"
           // Use PUT /api/device/{duuid}/position

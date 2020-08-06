@@ -1321,14 +1321,14 @@ class EntityArray {
   bool get isNotEmpty => _asArray().isNotEmpty;
 
   /// Check if id exists
-  bool contains(String id) => _asArray().any((data) => _toId(data) == id);
+  bool contains(String id) => id != null && _asArray().any((data) => _toId(data) == id);
 
   /// Next EntityObject id.
   ///
   /// Starts at value `1`
   String get nextId => '${_asArray().where(
-        (data) => _toId(data) is int,
-      ).fold<int>(0, (next, data) => max(next, _toId(data) as int)) + 1}';
+        (data) => int.tryParse(_toId(data)) is int,
+      ).fold<int>(0, (next, data) => max(next, int.tryParse(_toId(data)) + 1))}';
 
   /// Get [EntityObject.data] as [List]
   List<Map<String, dynamic>> toList() => _asArray().toList();
