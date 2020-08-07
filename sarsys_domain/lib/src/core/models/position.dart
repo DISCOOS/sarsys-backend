@@ -15,7 +15,7 @@ class PositionModel extends Equatable {
   }) : super();
 
   final PointModel geometry;
-  final PositionModelProps properties;
+  final PositionPropertiesModel properties;
   final String type = 'Feature';
 
   @JsonKey(ignore: true)
@@ -63,7 +63,7 @@ class PositionModel extends Equatable {
             alt: alt,
           ),
         ),
-        properties: PositionModelProps(
+        properties: PositionPropertiesModel(
           acc: acc,
           source: source,
           timestamp: timestamp ?? DateTime.now(),
@@ -97,15 +97,17 @@ class PositionModel extends Equatable {
 enum PositionSource { manual, device, aggregate }
 
 @JsonSerializable(explicitToJson: true)
-class PositionModelProps extends Equatable {
+class PositionPropertiesModel extends Equatable {
   @JsonKey(name: 'accuracy')
   final double acc;
   final DateTime timestamp;
   final PositionSource source;
+  final ActivityModel activity;
 
-  PositionModelProps({
+  PositionPropertiesModel({
     @required this.acc,
     @required this.timestamp,
+    this.activity,
     this.source = PositionSource.manual,
   }) : super();
 
@@ -117,19 +119,65 @@ class PositionModelProps extends Equatable {
       ];
 
   /// Factory constructor for creating a new `Point`  instance
-  factory PositionModelProps.fromJson(Map<String, dynamic> json) => _$PositionModelPropsFromJson(json);
+  factory PositionPropertiesModel.fromJson(Map<String, dynamic> json) => _$PositionPropertiesModelFromJson(json);
 
   /// Declare support for serialization to JSON
-  Map<String, dynamic> toJson() => _$PositionModelPropsToJson(this);
+  Map<String, dynamic> toJson() => _$PositionPropertiesModelToJson(this);
 
-  PositionModelProps cloneWith({
+  PositionPropertiesModel cloneWith({
     double acc,
     SourceType source,
     DateTime timestamp,
+    ActivityModel activity,
   }) =>
-      PositionModelProps(
+      PositionPropertiesModel(
         acc: acc ?? this.acc,
         source: source ?? this.source,
+        activity: activity ?? this.activity,
         timestamp: timestamp ?? this.timestamp,
       );
+}
+
+@JsonSerializable()
+class ActivityModel extends Equatable {
+  ActivityModel({
+    @required this.type,
+    @required this.confidence,
+  }) : super();
+
+  @override
+  List<Object> get props => [
+        type,
+        confidence,
+      ];
+
+  /// Estimated activity type
+  final ActivityType type;
+
+  /// Estimate confidence
+  final double confidence;
+
+  /// Factory constructor for creating a new `Activity`  instance
+  factory ActivityModel.fromJson(Map<String, dynamic> json) => _$ActivityModelFromJson(json);
+
+  /// Declare support for serialization to JSON
+  Map<String, dynamic> toJson() => _$ActivityModelToJson(this);
+
+  ActivityModel cloneWith({
+    ActivityType type,
+    int confidence,
+  }) =>
+      ActivityModel(
+        type: type ?? this.type,
+        confidence: confidence ?? this.confidence,
+      );
+}
+
+enum ActivityType {
+  still,
+  on_foot,
+  walking,
+  running,
+  on_bicycle,
+  in_vehicle,
 }

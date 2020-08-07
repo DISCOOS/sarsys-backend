@@ -75,7 +75,7 @@ class TrackingUtils {
         lat: sum[0] / count,
         lon: sum[1] / count,
       ),
-      properties: PositionModelProps(
+      properties: PositionPropertiesModel(
         acc: sum[2] / count,
         source: PositionSource.aggregate,
         timestamp: DateTime.fromMillisecondsSinceEpoch(sum[3].toInt()),

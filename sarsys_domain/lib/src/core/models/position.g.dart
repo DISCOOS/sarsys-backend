@@ -13,7 +13,7 @@ PositionModel _$PositionModelFromJson(Map<String, dynamic> json) {
           : PointModel.fromJson(json['geometry'] as Map<String, dynamic>),
       properties: json['properties'] == null
           ? null
-          : PositionModelProps.fromJson(
+          : PositionPropertiesModel.fromJson(
               json['properties'] as Map<String, dynamic>));
 }
 
@@ -23,20 +23,26 @@ Map<String, dynamic> _$PositionModelToJson(PositionModel instance) =>
       'properties': instance.properties?.toJson()
     };
 
-PositionModelProps _$PositionModelPropsFromJson(Map<String, dynamic> json) {
-  return PositionModelProps(
+PositionPropertiesModel _$PositionPropertiesModelFromJson(
+    Map<String, dynamic> json) {
+  return PositionPropertiesModel(
       acc: (json['accuracy'] as num)?.toDouble(),
       timestamp: json['timestamp'] == null
           ? null
           : DateTime.parse(json['timestamp'] as String),
+      activity: json['activity'] == null
+          ? null
+          : ActivityModel.fromJson(json['activity'] as Map<String, dynamic>),
       source: _$enumDecodeNullable(_$PositionSourceEnumMap, json['source']));
 }
 
-Map<String, dynamic> _$PositionModelPropsToJson(PositionModelProps instance) =>
+Map<String, dynamic> _$PositionPropertiesModelToJson(
+        PositionPropertiesModel instance) =>
     <String, dynamic>{
       'accuracy': instance.acc,
       'timestamp': instance.timestamp?.toIso8601String(),
-      'source': _$PositionSourceEnumMap[instance.source]
+      'source': _$PositionSourceEnumMap[instance.source],
+      'activity': instance.activity?.toJson()
     };
 
 T _$enumDecode<T>(Map<T, dynamic> enumValues, dynamic source) {
@@ -63,4 +69,25 @@ const _$PositionSourceEnumMap = <PositionSource, dynamic>{
   PositionSource.manual: 'manual',
   PositionSource.device: 'device',
   PositionSource.aggregate: 'aggregate'
+};
+
+ActivityModel _$ActivityModelFromJson(Map<String, dynamic> json) {
+  return ActivityModel(
+      type: _$enumDecodeNullable(_$ActivityTypeEnumMap, json['type']),
+      confidence: (json['confidence'] as num)?.toDouble());
+}
+
+Map<String, dynamic> _$ActivityModelToJson(ActivityModel instance) =>
+    <String, dynamic>{
+      'type': _$ActivityTypeEnumMap[instance.type],
+      'confidence': instance.confidence
+    };
+
+const _$ActivityTypeEnumMap = <ActivityType, dynamic>{
+  ActivityType.still: 'still',
+  ActivityType.on_foot: 'on_foot',
+  ActivityType.walking: 'walking',
+  ActivityType.running: 'running',
+  ActivityType.on_bicycle: 'on_bicycle',
+  ActivityType.in_vehicle: 'in_vehicle'
 };

@@ -385,6 +385,7 @@ APISchemaObject documentPosition(
         ..description = "Timestamp in ISO8601 Date Time String Format"
         ..format = "date-time",
       "source": documentPositionSource(),
+      "activity": documentPositionSource(),
       "accuracy": APISchemaObject.number()..description = "Position accuracy",
       "bearing": APISchemaObject.number()..description = "Bearing at given position in degrees",
       "speed": APISchemaObject.number()..description = "Speed at given position in meter/seconds",
@@ -401,6 +402,28 @@ APISchemaObject documentPositionSource() => APISchemaObject.string()
     'device',
     'aggregate',
   ];
+
+APISchemaObject documentActivity() => APISchemaObject.object({
+      'type': APISchemaObject.string()
+        ..description = "Activity tyep"
+        ..defaultValue = "unknown"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+        ..enumerated = [
+          'still',
+          'on_foot',
+          'walking',
+          'running',
+          'unknown',
+          'on_bicycle',
+          'in_vehicle',
+        ],
+      'confidence': APISchemaObject.integer()
+        ..description = "Activity type confidence (0-100%)"
+        ..defaultValue = "100"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
+    })
+      ..description = "Activity Value Object"
+      ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
 
 APISchemaObject documentMessage(APIDocumentContext context) => APISchemaObject.object({
       "id": context.schema['ID']..description = "Message id (unique in aggregate only)",
