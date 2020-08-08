@@ -386,6 +386,8 @@ Map<String, Object> createPosition({
   double acc,
   double speed,
   double bearing,
+  String activity,
+  int confidence,
 }) =>
     {
       "type": "Feature",
@@ -401,6 +403,11 @@ Map<String, Object> createPosition({
         if (speed != null) "speed": speed,
         if (bearing != null) "bearing": bearing,
         "timestamp": DateTime.now().toIso8601String(),
+        if (activity != null)
+          'activity': {
+            'type': '$activity',
+            if (confidence != null) 'confidence': confidence,
+          }
       }
     };
 

@@ -26,7 +26,7 @@ Future main() async {
     final uuid = Uuid().v4();
     final device = _createData(uuid);
     expectResponse(await harness.agent.post("/api/devices", body: device), 201, body: null);
-    final position = createPosition();
+    final position = createPosition(activity: 'still', confidence: 80);
     expectResponse(
       await harness.agent.execute("PATCH", "/api/devices/$uuid/position", body: position),
       204,

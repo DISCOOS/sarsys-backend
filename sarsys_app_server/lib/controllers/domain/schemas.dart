@@ -385,7 +385,7 @@ APISchemaObject documentPosition(
         ..description = "Timestamp in ISO8601 Date Time String Format"
         ..format = "date-time",
       "source": documentPositionSource(),
-      "activity": documentPositionSource(),
+      "activity": documentActivity(),
       "accuracy": APISchemaObject.number()..description = "Position accuracy",
       "bearing": APISchemaObject.number()..description = "Bearing at given position in degrees",
       "speed": APISchemaObject.number()..description = "Speed at given position in meter/seconds",
