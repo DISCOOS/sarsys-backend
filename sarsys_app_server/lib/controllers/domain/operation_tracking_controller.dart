@@ -35,12 +35,12 @@ class OperationTrackingController extends ResourceController {
         return Response.notFound(body: "Operation $uuid not found");
       }
       final operation = operations.get(uuid);
-      final tuuids = [];
+      final tuuids = <String>[];
       if (_shouldInclude(include, 'unit')) {
         for (var uuuid in operation.listAt<String>('units')) {
           if (units.exists(uuuid)) {
-            final tuuid = units.get(uuuid).elementAt('tracking/uuid');
-            if (tuuid != null) {
+            final tuuid = units.get(uuuid).elementAt<String>('tracking/uuid');
+            if (trackings.exists(tuuid)) {
               tuuids.add(tuuid);
             }
           }
@@ -49,8 +49,8 @@ class OperationTrackingController extends ResourceController {
       if (_shouldInclude(include, 'personnel')) {
         for (var puuid in operation.listAt<String>('personnels')) {
           if (personnels.exists(puuid)) {
-            final tuuid = personnels.get(puuid).elementAt('tracking/uuid');
-            if (tuuid != null) {
+            final tuuid = personnels.get(puuid).elementAt<String>('tracking/uuid');
+            if (trackings.exists(tuuid)) {
               tuuids.add(tuuid);
             }
           }
@@ -61,14 +61,11 @@ class OperationTrackingController extends ResourceController {
         offset: offset,
         limit: limit,
       );
-      return Response.ok(
-        {
-          "total": total,
-          "offset": offset,
-          "limit": limit,
-          if (offset + page.length < total) "next": offset + page.length,
-          "entries": page.toList(),
-        },
+      return okAggregatePaged(
+        total,
+        offset,
+        limit,
+        page.map((uuid) => trackings.get(uuid)),
       );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
@@ -151,10 +148,9 @@ class OperationTrackingController extends ResourceController {
         responses.addAll({
           "200": APIResponse.schema(
             "Successful response.",
-            documentValuePageResponse(
+            documentAggregatePageResponse(
               context,
               type: 'Tracking',
-              schema: APISchemaObject.string()..description = "Tracking uuid",
             ),
           )
         });

@@ -77,7 +77,7 @@ APISchemaObject documentAggregateList(
 
 APISchemaObject documentAggregatePageResponse(
   APIDocumentContext context, {
-  String type,
+  @required String type,
 }) =>
     APISchemaObject.object({
       "total": APISchemaObject.integer()
