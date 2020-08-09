@@ -720,9 +720,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     } catch (e, stackTrace) {
       operation.completer.completeError(e, stackTrace);
       logger.severe(
-        'Failed to push aggregate $aggregate: $e, stacktrace: $stackTrace',
+        'Failed to push aggregate $aggregate: $e, stacktrace: $stackTrace, debug: ${toDebugString()}',
       );
-      logger.severe(toDebugString());
     }
     return operation;
   }
@@ -748,9 +747,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     } catch (e, stackTrace) {
       operation.completer.completeError(e, stackTrace);
       logger.severe(
-        'Failed to push aggregate $aggregate: $e, stacktrace: $stackTrace',
+        'Failed to push aggregate $aggregate: $e, stacktrace: $stackTrace, debug: ${toDebugString()}',
       );
-      logger.severe(toDebugString());
     }
     return operation;
   }
@@ -1513,10 +1511,8 @@ abstract class MergeStrategy {
         return await _reconcileWithRetry(aggregate, max, attempt + 1);
       }
       repository.logger.severe(
-        'Aborted automatic merge after $max retries: $e with stacktrace: $stacktrace',
-      );
-      repository.logger.severe(
-        repository.toDebugString(),
+        'Aborted automatic merge after $max retries: $e '
+        'with stacktrace: $stacktrace, debug: ${repository.toDebugString()}',
       );
       throw EventVersionReconciliationFailed(e, attempt);
     }

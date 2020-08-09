@@ -694,21 +694,18 @@ class EventStore {
   /// Assert that current event number for [stream] is caught up with last known event
   void _assertCurrentVersion(String stream, EventNumber actual) {
     if (_current[stream] < actual) {
-      logger.severe(toDebugString());
-      throw EventNumberMismatch(
-        stream,
-        _current[stream],
-        actual,
-        'Catch up failed',
-      );
+      final message = 'Catch up failed';
+      logger.severe('$message, debug: ${toDebugString()}');
+      throw EventNumberMismatch(stream, _current[stream], actual, message);
     }
   }
 
   EventNumber _assertMonotone(EventNumber previous, SourceEvent next) {
     if (previous.value != next.number.value - 1) {
-      logger.severe(toDebugString());
-      throw InvalidOperation('EventNumber not monotone increasing, current: $previous, '
-          'next: ${next.number} in event ${next.type} with uuid: ${next.uuid}');
+      final message = 'EventNumber not monotone increasing, current: $previous, '
+          'next: ${next.number} in event ${next.type} with uuid: ${next.uuid}';
+      logger.severe('$message, debug: ${toDebugString()}');
+      throw InvalidOperation(message);
     }
     return next.number;
   }
