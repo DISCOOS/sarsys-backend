@@ -185,6 +185,9 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
           "mapCacheTTL": APISchemaObject.integer()
             ..description = "Number of days downloaded map tiles are cached locally"
             ..defaultValue = 30,
+          "mapRetinaMode": APISchemaObject.boolean()
+            ..description = "Show high resolution maps is possible"
+            ..defaultValue = false,
           "mapCacheCapacity": APISchemaObject.integer()
             ..description = "Maximum number map tiles cached locally"
             ..defaultValue = 15000,

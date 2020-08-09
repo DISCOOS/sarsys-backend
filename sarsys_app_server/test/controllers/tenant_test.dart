@@ -192,6 +192,7 @@ Map<String, Object> _createData(String uuid, {String udid}) => {
       "storage": false,
       "locationWhenInUse": false,
       "mapCacheTTL": 0,
+      "mapRetinaMode": false,
       "mapCacheCapacity": 0,
       "locationAccuracy": "high",
       "locationFastestInterval": 0,
