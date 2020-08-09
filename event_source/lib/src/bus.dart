@@ -286,9 +286,17 @@ class MessageChannel extends MessageHandler<Event> {
     }
   }
 
-  void _send(String appId, _SocketState state, Map<String, dynamic> data) {
+  void _send(
+    String appId,
+    _SocketState state,
+    Map<String, dynamic> data,
+  ) {
     try {
-      state.socket.add(json.encode(data));
+      final message = Map.from(data)
+        ..removeWhere(
+          (key, _) => const ['changed', 'previous'].contains(key),
+        );
+      state.socket.add(json.encode(message));
       final type = data['type'];
       if (type != 'Error') {
         logger.fine("Sent ${data['type']} to client $appId");
