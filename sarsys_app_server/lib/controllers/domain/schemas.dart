@@ -1,3 +1,4 @@
+import 'package:meta/meta.dart';
 import 'package:aqueduct/aqueduct.dart';
 
 APISchemaObject documentID() => APISchemaObject.string()..description = "An id unique in current collection";
@@ -98,6 +99,33 @@ APISchemaObject documentAggregatePageResponse(
         ..isReadOnly = true,
     })
       ..description = "Entities Response"
+      ..isReadOnly = true;
+
+APISchemaObject documentValuePageResponse(
+  APIDocumentContext context, {
+  @required String type,
+  @required APISchemaObject schema,
+}) =>
+    APISchemaObject.object({
+      "total": APISchemaObject.integer()
+        ..description = "Number of ${type}s"
+        ..isReadOnly = true,
+      "offset": APISchemaObject.integer()
+        ..description = "${type} Page offset"
+        ..isReadOnly = true,
+      "limit": APISchemaObject.integer()
+        ..description = "${type} Page size"
+        ..isReadOnly = true,
+      "next": APISchemaObject.integer()
+        ..description = "Next ${type} Page offset"
+        ..isReadOnly = true,
+      "entries": APISchemaObject.array(
+        ofSchema: schema,
+      )
+        ..description = "Array of ${type}s"
+        ..isReadOnly = true,
+    })
+      ..description = "Array Value Response"
       ..isReadOnly = true;
 
 APISchemaObject documentAggregateResponse(

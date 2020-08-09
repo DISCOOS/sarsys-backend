@@ -19,6 +19,7 @@ export 'operation_controller.dart';
 export 'operation_mission_controller.dart';
 export 'operation_personnel_controller.dart';
 export 'operation_talk_group_controller.dart';
+export 'operation_tracking_controller.dart';
 export 'operation_unit_controller.dart';
 export 'organisation_controller.dart';
 export 'organisation_division_controller.dart';

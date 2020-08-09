@@ -211,6 +211,14 @@ class SarSysAppServerChannel extends ApplicationChannel {
                 requestValidator,
               ))
       ..secure(
+          '/api/operations/:uuid/trackings',
+          () => OperationTrackingController(
+                units: manager.get<UnitRepository>(),
+                trackings: manager.get<TrackingRepository>(),
+                personnels: manager.get<PersonnelRepository>(),
+                operations: manager.get<OperationRepository>(),
+              ))
+      ..secure(
           '/api/operations/:uuid/messages[/:id]',
           () => OperationMessageController(
                 manager.get<OperationRepository>(),
