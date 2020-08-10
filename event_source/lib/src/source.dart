@@ -307,7 +307,8 @@ class EventStore {
   Iterable<DomainEvent> _applyAll(Repository repository, String uuid, List<SourceEvent> events) {
     final exists = repository.contains(uuid);
     final aggregate = repository.get(uuid);
-    final domainEvents = events.map(repository.toDomainEvent);
+
+    final domainEvents = exists ? events.map(repository.toDomainEvent) : aggregate.applied;
     if (exists) {
       domainEvents.forEach(aggregate.apply);
     }
@@ -566,19 +567,24 @@ class EventStore {
         final actual = current(uuid: uuid);
 
         // Do not process own events twice unless it is one that was created by me!
-        final unseen = (isEmpty || event.number > actual) && _store[uuid]?.contains(event) != true;
+        final applied = !isEmpty &&
+            event.number <= actual &&
+            // Aggregate is created
+            _store.containsKey(uuid) &&
+            // Event is applied
+            _store[uuid].contains(event) == true;
 
         logger.finer(
           '${repository.runtimeType}: _onSubscriptionEvent: '
-          'process: $unseen, isEmpty: $isEmpty, '
+          'applied: $applied, isEmpty: $isEmpty, '
           'current: $actual, received: ${event.number}, '
           'stream: $stream, isInstanceStream: $useInstanceStreams, numbers: $_current',
         );
 
-        if (unseen) {
-          _onUnseen(uuid, stream, event, repository);
-        } else {
+        if (applied) {
           _onSeen(uuid, stream, event, repository);
+        } else {
+          _onUnseen(uuid, stream, event, repository);
         }
         logger.fine(
           '${repository.runtimeType}: _onSubscriptionEvent: Processed $event',
@@ -694,9 +700,9 @@ class EventStore {
   /// Assert that current event number for [stream] is caught up with last known event
   void _assertCurrentVersion(String stream, EventNumber actual) {
     if (_current[stream] < actual) {
-      final message = 'Catch up failed';
-      logger.severe('$message, debug: ${toDebugString()}');
-      throw EventNumberMismatch(stream, _current[stream], actual, message);
+      final e = EventNumberMismatch(stream, _current[stream], actual, 'Catch up failed');
+      logger.severe('${e.message}, debug: ${toDebugString(stream)}');
+      throw e;
     }
   }
 
@@ -766,16 +772,19 @@ class EventStore {
     _disposed = true;
   }
 
-  String toDebugString() => '$runtimeType: {'
-      'count: ${_store.length}, '
-      'canonicalStream: $canonicalStream}, '
-      'aggregates: {${_store.keys.map((uuid) => '{'
-          'aggregate: $uuid, '
-          'events: {count: ${_store[uuid]?.length ?? 0}, '
-          'sourced: ${_store[uuid]?.map((e) => e.type)}}, '
-          'instanceStream: ${toInstanceStream(uuid)}, '
-          'currentEventNumber: ${current(uuid: uuid)}, '
-          '}').join(', ')}}';
+  String toDebugString([String stream]) {
+    final aggregate = _store.keys
+        .where(
+          (uuid) => toInstanceStream(uuid) == stream,
+        )
+        .firstOrNull;
+    return '$runtimeType: {\n'
+        'count: ${_store.length},\n'
+        'stream: $stream,\n'
+        'canonicalStream: $canonicalStream},\n'
+        'aggregate: $aggregate'
+        '}';
+  }
 }
 
 /// Class for handling a subscription with automatic reconnection on failures

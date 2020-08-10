@@ -153,11 +153,12 @@ class DomainEvent extends Event {
   @override
   T elementAt<T>(String path) => changed.elementAt(path) ?? previous.elementAt(path);
 
-  /// Get changed fields from `data['changed']`
-  Map<String, dynamic> get changed => Map<String, dynamic>.from(data['changed']);
+  /// Get changed fields from `data['changed']`.
+  Map<String, dynamic> get changed => data.mapAt<String, dynamic>('changed');
 
-  /// Get changed fields from `data['previous']`. If empty, `data['changed']`is returned instead
-  Map<String, dynamic> get previous => Map<String, dynamic>.from(data['previous'] ?? data['changed']);
+  /// Get changed fields from `data['previous']`.
+  /// If empty, `data['changed']`is returned instead
+  Map<String, dynamic> get previous => data.mapAt<String, dynamic>('previous');
 
   @override
   String toString() {
@@ -357,13 +358,6 @@ abstract class Command<T extends DomainEvent> extends Message {
               (item) => items.contains(item),
             ),
         );
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) || other is Command && runtimeType == other.runtimeType && uuid == other.uuid;
-
-  @override
-  int get hashCode => uuid.hashCode;
 
   @override
   String toString() {

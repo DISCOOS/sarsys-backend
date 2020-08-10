@@ -220,11 +220,10 @@ class RepositoryManager {
   ) async {
     final backlog = repositories.toSet();
     try {
-      final counts = await Future.wait<int>(
-        repositories.map(
-          (repository) => repository.build(),
-        ),
-      );
+      final counts = [];
+      for (var repo in repositories) {
+        counts.add(await repo.build());
+      }
       _timer?.cancel();
       _timer = null;
       final processed = counts.fold<int>(0, (processed, count) => processed + count);
@@ -450,13 +449,13 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       }
 
       // Get base if exists
-      final base = event.mapAt<String, dynamic>('previous') ?? aggregate?.data;
+      final base = event.mapAt<String, dynamic>('previous') ?? aggregate?.data ?? {};
 
       // Prepare REQUIRED fields
       final patches = event.listAt<Map<String, dynamic>>('patches');
       final changed = event.mapAt<String, dynamic>('changed') ??
           JsonUtils.apply(
-            aggregate?.data ?? {},
+            base,
             patches,
           );
       assert(patches != null, 'Patches can not be null');
@@ -720,7 +719,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     } catch (e, stackTrace) {
       operation.completer.completeError(e, stackTrace);
       logger.severe(
-        'Failed to push aggregate $aggregate: $e, stacktrace: $stackTrace, debug: ${toDebugString()}',
+        'Failed to push aggregate $aggregate: $e, '
+        'stacktrace: $stackTrace, debug: ${toDebugString(aggregate?.uuid)}',
       );
     }
     return operation;
@@ -734,7 +734,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       logger.info('$e');
       logger.info('$aggregate');
       logger.info('---DEBUG---');
-      logger.info(toDebugString());
+      logger.info(toDebugString(aggregate?.uuid));
     } // Attempt to automatic merge until maximum attempts
     try {
       final events = await ThreeWayMerge(this).reconcile(
@@ -747,7 +747,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     } catch (e, stackTrace) {
       operation.completer.completeError(e, stackTrace);
       logger.severe(
-        'Failed to push aggregate $aggregate: $e, stacktrace: $stackTrace, debug: ${toDebugString()}',
+        'Failed to push aggregate $aggregate: $e, '
+        'stacktrace: $stackTrace, debug: ${toDebugString(aggregate?.uuid)}',
       );
     }
     return operation;
@@ -764,7 +765,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     if (aggregate.isNew) {
       _aggregates.remove(aggregate.uuid);
     } else if (aggregate.isChanged) {
-      aggregate.loadFromHistory(store.get(aggregate.uuid).map(toDomainEvent));
+      aggregate.loadFromHistory(
+        this,
+        store.get(aggregate.uuid),
+      );
     }
     return events;
   }
@@ -781,20 +785,21 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     Map<String, dynamic> data = const {},
     List<Map<String, dynamic>> patches = const [],
     bool createNew = true,
-  }) =>
-      _aggregates[uuid] ??
-      (createNew
-          ? _aggregates.putIfAbsent(
-              uuid,
-              () => create(
-                _processors,
-                uuid,
-                JsonPatch.apply(data ?? {}, patches) as Map<String, dynamic>,
-              )..loadFromHistory(
-                  store.get(uuid).map(toDomainEvent),
-                ),
-            )
-          : null);
+  }) {
+    var aggregate = _aggregates[uuid];
+    if (aggregate == null && createNew) {
+      aggregate = _aggregates.putIfAbsent(
+        uuid,
+        () => create(
+          _processors,
+          uuid,
+          JsonPatch.apply(data ?? {}, patches) as Map<String, dynamic>,
+        ),
+      );
+      aggregate.loadFromHistory(this, store.get(uuid));
+    }
+    return aggregate;
+  }
 
   /// Get all aggregate roots.
   Iterable<T> getAll({int offset = 0, int limit = 20, bool deleted = false}) =>
@@ -869,15 +874,17 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     };
   }
 
-  String toDebugString() => '$runtimeType: {'
-      'ready: $isReady, '
-      'count: ${count()}, '
-      'canonicalStream: ${store.canonicalStream}}, '
-      'aggregates: {${_aggregates.values.map((value) => '{'
-          'uuid: ${value.uuid}, '
-          'instanceStream: ${store.toInstanceStream(value.uuid)}, '
-          'currentEventNumber: ${store.current(uuid: value.uuid)}, '
-          '}').join(', ')}}';
+  String toDebugString([String uuid]) {
+    final aggregate = _aggregates[uuid];
+    final stream = store.toInstanceStream(uuid);
+    return '$runtimeType: {\n'
+        'ready: $isReady, '
+        'count: ${count()}, '
+        'stream: $stream,\n'
+        'canonicalStream: ${store.canonicalStream}}},\n'
+        'aggregate: $aggregate'
+        '}';
+  }
 }
 
 class _PushOperation {
@@ -1023,13 +1030,13 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
 
   /// Load events from history.
   @protected
-  AggregateRoot loadFromHistory(Iterable<DomainEvent> events) {
+  AggregateRoot loadFromHistory(Repository repo, Iterable<Event> events) {
     // Only clear if history exist, otherwise keep the event from construction
     if (events.isNotEmpty) {
       _clear();
     }
     events?.forEach((event) => _apply(
-          event,
+          repo.toDomainEvent(event),
           isChanged: false,
         ));
     return this;
@@ -1093,8 +1100,8 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
               emits: emits,
               index: index,
               patches: patches,
-              previous: previous,
               timestamp: timestamp,
+              previous: isNew ? {} : previous,
             ),
             isChanged: true,
           )
@@ -1518,7 +1525,7 @@ abstract class MergeStrategy {
       }
       repository.logger.severe(
         'Aborted automatic merge after $max retries: $e '
-        'with stacktrace: $stacktrace, debug: ${repository.toDebugString()}',
+        'with stacktrace: $stacktrace, debug: ${repository.toDebugString(aggregate?.uuid)}',
       );
       throw EventVersionReconciliationFailed(e, attempt);
     }

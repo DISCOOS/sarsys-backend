@@ -154,6 +154,7 @@ class EventStoreMockServer {
           prefix,
           name,
           replicate,
+          logger: logger,
           useInstanceStreams: useInstanceStreams,
         ),
       );
@@ -242,11 +243,13 @@ class TestStream {
     this.prefix,
     this.aggregate,
     this.replicate, {
+    this.logger,
     this.useInstanceStreams = true,
     this.strategy = ConsumerStrategy.RoundRobin,
   });
 
   final int port;
+  final Logger logger;
   final String tenant;
   final String prefix;
   final String aggregate;
@@ -254,9 +257,9 @@ class TestStream {
   final bool useInstanceStreams;
   final ConsumerStrategy strategy;
   final Map<String, TestSubscription> _groups = {};
-  final Map<String, Map<String, dynamic>> _canonical = {};
   final Map<String, List<Map<String, dynamic>>> _cached = {};
   final List<Map<String, Map<String, dynamic>>> _instances = [];
+  final LinkedHashMap<String, Map<String, dynamic>> _canonical = LinkedHashMap();
 
   List<Map<String, Map<String, dynamic>>> get instances => List.unmodifiable(_instances);
 

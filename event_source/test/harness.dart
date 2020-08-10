@@ -113,31 +113,27 @@ class EventSourceHarness {
     }
 
     setUpAll(() async {
-      return await Future.forEach<MapEntry<int, EventStoreMockServer>>(
-        _servers.entries,
-        (entry) => _open(entry.key, entry.value),
-      );
+      for (var entry in _servers.entries) {
+        await _open(entry.key, entry.value);
+      }
     });
 
     setUp(() async {
-      return await Future.forEach<MapEntry<int, EventStoreMockServer>>(
-        _servers.entries,
-        (entry) => _build(entry.key, entry.value),
-      );
+      for (var entry in _servers.entries) {
+        await _build(entry.key, entry.value);
+      }
     });
 
     tearDown(() async {
-      return await Future.forEach(
-        _servers.entries,
-        (server) => _clear(server.key, server.value),
-      );
+      for (var entry in _servers.entries) {
+        _clear(entry.key, entry.value);
+      }
     });
 
     tearDownAll(() async {
-      return await Future.forEach<MapEntry<int, EventStoreMockServer>>(
-        _servers.entries,
-        (entry) => _close(entry.key, entry.value),
-      );
+      for (var entry in _servers.entries) {
+        _close(entry.key, entry.value);
+      }
     });
   }
 
@@ -180,22 +176,18 @@ class EventSourceHarness {
       }
       server.withStream(builder.stream);
     });
-    await Future.wait(
-      list.map(
-        (manager) => manager.prepare(withProjections: _projections.toList()),
-      ),
-    );
-    await Future.wait(
-      list.map(
-        (manager) => manager.build(),
-      ),
-    );
+    for (var manager in list) {
+      await manager.prepare(withProjections: _projections.toList());
+      await manager.build();
+    }
   }
 
   void _clear(int port, EventStoreMockServer server) async {
     server.clear();
     if (_managers.containsKey(port)) {
-      await Future.forEach<RepositoryManager>(_managers[port], (manager) => manager.dispose());
+      for (var manager in _managers[port]) {
+        await manager.dispose();
+      }
       _managers[port].clear();
     }
   }
@@ -203,7 +195,9 @@ class EventSourceHarness {
   void _close(int port, EventStoreMockServer server) async {
     await server.close();
     if (_managers.containsKey(port)) {
-      await Future.forEach<RepositoryManager>(_managers[port], (manager) => manager.dispose());
+      for (var manager in _managers[port]) {
+        await manager.dispose();
+      }
       _managers[port].clear();
     }
     _connections[port]?.close();

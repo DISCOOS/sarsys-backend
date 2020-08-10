@@ -44,13 +44,16 @@ Future main() async {
     // Act - create new instance stream
     final uuid = Uuid().v4();
     final foo = repo1.get(uuid, data: {'property1': 'value1'});
+    final pending = StreamGroup.merge([
+      repo2.store.asStream(),
+      repo3.store.asStream(),
+    ]);
     await repo1.push(foo);
-    final pending = StreamGroup.merge([repo2.store.asStream(), repo3.store.asStream()]);
     await pending.take(2).toList();
 
     // Assert instances
     expect(repo1.count(), equals(4));
-    expect(repo2.count(), equals(4));
+    expect(repo2.count(), equals(4), reason: '${repo2.aggregates}');
     expect(repo3.count(), equals(4));
   });
 }
@@ -63,6 +66,7 @@ Future<FooRepository> _createStreamsAndReplay(EventSourceHarness harness, int po
     _createStream(i, stream);
   }
   await repo.replay();
+  expect(repo.count(), equals(3));
   return repo;
 }
 
@@ -71,7 +75,7 @@ Map<String, Map<String, dynamic>> _createStream(
   TestStream stream,
 ) {
   return stream.append('${stream.instanceStream}-${stream.instances.length}', [
-    TestStream.asSourceEvent<FooUpdated>(
+    TestStream.asSourceEvent<FooCreated>(
       '$index',
       {'property1': 'value1'},
       {
