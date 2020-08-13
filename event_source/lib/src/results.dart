@@ -82,6 +82,8 @@ class FeedResult extends StreamResult {
   }) {
     switch (response.statusCode) {
       case HttpStatus.ok:
+        final feed = Map<String, dynamic>.from(json.decode(response.body));
+        feed['entries'] = _toEntries(feed);
         return FeedResult(
           stream: stream,
           number: number,
@@ -90,7 +92,7 @@ class FeedResult extends StreamResult {
           eTag: response.headers['etag'],
           statusCode: response.statusCode,
           reasonPhrase: response.reasonPhrase,
-          atomFeed: AtomFeed.fromJson(json.decode(response.body) as Map<String, dynamic>),
+          atomFeed: AtomFeed.fromJson(feed),
         );
       default:
         return FeedResult(
@@ -101,6 +103,12 @@ class FeedResult extends StreamResult {
         );
     }
   }
+
+  static List<Map<String, dynamic>> _toEntries(Map<String, dynamic> feed) =>
+      feed.listAt<Map<String, dynamic>>('entries').where((entry) => entry.containsKey('data')).map((entry) {
+        entry['data'] = json.decode(entry['data']);
+        return entry;
+      }).toList();
 
   /// Current event number
   final EventNumber number;

@@ -1100,7 +1100,7 @@ class EventStoreConnection {
       throw ArgumentError('Event number can not be $number');
     }
     if (embed) {
-      uri = '$uri?embed=rich,body';
+      uri = '$uri?embed=body';
     }
     _logger.finest(uri);
     return uri;
@@ -1300,7 +1300,7 @@ class EventStoreConnection {
         ? atomFeed.getUri(AtomFeed.previous) ?? atomFeed.getUri(AtomFeed.first)
         : atomFeed.getUri(AtomFeed.next) ?? atomFeed.getUri(AtomFeed.last);
     if (embed) {
-      uri = '$uri$embed=rich,body';
+      uri = '$uri$embed=body';
     }
     _logger.finest(uri);
     return uri;
@@ -1551,7 +1551,7 @@ class EventStoreConnection {
   Future<Response> _getSubscriptionGroup(String stream, String group, int count, bool embed) {
     var url = _mapUrlTo('$host:$port/subscriptions/$stream/$group/$count');
     if (embed) {
-      url = '$url?embed=rich,body';
+      url = '$url?embed=body';
     }
     _logger.finer('_getSubscriptionGroup: REQUEST $url');
     return client.get(

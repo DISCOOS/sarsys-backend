@@ -674,9 +674,13 @@ class TestStream {
         events.reversed,
         embedBody: _isEmbedBody(request),
       );
+      final body = data.toJson();
+      body['entries'] = _toEntities(
+        body.listAt<Map<String, dynamic>>('entries') ?? [],
+      );
       request.response
         ..statusCode = HttpStatus.ok
-        ..write(json.encode(data));
+        ..write(json.encode(body));
     }
   }
 
@@ -701,6 +705,13 @@ class TestStream {
     }
   }
 }
+
+List<Map<String, dynamic>> _toEntities(List<Map<String, dynamic>> list) =>
+    list.where((entry) => entry.hasPath('data')).map((entry) {
+      // Comply to eventstore format
+      entry['data'] = json.encode(entry['data']);
+      return entry;
+    }).toList();
 
 class TestSubscription {
   TestSubscription(
@@ -757,9 +768,13 @@ class TestSubscription {
       ),
     );
     _offset += events.length;
+    final body = data.toJson();
+    body['entries'] = _toEntities(
+      body.listAt<Map<String, dynamic>>('entries') ?? [],
+    );
     request.response
       ..statusCode = HttpStatus.ok
-      ..write(json.encode(data));
+      ..write(json.encode(body));
   }
 
   Map<String, _Consumed> _evict(TestStream stream) {
