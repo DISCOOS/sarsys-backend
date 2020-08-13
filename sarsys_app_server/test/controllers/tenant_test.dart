@@ -12,8 +12,6 @@ Future main() async {
     ..install(restartForEachTest: true);
 
   test("POST /api/app-configs/ returns status code 201 with empty body", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
-    harness.eventStoreMockServer.withStream(typeOf<AppConfig>().toColonCase());
     await harness.channel.manager.get<AppConfigRepository>().readyAsync();
     await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
@@ -36,8 +34,6 @@ Future main() async {
   });
 
   test("GET /api/app-configs/{uuid} returns status code 200", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
-    harness.eventStoreMockServer.withStream(typeOf<AppConfig>().toColonCase());
     await harness.channel.manager.get<AppConfigRepository>().readyAsync();
     await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
@@ -49,8 +45,6 @@ Future main() async {
   });
 
   test("PATCH /api/app-configs/{uuid} is idempotent", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
-    harness.eventStoreMockServer.withStream(typeOf<AppConfig>().toColonCase());
     await harness.channel.manager.get<AppConfigRepository>().readyAsync();
     await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
@@ -63,8 +57,6 @@ Future main() async {
   });
 
   test("PATCH /api/app-configs/{uuid} does not remove value objects", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
-    harness.eventStoreMockServer.withStream(typeOf<AppConfig>().toColonCase());
     await harness.channel.manager.get<AppConfigRepository>().readyAsync();
     await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
@@ -77,8 +69,6 @@ Future main() async {
   });
 
   test("DELETE /api/app-configs/{uuid} returns status code 204", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
-    harness.eventStoreMockServer.withStream(typeOf<AppConfig>().toColonCase());
     await harness.channel.manager.get<AppConfigRepository>().readyAsync();
     final devices = harness.channel.manager.get<DeviceRepository>();
     await devices.readyAsync();
@@ -95,8 +85,6 @@ Future main() async {
   });
 
   test("GET /api/app-configs returns status code 200 with offset=1 and limit=2", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
-    harness.eventStoreMockServer.withStream(typeOf<AppConfig>().toColonCase());
     await harness.channel.manager.get<AppConfigRepository>().readyAsync();
     await harness.channel.manager.get<DeviceRepository>().readyAsync();
     await harness.agent.post("/api/app-configs", body: _createData(Uuid().v4()));
@@ -112,8 +100,6 @@ Future main() async {
   });
 
   test("Multiple POST /api/app-configs/ with same udid does not create multiple devices", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
-    harness.eventStoreMockServer.withStream(typeOf<AppConfig>().toColonCase());
     await harness.channel.manager.get<AppConfigRepository>().readyAsync();
     await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final udid = Uuid().v4();
@@ -141,8 +127,6 @@ Future main() async {
   });
 
   test("Multiple DELETE /api/app-configs/ with same udid does not delete device until last", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
-    harness.eventStoreMockServer.withStream(typeOf<AppConfig>().toColonCase());
     await harness.channel.manager.get<AppConfigRepository>().readyAsync();
     await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final udid = Uuid().v4();

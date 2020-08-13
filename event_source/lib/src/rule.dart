@@ -275,7 +275,11 @@ class AssociationRule extends AggregateRule {
   dynamic _toSourceValue(DomainEvent event) {
     final uuid = source.toAggregateUuid(event);
     if (sourceField != source.uuidFieldName) {
-      final value = event.previous?.elementAt(sourceField);
+      var value = event.previous?.elementAt(sourceField);
+      if (value != null) {
+        return value;
+      }
+      value = event.changed?.elementAt(sourceField);
       if (value != null) {
         return value;
       }

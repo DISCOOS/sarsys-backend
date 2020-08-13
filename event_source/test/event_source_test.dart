@@ -1,3 +1,4 @@
+import 'package:event_source/src/extension.dart';
 import 'package:event_source/src/error.dart';
 import 'package:event_source/src/mock.dart';
 import 'package:test/test.dart';
@@ -12,7 +13,10 @@ Future main() async {
     ..withTenant()
     ..withPrefix()
     ..withLogger()
-    ..withRepository<Foo>((store) => FooRepository(store), instances: 2)
+    ..withRepository<Foo>(
+      (store, instance) => FooRepository(store, instance),
+      instances: 2,
+    )
     ..withProjections(projections: ['\$by_category', '\$by_event_type'])
     ..addServer(port: 4000)
     ..addServer(port: 4001)
@@ -44,9 +48,11 @@ Future main() async {
     // Act - create new instance stream
     final uuid = Uuid().v4();
     final foo = repo1.get(uuid, data: {'property1': 'value1'});
+
+    // Wait for catchup from eventstore
     final pending = StreamGroup.merge([
-      repo2.store.asStream(),
-      repo3.store.asStream(),
+      repo2.store.asStream().where((event) => event.data.elementAt('uuid') == uuid),
+      repo3.store.asStream().where((event) => event.data.elementAt('uuid') == uuid),
     ]);
     await repo1.push(foo);
     await pending.take(2).toList();

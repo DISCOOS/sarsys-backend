@@ -423,10 +423,6 @@ Future _testImport(SarSysHarness harness) async {
 }
 
 Future<String> _prepare(SarSysHarness harness) async {
-  harness.eventStoreMockServer
-    ..withStream(typeOf<Organisation>().toColonCase())
-    ..withStream(typeOf<Division>().toColonCase())
-    ..withStream(typeOf<Department>().toColonCase());
   await harness.channel.manager.get<OrganisationRepository>().readyAsync();
   await harness.channel.manager.get<DivisionRepository>().readyAsync();
   await harness.channel.manager.get<DepartmentRepository>().readyAsync();

@@ -13,10 +13,18 @@ class AtomItem extends Equatable {
     @required this.id,
     @required this.title,
     @required this.updated,
-    @required this.streamId,
     @required this.author,
     @required this.summary,
     @required this.links,
+    // Embedded fields
+    this.streamId,
+    this.eventId,
+    this.eventType,
+    this.eventNumber,
+    this.isJson,
+    this.isMetaData,
+    this.isLinkMetaData,
+    this.data,
   });
 
   /// Factory constructor for creating a new `AtomItem` instance
@@ -31,10 +39,19 @@ class AtomItem extends Equatable {
   final String id;
   final String title;
   final String updated;
-  final String streamId;
   final String summary;
   final AtomAuthor author;
   final List<AtomLink> links;
+
+  // --- Embedded ---
+  final String eventId;
+  final String streamId;
+  final String eventType;
+  final int eventNumber;
+  final bool isJson;
+  final bool isMetaData;
+  final bool isLinkMetaData;
+  final Map<String, dynamic> data;
 
   bool has(String relation) => links.any((test) => test.relation == relation);
 
@@ -52,5 +69,6 @@ class AtomItem extends Equatable {
         updated,
         summary,
         links,
+        data,
       ];
 }

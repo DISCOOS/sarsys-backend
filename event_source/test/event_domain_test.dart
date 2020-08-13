@@ -10,8 +10,11 @@ Future main() async {
   final harness = EventSourceHarness()
     ..withTenant()
     ..withPrefix()
-    ..withLogger()
-    ..withRepository<Foo>((store) => FooRepository(store), instances: 2)
+    ..withLogger(debug: false)
+    ..withRepository<Foo>(
+      (store, instance) => FooRepository(store, instance),
+      instances: 2,
+    )
     ..withProjections(projections: ['\$by_category', '\$by_event_type'])
     ..addServer(port: 4000)
     ..addServer(port: 4001)
@@ -140,7 +143,7 @@ Future main() async {
     await repository.push(foo);
 
     // Allow subscription to catch up
-    await Future.delayed(Duration(milliseconds: 100));
+    await repository.store.asStream().where((event) => event.remote).first;
     final createdWhen = repository.get(uuid).createdWhen;
 
     // Assert
@@ -171,7 +174,7 @@ Future main() async {
     await repository.push(foo);
 
     // Allow subscription to catch up
-    await Future.delayed(Duration(milliseconds: 100));
+    await repository.store.asStream().where((event) => event.remote).first;
     final changedWhen = repository.get(uuid).changedWhen;
 
     // Assert
@@ -254,7 +257,7 @@ Future main() async {
       }
     }, emits: FooUpdated);
     await repo2.push(foo2);
-    await repo1.store.asStream().first;
+    await repo1.store.asStream().where((event) => event.type == 'FooUpdated').first;
 
     // Assert
     expect(foo1.data, containsPair('property1', 'value1')); // keep

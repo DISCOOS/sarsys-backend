@@ -1,5 +1,4 @@
 import 'package:sarsys_domain/sarsys_domain.dart';
-import 'package:event_source/event_source.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 
@@ -77,9 +76,6 @@ Future main() async {
 }
 
 Future _install(SarSysHarness harness) async {
-  harness.eventStoreMockServer
-    ..withStream(typeOf<Incident>().toColonCase())
-    ..withStream(typeOf<Subject>().toColonCase());
   await harness.channel.manager.get<IncidentRepository>().readyAsync();
   await harness.channel.manager.get<SubjectRepository>().readyAsync();
 }

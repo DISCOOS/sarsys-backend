@@ -63,7 +63,7 @@ class OperationPersonnelController
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } catch (e) {
-      return Response.serverError(body: e);
+      return Response.serverError(body: '$e');
     }
   }
 

@@ -1,5 +1,4 @@
 import 'package:sarsys_domain/sarsys_domain.dart';
-import 'package:event_source/event_source.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 
@@ -11,7 +10,6 @@ Future main() async {
     ..install(restartForEachTest: true);
 
   test("POST /api/trackings/ returns status code 201 with empty body", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Tracking>().toColonCase());
     await harness.channel.manager.get<TrackingRepository>().readyAsync();
     final uuid = Uuid().v4();
     final body = _createData(uuid);
@@ -27,7 +25,6 @@ Future main() async {
   });
 
   test("GET /api/trackings/{uuid} returns status code 200", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Tracking>().toColonCase());
     await harness.channel.manager.get<TrackingRepository>().readyAsync();
     final uuid = Uuid().v4();
     final body = _createData(uuid);
@@ -51,7 +48,6 @@ Future main() async {
   });
 
   test("DELETE /api/trackings/{uuid} returns status code 204", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Tracking>().toColonCase());
     await harness.channel.manager.get<TrackingRepository>().readyAsync();
     final uuid = Uuid().v4();
     final body = _createData(uuid);
@@ -74,7 +70,6 @@ Future main() async {
   });
 
   test("GET /api/trackings returns status code 200 with offset=1 and limit=2", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Tracking>().toColonCase());
     await harness.channel.manager.get<TrackingRepository>().readyAsync();
     await harness.agent.post(
       "/api/trackings",

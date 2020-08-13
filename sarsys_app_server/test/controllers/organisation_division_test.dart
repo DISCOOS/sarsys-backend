@@ -1,5 +1,4 @@
 import 'package:sarsys_domain/sarsys_domain.dart';
-import 'package:event_source/event_source.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 
@@ -69,9 +68,6 @@ Future main() async {
 }
 
 Future<String> _prepare(SarSysHarness harness) async {
-  harness.eventStoreMockServer
-    ..withStream(typeOf<Organisation>().toColonCase())
-    ..withStream(typeOf<Division>().toColonCase());
   await harness.channel.manager.get<OrganisationRepository>().readyAsync();
   await harness.channel.manager.get<DivisionRepository>().readyAsync();
   final orguuid = Uuid().v4();

@@ -1,7 +1,10 @@
 import 'package:aqueduct_test/aqueduct_test.dart';
 import 'package:event_source/event_source.dart';
 import 'package:jaguar_jwt/jaguar_jwt.dart';
+import 'package:sarsys_app_server/controllers/tenant/app_config.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
+import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
+import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
 import 'package:test/test.dart';
 import 'package:meta/meta.dart';
 
@@ -35,16 +38,48 @@ class SarSysHarness extends TestHarness<SarSysAppServerChannel> {
   @override
   Future beforeStart() async {
     if (eventStoreMockServer != null) {
+      // Define required projections
+      eventStoreMockServer.withProjection('\$by_category');
+      eventStoreMockServer.withProjection('\$by_event_type');
+
+      // Define required streams
+      eventStoreMockServer.withStream(typeOf<AppConfig>().toColonCase());
+      eventStoreMockServer.withStream(typeOf<Incident>().toColonCase());
+      eventStoreMockServer.withStream(typeOf<sar.Operation>().toColonCase());
+      eventStoreMockServer.withStream(typeOf<Subject>().toColonCase());
+      eventStoreMockServer.withStream(typeOf<Affiliation>().toColonCase());
+      eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
+      eventStoreMockServer.withStream(typeOf<Department>().toColonCase());
+      eventStoreMockServer.withStream(typeOf<Division>().toColonCase());
+      eventStoreMockServer.withStream(typeOf<Organisation>().toColonCase());
+      eventStoreMockServer.withStream(typeOf<Unit>().toColonCase());
+      eventStoreMockServer.withStream(typeOf<Personnel>().toColonCase());
+      eventStoreMockServer.withStream(typeOf<Tracking>().toColonCase());
+      eventStoreMockServer.withStream(typeOf<Mission>().toColonCase());
+      eventStoreMockServer.withStream(typeOf<Person>().toColonCase());
       await eventStoreMockServer.open();
     }
   }
 
   @override
-  Future onSetUp() async {
-    if (eventStoreMockServer != null) {
-      eventStoreMockServer.withProjection('\$by_category');
-      eventStoreMockServer.withProjection('\$by_event_type');
+  Future afterStart() async {
+    // Assert that all repos have a stream
+    final missing = <String>[];
+    for (var repo in channel.manager.repos) {
+      if (!eventStoreMockServer.hasStream(repo.aggregateType.toColonCase())) {
+        missing.add(repo.aggregateType.toString());
+      }
     }
+    if (missing.isNotEmpty) {
+      throw "Following streams are not defined: \n\n"
+          "   $missing\n\n"
+          ">> Add missing stream(s) to SarSysHarness.onSetUp()";
+    }
+    await channel.manager.readyAsync();
+  }
+
+  @override
+  Future onSetUp() async {
     channel.resume();
   }
 
@@ -58,6 +93,7 @@ class SarSysHarness extends TestHarness<SarSysAppServerChannel> {
 
   @override
   Future stop() async {
+    await channel.dispose();
     if (eventStoreMockServer != null) {
       await eventStoreMockServer.close();
     }

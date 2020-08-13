@@ -87,7 +87,6 @@ Future main() async {
 }
 
 Future _prepare(SarSysHarness harness) async {
-  harness.eventStoreMockServer.withStream(typeOf<Person>().toColonCase());
   await harness.channel.manager.get<PersonRepository>().readyAsync();
 }
 

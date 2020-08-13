@@ -16,10 +16,7 @@ class MessageBus implements MessageNotifier, CommandSender, EventPublisher {
   final Map<Type, List<MessageHandler>> _routes = {};
 
   /// Check if messages are being replayed
-  bool get replaying => _replaying.values.where((count) => count > 0).isNotEmpty;
-
-  /// Check if messages are being replayed
-  bool isReplaying<T extends AggregateRoot>(T aggregateRoot) => (_replaying[aggregateRoot.runtimeType] ?? 0) > 0;
+  bool get isReplaying => _replaying.values.where((count) => count > 0).isNotEmpty;
 
   /// Replay counter incremented by [ReplayStarted] and decremented by [ReplayEnded]
   final Map<Type, int> _replaying = {};
@@ -33,12 +30,12 @@ class MessageBus implements MessageNotifier, CommandSender, EventPublisher {
 
   /// Invoked before first event is replayed
   ///
-  /// Throws [InvalidOperation] on illegal [replaying] state.
+  /// Throws [InvalidOperation] on illegal [isReplaying] state.
   void replayStarted<T extends AggregateRoot>() => notify(ReplayStarted<T>());
 
   /// Invoked after last event is replayed
   ///
-  /// Throws [InvalidOperation] on illegal [replaying] state.
+  /// Throws [InvalidOperation] on illegal [isReplaying] state.
   void replayEnded<T extends AggregateRoot>() => notify(ReplayEnded<T>());
 
   @override
@@ -60,14 +57,14 @@ class MessageBus implements MessageNotifier, CommandSender, EventPublisher {
   void send(Command command) {
     // Do not send any commands during replay! This will lead to unexpected results.
     // Replay should only reproduce state, no side effects should occur during replay.
-    if (replaying == false) {
+    if (isReplaying == false) {
       toHandler(command).handle(command);
     }
   }
 
   /// Inspect message for [ReplayStarted] and [ReplayEnded] integration events
   ///
-  /// Throws [InvalidOperation] on illegal [replaying] state.
+  /// Throws [InvalidOperation] on illegal [isReplaying] state.
   Message _inspect(Message message) {
     if (message is ReplayStarted) {
       _replaying.update(

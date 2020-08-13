@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:sarsys_domain/sarsys_domain.dart';
-import 'package:event_source/event_source.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 
@@ -13,7 +12,6 @@ Future main() async {
     ..install(restartForEachTest: true);
 
   test("PATCH /api/trackings/{uuid}/status returns 400 when empty", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Tracking>().toColonCase());
     await harness.channel.manager.get<TrackingRepository>().readyAsync();
     final uuid = Uuid().v4();
     final body = createTracking(uuid);
@@ -39,7 +37,6 @@ Future main() async {
   });
 
   test("PATCH /api/trackings/{uuid}/status returns 400 when closed", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Tracking>().toColonCase());
     final repo = harness.channel.manager.get<TrackingRepository>();
     await repo.readyAsync();
     final uuid = Uuid().v4();
@@ -58,7 +55,6 @@ Future main() async {
   });
 
   test("PATCH /api/trackings/{uuid}/status returns 204 when paused", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Tracking>().toColonCase());
     final repo = harness.channel.manager.get<TrackingRepository>();
     await repo.readyAsync();
     final uuid = Uuid().v4();
@@ -77,7 +73,6 @@ Future main() async {
   });
 
   test("PATCH /api/trackings/{uuid}/status returns 204 when tracking", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Tracking>().toColonCase());
     final repo = harness.channel.manager.get<TrackingRepository>();
     await repo.readyAsync();
     final uuid = Uuid().v4();

@@ -72,7 +72,7 @@ class OperationTrackingController extends ResourceController {
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
     } catch (e) {
-      return Response.serverError(body: e);
+      return Response.serverError(body: '$e');
     }
   }
 

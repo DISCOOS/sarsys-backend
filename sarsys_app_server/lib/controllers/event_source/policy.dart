@@ -108,7 +108,7 @@ abstract class PolicyUtils {
           .timeout(timeout);
     } on Exception catch (e, stackTrace) {
       if (fail) {
-        final message = "Waiting for $expected timed out after $timeout. Actual was: $actual";
+        final message = "Waiting for $expected timed out after $timeout. Actual was: $actual, Seen: $events";
         logger?.severe('$message: $e: $stackTrace');
         throw message;
       }

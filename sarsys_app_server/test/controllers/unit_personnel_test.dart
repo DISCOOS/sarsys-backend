@@ -1,6 +1,4 @@
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
-import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
-import 'package:event_source/event_source.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 
@@ -141,14 +139,6 @@ Future<String> _createPersonnel(SarSysHarness harness, String ouuid, String auui
 }
 
 Future<String> _prepare(SarSysHarness harness, String auuid, String ouuid) async {
-  harness.eventStoreMockServer.withStream(typeOf<Person>().toColonCase());
-  harness.eventStoreMockServer.withStream(typeOf<Personnel>().toColonCase());
-  harness.eventStoreMockServer.withStream(typeOf<Affiliation>().toColonCase());
-  harness.eventStoreMockServer.withStream(typeOf<Organisation>().toColonCase());
-  harness.eventStoreMockServer.withStream(typeOf<Incident>().toColonCase());
-  harness.eventStoreMockServer.withStream(typeOf<sar.Operation>().toColonCase());
-  harness.eventStoreMockServer.withStream(typeOf<Unit>().toColonCase());
-  harness.eventStoreMockServer.withStream(typeOf<Tracking>().toColonCase());
   await harness.channel.manager.get<PersonRepository>().readyAsync();
   await harness.channel.manager.get<PersonnelRepository>().readyAsync();
   await harness.channel.manager.get<AffiliationRepository>().readyAsync();

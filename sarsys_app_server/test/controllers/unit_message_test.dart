@@ -1,6 +1,4 @@
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
-import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
-import 'package:event_source/event_source.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 
@@ -94,10 +92,6 @@ Future main() async {
 }
 
 Future<String> _prepare(SarSysHarness harness) async {
-  harness.eventStoreMockServer.withStream(typeOf<Incident>().toColonCase());
-  harness.eventStoreMockServer.withStream(typeOf<sar.Operation>().toColonCase());
-  harness.eventStoreMockServer.withStream(typeOf<Unit>().toColonCase());
-  harness.eventStoreMockServer.withStream(typeOf<Tracking>().toColonCase());
   await harness.channel.manager.get<IncidentRepository>().readyAsync();
   await harness.channel.manager.get<OperationRepository>().readyAsync();
   await harness.channel.manager.get<UnitRepository>().readyAsync();

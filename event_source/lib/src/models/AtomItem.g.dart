@@ -11,7 +11,6 @@ AtomItem _$AtomItemFromJson(Map<String, dynamic> json) {
       id: json['id'] as String,
       title: json['title'] as String,
       updated: json['updated'] as String,
-      streamId: json['streamId'] as String,
       author: json['author'] == null
           ? null
           : AtomAuthor.fromJson(json['author'] as Map<String, dynamic>),
@@ -19,15 +18,30 @@ AtomItem _$AtomItemFromJson(Map<String, dynamic> json) {
       links: (json['links'] as List)
           ?.map((e) =>
               e == null ? null : AtomLink.fromJson(e as Map<String, dynamic>))
-          ?.toList());
+          ?.toList(),
+      streamId: json['streamId'] as String,
+      eventId: json['eventId'] as String,
+      eventType: json['eventType'] as String,
+      eventNumber: json['eventNumber'] as int,
+      isJson: json['isJson'] as bool,
+      isMetaData: json['isMetaData'] as bool,
+      isLinkMetaData: json['isLinkMetaData'] as bool,
+      data: json['data'] as Map<String, dynamic>);
 }
 
 Map<String, dynamic> _$AtomItemToJson(AtomItem instance) => <String, dynamic>{
       'id': instance.id,
       'title': instance.title,
       'updated': instance.updated,
-      'streamId': instance.streamId,
       'summary': instance.summary,
       'author': instance.author?.toJson(),
-      'links': instance.links?.map((e) => e?.toJson())?.toList()
+      'links': instance.links?.map((e) => e?.toJson())?.toList(),
+      'eventId': instance.eventId,
+      'streamId': instance.streamId,
+      'eventType': instance.eventType,
+      'eventNumber': instance.eventNumber,
+      'isJson': instance.isJson,
+      'isMetaData': instance.isMetaData,
+      'isLinkMetaData': instance.isLinkMetaData,
+      'data': instance.data
     };

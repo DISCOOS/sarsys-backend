@@ -68,9 +68,6 @@ Future main() async {
 }
 
 Future<String> _prepare(SarSysHarness harness) async {
-  harness.eventStoreMockServer.withStream(typeOf<Organisation>().toColonCase());
-  harness.eventStoreMockServer.withStream(typeOf<Division>().toColonCase());
-  harness.eventStoreMockServer.withStream(typeOf<Department>().toColonCase());
   await harness.channel.manager.get<DivisionRepository>().readyAsync();
   await harness.channel.manager.get<DepartmentRepository>().readyAsync();
   final orguuid = Uuid().v4();

@@ -102,17 +102,6 @@ Future _prepare(
   String divuuid,
   String depuuid,
 }) async {
-  harness.eventStoreMockServer.withStream(typeOf<Person>().toColonCase());
-  harness.eventStoreMockServer.withStream(typeOf<Affiliation>().toColonCase());
-  if (orguuid != null) {
-    harness.eventStoreMockServer.withStream(typeOf<Organisation>().toColonCase());
-  }
-  if (divuuid != null) {
-    harness.eventStoreMockServer.withStream(typeOf<Division>().toColonCase());
-  }
-  if (depuuid != null) {
-    harness.eventStoreMockServer.withStream(typeOf<Department>().toColonCase());
-  }
   await harness.channel.manager.get<PersonRepository>().readyAsync();
   await harness.channel.manager.get<AffiliationRepository>().readyAsync();
   if (orguuid != null) {

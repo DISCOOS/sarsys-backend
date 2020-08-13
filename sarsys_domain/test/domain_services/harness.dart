@@ -201,12 +201,12 @@ class EventSourceHarness {
   }
 
   void _close(int port, EventStoreMockServer server) async {
-    await server.close();
     if (_managers.containsKey(port)) {
       await Future.forEach<RepositoryManager>(_managers[port], (manager) => manager.dispose());
       _managers[port].clear();
     }
     _connections[port]?.close();
+    await server.close();
   }
 
   void replicate(int port, String stream, String path, List<Map<String, dynamic>> data) {

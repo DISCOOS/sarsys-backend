@@ -1,5 +1,4 @@
 import 'package:sarsys_domain/sarsys_domain.dart';
-import 'package:event_source/event_source.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 
@@ -11,7 +10,6 @@ Future main() async {
     ..install(restartForEachTest: true);
 
   test("POST /api/organisations/ returns status code 201 with empty body", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Organisation>().toColonCase());
     await harness.channel.manager.get<OrganisationRepository>().readyAsync();
     final uuid = Uuid().v4();
     final body = _createData(uuid);
@@ -19,7 +17,6 @@ Future main() async {
   });
 
   test("GET /api/organisations/{uuid} returns status code 200", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Organisation>().toColonCase());
     await harness.channel.manager.get<OrganisationRepository>().readyAsync();
     final uuid = Uuid().v4();
     final body = _createData(uuid);
@@ -30,7 +27,6 @@ Future main() async {
   });
 
   test("PATCH /api/organisations/{uuid} is idempotent", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Organisation>().toColonCase());
     await harness.channel.manager.get<OrganisationRepository>().readyAsync();
     final uuid = Uuid().v4();
     final body = _createData(uuid);
@@ -42,7 +38,6 @@ Future main() async {
   });
 
   test("PATCH /api/organisations/{uuid} does not remove value objects", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Organisation>().toColonCase());
     await harness.channel.manager.get<OrganisationRepository>().readyAsync();
     final uuid = Uuid().v4();
     final body = _createData(uuid);
@@ -54,7 +49,6 @@ Future main() async {
   });
 
   test("DELETE /api/organisations/{uuid} returns status code 204", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Organisation>().toColonCase());
     await harness.channel.manager.get<OrganisationRepository>().readyAsync();
     final uuid = Uuid().v4();
     final body = _createData(uuid);
@@ -63,7 +57,6 @@ Future main() async {
   });
 
   test("GET /api/organisations returns status code 200 with offset=1 and limit=2", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Organisation>().toColonCase());
     await harness.channel.manager.get<OrganisationRepository>().readyAsync();
     await harness.agent.post("/api/organisations", body: _createData(Uuid().v4()));
     await harness.agent.post("/api/organisations", body: _createData(Uuid().v4()));

@@ -81,7 +81,7 @@ class OrganisationImportController
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
     } on Exception catch (e) {
-      return Response.serverError(body: e);
+      return Response.serverError(body: '$e');
     }
   }
 

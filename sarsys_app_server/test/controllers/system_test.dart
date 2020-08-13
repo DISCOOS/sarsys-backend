@@ -6,10 +6,12 @@ Future main() async {
     ..install();
 
   test("GET /api/client.html returns status code 200", () async {
+    await harness.channel.manager.readyAsync();
     expectResponse(await harness.agent.get("/api/client.html"), 200);
   });
 
   test("GET /api/healthz returns status code 200 Status OK", () async {
+    await harness.channel.manager.readyAsync();
     expectResponse(await harness.agent.get("/api/healthz"), 200, body: "Status OK");
   });
 }

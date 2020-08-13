@@ -71,22 +71,26 @@ class SarSysAppServerChannel extends ApplicationChannel {
   /// This method is invoked prior to [entryPoint] being accessed.
   @override
   Future prepare() async {
-    final stopwatch = Stopwatch()..start();
+    try {
+      final stopwatch = Stopwatch()..start();
 
-    _loadConfig();
-    _configureLogger();
-    _buildValidators();
-    _buildRepoManager();
-    _buildRepos(
-      stopwatch,
-      catchError: _terminateOnFailure,
-      whenComplete: _buildDomainServices,
-    );
-    _buildMessageChannel();
-    await _buildSecureRouter();
+      _loadConfig();
+      _configureLogger();
+      _buildValidators();
+      _buildRepoManager();
+      _buildRepos(
+        stopwatch,
+        catchError: _terminateOnFailure,
+        whenComplete: _buildDomainServices,
+      );
+      _buildMessageChannel();
+      await _buildSecureRouter();
 
-    if (stopwatch.elapsed.inSeconds > isolateStartupTimeout * 0.8) {
-      logger.severe("Approaching maximum duration to wait for each isolate to complete startup");
+      if (stopwatch.elapsed.inSeconds > isolateStartupTimeout * 0.8) {
+        logger.severe("Approaching maximum duration to wait for each isolate to complete startup");
+      }
+    } catch (e, stackTrace) {
+      _terminateOnFailure(e, stackTrace);
     }
   }
 
@@ -582,10 +586,12 @@ class SarSysAppServerChannel extends ApplicationChannel {
   }
 
   void _terminateOnFailure(error, stackTrace) {
-    if (error is ClientException || error is SocketException) {
-      logger.severe("Failed to connect to eventstore with ${manager.connection}");
-    } else {
-      logger.severe("Failed to build repositories: $error: $stackTrace");
+    if (!_disposed) {
+      if (error is ClientException || error is SocketException) {
+        logger.severe("Failed to connect to eventstore with ${manager.connection}");
+      } else {
+        logger.severe("Failed to build repositories: $error: $stackTrace");
+      }
     }
     logger.severe("Terminating server safely...");
     server.close();

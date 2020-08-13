@@ -1,5 +1,4 @@
 import 'package:sarsys_domain/sarsys_domain.dart';
-import 'package:event_source/event_source.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 
@@ -11,8 +10,6 @@ Future main() async {
     ..install(restartForEachTest: true);
 
   test("GET /api/devices/{uuid}/position returns status code 404 if not set", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
-    await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final device = _createData(uuid);
     expectResponse(await harness.agent.post("/api/devices", body: device), 201, body: null);
@@ -21,7 +18,6 @@ Future main() async {
   });
 
   test("PATCH /api/devices/{uuid}/position returns status code 204 if set", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
     await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final device = _createData(uuid);
@@ -38,7 +34,6 @@ Future main() async {
   });
 
   test("PATCH /api/devices/{uuid}/position returns status code 400 if position type is illegal", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
     await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final device = _createData(uuid);

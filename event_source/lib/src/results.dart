@@ -62,8 +62,9 @@ class FeedResult extends StreamResult {
     String eTag,
     this.number,
     this.direction,
-    this.subscription,
     this.atomFeed,
+    this.subscription,
+    this.embedded = false,
   }) : super(
           stream: stream,
           statusCode: statusCode,
@@ -73,8 +74,9 @@ class FeedResult extends StreamResult {
 
   factory FeedResult.from({
     @required String stream,
-    @required EventNumber number,
     @required Response response,
+    @required EventNumber number,
+    @required bool embedded,
     String subscription,
     Direction direction = Direction.forward,
   }) {
@@ -82,11 +84,12 @@ class FeedResult extends StreamResult {
       case HttpStatus.ok:
         return FeedResult(
           stream: stream,
+          number: number,
+          embedded: embedded,
+          direction: direction,
+          eTag: response.headers['etag'],
           statusCode: response.statusCode,
           reasonPhrase: response.reasonPhrase,
-          eTag: response.headers['etag'],
-          number: number,
-          direction: direction,
           atomFeed: AtomFeed.fromJson(json.decode(response.body) as Map<String, dynamic>),
         );
       default:
@@ -104,6 +107,9 @@ class FeedResult extends StreamResult {
 
   /// Event traversal direction
   final Direction direction;
+
+  /// True if event is embedded in [AtomItem.data]
+  final bool embedded;
 
   /// Persistent subscription group
   final String subscription;

@@ -1,10 +1,12 @@
+import 'dart:async';
+
 import 'package:event_source/event_source.dart';
 import 'package:logging/logging.dart';
 
 import 'package:meta/meta.dart';
 import 'package:test/test.dart';
 
-typedef _Creator<T extends AggregateRoot> = Repository<Command, T> Function(EventStore store);
+typedef _Creator<T extends AggregateRoot> = Repository<Command, T> Function(EventStore store, int instance);
 
 class EventSourceHarness {
   final Map<int, EventStoreMockServer> _servers = {};
@@ -27,6 +29,7 @@ class EventSourceHarness {
     return this;
   }
 
+  StreamSubscription _printer;
   final Map<String, Map<String, bool>> _streams = {};
   List<String> get streams => _streams.keys.toList(growable: false);
   EventSourceHarness withStream(
@@ -59,7 +62,7 @@ class EventSourceHarness {
   MessageBus get bus => _bus;
 
   EventSourceHarness withRepository<T extends AggregateRoot>(
-    Repository<Command, T> Function(EventStore) create, {
+    Repository<Command, T> Function(EventStore, int) create, {
     int instances = 1,
     bool useInstanceStreams = true,
   }) {
@@ -75,16 +78,22 @@ class EventSourceHarness {
   }
 
   Logger _logger;
-  EventSourceHarness withLogger() {
+  EventSourceHarness withLogger({bool debug = false}) {
     _logger = Logger('$runtimeType');
-    _logger.onRecord.listen((rec) {
-      print(
-        '${rec.time}: ${rec.level.name}: ${rec.loggerName}: '
-        '${rec.message} ${rec.error ?? ''} ${rec.stackTrace ?? ''}',
-      );
-    });
+    if (debug) {
+      Logger.root.level = Level.FINE;
+    }
     return this;
   }
+
+  void _print(LogRecord rec) {
+    return print(
+      '${rec.time}: ${rec.level.name}: ${rec.loggerName}: '
+      '${rec.message} ${rec.error ?? ''} ${rec.stackTrace ?? ''}',
+    );
+  }
+
+  Stream<LogRecord> get onRecord => _logger?.onRecord;
 
   final Map<Type, _RepositoryBuilder> _builders = {};
   T get<T extends Repository>({int port = 4000, int instance = 1}) => _managers[port][instance - 1].get<T>();
@@ -119,15 +128,21 @@ class EventSourceHarness {
     });
 
     setUp(() async {
+      _logger.info('---setUp---');
+      _printer = onRecord.listen(_print);
       for (var entry in _servers.entries) {
         await _build(entry.key, entry.value);
       }
+      _logger.info('---setUp--->ok');
     });
 
     tearDown(() async {
+      _logger.info('---tearDown---');
       for (var entry in _servers.entries) {
         _clear(entry.key, entry.value);
       }
+      _logger.info('---tearDown---ok');
+      return _printer.cancel();
     });
 
     tearDownAll(() async {
@@ -172,7 +187,7 @@ class EventSourceHarness {
             ]),
           ));
         }
-        builder(list[i]);
+        builder(list[i], i);
       }
       server.withStream(builder.stream);
     });
@@ -193,7 +208,6 @@ class EventSourceHarness {
   }
 
   void _close(int port, EventStoreMockServer server) async {
-    await server.close();
     if (_managers.containsKey(port)) {
       for (var manager in _managers[port]) {
         await manager.dispose();
@@ -201,19 +215,24 @@ class EventSourceHarness {
       _managers[port].clear();
     }
     _connections[port]?.close();
+    await server.close();
   }
 
   void replicate(int port, String stream, String path, List<Map<String, dynamic>> data) {
+    _logger.fine('---replicate---');
+    _logger.fine('port: $port');
+    _logger.fine('path: $path');
+    _logger.fine('data:$data');
+    _logger.fine('stream: $stream');
     _servers.values
         .where(
-          (server) => server.isOpen,
-        )
-        .where(
-          (server) => server.port != port,
-        )
+      (server) => server.isOpen,
+    )
         .forEach((server) {
+      _logger.fine('append to $stream in server:${server.port}');
       server.getStream(stream).append(path, data);
     });
+    _logger.fine('---replicate--->ok');
   }
 }
 
@@ -228,9 +247,9 @@ class _RepositoryBuilder<T extends AggregateRoot> {
   final bool useInstanceStreams;
   String get stream => typeOf<T>().toColonCase();
 
-  void call(RepositoryManager manager) {
+  void call(RepositoryManager manager, int instance) {
     manager.register<T>(
-      _create,
+      (store) => _create(store, instance),
       stream: stream,
       useInstanceStreams: useInstanceStreams,
     );

@@ -1,5 +1,4 @@
 import 'package:sarsys_domain/sarsys_domain.dart';
-import 'package:event_source/event_source.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 
@@ -11,7 +10,6 @@ Future main() async {
     ..install(restartForEachTest: true);
 
   test("POST /api/devices/{uuid}/messages returns status code 201 with empty body", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
     await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final device = _createData(uuid);
@@ -21,7 +19,6 @@ Future main() async {
   });
 
   test("GET /api/devices/{uuid}/messages returns status code 200", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
     await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final device = _createData(uuid);
@@ -37,7 +34,6 @@ Future main() async {
   });
 
   test("GET /api/devices/{uuid}/messages/{id} returns status code 200", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
     await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final device = _createData(uuid);
@@ -55,7 +51,6 @@ Future main() async {
   });
 
   test("PATCH /api/devices/{uuid}/messages/{id} is idempotent", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
     await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final device = _createData(uuid);
@@ -73,7 +68,6 @@ Future main() async {
   });
 
   test("PATCH /api/devices/{uuid} on entity object lists should not be allowed", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
     await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final device = _createData(uuid);
@@ -88,7 +82,6 @@ Future main() async {
   });
 
   test("DELETE /api/devices/{uuid}/messages/{id} returns status code 204", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
     await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final device = _createData(uuid);

@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:sarsys_domain/sarsys_domain.dart';
-import 'package:event_source/event_source.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 
@@ -13,7 +12,6 @@ Future main() async {
     ..install(restartForEachTest: true);
 
   test("GET /api/trackings/{uuid}/tracks returns status code 200", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Tracking>().toColonCase());
     final repo = harness.channel.manager.get<TrackingRepository>();
     await repo.readyAsync();
     final uuid = Uuid().v4();
@@ -38,7 +36,6 @@ Future main() async {
   });
 
   test("GET /api/trackings/{uuid}/tracks/{id} returns status code 200", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Tracking>().toColonCase());
     final repo = harness.channel.manager.get<TrackingRepository>();
     await repo.readyAsync();
     final uuid = Uuid().v4();

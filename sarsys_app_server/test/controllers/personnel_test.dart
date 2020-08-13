@@ -1,5 +1,4 @@
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
-import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
 import 'package:event_source/event_source.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
@@ -119,7 +118,6 @@ Future main() async {
     final puuid = Uuid().v4();
     final auuid = Uuid().v4();
     final ouuid = await _prepare(harness, auuid);
-    harness.eventStoreMockServer.withStream(typeOf<Unit>().toColonCase());
     await harness.channel.manager.get<UnitRepository>().readyAsync();
     final unit = createUnit(uuuid);
     expectResponse(await harness.agent.post("/api/operations/$ouuid/units", body: unit), 201, body: null);
@@ -210,20 +208,6 @@ Future<String> _prepare(
   String auuid, {
   String puuid,
 }) async {
-  harness.eventStoreMockServer.withStream(typeOf<Person>().toColonCase());
-  harness.eventStoreMockServer.withStream(typeOf<Personnel>().toColonCase());
-  harness.eventStoreMockServer.withStream(typeOf<Affiliation>().toColonCase());
-  harness.eventStoreMockServer.withStream(typeOf<Organisation>().toColonCase());
-  harness.eventStoreMockServer.withStream(typeOf<Incident>().toColonCase());
-  harness.eventStoreMockServer.withStream(typeOf<sar.Operation>().toColonCase());
-  harness.eventStoreMockServer.withStream(typeOf<Tracking>().toColonCase());
-  await harness.channel.manager.get<PersonRepository>().readyAsync();
-  await harness.channel.manager.get<PersonnelRepository>().readyAsync();
-  await harness.channel.manager.get<AffiliationRepository>().readyAsync();
-  await harness.channel.manager.get<OrganisationRepository>().readyAsync();
-  await harness.channel.manager.get<IncidentRepository>().readyAsync();
-  await harness.channel.manager.get<OperationRepository>().readyAsync();
-  await harness.channel.manager.get<TrackingRepository>().readyAsync();
   await _createAffiliation(harness, puuid ?? Uuid().v4(), auuid);
   final iuuid = Uuid().v4();
   expectResponse(await harness.agent.post("/api/incidents", body: createIncident(iuuid)), 201);

@@ -79,7 +79,7 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } catch (e) {
-      return Response.serverError(body: e);
+      return Response.serverError(body: '$e');
     }
   }
 
@@ -114,7 +114,7 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } catch (e) {
-      return Response.serverError(body: e);
+      return Response.serverError(body: '$e');
     }
   }
 

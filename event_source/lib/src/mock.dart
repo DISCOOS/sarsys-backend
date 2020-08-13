@@ -4,10 +4,12 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:event_source/event_source.dart';
+import 'package:meta/meta.dart';
 import 'package:json_patch/json_patch.dart';
 import 'package:logging/logging.dart';
 import 'package:uuid/uuid.dart';
+
+import 'package:event_source/event_source.dart';
 
 typedef Replicate = void Function(
   int port,
@@ -21,10 +23,10 @@ class EventStoreMockServer {
     this.tenant,
     this.prefix,
     this.port, {
-    this.logger,
+    Logger logger,
     this.replicate,
     this.verbose = true,
-  });
+  }) : logger = Logger('EventStoreMockServer');
 
   /// Port to listen on.
   final int port;
@@ -210,6 +212,8 @@ class EventStoreMockServer {
   }
 
   bool get isOpen => _server != null;
+
+  bool hasStream(String name) => _streams.containsKey(name);
 }
 
 class TestRoute {
@@ -243,7 +247,7 @@ class TestStream {
     this.prefix,
     this.aggregate,
     this.replicate, {
-    this.logger,
+    @required this.logger,
     this.useInstanceStreams = true,
     this.strategy = ConsumerStrategy.RoundRobin,
   });
@@ -257,9 +261,13 @@ class TestStream {
   final bool useInstanceStreams;
   final ConsumerStrategy strategy;
   final Map<String, TestSubscription> _groups = {};
-  final Map<String, List<Map<String, dynamic>>> _cached = {};
   final List<Map<String, Map<String, dynamic>>> _instances = [];
+
+  /// LinkedHashMap ensures keys are insertion-ordered to honor event ordering
   final LinkedHashMap<String, Map<String, dynamic>> _canonical = LinkedHashMap();
+
+  /// LinkedHashMap ensures keys are insertion-ordered to honor event ordering
+  final LinkedHashMap<String, List<Map<String, dynamic>>> _cached = LinkedHashMap();
 
   List<Map<String, Map<String, dynamic>>> get instances => List.unmodifiable(_instances);
 
@@ -503,14 +511,24 @@ class TestStream {
   /// Append [list] of data objects to [path]
   Map<String, Map<String, dynamic>> append(String path, List<Map<String, dynamic>> list) {
     final events = _toEventsFromPath(path);
-    events.addEntries(list.map((event) => MapEntry(
-          event['eventId'] as String,
+    // Only apply unseen events
+    final unseen = List<Map<String, dynamic>>.from(list)
+      ..removeWhere(
+        (e) => events.containsKey(e.elementAt<String>('eventId')),
+      );
+    events.addEntries(unseen.map((event) => MapEntry(
+          event.elementAt<String>('eventId'),
           event,
         )));
     if (_partitioned) {
-      _cached.update(path, (events) => events..addAll(list), ifAbsent: () => list);
+      _cached.update(path, (events) => events..addAll(unseen), ifAbsent: () => unseen);
     }
     _canonical.addAll(events);
+    logger.fine('[:$port:$aggregate] append(String,List){\n'
+        'list: ${list.map((data) => data.elementAt('eventType')).toList()},\n'
+        'unseen: ${unseen.map((data) => data.elementAt('eventType')).toList()},\n'
+        'events: ${events.values.map((data) => data.elementAt('eventType')).toList()},\n'
+        '}');
     return events;
   }
 
@@ -552,13 +570,25 @@ class TestStream {
     final stream = RegExp.escape(canonicalStream);
     if (RegExp(asHead(stream)).hasMatch(path)) {
       // Fetch events from head and backwards
-      _toAtomFeedResponse(request, asHead(stream), path);
+      _toAtomFeedResponse(
+        request,
+        path: path,
+        pattern: asHead(stream),
+      );
     } else if (RegExp(asBackward(stream)).hasMatch(path)) {
       // Fetch events from given number and backwards
-      _toAtomFeedResponse(request, asBackward(stream), path);
+      _toAtomFeedResponse(
+        request,
+        pattern: asBackward(stream),
+        path: path,
+      );
     } else if (RegExp(asForward(stream)).hasMatch(path)) {
       // Fetch events from given number and forwards
-      _toAtomFeedResponse(request, asForward(stream), path);
+      _toAtomFeedResponse(
+        request,
+        pattern: asForward(stream),
+        path: path,
+      );
     } else if (RegExp(asNumber(stream)).hasMatch(path)) {
       // Fetch events with given canonical event number
       final number = toNumber(stream, path);
@@ -608,12 +638,17 @@ class TestStream {
           number,
           selfUrl,
           data,
+          embedBody: true,
           withContent: true,
         )));
     }
   }
 
-  void _toAtomFeedResponse(HttpRequest request, String pattern, String path) {
+  void _toAtomFeedResponse(
+    HttpRequest request, {
+    @required String path,
+    @required String pattern,
+  }) {
     final match = RegExp(pattern).firstMatch(path);
     final offset = int.parse(match.group(1));
     final count = int.parse(match.group(2));
@@ -634,7 +669,10 @@ class TestStream {
         selfUrl,
         canonicalStream,
         offset,
-        events,
+        // Event store always return
+        // events in decreasing order
+        events.reversed,
+        embedBody: _isEmbedBody(request),
       );
       request.response
         ..statusCode = HttpStatus.ok
@@ -711,6 +749,7 @@ class TestSubscription {
       group: group,
       consume: count,
       isSubscription: true,
+      embedBody: _isEmbedBody(request),
     );
     consumed.addEntries(
       events.map(
@@ -783,7 +822,7 @@ class _Consumed {
   int get hashCode => uuid.hashCode;
 }
 
-String _lastUpdated(List<Map<String, dynamic>> events) {
+String _lastUpdated(Iterable<Map<String, dynamic>> events) {
   return events.isEmpty
       ? null
       : events.fold<DateTime>(DateTime.parse(events.first['updated'] as String), (updated, event) {
@@ -800,9 +839,10 @@ AtomFeed _toAtomFeed(
   String selfUrl,
   String stream,
   int offset,
-  List<Map<String, dynamic>> events, {
+  Iterable<Map<String, dynamic>> events, {
   int consume,
   String group,
+  bool embedBody = false,
   bool isSubscription = false,
 }) {
   final ids = events.map((event) => event['eventId'] as String).join(',');
@@ -832,6 +872,8 @@ AtomFeed _toAtomFeed(
       offset,
       selfUrl,
       group: group,
+      embedBody: embedBody,
+      withContent: embedBody,
       isSubscription: isSubscription,
     ),
   );
@@ -840,10 +882,11 @@ AtomFeed _toAtomFeed(
 List<AtomItem> _toAtomItems(
   String host,
   String stream,
-  List<Map<String, dynamic>> events,
+  Iterable<Map<String, dynamic>> events,
   int offset,
   String selfUrl, {
   String group,
+  bool embedBody = false,
   bool withContent = false,
   bool isSubscription = false,
 }) {
@@ -860,6 +903,7 @@ List<AtomItem> _toAtomItems(
           selfUrl,
           event,
           group: group,
+          embedBody: embedBody,
           withContent: withContent,
           isSubscription: isSubscription,
         ))),
@@ -875,6 +919,7 @@ Map<String, dynamic> _toAtomItem(
   String selfUrl,
   Map<String, dynamic> data, {
   String group,
+  bool embedBody = false,
   bool withContent = false,
   bool isSubscription = false,
 }) =>
@@ -884,11 +929,14 @@ Map<String, dynamic> _toAtomItem(
       'author': _toAtomAuthor(),
       'updated': data['updated'],
       'summary': data['eventType'],
-      if (!withContent) 'eventNumber': number,
-      if (!withContent) 'streamId': stream,
-      if (!withContent) 'isJSON': true,
-      if (!withContent) 'isMetaData': false,
-      if (!withContent) 'isLinkMetaData': false,
+      if (embedBody) 'streamId': stream,
+      if (embedBody) 'eventId': data['eventId'],
+      if (embedBody) 'eventType': data['eventType'],
+      if (embedBody) 'eventNumber': number,
+      if (embedBody) 'isJSON': true,
+      if (embedBody) 'isMetaData': false,
+      if (embedBody) 'isLinkMetaData': false,
+      if (embedBody) 'data': data['data'],
       if (withContent)
         'content': {
           'eventStreamId': stream,
@@ -915,3 +963,5 @@ Map<String, dynamic> _toAtomItem(
 Map<String, String> _toAtomAuthor() => {
       'name': '${typeOf<EventStoreMockServer>()}',
     };
+
+bool _isEmbedBody(HttpRequest request) => request.uri.queryParameters['embed']?.contains('body') == true;

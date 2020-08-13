@@ -1,5 +1,4 @@
 import 'package:sarsys_domain/sarsys_domain.dart';
-import 'package:event_source/event_source.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 
@@ -11,7 +10,6 @@ Future main() async {
     ..install(restartForEachTest: true);
 
   test("GET /api/devices/{uuid}/positions returns status code 405", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
     await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final device = _createData(uuid);
@@ -21,7 +19,6 @@ Future main() async {
   });
 
   test("POST /api/devices/{uuid}/positions returns status code 204 if set", () async {
-    harness.eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
     await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final device = _createData(uuid);

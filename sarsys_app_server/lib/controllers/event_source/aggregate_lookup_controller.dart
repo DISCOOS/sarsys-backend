@@ -50,7 +50,7 @@ class AggregateLookupController<S extends Command, T extends AggregateRoot> exte
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } catch (e) {
-      return Response.serverError(body: e);
+      return Response.serverError(body: '$e');
     }
   }
 

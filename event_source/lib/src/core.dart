@@ -27,6 +27,9 @@ class Message {
   ///
   final bool local;
 
+  /// Convenience method for checking if [local == false]
+  bool get remote => !local;
+
   /// Message creation time
   /// *NOTE*: Not stable until read from remote stream
   ///

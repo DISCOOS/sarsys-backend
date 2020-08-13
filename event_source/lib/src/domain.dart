@@ -41,6 +41,35 @@ class RepositoryManager {
   /// [Map] of aggregate root repositories and the [EventStore] storing events from it.
   final Map<Repository, EventStore> _stores = {};
 
+  /// Get repositories
+  Iterable<Repository> get repos => _stores.keys;
+
+  /// Get stores
+  Iterable<EventStore> get stores => _stores.values;
+
+  /// Check if all repositories are ready
+  bool get isReady {
+    if (bus.isReplaying) {
+      return false;
+    }
+    return repos.every((repo) => repo.isReady);
+  }
+
+  /// Wait for all repositories being ready
+  Future<bool> readyAsync() async {
+    final callback = Completer<bool>();
+    _awaitReady(callback);
+    return callback.future;
+  }
+
+  void _awaitReady(Completer<bool> completer) async {
+    if (isReady == false) {
+      Future.delayed(const Duration(milliseconds: 100), () => _awaitReady(completer));
+    } else {
+      completer.complete(true);
+    }
+  }
+
   /// Register [Repository] with given [AggregateRoot].
   ///
   /// Parameter [prefix] is concatenated using
@@ -248,7 +277,7 @@ class RepositoryManager {
           StackTrace.current,
         );
       }
-    } on Error catch (e, stackTrace) {
+    } catch (e, stackTrace) {
       completer.completeError(e, stackTrace);
     }
   }
@@ -308,6 +337,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     implements CommandHandler<S>, MessageHandler<DomainEvent> {
   /// Internal - for local debugging
   bool debugConflicts = false;
+  void _printDebug(Object message) {
+    logger.info(message);
+  }
 
   /// Repository constructor
   ///
@@ -340,9 +372,14 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   Type get aggregateType => typeOf<T>();
 
   /// Flag indicating that [build] succeeded
+  /// and that events are not beeing replayed
+  bool get isReady => _ready && !isReplaying;
   bool _ready = false;
-  bool get isReady => _ready;
 
+  /// Check if events are being replayed for this repository
+  bool get isReplaying => store.bus.isReplaying;
+
+  /// Wait for repository becoming ready
   Future<bool> readyAsync() async {
     final callback = Completer<bool>();
     _awaitReady(callback);
@@ -350,7 +387,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   }
 
   void _awaitReady(Completer<bool> completer) async {
-    if (_ready == false) {
+    if (_ready == false || isReplaying) {
       Future.delayed(const Duration(milliseconds: 100), () => _awaitReady(completer));
     } else {
       completer.complete(true);
@@ -665,6 +702,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     Iterable<DomainEvent> changes,
     int maxAttempts,
   ) {
+    // Stop subscriptions
+    store.pause();
+
     final aggregate = _assertExists(uuid);
     final operation = _PushOperation(aggregate, changes, maxAttempts);
     if (_pushQueue.isEmpty) {
@@ -690,18 +730,26 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       final operation = await _push(_pushQueue.first);
       _pushQueue.remove(operation);
     }
+    // Resume subscriptions
+    store.resume();
   }
 
   Future<_PushOperation> _push(_PushOperation operation) async {
     final aggregate = operation.aggregate;
     try {
       if (debugConflicts) {
-        logger.info('Push > ${aggregate.runtimeType} ${store.toInstanceStream(aggregate.uuid)}');
-        logger.info('events: ${store.events.values.fold(0, (count, events) => count + events.length)}');
-        logger.info('pending: ${aggregate.getUncommittedChanges().length}');
-        logger.info('instanceEventNumber: ${store.current(uuid: aggregate.uuid)}');
-        logger.info('expectedEventNumber: ${store.toExpectedVersion(store.toInstanceStream(aggregate.uuid)).value}');
-        logger.info('canonicalEventNumber: ${store.current(stream: store.canonicalStream)}');
+        _printDebug('---PUSH---');
+        _printDebug('timestamp: ${DateTime.now().toIso8601String()}');
+        _printDebug('connection: ${store.connection.host}:${store.connection.port}');
+        _printDebug('repository: $this');
+        _printDebug('stream: ${store.toInstanceStream(aggregate.uuid)}');
+        _printDebug('store.events.count: ${store.events.values.fold(0, (count, events) => count + events.length)}');
+        _printDebug('store.events.items: ${store.events.values}');
+        _printDebug('store.number.instance: ${store.current(uuid: aggregate.uuid)}');
+        _printDebug('expectedEventNumber: ${store.toExpectedVersion(store.toInstanceStream(aggregate.uuid)).value}');
+        _printDebug('store.number.canonical: ${store.current(stream: store.canonicalStream)}');
+        _printDebug('aggregate.pending.count: ${aggregate.getUncommittedChanges().length}');
+        _printDebug('aggregate.pending.items: ${aggregate.getUncommittedChanges()}');
       }
       await store.push(aggregate);
 
@@ -709,10 +757,16 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       operation.completer.complete(operation.changes);
 
       if (debugConflicts) {
-        logger.info('---DONE---');
-        logger.info('events: ${store.events.values.fold(0, (count, events) => count + events.length)}');
-        logger.info('instanceEventNumber: ${store.current(uuid: aggregate.uuid)}');
-        logger.info('canonicalEventNumber: ${store.current(stream: store.canonicalStream)}');
+        _printDebug('---DONE---');
+        _printDebug('timestamp: ${DateTime.now().toIso8601String()}');
+        _printDebug('repository: $this');
+        _printDebug('connection: ${store.connection.host}:${store.connection.port}');
+        _printDebug('store.events.count: ${store.events.values.fold(0, (count, events) => count + events.length)}');
+        _printDebug('store.events.items: ${store.events.values}');
+        _printDebug('store.number.instance: ${store.current(uuid: aggregate.uuid)}');
+        _printDebug('store.number.canonical: ${store.current(stream: store.canonicalStream)}');
+        _printDebug('aggregate.pending.count: ${aggregate.getUncommittedChanges().length}');
+        _printDebug('aggregate.pending.items: ${aggregate.getUncommittedChanges()}');
       }
     } on WrongExpectedEventVersion {
       return _reconcile(operation);
@@ -730,11 +784,17 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   Future<_PushOperation> _reconcile(_PushOperation operation) async {
     final aggregate = operation.aggregate;
     if (debugConflicts) {
-      logger.info('---CONFLICT---');
-      logger.info('$e');
-      logger.info('$aggregate');
-      logger.info('---DEBUG---');
-      logger.info(toDebugString(aggregate?.uuid));
+      _printDebug('---CONFLICT---');
+      _printDebug('timestamp: ${DateTime.now().toIso8601String()}');
+      _printDebug('repository: $this');
+      _printDebug('connection: ${store.connection.host}:${store.connection.port}');
+      _printDebug('store.events.count: ${store.events.values.fold(0, (count, events) => count + events.length)}');
+      _printDebug('store.events.items: ${store.events.values}');
+      _printDebug('aggregate.uuid: ${aggregate.uuid}');
+      _printDebug('aggregate.applied.count: ${aggregate.applied.length}');
+      _printDebug('aggregate.applied.items: ${aggregate.applied}');
+      _printDebug('aggregate.pending.count: ${aggregate.getUncommittedChanges().length}');
+      _printDebug('aggregate.pending.items: ${aggregate.getUncommittedChanges()}');
     } // Attempt to automatic merge until maximum attempts
     try {
       final events = await ThreeWayMerge(this).reconcile(
@@ -1039,6 +1099,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
           repo.toDomainEvent(event),
           isChanged: false,
         ));
+
     return this;
   }
 

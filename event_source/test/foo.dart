@@ -10,7 +10,7 @@ class Foo extends AggregateRoot<FooCreated, FooDeleted> {
 }
 
 class FooRepository extends Repository<FooCommand, Foo> {
-  FooRepository(EventStore store)
+  FooRepository(EventStore store, this.instance)
       : super(store: store, processors: {
           FooCreated: (event) => FooCreated(
                 uuid: event.uuid,
@@ -32,12 +32,19 @@ class FooRepository extends Repository<FooCommand, Foo> {
               ),
         });
 
+  final int instance;
+
   @override
   Foo create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Foo(
         uuid,
         processors,
         data: data,
       );
+
+  @override
+  String toString() {
+    return '$runtimeType{instance: $instance}';
+  }
 }
 
 abstract class FooCommand<T extends DomainEvent> extends Command<T> {

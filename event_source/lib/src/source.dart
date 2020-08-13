@@ -5,6 +5,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:http/http.dart';
+import 'package:json_patch/json_patch.dart';
 import 'package:meta/meta.dart';
 import 'package:logging/logging.dart';
 import 'package:collection/collection.dart';
@@ -75,7 +76,7 @@ class EventStore {
     @required this.connection,
     this.prefix,
     this.useInstanceStreams = true,
-  }) : logger = Logger('EventStore[${toCanonical([prefix, aggregate])}]') {
+  }) : logger = Logger('EventStore[${toCanonical([prefix, aggregate])}][${connection.port}]') {
     _current[canonicalStream] = EventNumber.none;
   }
 
@@ -328,7 +329,7 @@ class EventStore {
     final events = aggregate.commit(changes: changes);
 
     // Do not save during replay
-    if (bus.replaying == false && events.isNotEmpty) {
+    if (bus.isReplaying == false && events.isNotEmpty) {
       _updateAll(
         aggregate.uuid,
         events,
@@ -526,76 +527,115 @@ class EventStore {
     int consume = 20,
     bool competing = false,
     ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
-  }) async =>
-      competing
-          ? controller.compete(
-              repository,
-              stream: canonicalStream,
-              group: '${repository.aggregateType}',
-              number: current() + 1,
-              consume: consume,
-              strategy: strategy,
-            )
-          : controller.subscribe(
-              repository,
-              number: current() + 1,
-              stream: canonicalStream,
-            );
+  }) async {
+    final number = current();
+    return competing
+        ? controller.compete(
+            repository,
+            stream: canonicalStream,
+            group: '${repository.aggregateType}',
+            number: number,
+            consume: consume,
+            strategy: strategy,
+          )
+        : controller.subscribe(
+            repository,
+            number: number,
+            stream: canonicalStream,
+          );
+  }
+
+  final seen = <SourceEvent>[];
 
   /// Handle event from subscriptions
-  void _onSubscriptionEvent(Repository repository, SourceEvent event) {
+  void _onSubscriptionEvent(Repository repo, SourceEvent event) {
+    seen.add(event);
+
     // Only catchup if repository have no
     // pending changes. If updated before
     // write-op is completed, a concurrent
     // write will happened and information
-    // will be lost.
-    if (!(repository.isProcessing || repository.isChanged)) {
-      final uuid = repository.toAggregateUuid(event);
+    // will be lost. Repository should therefore
+    // call pause before processing is started
+    // and only call resume when ALL changes
+    // have been processed.
+    if (repo.isProcessing) {
+      throw StateError('Subscription events not allowed when processing changes');
+    } else if (repo.isChanged) {
+      throw StateError('Subscription events not allowed when repository contains changes');
+    }
 
-      try {
+    final uuid = repo.toAggregateUuid(event);
+
+    try {
+      _subscriptions[repo.runtimeType]?.connected(repo, connection);
+
+      // Prepare event sourcing
+      final stream = toInstanceStream(uuid);
+      final actual = current(uuid: uuid);
+
+      final sourced =
+          // Aggregate is created
+          _store.containsKey(uuid) &&
+              // Event is applied
+              _store[uuid].contains(event);
+
+      if (sourced) {
+        _onSeen(uuid, stream, event, repo);
+      } else {
+        _onUnseen(uuid, stream, event, repo);
+      }
+
+      final aggregate = repo.get(uuid);
+      final applied = aggregate.applied.where((e) => e.uuid == event.uuid).firstOrNull;
+      // micro-optimization to
+      // minimize string interpolations
+      if (logger.level <= Level.FINE) {
         logger.fine(
-          '${repository.runtimeType}: _onSubscriptionEvent: ${event.runtimeType}'
-          '{type: ${event.type}, uuid: ${event.uuid}}',
-        );
-        _subscriptions[repository.runtimeType]?.connected(
-          repository,
-          connection,
-        );
-
-        // Prepare event sourcing
-        final stream = toInstanceStream(uuid);
-        final actual = current(uuid: uuid);
-
-        // Do not process own events twice unless it is one that was created by me!
-        final applied = !isEmpty &&
-            event.number <= actual &&
-            // Aggregate is created
-            _store.containsKey(uuid) &&
-            // Event is applied
-            _store[uuid].contains(event) == true;
-
-        logger.finer(
-          '${repository.runtimeType}: _onSubscriptionEvent: '
-          'applied: $applied, isEmpty: $isEmpty, '
-          'current: $actual, received: ${event.number}, '
-          'stream: $stream, isInstanceStream: $useInstanceStreams, numbers: $_current',
-        );
-
-        if (applied) {
-          _onSeen(uuid, stream, event, repository);
-        } else {
-          _onUnseen(uuid, stream, event, repository);
-        }
-        logger.fine(
-          '${repository.runtimeType}: _onSubscriptionEvent: Processed $event',
-        );
-      } catch (e, stacktrace) {
-        logger.network(
-          'Failed to process $event for $aggregate, got error $e with stacktrace: $stacktrace',
-          e,
-          stacktrace,
+          '_onSubscriptionEvent(${repo.runtimeType}, ${event.runtimeType}){\n'
+          '  event.type: ${event.type}, \n'
+          '  event.uuid: ${event.uuid}, \n'
+          '  event.number: ${event.number}, \n'
+          '  event.sourced: $sourced, \n'
+          '  aggregate.uuid: ${event.uuid}, \n'
+          '  aggregate.stream: $stream, \n'
+          '  aggregate.patches: ${applied?.patches}, \n'
+          '  aggregate.changed: ${applied?.changed}, \n'
+          '  aggregate.previous: ${applied?.previous}, \n'
+          '  repository: $repo, \n'
+          '  repository.isEmpty: $isEmpty, \n'
+          '  repository.numbers: $_current\n'
+          '  repository.numbers.instance: $actual\n'
+          '  isInstanceStream: $useInstanceStreams, \n'
+          '}',
         );
       }
+    } on JsonPatchError catch (e, stackTrace) {
+      logger.network(
+        'Failed to apply patches from aggregate stream ${canonicalStream}{\n'
+        '  error: $e, \n'
+        '  connection: ${repo.store.connection.host}:${repo.store.connection.port}, \n'
+        '  event.type: ${event.type}, \n'
+        '  event.uuid: ${event.uuid}, \n'
+        '  event.number: ${event.number}, \n'
+        '  repository: $repo, \n'
+        '  repository.isEmpty: $isEmpty, \n'
+        '  repository.numbers: $_current\n'
+        '  isInstanceStream: $useInstanceStreams, \n'
+        '  subscription.seen: ${repo.store.seen}, \n'
+        '  store.events.count: ${repo.store.events.values.fold(0, (count, events) => count + events.length)}, \n'
+        '  store.events.items: ${repo.store.events.values}, \n'
+        '}\n'
+        'stacktrace: $stackTrace',
+        e,
+        stackTrace,
+      );
+    } catch (e, stackTrace) {
+      logger.network(
+        'Failed to process $event for $aggregate, got error $e with stacktrace: $stackTrace',
+        e,
+        stackTrace,
+      );
     }
   }
 
@@ -620,6 +660,12 @@ class EventStore {
     }
     final domainEvent = repository.toDomainEvent(event);
     aggregate.apply(domainEvent);
+
+    // Publish remotely created events.
+    // Handlers can determine events with
+    // remote origin using the local field
+    // in each Event
+    _publishAll([domainEvent]);
   }
 
   void _onUnseen(
@@ -700,7 +746,12 @@ class EventStore {
   /// Assert that current event number for [stream] is caught up with last known event
   void _assertCurrentVersion(String stream, EventNumber actual) {
     if (_current[stream] < actual) {
-      final e = EventNumberMismatch(stream, _current[stream], actual, 'Catch up failed');
+      final e = EventNumberMismatch(
+        stream,
+        _current[stream],
+        actual,
+        'Catch up failed, current numbers: $_current',
+      );
       logger.severe('${e.message}, debug: ${toDebugString(stream)}');
       throw e;
     }
@@ -841,6 +892,7 @@ class SubscriptionController<T extends Repository> {
     EventNumber number = EventNumber.first,
   }) async {
     await _subscription?.cancel();
+
     _competing = false;
     _group = null;
     _consume = null;
@@ -859,9 +911,7 @@ class SubscriptionController<T extends Repository> {
             stackTrace,
           ),
         );
-    logger.fine(
-      '${repository.runtimeType}: Subscribed to stream $stream from event number $number',
-    );
+    logger.fine('${repository} > Subscribed to $stream@$number');
     return this;
   }
 
@@ -898,9 +948,7 @@ class SubscriptionController<T extends Repository> {
             stackTrace,
           ),
         );
-    logger.fine(
-      '${repository.runtimeType}: Subscribed to stream $stream from event number $number',
-    );
+    logger.fine('${repository} > Competing from $stream@$number');
     return this;
   }
 
@@ -992,55 +1040,67 @@ class EventStoreConnection {
     this.requireMaster = true,
     this.enforceAddress = true,
     this.credentials = UserCredentials.defaultCredentials,
-  });
+  }) : _logger = Logger('EventStoreConnection[port:$port]');
 
-  final String host;
   final int port;
+  final String host;
   final int pageSize;
   final bool requireMaster;
   final bool enforceAddress;
   final Client client = Client();
   final UserCredentials credentials;
 
-  final Logger _logger = Logger('EventStoreConnection');
+  final Logger _logger;
 
   /// Get atom feed from stream
   Future<FeedResult> getFeed({
     @required String stream,
     int pageSize,
+    bool embed = false,
     EventNumber number = EventNumber.first,
     Direction direction = Direction.forward,
     Duration waitFor = const Duration(milliseconds: 0),
   }) async {
     _assertState();
+    final actual = number.isNone ? EventNumber.first : number;
+    final url = '$host:$port/streams/$stream${_toFeedUri(
+      embed: embed,
+      number: actual,
+      direction: direction,
+      pageSize: pageSize ?? this.pageSize,
+    )}';
+    _logger.finer('getFeed: REQUEST $url');
     final response = await client.get(
-      '$host:$port/streams/$stream${_toFeedUri(number, direction, pageSize ?? this.pageSize)}',
+      url,
       headers: {
         'Authorization': credentials.header,
         'Accept': 'application/vnd.eventstore.atom+json',
         if (waitFor.inSeconds > 0) 'ES-LongPoll': '${waitFor.inSeconds}'
       },
     );
+    _logger.finer('getFeed: RESPONSE ${response.statusCode}');
     return FeedResult.from(
       stream: stream,
-      number: number,
-      direction: direction,
+      number: actual,
+      embedded: embed,
       response: response,
+      direction: direction,
     );
   }
 
-  String _toFeedUri(
-    EventNumber number,
-    Direction direction,
-    int pageSize,
-  ) {
+  String _toFeedUri({EventNumber number, Direction direction, int pageSize, bool embed}) {
     String uri;
     if (number.isFirst) {
       uri = '/0/${direction == Direction.forward ? 'forward' : 'backward'}/$pageSize';
     } else if (number.isLast) {
       uri = '/head/backward/$pageSize';
-    } else {
+    } else if (!number.isNone) {
       uri = '/${number.value}/${direction == Direction.forward ? 'forward' : 'backward'}/$pageSize';
+    } else {
+      throw ArgumentError('Event number can not be $number');
+    }
+    if (embed) {
+      uri = '$uri?embed=rich,body';
     }
     _logger.finest(uri);
     return uri;
@@ -1049,10 +1109,12 @@ class EventStoreConnection {
   /// Read events in [AtomFeed.entries] and return all in one result
   Future<ReadResult> readEvents({
     @required String stream,
+    bool embed = false,
     EventNumber number = EventNumber.first,
     Direction direction = Direction.forward,
   }) async {
     final result = await getFeed(
+      embed: embed,
       stream: stream,
       number: number,
       direction: direction,
@@ -1075,23 +1137,43 @@ class EventStoreConnection {
   Future<ReadResult> readEventsInFeed(FeedResult result) async {
     _assertState();
 
-    // Fail immediately using eagerError: true
-    final responses = await Future.wait(
-      _getEvents(
+    final events = <SourceEvent>[];
+    if (result.embedded) {
+      events.addAll(
+        _ensureOrder(result.atomFeed, result.direction).map(
+          (item) => SourceEvent(
+            data: item.data,
+            uuid: item.eventId,
+            type: item.eventType,
+            streamId: item.streamId,
+            number: EventNumber(item.eventNumber),
+            created: DateTime.tryParse(item.updated),
+          ),
+        ),
+      );
+    } else {
+      final requests = _getEvents(
         result.atomFeed,
         result.direction,
         result.number,
-      ),
-      eagerError: true,
-    );
-    final events = responses
-        .where(
-          (test) => 200 == test.statusCode,
-        )
-        .map((test) => json.decode(test.body))
-        .map(_toEvent)
-        .toList();
-
+      );
+      for (var request in requests) {
+        final response = await request;
+        if (response.statusCode == 200) {
+          events.add(
+            _toEvent(
+              Map<String, dynamic>.from(json.decode(response.body)),
+            ),
+          );
+        }
+        assert(
+            events.first.number.value <= events.last.number.value,
+            'Event numbers must be monotone increasing, \n'
+            'first: ${events.first.type}[${events.first.number}], \n'
+            'last: ${events.first.type}[${events.last.number}], \n'
+            'atomFeed.entries: ${result.atomFeed.entries.map((e) => e.summary)}');
+      }
+    }
     return ReadResult(
       stream: result.stream,
       statusCode: events.isEmpty ? 404 : 200,
@@ -1103,10 +1185,10 @@ class EventStoreConnection {
     );
   }
 
-  SourceEvent _toEvent(data) => SourceEvent(
-        uuid: data['content']['eventId'] as String,
-        type: data['content']['eventType'] as String,
-        streamId: data['content']['eventStreamId'] as String,
+  SourceEvent _toEvent(Map<String, dynamic> data) => SourceEvent(
+        uuid: data['eventId'] as String,
+        type: data['eventType'] as String,
+        streamId: data['eventStreamId'] as String,
         data: data['content']['data'] as Map<String, dynamic>,
         created: DateTime.tryParse(data['updated'] as String),
         number: EventNumber(data['content']['eventNumber'] as int),
@@ -1138,11 +1220,13 @@ class EventStoreConnection {
   /// Read events in [AtomFeed.entries] and return all in one result
   Future<ReadResult> readAllEvents({
     @required String stream,
+    bool embed = false,
     EventNumber number = EventNumber.first,
     Direction direction = Direction.forward,
   }) async {
     // Get Initial atom feed
     var feed = await getFeed(
+      embed: embed,
       stream: stream,
       number: number,
       direction: direction,
@@ -1195,11 +1279,13 @@ class EventStoreConnection {
     return FeedResult.from(
       stream: result.stream,
       number: result.number,
+      embedded: result.embedded,
       direction: result.direction,
       response: await client.get(
         _toUri(
           result.direction,
           result.atomFeed,
+          result.embedded,
         ),
         headers: {
           'Authorization': credentials.header,
@@ -1209,10 +1295,13 @@ class EventStoreConnection {
     );
   }
 
-  String _toUri(Direction direction, AtomFeed atomFeed) {
-    final uri = direction == Direction.forward
+  String _toUri(Direction direction, AtomFeed atomFeed, bool embed) {
+    var uri = direction == Direction.forward
         ? atomFeed.getUri(AtomFeed.previous) ?? atomFeed.getUri(AtomFeed.first)
         : atomFeed.getUri(AtomFeed.next) ?? atomFeed.getUri(AtomFeed.last);
+    if (embed) {
+      uri = '$uri$embed=rich,body';
+    }
     _logger.finest(uri);
     return uri;
   }
@@ -1222,18 +1311,38 @@ class EventStoreConnection {
     Direction direction,
     EventNumber number,
   ) {
-    var entries = direction == Direction.forward ? atomFeed.entries.reversed : atomFeed.entries;
-    // We do not know the EventNumber of the last event in each stream other than '/streams/{name}/head'.
-    // When paginating forwards and requested number is [EventNumber.last] we will get last page of events,
-    // and not only the last event which is requested. We can work around this by only returning
-    // the last entry in [AtomFeed.entries] and current page is [AtomFeed.headOfStream]. This will only
-    // fetch the last event from remote log.
+    var entries = _ensureOrder(atomFeed, direction);
+
     if (atomFeed.headOfStream && number.isLast && direction == Direction.forward) {
+      // We do not know the EventNumber of the last
+      // event in each stream other than
+      // '/streams/{name}/head'. When paginating
+      // forwards and requested number is
+      // [EventNumber.last] we will get last page
+      // of events, and not only the last event
+      // which is requested. We can work around this
+      // by only returning the last entry in
+      // [AtomFeed.entries] and current page is
+      // [AtomFeed.headOfStream]. This will only
+      // fetch the last event from remote log.
       entries = [entries.last];
     }
     return entries.map(
-      (item) async => _getEvent(_getUri(item)),
+      (item) => _getEvent(_getUri(item)),
     );
+  }
+
+  Iterable<AtomItem> _ensureOrder(
+    AtomFeed atomFeed,
+    Direction direction,
+  ) {
+    return direction == Direction.forward
+        // When direction is forward, reverse order of
+        // events to ensure event numbers are monotone
+        // increasing (event store always return events
+        // in decreasing order)
+        ? atomFeed.entries.reversed
+        : atomFeed.entries;
   }
 
   /// Get event from stream
@@ -1361,39 +1470,48 @@ class EventStoreConnection {
     @required String group,
     @required EventNumber number,
     int consume = 20,
+    bool embed = false,
     ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
   }) async {
-    final response = await _getSubscriptionGroup(stream, group, consume);
+    final actual = number.isNone ? EventNumber.first : number;
+    final response = await _getSubscriptionGroup(stream, group, consume, embed);
+    _logger.finer('getSubscriptionFeed: RESPONSE ${response.statusCode}');
     switch (response.statusCode) {
       case HttpStatus.ok:
         return FeedResult.from(
           stream: stream,
-          number: number,
-          subscription: group,
+          number: actual,
+          embedded: embed,
           response: response,
+          subscription: group,
         );
         break;
       case HttpStatus.notFound:
         final result = await createSubscription(
           stream,
           group,
-          number: number,
+          number: actual,
           strategy: strategy,
         );
         if (result.isCreated || result.isConflict) {
+          final retry = await _getSubscriptionGroup(stream, group, consume, embed);
+          _logger.finer('getSubscriptionFeed: RETRY ${response.statusCode}');
           return FeedResult.from(
-              stream: stream,
-              number: number,
-              subscription: group,
-              response: await _getSubscriptionGroup(stream, group, consume));
+            stream: stream,
+            number: actual,
+            response: retry,
+            embedded: embed,
+            subscription: group,
+          );
         }
         break;
     }
     return FeedResult.from(
       stream: stream,
-      number: number,
-      subscription: group,
+      number: actual,
+      embedded: embed,
       response: response,
+      subscription: group,
     );
   }
 
@@ -1430,8 +1548,12 @@ class EventStoreConnection {
     );
   }
 
-  Future<Response> _getSubscriptionGroup(String stream, String group, int count) {
-    final url = _mapUrlTo('$host:$port/subscriptions/$stream/$group/$count');
+  Future<Response> _getSubscriptionGroup(String stream, String group, int count, bool embed) {
+    var url = _mapUrlTo('$host:$port/subscriptions/$stream/$group/$count');
+    if (embed) {
+      url = '$url?embed=rich,body';
+    }
+    _logger.finer('_getSubscriptionGroup: REQUEST $url');
     return client.get(
       url,
       headers: {
@@ -1608,7 +1730,8 @@ class _EventStreamController {
   EventNumber _current;
   EventNumber get current => _current;
 
-  bool _pause = true;
+  bool _isPaused = true;
+  ReadResult _pendingResume;
 
   StreamController<ReadResult> _controller;
   StreamController<ReadResult> get controller => _controller;
@@ -1647,15 +1770,16 @@ class _EventStreamController {
   void _startRead() async {
     try {
       logger.fine(
-        _pause
+        _isPaused
             ? 'Started reading events from $stream@$_number in direction $_direction'
             : 'Resumed reading events from $stream@$_current in direction $_direction',
       );
-      _pause = false;
+      _resume();
 
       FeedResult feed;
       do {
-        if (!_pause) {
+        if (!_isPaused) {
+          // null on pause
           feed = await _readNext();
         }
       } while (feed != null && feed.isOK && !(feed.headOfStream || feed.isEmpty));
@@ -1663,23 +1787,30 @@ class _EventStreamController {
       _stopRead();
     } catch (e, stackTrace) {
       _fatal(
-        'Failed to read stream $_stream@$_number in direction $_direction',
-        e,
+        'Failed to read stream $_stream@$_number in direction $_direction, error: $e',
         stackTrace,
       );
     }
   }
 
+  void _resume() {
+    _isPaused = false;
+    if (_pendingResume != null) {
+      _onResult(_pendingResume);
+      _pendingResume = null;
+    }
+  }
+
   Future<FeedResult> _readNext() async {
     final feed = await _nextFeed();
-    if (feed.isNotEmpty) {
+    if (!_isPaused && feed.isNotEmpty) {
       await _readEventsInFeed(feed);
     }
-    return feed;
+    return _isPaused ? null : feed;
   }
 
   void _pauseRead() {
-    _pause = true;
+    _isPaused = true;
     logger.fine('Paused reading events from stream $_stream');
   }
 
@@ -1695,20 +1826,14 @@ class _EventStreamController {
     if (feed.isOK) {
       final result = await connection.readEventsInFeed(feed);
       if (result.isOK) {
-        if (result.isNotEmpty) {
-          final next = result.number + 1;
-          _current = next;
-          // Notify when all actions are done
-          controller.add(result);
-
-          logger.fine(
-            'Read up to $_stream@${next.value - 1}, listening for $next',
-          );
+        if (_isPaused) {
+          _pendingResume = result;
+        } else if (result.isNotEmpty) {
+          _onResult(result);
         }
       } else {
         _fatal(
           'Failed to read events from $_stream@$_current: ${result.statusCode} ${result.reasonPhrase}',
-          '${result.statusCode} ${result.reasonPhrase}',
           StackTrace.current,
         );
       }
@@ -1716,25 +1841,33 @@ class _EventStreamController {
     }
     _fatal(
       'Failed to read feed from $_stream@$_current: ${feed.statusCode} ${feed.reasonPhrase}',
-      '${feed.statusCode} ${feed.reasonPhrase}',
       StackTrace.current,
     );
     return feed;
   }
 
+  void _onResult(ReadResult result) {
+    final next = result.number + 1;
+    _current = next;
+    // Notify when all actions are done
+    controller.add(result);
+
+    logger.fine(
+      'Read up to $_stream@${next.value - 1}, listening for $next',
+    );
+  }
+
   Future<FeedResult> _nextFeed() => connection.getFeed(
+        embed: true,
         stream: stream,
         number: current,
-        direction: Direction.forward,
         waitFor: waitFor,
         pageSize: _pageSize,
+        direction: Direction.forward,
       );
 
-  void _fatal(String message, Object error, StackTrace stackTrace) {
+  void _fatal(Object error, StackTrace stackTrace) {
     _controller.addError(error, stackTrace);
-    logger.severe(
-      '$message: $error: $stackTrace',
-    );
     _stopRead();
   }
 }
@@ -1812,6 +1945,7 @@ enum SubscriptionAction {
 //  Stop
 }
 
+/// Implements periodic fetch of events from event-store
 class _SubscriptionController {
   _SubscriptionController(this.connection) : logger = connection._logger;
 
@@ -1852,6 +1986,10 @@ class _SubscriptionController {
 
   bool _isCatchup;
 
+  bool _isPaused = true;
+  FeedResult _pendingFeed;
+  ReadResult _pendingResult;
+
   /// Queue of [_SubscriptionRequest]s executed in FIFO manner.
   ///
   /// This queue ensures that each command is processed in order
@@ -1880,12 +2018,25 @@ class _SubscriptionController {
     _controller?.close();
     _controller = StreamController<SourceEvent>(
       onListen: _startTimer,
-      onPause: _stopTimer,
+      onPause: _pauseTimer,
       onResume: _startTimer,
       onCancel: _stopTimer,
     );
+    _resume();
 
     return controller.stream;
+  }
+
+  void _resume() {
+    _isPaused = false;
+    if (_pendingResult != null) {
+      _onResult(
+        _pendingResult,
+        _pendingFeed,
+      );
+      _pendingFeed = null;
+      _pendingResult = null;
+    }
   }
 
   Stream<SourceEvent> consume({
@@ -1917,6 +2068,7 @@ class _SubscriptionController {
       onPause: _stopTimer,
       onCancel: _stopTimer,
     );
+    _resume();
 
     return controller.stream;
   }
@@ -1924,9 +2076,12 @@ class _SubscriptionController {
   void _startTimer() async {
     try {
       logger.fine(
-        'Started ${_strategy == null ? 'pull' : enumName(_strategy)} subscription on stream: $stream',
+        '${_isPaused ? 'Resumed' : 'Started'} '
+        '${_strategy == null ? 'pull' : enumName(_strategy)} subscription on stream: $stream',
       );
-      if (_isCatchup) {
+      if (_isPaused) {
+        _resume();
+      } else if (_isCatchup) {
         await _catchup(controller);
         _isCatchup = false;
       }
@@ -1946,7 +2101,7 @@ class _SubscriptionController {
     } catch (e, stackTrace) {
       // Only throw if running
       if (_timer != null && _timer.isActive) {
-        _fatal('Failed to catchup to head of stream $name', e, stackTrace);
+        _fatal('Failed to catchup to head of stream $name, error: $e', stackTrace);
       }
     }
   }
@@ -1964,40 +2119,53 @@ class _SubscriptionController {
       try {
         await request();
       } catch (e, stackTrace) {
-        _fatal('Failed to execute $request', e, stackTrace);
+        _fatal('Failed to execute $request, error: $e', stackTrace);
       }
       // Only remove after execution is completed
       _requestQueue.remove(request);
     }
   }
 
-  void _fatal(String message, Exception e, StackTrace stackTrace) {
+  void _fatal(String message, StackTrace stackTrace) {
     _stopTimer();
     controller.addError(e, stackTrace);
-    logger.severe(
-      '$message: $e: $stackTrace',
-    );
+  }
+
+  void _pauseTimer() {
+    _isPaused = true;
+    logger.fine('Paused subscription timer for $name');
+    _timer?.cancel();
+    _timer = null;
   }
 
   void _stopTimer() {
-    logger.fine('Stop timer for $name');
+    logger.fine('Stop subscription timer for $name');
     _timer?.cancel();
     _timer = null;
   }
 
   Future _catchup(StreamController<SourceEvent> controller) async {
     logger.fine(
-      'Stream $stream catch up from event number $_current',
+      'Subscription $name catching up from number $_number',
     );
 
     FeedResult feed;
+    var fetched = 0;
     do {
       feed = await _readNext();
+      fetched = fetched + feed?.atomFeed?.entries?.length ?? 0;
     } while (feed != null && feed.isOK && !(feed.headOfStream || feed.isEmpty));
 
     if (number < _current) {
+      // This should sum up for pull-subscriptions!
+      // Ff it doesn't something is wrong!
+      if (_strategy == null && number + fetched != _current) {
+        throw StateError(
+          '$fetched events fetched does not match number change $number > $_current',
+        );
+      }
       logger.fine(
-        'Subscription $name caught up from $number to $_current',
+        'Subscription $name caught up from $_number to $_current',
       );
     }
     return _current;
@@ -2009,9 +2177,10 @@ class _SubscriptionController {
     FeedResult feed;
     try {
       feed = await _nextFeed();
-      if (feed.isNotEmpty) {
+      if (!_isPaused && feed.isNotEmpty) {
         await _readEventsInFeed(feed);
       }
+      return _isPaused ? null : feed;
     } catch (e, stackTrace) {
       // Only throw if running
       if (_timer != null && _timer.isActive) {
@@ -2030,44 +2199,55 @@ class _SubscriptionController {
   Future<ReadResult> _readEventsInFeed(FeedResult feed) async {
     if (feed.isOK) {
       final result = await connection.readEventsInFeed(feed);
-      if (result.isOK && result.isNotEmpty) {
-        final next = result.number + 1;
-        logger.fine(
-          'Subscription $name caught up to event $_current, listening for $next',
-        );
-        _current = next;
-
-        if (accept) {
-          await _acceptEvents(feed);
+      if (result.isOK) {
+        if (_isPaused) {
+          _pendingFeed = feed;
+          _pendingResult = result;
+        } else if (result.isNotEmpty) {
+          await _onResult(result, feed);
         }
-
-        // Notify when all actions are done
-        result.events.forEach(
-          controller.add,
-        );
-      } else {
-        logger.fine(
-          'Failed to read events in $name from $_current: ${result.statusCode} ${result.reasonPhrase}',
-        );
       }
       return result;
     }
     return null;
   }
 
+  Future _onResult(ReadResult result, FeedResult feed) async {
+    final match = _current.value == -1 && result.number.value == 1;
+    if (result.events.length == 2 && result.events.first.type == 'FooUpdated') {
+      print('hmm:$match');
+    }
+
+    final next = result.number + 1;
+    logger.fine(
+      'Subscription $name caught up from $_current to ${result.number}, listening for $next',
+    );
+    _current = next;
+
+    if (accept) {
+      await _acceptEvents(feed);
+    }
+    // Notify when all actions are done
+    result.events.forEach(
+      controller.add,
+    );
+  }
+
   Future<FeedResult> _nextFeed() => strategy == ConsumerStrategy.RoundRobin
       ? connection.getSubscriptionFeed(
-          stream: stream,
+          embed: true,
           group: group,
+          stream: stream,
           number: current,
           consume: pageSize,
           strategy: strategy,
         )
       : connection.getFeed(
+          embed: true,
           stream: stream,
           number: current,
-          direction: Direction.forward,
           waitFor: waitFor,
+          direction: Direction.forward,
         );
 
   Future<SubscriptionResult> _acceptEvents(FeedResult feed) async {
