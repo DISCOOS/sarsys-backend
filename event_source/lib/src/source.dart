@@ -1037,7 +1037,7 @@ class EventStoreConnection {
     this.host = 'http://127.0.0.1',
     this.port = 2113,
     this.pageSize = 20,
-    this.requireMaster = true,
+    this.requireMaster = false,
     this.enforceAddress = true,
     this.credentials = UserCredentials.defaultCredentials,
   }) : _logger = Logger('EventStoreConnection[port:$port]');
