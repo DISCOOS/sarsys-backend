@@ -234,13 +234,17 @@ class MessageChannel extends MessageHandler<Event> {
   }
 
   Future _remove(String appId) async {
-    final state = _states.remove(appId);
-    if (state != null) {
-      await state.subscription.cancel();
-      if (state.socket.readyState != WebSocket.closed) {
-        await state.socket.close(WebSocketStatus.abnormalClosure);
+    try {
+      final state = _states.remove(appId);
+      if (state != null) {
+        await state.subscription.cancel();
+        if (state.socket.readyState != WebSocket.closed) {
+          await state.socket.close();
+        }
+        _info('Removed socket for client $appId');
       }
-      _info('Removed socket for client $appId');
+    } catch (e, stackTrace) {
+      logger.warning('Failed during websocket removal for app $appId', e, stackTrace);
     }
   }
 
