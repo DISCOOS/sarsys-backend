@@ -574,34 +574,32 @@ class EventStore {
       final stream = toInstanceStream(uuid);
       final actual = current(uuid: uuid);
 
-      final sourced =
-          // Aggregate is created
-          _store.containsKey(uuid) &&
-              // Event is applied
-              _store[uuid].contains(event);
+      // Event is applied to aggregate?
+      final isApplied = _isApplied(uuid, event, repo);
 
-      if (sourced) {
-        _onSeen(uuid, stream, event, repo);
+      if (isApplied) {
+        _onUpdate(uuid, stream, event, repo);
       } else {
-        _onUnseen(uuid, stream, event, repo);
+        _onApply(uuid, stream, event, repo);
       }
 
-      final aggregate = repo.get(uuid);
-      final applied = aggregate.applied.where((e) => e.uuid == event.uuid).firstOrNull;
       // micro-optimization to
       // minimize string interpolations
       if (logger.level <= Level.FINE) {
+        final aggregate = repo.get(uuid);
+        final applied = aggregate.applied.where((e) => e.uuid == event.uuid).firstOrNull;
         logger.fine(
           '_onSubscriptionEvent(${repo.runtimeType}, ${event.runtimeType}){\n'
           '  event.type: ${event.type}, \n'
           '  event.uuid: ${event.uuid}, \n'
           '  event.number: ${event.number}, \n'
-          '  event.sourced: $sourced, \n'
+          '  event.sourced: ${_isSourced(uuid, event)}, \n'
+          '  event.applied: $isApplied, \n'
           '  aggregate.uuid: ${event.uuid}, \n'
           '  aggregate.stream: $stream, \n'
-          '  aggregate.patches: ${applied?.patches}, \n'
-          '  aggregate.changed: ${applied?.changed}, \n'
-          '  aggregate.previous: ${applied?.previous}, \n'
+          '  aggregate.applied.patches: ${applied?.patches}, \n'
+          '  aggregate.applied.changed: ${applied?.changed}, \n'
+          '  aggregate.applied.previous: ${applied?.previous}, \n'
           '  repository: $repo, \n'
           '  repository.isEmpty: $isEmpty, \n'
           '  repository.numbers: $_current\n'
@@ -639,7 +637,11 @@ class EventStore {
     }
   }
 
-  void _onSeen(
+  bool _isSourced(String uuid, SourceEvent event) => _store.containsKey(uuid) && _store[uuid].contains(event);
+  bool _isApplied(String uuid, SourceEvent event, Repository repo) =>
+      repo.contains(uuid) && repo.get(uuid).isApplied(event);
+
+  void _onUpdate(
     String uuid,
     String stream,
     SourceEvent event,
@@ -668,7 +670,7 @@ class EventStore {
     _publishAll([domainEvent]);
   }
 
-  void _onUnseen(
+  void _onApply(
     String uuid,
     String stream,
     SourceEvent event,
