@@ -169,7 +169,7 @@ class MessageChannel extends MessageHandler<Event> {
     bus.register<T>(this);
   }
 
-  /// Listen to stream of from messages from [socket] connected to client with [appId].
+  /// Listen to stream of messages from [socket] connected to client with [appId].
   ///
   /// [MessageChannel] supports heartbeat using opcodes specified in
   /// [RFC6455](https://tools.ietf.org/html/rfc6455).
@@ -200,9 +200,12 @@ class MessageChannel extends MessageHandler<Event> {
     // ignore: cancel_subscriptions, is cancelled in _remove(appId)
     final subscription = socket.listen(
       (event) => _onReceived(appId, event),
-      onDone: () => _remove(appId),
-      onError: (_) => _remove(appId),
-      cancelOnError: true,
+      onDone: () => _remove(appId, reason: 'done'),
+      onError: (error, stackTrace) => _remove(
+        appId,
+        reason: error,
+        stackTrace: stackTrace,
+      ),
     );
     final state = _SocketState.init(
       socket,
@@ -233,7 +236,7 @@ class MessageChannel extends MessageHandler<Event> {
     );
   }
 
-  Future _remove(String appId) async {
+  Future _remove(String appId, {@required String reason, StackTrace stackTrace}) async {
     try {
       final state = _states.remove(appId);
       if (state != null) {
@@ -241,11 +244,27 @@ class MessageChannel extends MessageHandler<Event> {
         if (state.socket.readyState != WebSocket.closed) {
           await state.socket.close();
         }
-        _info('Removed socket for client $appId');
+        if (stackTrace == null) {
+          _info('Removed socket for client $appId, reason: $reason');
+        } else {
+          _warning(
+            'Removed socket for client $appId, reason: $reason',
+            error: reason,
+            stackTrace: stackTrace,
+          );
+        }
       }
     } catch (e, stackTrace) {
-      logger.warning('Failed during websocket removal for app $appId', e, stackTrace);
+      _warning(
+        'Failed during websocket removal for app $appId',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
+  }
+
+  void _warning(String message, {Object error, StackTrace stackTrace}) {
+    logger.warning(message, error, stackTrace);
   }
 
   Future close(String appId) async => _close(
@@ -384,7 +403,7 @@ class MessageChannel extends MessageHandler<Event> {
           'Closed connection to ${entry.key} because idle timeout',
         ),
       );
-      await _removeAll(idle);
+      await _removeAll(idle, reason: 'Idle too long');
     } catch (e, stacktrace) {
       logger.severe('Failed to check liveliness with: $e with stacktrace: $stacktrace');
     }
@@ -398,13 +417,17 @@ class MessageChannel extends MessageHandler<Event> {
         .toList();
     if (closed.isNotEmpty) {
       logger.warning('Checked ready state and close code, found ${closed.length} of ${_states.length} closed');
-      await _removeAll(closed);
+      await _removeAll(closed, reason: 'Client closed connection');
     }
   }
 
-  Future _removeAll(Iterable<MapEntry<String, _SocketState>> entries) => Future.forEach(
+  Future _removeAll(
+    Iterable<MapEntry<String, _SocketState>> entries, {
+    @required String reason,
+  }) =>
+      Future.forEach(
         entries,
-        (entry) => _remove(entry.key),
+        (entry) => _remove(entry.key, reason: reason),
       );
 
   String _info(String message) {
