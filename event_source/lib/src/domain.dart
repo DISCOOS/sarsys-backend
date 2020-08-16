@@ -1021,14 +1021,14 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   final Map<String, dynamic> _data = {};
   Map<String, dynamic> get data => Map.from(_data);
 
-  /// Get list at given path
-  List<T> listAt<T>(String path) => _data.listAt<T>(path);
-
   /// Get element at given path
   T elementAt<T>(String path) => _data.elementAt(path) as T;
 
+  /// Get list at given path
+  List<T> listAt<T>(String path, {List<T> defaultList}) => _data.listAt<T>(path) ?? defaultList;
+
   /// Get Map at given path
-  Map<S, T> mapAt<S, T>(String path) => _data.mapAt<S, T>(path);
+  Map<S, T> mapAt<S, T>(String path, {Map<S, T> defaultMap}) => _data.mapAt<S, T>(path) ?? defaultMap;
 
   /// Get number of modifications since creations
   ///

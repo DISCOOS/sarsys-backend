@@ -37,7 +37,7 @@ class OperationTrackingController extends ResourceController {
       final operation = operations.get(uuid);
       final tuuids = <String>[];
       if (_shouldInclude(include, 'unit')) {
-        for (var uuuid in operation.listAt<String>('units')) {
+        for (var uuuid in operation.listAt<String>('units', defaultList: [])) {
           if (units.exists(uuuid)) {
             final tuuid = units.get(uuuid).elementAt<String>('tracking/uuid');
             if (trackings.exists(tuuid)) {
@@ -47,7 +47,7 @@ class OperationTrackingController extends ResourceController {
         }
       }
       if (_shouldInclude(include, 'personnel')) {
-        for (var puuid in operation.listAt<String>('personnels')) {
+        for (var puuid in operation.listAt<String>('personnels', defaultList: [])) {
           if (personnels.exists(puuid)) {
             final tuuid = personnels.get(puuid).elementAt<String>('tracking/uuid');
             if (trackings.exists(tuuid)) {
