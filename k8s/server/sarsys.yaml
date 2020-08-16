@@ -113,12 +113,29 @@ spec:
               path: /api/healthz
               port:  8082
               scheme: HTTP
+            # EventStoreConnection has
+            # 10s as default connection
+            # timeout. Ensure that
+            # pod is marked as unready
+            # as fast as possible
+            periodSeconds: 5
+            timeoutSeconds: 1
+            failureThreshold: 2
             initialDelaySeconds: 5
           livenessProbe:
             httpGet:
               path: /api/healthz
               port:  8082
               scheme: HTTP
+            # EventStoreConnection has
+            # 10s as default connection
+            # timeout. Ensure that pod is
+            # not killed until this
+            # multiples of this timeout
+            # is reached.
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 4
             initialDelaySeconds: 30
       securityContext:
         runAsNonRoot: true

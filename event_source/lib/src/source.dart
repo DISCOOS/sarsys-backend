@@ -1042,7 +1042,7 @@ class EventStoreConnection {
     this.requireMaster = true,
     this.enforceAddress = true,
     this.credentials = UserCredentials.defaultCredentials,
-    Duration connectionTimeout = const Duration(seconds: 30),
+    Duration connectionTimeout = const Duration(seconds: 10),
   })  : _logger = Logger('EventStoreConnection[port:$port]'),
         client = IOClient(
           HttpClient()..connectionTimeout = connectionTimeout,
