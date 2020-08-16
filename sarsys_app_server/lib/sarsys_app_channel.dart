@@ -399,7 +399,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     if (config.debug == true) {
       logger.info("Debug mode enabled");
       if (Platform.environment.containsKey("IMAGE")) {
-        logger.info("PREFIX is '${Platform.environment["IMAGE"]}'");
+        logger.info("IMAGE is '${Platform.environment["IMAGE"]}'");
       }
       if (Platform.environment.containsKey("PREFIX")) {
         logger.info("PREFIX is '${Platform.environment["PREFIX"]}'");
