@@ -1397,14 +1397,14 @@ class EventStoreConnection {
       );
     }
     _logger.info(
-      'Redirect to master ${response.headers['location']}',
+      'Redirect write to master ${response.headers['location']}',
     );
     final redirected = await client.post(
       response.headers['location'],
       headers: headers,
       body: body,
     );
-    if (redirected.statusCode != 200) {
+    if (redirected.statusCode != 201) {
       _logger.warning(
         'Redirect to master ${response.headers['location']} '
         'failed with ${redirected.statusCode} ${redirected.reasonPhrase}',
