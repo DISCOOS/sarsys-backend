@@ -1039,7 +1039,7 @@ class EventStoreConnection {
     this.host = 'http://127.0.0.1',
     this.port = 2113,
     this.pageSize = 20,
-    this.requireMaster = false,
+    this.requireMaster = true,
     this.enforceAddress = true,
     this.credentials = UserCredentials.defaultCredentials,
   }) : _logger = Logger('EventStoreConnection[port:$port]');
@@ -1396,11 +1396,20 @@ class EventStoreConnection {
         response,
       );
     }
+    _logger.info(
+      'Redirect to master ${response.headers['location']}',
+    );
     final redirected = await client.post(
       response.headers['location'],
       headers: headers,
       body: body,
     );
+    if (redirected.statusCode != 200) {
+      _logger.warning(
+        'Redirect to master ${response.headers['location']} '
+        'failed with ${redirected.statusCode} ${redirected.reasonPhrase}',
+      );
+    }
     return WriteResult.from(
       stream,
       version,
