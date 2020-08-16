@@ -200,7 +200,8 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
               'medium',
               'high',
               'best',
-              'bestForNavigation',
+              'navigation',
+              'automatic',
             ],
           "locationFastestInterval": APISchemaObject.integer()
             ..description = "Fastest interval between location updates in milliseconds"
