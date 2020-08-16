@@ -5,6 +5,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:http/http.dart';
+import 'package:http/io_client.dart';
 import 'package:json_patch/json_patch.dart';
 import 'package:meta/meta.dart';
 import 'package:logging/logging.dart';
@@ -1042,14 +1043,18 @@ class EventStoreConnection {
     this.requireMaster = true,
     this.enforceAddress = true,
     this.credentials = UserCredentials.defaultCredentials,
-  }) : _logger = Logger('EventStoreConnection[port:$port]');
+    Duration connectionTimeout = const Duration(seconds: 30),
+  })  : _logger = Logger('EventStoreConnection[port:$port]'),
+        client = IOClient(
+          HttpClient()..connectionTimeout = connectionTimeout,
+        );
 
   final int port;
   final String host;
   final int pageSize;
+  final Client client;
   final bool requireMaster;
   final bool enforceAddress;
-  final Client client = Client();
   final UserCredentials credentials;
 
   final Logger _logger;
@@ -1399,23 +1404,31 @@ class EventStoreConnection {
     _logger.info(
       'Redirect write to master ${response.headers['location']}',
     );
-    final redirected = await client.post(
-      response.headers['location'],
-      headers: headers,
-      body: body,
-    );
-    if (redirected.statusCode != 201) {
+    try {
+      final redirected = await client.post(
+        response.headers['location'],
+        headers: headers,
+        body: body,
+      );
+      if (redirected.statusCode != 201) {
+        _logger.warning(
+          'Redirect write to master ${response.headers['location']} '
+          'failed with ${redirected.statusCode} ${redirected.reasonPhrase}',
+        );
+      }
+      return WriteResult.from(
+        stream,
+        version,
+        eventIds,
+        redirected,
+      );
+    } catch (e, stackTrace) {
       _logger.warning(
-        'Redirect to master ${response.headers['location']} '
-        'failed with ${redirected.statusCode} ${redirected.reasonPhrase}',
+        'Redirect write to master ${response.headers['location']} failed',
+        e,
+        stackTrace,
       );
     }
-    return WriteResult.from(
-      stream,
-      version,
-      eventIds,
-      redirected,
-    );
   }
 
   String _toStreamUri(String stream) => '$host:$port/streams/$stream';
