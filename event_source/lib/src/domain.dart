@@ -942,7 +942,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         'count: ${count()}, '
         'stream: $stream,\n'
         'canonicalStream: ${store.canonicalStream}}},\n'
-        'aggregate: $aggregate'
+        'aggregate.uuid: ${aggregate.uuid},\n'
+        'aggregate.type: ${aggregate.runtimeType},\n'
+        'aggregate.data: ${aggregate.data},\n'
+        'aggregate.applied.count: ${aggregate.applied.length},\n'
+        'aggregate.pending.count: ${aggregate.getUncommittedChanges().length},\n'
         '}';
   }
 }
@@ -1586,7 +1590,8 @@ abstract class MergeStrategy {
       }
       repository.logger.severe(
         'Aborted automatic merge after $max retries: $e '
-        'with stacktrace: $stacktrace, debug: ${repository.toDebugString(aggregate?.uuid)}',
+        'with stacktrace: $stacktrace, '
+        'debug: ${repository.toDebugString(aggregate?.uuid)}',
       );
       throw EventVersionReconciliationFailed(e, attempt);
     }

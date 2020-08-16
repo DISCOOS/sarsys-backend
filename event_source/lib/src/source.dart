@@ -827,16 +827,15 @@ class EventStore {
   }
 
   String toDebugString([String stream]) {
-    final aggregate = _store.keys
-        .where(
-          (uuid) => toInstanceStream(uuid) == stream,
-        )
-        .firstOrNull;
+    final aggregate = _store.keys.firstWhere(
+      (uuid) => toInstanceStream(uuid) == stream,
+      orElse: () => 'not found',
+    );
     return '$runtimeType: {\n'
         'count: ${_store.length},\n'
         'stream: $stream,\n'
         'canonicalStream: $canonicalStream},\n'
-        'aggregate: $aggregate'
+        'aggregate.uuid: $aggregate,\n'
         '}';
   }
 }
