@@ -49,8 +49,8 @@ class AggregateLookupController<S extends Command, T extends AggregateRoot> exte
       return okAggregatePaged(uuids.length, offset, limit, aggregates);
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
-    } catch (e) {
-      return Response.serverError(body: '$e');
+    } catch (e, stackTrace) {
+      return serverError(e, stackTrace);
     }
   }
 
@@ -65,6 +65,16 @@ class AggregateLookupController<S extends Command, T extends AggregateRoot> exte
     }
     uuids.removeWhere(delete.contains);
     return uuids;
+  }
+
+  /// Report error to Sentry and
+  /// return 500 with message as body
+  Future<Response> serverError(Object error, StackTrace stackTrace) {
+    final String message = "${request.method} failed: $error";
+    logger.network(message, error, stackTrace);
+    return Future.value(
+      Response.serverError(body: message),
+    );
   }
 
   //////////////////////////////////

@@ -71,8 +71,8 @@ class OperationTrackingController extends ResourceController {
       return Response.badRequest(body: e.message);
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
-    } catch (e) {
-      return Response.serverError(body: '$e');
+    } catch (e, stackTrace) {
+      return serverError(e, stackTrace);
     }
   }
 
@@ -90,6 +90,16 @@ class OperationTrackingController extends ResourceController {
       return true;
     }
     return false;
+  }
+
+  /// Report error to Sentry and
+  /// return 500 with message as body
+  Future<Response> serverError(Object error, StackTrace stackTrace) {
+    final String message = "${request.method} failed: $error";
+    logger.network(message, error, stackTrace);
+    return Future.value(
+      Response.serverError(body: message),
+    );
   }
 
   //////////////////////////////////

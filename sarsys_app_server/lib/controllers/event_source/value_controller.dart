@@ -78,8 +78,8 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
       }
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
-    } catch (e) {
-      return Response.serverError(body: '$e');
+    } catch (e, stackTrace) {
+      return serverError(e, stackTrace);
     }
   }
 
@@ -113,12 +113,22 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
       return serviceUnavailable(body: "Eventstore unavailable: $e");
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
-    } catch (e) {
-      return Response.serverError(body: '$e');
+    } catch (e, stackTrace) {
+      return serverError(e, stackTrace);
     }
   }
 
   S onUpdate(String uuid, String type, Map<String, dynamic> data) => throw UnimplementedError("Update not implemented");
+
+  /// Report error to Sentry and
+  /// return 500 with message as body
+  Future<Response> serverError(Object error, StackTrace stackTrace) {
+    final String message = "${request.method} failed: $error";
+    logger.network(message, error, stackTrace);
+    return Future.value(
+      Response.serverError(body: message),
+    );
+  }
 
   //////////////////////////////////
   // Documentation

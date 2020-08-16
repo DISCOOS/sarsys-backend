@@ -80,8 +80,8 @@ class OrganisationImportController
       return Response.badRequest(body: e.message);
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
-    } on Exception catch (e) {
-      return Response.serverError(body: '$e');
+    } on Exception catch (e, stackTrace) {
+      return serverError(e, stackTrace);
     }
   }
 

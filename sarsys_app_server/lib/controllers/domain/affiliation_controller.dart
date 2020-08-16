@@ -50,8 +50,8 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
       );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
-    } catch (e) {
-      return Response.serverError(body: '$e');
+    } catch (e, stackTrace) {
+      return serverError(e, stackTrace);
     }
   }
 
@@ -133,8 +133,8 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
       );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
-    } catch (e) {
-      return Response.serverError(body: '$e');
+    } catch (e, stackTrace) {
+      return serverError(e, stackTrace);
     }
   }
 

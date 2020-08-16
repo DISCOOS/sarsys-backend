@@ -42,8 +42,8 @@ class TrackingStatusController extends ValueController<TrackingCommand, Tracking
           );
       }
       return super.update(uuid, data);
-    } catch (e) {
-      return Response.serverError(body: '$e');
+    } catch (e, stackTrace) {
+      return serverError(e, stackTrace);
     }
   }
 

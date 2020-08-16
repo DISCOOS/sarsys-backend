@@ -77,8 +77,8 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
-    } catch (e) {
-      return Response.serverError(body: '$e');
+    } catch (e, stackTrace) {
+      return serverError(e, stackTrace);
     }
   }
 
@@ -91,8 +91,8 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       return okAggregate(repository.get(uuid));
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
-    } catch (e) {
-      return Response.serverError(body: '$e');
+    } catch (e, stackTrace) {
+      return serverError(e, stackTrace);
     }
   }
 
@@ -124,8 +124,8 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
-    } catch (e) {
-      return Response.serverError(body: '$e');
+    } catch (e, stackTrace) {
+      return serverError(e, stackTrace);
     }
   }
 
@@ -160,8 +160,8 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       return serviceUnavailable(body: "Eventstore unavailable: $e");
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
-    } catch (e) {
-      return Response.serverError(body: '$e');
+    } catch (e, stackTrace) {
+      return serverError(e, stackTrace);
     }
   }
 
@@ -190,12 +190,22 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       return Response.badRequest(body: e.message);
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
-    } catch (e) {
-      return Response.serverError(body: '$e');
+    } catch (e, stackTrace) {
+      return serverError(e, stackTrace);
     }
   }
 
   S onDelete(Map<String, dynamic> data) => throw UnimplementedError("Update not implemented");
+
+  /// Report error to Sentry and
+  /// return 500 with message as body
+  Future<Response> serverError(Object error, StackTrace stackTrace) {
+    final String message = "${request.method} failed: $error";
+    logger.network(message, error, stackTrace);
+    return Future.value(
+      Response.serverError(body: message),
+    );
+  }
 
   /// Wait for given rule result from stream of results
   Future<Response> withResponseWaitForRuleResult<T extends Event>(
