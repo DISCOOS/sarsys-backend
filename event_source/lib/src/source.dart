@@ -653,13 +653,13 @@ class EventStore {
 
     // Sanity check
     if (aggregate.isChanged) {
-      throw InvalidOperation('Remote event $event modified $aggregate');
+      throw InvalidOperation('Remote event $event modified ${aggregate.runtimeType} ${aggregate.uuid}');
     }
 
     // Apply event with stable created date?
     final applied = aggregate.getApplied(event.uuid);
     if (applied == null) {
-      throw InvalidOperation('Remote event $event not seen by $aggregate');
+      throw InvalidOperation('Remote event $event not seen by ${aggregate.runtimeType} ${aggregate.uuid}');
     }
     final domainEvent = repository.toDomainEvent(event);
     aggregate.apply(domainEvent);
@@ -691,7 +691,7 @@ class EventStore {
     }
     // Sanity check
     if (aggregate.isChanged) {
-      throw InvalidOperation('Remote event $event modified $aggregate');
+      throw InvalidOperation('Remote event $event modified ${aggregate.runtimeType} ${aggregate.uuid}');
     }
     // Get last number in canonical stream
     _current[canonicalStream] = _getCanonicalNumber([event]);
@@ -827,15 +827,15 @@ class EventStore {
   }
 
   String toDebugString([String stream]) {
-    final aggregate = _store.keys.firstWhere(
+    final uuid = _store.keys.firstWhere(
       (uuid) => toInstanceStream(uuid) == stream,
       orElse: () => 'not found',
     );
     return '$runtimeType: {\n'
-        'count: ${_store.length},\n'
-        'stream: $stream,\n'
-        'canonicalStream: $canonicalStream},\n'
-        'aggregate.uuid: $aggregate,\n'
+        'aggregate.uuid: $uuid,\n'
+        'store.stream: $stream,\n'
+        'store.canonicalStream: $canonicalStream},\n'
+        'store.count: ${_store.length},\n'
         '}';
   }
 }

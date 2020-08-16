@@ -744,12 +744,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         _printDebug('repository: $this');
         _printDebug('stream: ${store.toInstanceStream(aggregate.uuid)}');
         _printDebug('store.events.count: ${store.events.values.fold(0, (count, events) => count + events.length)}');
-        _printDebug('store.events.items: ${store.events.values}');
         _printDebug('store.number.instance: ${store.current(uuid: aggregate.uuid)}');
         _printDebug('expectedEventNumber: ${store.toExpectedVersion(store.toInstanceStream(aggregate.uuid)).value}');
         _printDebug('store.number.canonical: ${store.current(stream: store.canonicalStream)}');
         _printDebug('aggregate.pending.count: ${aggregate.getUncommittedChanges().length}');
-        _printDebug('aggregate.pending.items: ${aggregate.getUncommittedChanges()}');
       }
       await store.push(aggregate);
 
@@ -762,18 +760,16 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         _printDebug('repository: $this');
         _printDebug('connection: ${store.connection.host}:${store.connection.port}');
         _printDebug('store.events.count: ${store.events.values.fold(0, (count, events) => count + events.length)}');
-        _printDebug('store.events.items: ${store.events.values}');
         _printDebug('store.number.instance: ${store.current(uuid: aggregate.uuid)}');
         _printDebug('store.number.canonical: ${store.current(stream: store.canonicalStream)}');
         _printDebug('aggregate.pending.count: ${aggregate.getUncommittedChanges().length}');
-        _printDebug('aggregate.pending.items: ${aggregate.getUncommittedChanges()}');
       }
     } on WrongExpectedEventVersion {
       return _reconcile(operation);
     } catch (e, stackTrace) {
       operation.completer.completeError(e, stackTrace);
       logger.severe(
-        'Failed to push aggregate $aggregate: $e, '
+        'Failed to push aggregate ${aggregate.runtimeType} ${aggregate.uuid}: $e, '
         'stacktrace: $stackTrace, debug: ${toDebugString(aggregate?.uuid)}',
       );
     }
@@ -807,7 +803,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     } catch (e, stackTrace) {
       operation.completer.completeError(e, stackTrace);
       logger.severe(
-        'Failed to push aggregate $aggregate: $e, '
+        'Failed to push aggregate ${aggregate.runtimeType} ${aggregate.uuid}: $e, '
         'stacktrace: $stackTrace, debug: ${toDebugString(aggregate?.uuid)}',
       );
     }
@@ -1365,7 +1361,11 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
 
   @override
   String toString() {
-    return '$runtimeType{$uuidFieldName: $uuid, modifications: $modifications, pending: $_pending, applied: $_applied}';
+    return '$runtimeType{$uuidFieldName: $uuid, '
+        'modifications: $modifications, '
+        'pending.count: ${_pending.length}, '
+        'applied.count: ${_applied.length}'
+        '}';
   }
 }
 
@@ -1589,8 +1589,8 @@ abstract class MergeStrategy {
         return await _reconcileWithRetry(aggregate, max, attempt + 1);
       }
       repository.logger.severe(
-        'Aborted automatic merge after $max retries: $e '
-        'with stacktrace: $stacktrace, '
+        'Aborted automatic merge after $max retries on ${aggregate.runtimeType} ${aggregate.uuid}, '
+        'error $e with stacktrace: $stacktrace, '
         'debug: ${repository.toDebugString(aggregate?.uuid)}',
       );
       throw EventVersionReconciliationFailed(e, attempt);
