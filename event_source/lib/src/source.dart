@@ -961,7 +961,7 @@ class SubscriptionController<T extends Repository> {
   }
 
   void reconnect(T repository) async {
-    if (!repository.store.connection.closed) {
+    if (!repository.store.connection.isClosed) {
       // Wait for current timer to complete
       _timer ??= Timer(
         Duration(milliseconds: toNextReconnectMillis()),
@@ -1427,6 +1427,7 @@ class EventStoreConnection {
         e,
         stackTrace,
       );
+      rethrow;
     }
   }
 
@@ -1694,10 +1695,10 @@ class EventStoreConnection {
   }
 
   /// When true, this store should not be used any more
-  bool get closed => _closed;
-  bool _closed = false;
+  bool get isClosed => _isClosed;
+  bool _isClosed = false;
   void _assertState() {
-    if (_closed) {
+    if (_isClosed) {
       throw InvalidOperation('$this is closed');
     }
   }
@@ -1706,7 +1707,7 @@ class EventStoreConnection {
   ///
   /// This [EventStoreConnection] instance should be disposed afterwards.
   void close() {
-    _closed = true;
+    _isClosed = true;
     client.close();
   }
 
@@ -2256,22 +2257,32 @@ class _SubscriptionController {
     );
   }
 
-  Future<FeedResult> _nextFeed() => strategy == ConsumerStrategy.RoundRobin
-      ? connection.getSubscriptionFeed(
-          embed: true,
-          group: group,
-          stream: stream,
-          number: current,
-          consume: pageSize,
-          strategy: strategy,
-        )
-      : connection.getFeed(
-          embed: true,
-          stream: stream,
-          number: current,
-          waitFor: waitFor,
-          direction: Direction.forward,
-        );
+  Future<FeedResult> _nextFeed() {
+    if (connection.isClosed) {
+      return Future.value(FeedResult(
+        stream: stream,
+        number: current,
+        reasonPhrase: 'Connection is closed',
+        statusCode: HttpStatus.connectionClosedWithoutResponse,
+      ));
+    }
+    return strategy == ConsumerStrategy.RoundRobin
+        ? connection.getSubscriptionFeed(
+            embed: true,
+            group: group,
+            stream: stream,
+            number: current,
+            consume: pageSize,
+            strategy: strategy,
+          )
+        : connection.getFeed(
+            embed: true,
+            stream: stream,
+            number: current,
+            waitFor: waitFor,
+            direction: Direction.forward,
+          );
+  }
 
   Future<SubscriptionResult> _acceptEvents(FeedResult feed) async {
     final answer = await connection.writeSubscriptionAckAll(feed);
