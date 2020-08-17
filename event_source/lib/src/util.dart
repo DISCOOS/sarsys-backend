@@ -1,5 +1,11 @@
 import 'package:json_patch/json_patch.dart';
 
+bool isEmptyOrNull(value) => emptyAsNull(value) == null;
+
+String emptyAsNull(value) => value is String
+    ? (value.isNotEmpty == true ? value : null)
+    : (value is Iterable ? (value.isNotEmpty == true ? value : null) : value);
+
 class JsonUtils {
   static const ops = ['add', 'remove', 'replace', 'move'];
 
