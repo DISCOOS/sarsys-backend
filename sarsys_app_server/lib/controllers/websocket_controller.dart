@@ -16,9 +16,9 @@ class WebSocketController extends Controller {
     final xAppId = request.raw.headers.value('x-app-id');
     final appId = xAppId ?? Uuid().v4();
     if (xAppId == null) {
-      logger.info("Header 'x-app-id' not set, using $appId");
+      logger.warning("Header 'x-app-id' not set, using $appId");
     }
-    final heartbeat = request.raw.headers.value('x-with-heartbeat') ?? 'false';
+    final heartbeat = (request.raw.headers.value('x-with-heartbeat') ?? 'false').toLowerCase() == "true";
     final data = await request.body.decode();
     final messages = data is Map<String, dynamic> && data['message'] is List<String>
         ? (data['message'] as List<String>).toSet()
@@ -27,8 +27,9 @@ class WebSocketController extends Controller {
       "$appId",
       socket,
       messages: messages,
-      withHeartbeat: heartbeat?.toLowerCase() == "true",
+      withHeartbeat: heartbeat,
     );
+    logger.info("Established message channel for app $appId with heartbeat=$heartbeat");
     return null /* Required by Aqueduct, see https://aqueduct.io/docs/snippets/http/ */;
   }
 }
