@@ -200,7 +200,10 @@ class MessageChannel extends MessageHandler<Event> {
     // ignore: cancel_subscriptions, is cancelled in _remove(appId)
     final subscription = socket.listen(
       (event) => _onReceived(appId, event),
-      onDone: () => _remove(appId, reason: 'done'),
+      onDone: () => _remove(
+        appId,
+        reason: socket.closeReason ?? 'done',
+      ),
       onError: (error, stackTrace) => _remove(
         appId,
         reason: error,
@@ -210,8 +213,8 @@ class MessageChannel extends MessageHandler<Event> {
     final state = _SocketState.init(
       socket,
       subscription,
-      withHeartbeat: withHeartbeat,
       messages: messages,
+      withHeartbeat: withHeartbeat,
     );
     _states.update(
       appId,
