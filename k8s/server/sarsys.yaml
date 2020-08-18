@@ -104,10 +104,10 @@ spec:
           resources:
             requests:
               cpu: "250m"
-              memory: "400Mi"
+              memory: "800Mi"
             limits:
               cpu: "500m"
-              memory: "800Mi"
+              memory: "1200Mi"
           readinessProbe:
             httpGet:
               path: /api/healthz
