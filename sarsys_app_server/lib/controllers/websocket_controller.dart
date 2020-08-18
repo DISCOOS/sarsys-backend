@@ -13,8 +13,8 @@ class WebSocketController extends Controller {
   @override
   FutureOr<RequestOrResponse> handle(Request request) async {
     final socket = await WebSocketTransformer.upgrade(request.raw);
-    final xAppId = request.raw.headers.value('x-app-id');
-    final appId = emptyAsNull(xAppId) ?? Uuid().v4();
+    final xAppId = emptyAsNull(request.raw.headers.value('x-app-id'));
+    final appId = xAppId ?? Uuid().v4();
     if (xAppId == null) {
       logger.warning("Header 'x-app-id' not set, using $appId");
     }
