@@ -152,6 +152,11 @@ status:
 	kubectl -n sarsys rollout status statefulset sarsys-app-server
 	echo "Fetching rollout history from kubernetes..."
 	kubectl -n sarsys rollout history statefulset sarsys-app-server
+	echo "Fetching resource usage from kubernetes..."
+	kubectl top pod sarsys-app-server-0 -n sarsys --containers
+	kubectl top pod sarsys-app-server-1 -n sarsys --containers
+	kubectl top pod sarsys-app-server-2 -n sarsys --containers
+
 	echo "[✓] Status finished"
 
 eventstore:

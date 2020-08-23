@@ -17,4 +17,9 @@ kubectl -n sarsys exec eventstore-1 df
 echo "Get eventstore status - free space | eventstore-2"
 kubectl -n sarsys exec eventstore-2 df
 
+echo "Get resource usage | all pods"
+kubectl top pod sarsys-app-server-0 -n sarsys --containers
+kubectl top pod sarsys-app-server-1 -n sarsys --containers
+kubectl top pod sarsys-app-server-2 -n sarsys --containers
+
 echo "[✓] EventStore status completed"
