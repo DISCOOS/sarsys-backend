@@ -7,11 +7,18 @@ import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:uuid/uuid.dart';
 
 class WebSocketController extends Controller {
-  WebSocketController(this.channel);
+  WebSocketController(
+    this.manager,
+    this.channel,
+  );
   final MessageChannel channel;
+  final RepositoryManager manager;
 
   @override
   FutureOr<RequestOrResponse> handle(Request request) async {
+    if (!manager.isReady) {
+      return serviceUnavailable(body: "Status Not ready");
+    }
     final socket = await WebSocketTransformer.upgrade(request.raw);
     final xAppId = emptyAsNull(request.raw.headers.value('x-app-id'));
     final appId = xAppId ?? Uuid().v4();

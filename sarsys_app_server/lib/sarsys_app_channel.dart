@@ -104,9 +104,18 @@ class SarSysAppServerChannel extends ApplicationChannel {
     // TODO: PassCodes - implement ReadModel and validation for all protected Aggregates
 
     return router
-      ..route('/api/*').link(() => DocumentController())
-      ..route('/api/healthz').link(() => HealthController(manager))
-      ..secure('/api/messages/connect', () => WebSocketController(messages))
+      ..route('/api/*').link(
+        () => DocumentController(),
+      )
+      ..route('/api/healthz').link(() => HealthController(
+            manager,
+          ))
+      ..secure(
+          '/api/messages/connect',
+          () => WebSocketController(
+                manager,
+                messages,
+              ))
       ..secure(
           '/api/app-configs[/:uuid]',
           () => AppConfigController(
