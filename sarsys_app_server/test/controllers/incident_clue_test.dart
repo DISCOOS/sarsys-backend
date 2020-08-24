@@ -10,19 +10,13 @@ Future main() async {
     ..install(restartForEachTest: true);
 
   test("POST /api/incidents/{uuid}/clues returns status code 201 with empty body", () async {
-    await _prepare(harness);
-    final uuid = Uuid().v4();
-    final incident = _createData(uuid);
-    expectResponse(await harness.agent.post("/api/incidents", body: incident), 201, body: null);
+    final uuid = await _prepare(harness);
     final clue = createClue('1');
     expectResponse(await harness.agent.post("/api/incidents/$uuid/clues", body: clue), 201, body: null);
   });
 
   test("GET /api/incidents/{uuid}/clues returns status code 200", () async {
-    await _prepare(harness);
-    final uuid = Uuid().v4();
-    final incident = _createData(uuid);
-    expectResponse(await harness.agent.post("/api/incidents", body: incident), 201, body: null);
+    final uuid = await _prepare(harness);
     final clue1 = createClue('1');
     expectResponse(await harness.agent.post("/api/incidents/$uuid/clues", body: clue1), 201, body: null);
     final clue2 = createClue('2');
@@ -34,10 +28,7 @@ Future main() async {
   });
 
   test("GET /api/incidents/{uuid}/clues/{id} returns status code 200", () async {
-    await _prepare(harness);
-    final uuid = Uuid().v4();
-    final incident = _createData(uuid);
-    expectResponse(await harness.agent.post("/api/incidents", body: incident), 201, body: null);
+    final uuid = await _prepare(harness);
     final clue1 = createClue('1');
     expectResponse(await harness.agent.post("/api/incidents/$uuid/clues", body: clue1), 201, body: null);
     final response1 = expectResponse(await harness.agent.get("/api/incidents/$uuid/clues/1"), 200);
@@ -51,10 +42,7 @@ Future main() async {
   });
 
   test("PATCH /api/incidents/{uuid}/clues/{id} is idempotent", () async {
-    await _prepare(harness);
-    final uuid = Uuid().v4();
-    final incident = _createData(uuid);
-    expectResponse(await harness.agent.post("/api/incidents", body: incident), 201, body: null);
+    final uuid = await _prepare(harness);
     final clue = createClue('1');
     expectResponse(await harness.agent.post("/api/incidents/$uuid/clues", body: clue), 201, body: null);
     expectResponse(await harness.agent.execute("PATCH", "/api/incidents/$uuid/clues/1", body: clue), 204, body: null);
@@ -67,10 +55,7 @@ Future main() async {
   });
 
   test("PATCH /api/incidents/{uuid} on entity object lists should not be allowed", () async {
-    await _prepare(harness);
-    final uuid = Uuid().v4();
-    final incident = _createData(uuid);
-    expectResponse(await harness.agent.post("/api/incidents", body: incident), 201, body: null);
+    final uuid = await _prepare(harness);
 
     expectResponse(
         await harness.agent.execute("PATCH", "/api/incidents/$uuid", body: {
@@ -81,18 +66,18 @@ Future main() async {
   });
 
   test("DELETE /api/incidents/{uuid}/clues/{id} returns status code 204", () async {
-    await _prepare(harness);
-    final uuid = Uuid().v4();
-    final incident = _createData(uuid);
-    expectResponse(await harness.agent.post("/api/incidents", body: incident), 201, body: null);
+    final uuid = await _prepare(harness);
     final clue = createClue('1');
     expectResponse(await harness.agent.post("/api/incidents/$uuid/clues", body: clue), 201, body: null);
     expectResponse(await harness.agent.delete("/api/incidents/$uuid"), 204);
   });
 }
 
-Future _prepare(SarSysHarness harness) async {
-  await harness.channel.manager.get<IncidentRepository>().readyAsync();
+Future<String> _prepare(SarSysHarness harness) async {
+  final uuid = Uuid().v4();
+  final incident = _createData(uuid);
+  expectResponse(await harness.agent.post("/api/incidents", body: incident), 201, body: null);
+  return uuid;
 }
 
 Map<String, Object> _createData(String uuid) => createIncident(uuid);

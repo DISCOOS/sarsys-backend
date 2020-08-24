@@ -64,7 +64,10 @@ class RepositoryManager {
 
   void _awaitReady(Completer<bool> completer) async {
     if (isReady == false) {
-      Future.delayed(const Duration(milliseconds: 100), () => _awaitReady(completer));
+      Future.delayed(
+        const Duration(milliseconds: 10),
+        () => _awaitReady(completer),
+      );
     } else {
       completer.complete(true);
     }

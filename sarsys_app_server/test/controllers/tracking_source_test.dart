@@ -12,7 +12,6 @@ Future main() async {
     ..install(restartForEachTest: true);
 
   test("POST /api/trackings/{uuid}/sources returns status code 201 with empty body", () async {
-    await harness.channel.manager.get<TrackingRepository>().readyAsync();
     final uuid = Uuid().v4();
     final tracking = _createData(uuid);
     expectResponse(
@@ -29,7 +28,6 @@ Future main() async {
   });
 
   test("GET /api/trackings/{uuid}/sources returns status code 200", () async {
-    await harness.channel.manager.get<TrackingRepository>().readyAsync();
     final uuid = Uuid().v4();
     final tracking = _createData(uuid);
     expectResponse(
@@ -52,7 +50,6 @@ Future main() async {
   });
 
   test("GET /api/trackings/{uuid}/sources/{uuid} returns status code 200", () async {
-    await harness.channel.manager.get<TrackingRepository>().readyAsync();
     final uuid = Uuid().v4();
     final tracking = _createData(uuid);
     expectResponse(
@@ -77,7 +74,6 @@ Future main() async {
   });
 
   test("DELETE /api/trackings/{uuid}/sources/{uuid} returns status code 204", () async {
-    await harness.channel.manager.get<TrackingRepository>().readyAsync();
     final uuid = Uuid().v4();
     final tracking = _createData(uuid);
     expectResponse(

@@ -10,10 +10,7 @@ Future main() async {
     ..install(restartForEachTest: true);
 
   test("POST /api/incident/{uuid}/operation adds operation to aggregate list", () async {
-    await _install(harness);
-    final iuuid = Uuid().v4();
-    final incident = createIncident(iuuid);
-    expectResponse(await harness.agent.post("/api/incidents", body: incident), 201, body: null);
+    final iuuid = await _prepare(harness);
     final ouuid = Uuid().v4();
     final operation = _createData(ouuid);
     expectResponse(
@@ -41,10 +38,7 @@ Future main() async {
   });
 
   test("GET /api/incident/{uuid}/operations returns status code 200 with offset=1 and limit=2", () async {
-    await _install(harness);
-    final uuid = Uuid().v4();
-    final incident = createIncident(uuid);
-    expectResponse(await harness.agent.post("/api/incidents", body: incident), 201, body: null);
+    final uuid = await _prepare(harness);
     await harness.agent.post("/api/incidents/$uuid/operations", body: _createData(Uuid().v4()));
     await harness.agent.post("/api/incidents/$uuid/operations", body: _createData(Uuid().v4()));
     await harness.agent.post("/api/incidents/$uuid/operations", body: _createData(Uuid().v4()));
@@ -58,7 +52,6 @@ Future main() async {
   });
 
   test("DELETE /api/operations/{uuid} should remove {uuid} from operations list in incident", () async {
-    await _install(harness);
     final iuuid = Uuid().v4();
     final incident = createIncident(iuuid);
     expectResponse(await harness.agent.post("/api/incidents", body: incident), 201, body: null);
@@ -75,9 +68,11 @@ Future main() async {
   });
 }
 
-Future _install(SarSysHarness harness) async {
-  await harness.channel.manager.get<IncidentRepository>().readyAsync();
-  await harness.channel.manager.get<OperationRepository>().readyAsync();
+Future<String> _prepare(SarSysHarness harness) async {
+  final iuuid = Uuid().v4();
+  final incident = createIncident(iuuid);
+  expectResponse(await harness.agent.post("/api/incidents", body: incident), 201, body: null);
+  return iuuid;
 }
 
 Map<String, Object> _createData(String uuid) => createOperation(uuid);

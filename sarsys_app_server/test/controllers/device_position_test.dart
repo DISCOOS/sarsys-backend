@@ -18,7 +18,6 @@ Future main() async {
   });
 
   test("PATCH /api/devices/{uuid}/position returns status code 204 if set", () async {
-    await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final device = _createData(uuid);
     expectResponse(await harness.agent.post("/api/devices", body: device), 201, body: null);
@@ -34,7 +33,6 @@ Future main() async {
   });
 
   test("PATCH /api/devices/{uuid}/position returns status code 400 if position type is illegal", () async {
-    await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final device = _createData(uuid);
     expectResponse(await harness.agent.post("/api/devices", body: device), 201, body: null);

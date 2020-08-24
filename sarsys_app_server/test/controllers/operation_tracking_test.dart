@@ -63,14 +63,6 @@ Future main() async {
 }
 
 Future<String> _prepare(SarSysHarness harness) async {
-  await harness.channel.manager.get<IncidentRepository>().readyAsync();
-  await harness.channel.manager.get<OrganisationRepository>().readyAsync();
-  await harness.channel.manager.get<OperationRepository>().readyAsync();
-  await harness.channel.manager.get<UnitRepository>().readyAsync();
-  await harness.channel.manager.get<PersonRepository>().readyAsync();
-  await harness.channel.manager.get<TrackingRepository>().readyAsync();
-  await harness.channel.manager.get<PersonnelRepository>().readyAsync();
-  await harness.channel.manager.get<AffiliationRepository>().readyAsync();
   final iuuid = Uuid().v4();
   expectResponse(await harness.agent.post("/api/incidents", body: createIncident(iuuid)), 201);
   final ouuid = Uuid().v4();

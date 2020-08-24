@@ -102,24 +102,20 @@ Future _prepare(
   String divuuid,
   String depuuid,
 }) async {
-  await harness.channel.manager.get<PersonRepository>().readyAsync();
-  await harness.channel.manager.get<AffiliationRepository>().readyAsync();
+  await harness.channel.manager.readyAsync();
   if (orguuid != null) {
-    await harness.channel.manager.get<OrganisationRepository>().readyAsync();
     expectResponse(
       await harness.agent.post("/api/organisations", body: createOrganisation(orguuid)),
       201,
     );
   }
   if (divuuid != null) {
-    await harness.channel.manager.get<DivisionRepository>().readyAsync();
     expectResponse(
       await harness.agent.post("/api/organisations/$orguuid/divisions", body: createDivision(divuuid)),
       201,
     );
   }
   if (depuuid != null) {
-    await harness.channel.manager.get<OrganisationRepository>().readyAsync();
     expectResponse(
       await harness.agent.post("/api/divisions/$divuuid/departments", body: createDepartment(depuuid)),
       201,

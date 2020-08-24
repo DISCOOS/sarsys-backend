@@ -10,7 +10,6 @@ Future main() async {
     ..install(restartForEachTest: true);
 
   test("POST /api/devices/{uuid}/messages returns status code 201 with empty body", () async {
-    await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final device = _createData(uuid);
     expectResponse(await harness.agent.post("/api/devices", body: device), 201, body: null);
@@ -19,7 +18,6 @@ Future main() async {
   });
 
   test("GET /api/devices/{uuid}/messages returns status code 200", () async {
-    await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final device = _createData(uuid);
     expectResponse(await harness.agent.post("/api/devices", body: device), 201, body: null);
@@ -34,7 +32,6 @@ Future main() async {
   });
 
   test("GET /api/devices/{uuid}/messages/{id} returns status code 200", () async {
-    await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final device = _createData(uuid);
     expectResponse(await harness.agent.post("/api/devices", body: device), 201, body: null);
@@ -51,7 +48,6 @@ Future main() async {
   });
 
   test("PATCH /api/devices/{uuid}/messages/{id} is idempotent", () async {
-    await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final device = _createData(uuid);
     expectResponse(await harness.agent.post("/api/devices", body: device), 201, body: null);
@@ -68,7 +64,6 @@ Future main() async {
   });
 
   test("PATCH /api/devices/{uuid} on entity object lists should not be allowed", () async {
-    await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final device = _createData(uuid);
     expectResponse(await harness.agent.post("/api/devices", body: device), 201, body: null);
@@ -82,7 +77,6 @@ Future main() async {
   });
 
   test("DELETE /api/devices/{uuid}/messages/{id} returns status code 204", () async {
-    await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final device = _createData(uuid);
     expectResponse(await harness.agent.post("/api/devices", body: device), 201, body: null);

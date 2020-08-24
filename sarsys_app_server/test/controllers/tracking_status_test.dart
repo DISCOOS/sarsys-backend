@@ -12,7 +12,6 @@ Future main() async {
     ..install(restartForEachTest: true);
 
   test("PATCH /api/trackings/{uuid}/status returns 400 when empty", () async {
-    await harness.channel.manager.get<TrackingRepository>().readyAsync();
     final uuid = Uuid().v4();
     final body = createTracking(uuid);
     expectResponse(

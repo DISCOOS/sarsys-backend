@@ -75,7 +75,7 @@ class SarSysHarness extends TestHarness<SarSysAppServerChannel> {
           "   $missing\n\n"
           ">> Add missing stream(s) to SarSysHarness.onSetUp()";
     }
-    await channel.manager.readyAsync();
+    return channel.manager.readyAsync();
   }
 
   @override

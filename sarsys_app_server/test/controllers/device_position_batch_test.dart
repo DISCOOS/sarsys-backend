@@ -10,7 +10,6 @@ Future main() async {
     ..install(restartForEachTest: true);
 
   test("GET /api/devices/{uuid}/positions returns status code 405", () async {
-    await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final device = _createData(uuid);
     expectResponse(await harness.agent.post("/api/devices", body: device), 201, body: null);
@@ -19,7 +18,6 @@ Future main() async {
   });
 
   test("POST /api/devices/{uuid}/positions returns status code 204 if set", () async {
-    await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final device = _createData(uuid);
     expectResponse(await harness.agent.post("/api/devices", body: device), 201, body: null);

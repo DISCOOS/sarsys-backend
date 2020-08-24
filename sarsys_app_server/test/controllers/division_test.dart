@@ -121,8 +121,6 @@ Future main() async {
 }
 
 Future<String> _prepare(SarSysHarness harness) async {
-  await harness.channel.manager.get<OrganisationRepository>().readyAsync();
-  await harness.channel.manager.get<DivisionRepository>().readyAsync();
   final orguuid = Uuid().v4();
   expectResponse(await harness.agent.post("/api/organisations", body: createOrganisation(orguuid)), 201);
   return orguuid;

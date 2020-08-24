@@ -12,8 +12,6 @@ Future main() async {
     ..install(restartForEachTest: true);
 
   test("POST /api/app-configs/ returns status code 201 with empty body", () async {
-    await harness.channel.manager.get<AppConfigRepository>().readyAsync();
-    await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final body = _createData(uuid);
     expectResponse(await harness.agent.post("/api/app-configs", body: body), 201, body: null);
@@ -34,8 +32,6 @@ Future main() async {
   });
 
   test("GET /api/app-configs/{uuid} returns status code 200", () async {
-    await harness.channel.manager.get<AppConfigRepository>().readyAsync();
-    await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final body = _createData(uuid);
     expectResponse(await harness.agent.post("/api/app-configs", body: body), 201, body: null);
@@ -45,8 +41,6 @@ Future main() async {
   });
 
   test("PATCH /api/app-configs/{uuid} is idempotent", () async {
-    await harness.channel.manager.get<AppConfigRepository>().readyAsync();
-    await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final body = _createData(uuid);
     expectResponse(await harness.agent.post("/api/app-configs", body: body), 201, body: null);
@@ -57,8 +51,6 @@ Future main() async {
   });
 
   test("PATCH /api/app-configs/{uuid} does not remove value objects", () async {
-    await harness.channel.manager.get<AppConfigRepository>().readyAsync();
-    await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final uuid = Uuid().v4();
     final body = _createData(uuid);
     expectResponse(await harness.agent.post("/api/app-configs", body: body), 201, body: null);
@@ -69,9 +61,6 @@ Future main() async {
   });
 
   test("DELETE /api/app-configs/{uuid} returns status code 204", () async {
-    await harness.channel.manager.get<AppConfigRepository>().readyAsync();
-    final devices = harness.channel.manager.get<DeviceRepository>();
-    await devices.readyAsync();
     final uuid = Uuid().v4();
     final body = _createData(uuid);
     expectResponse(await harness.agent.post("/api/app-configs", body: body), 201, body: null);
@@ -85,8 +74,6 @@ Future main() async {
   });
 
   test("GET /api/app-configs returns status code 200 with offset=1 and limit=2", () async {
-    await harness.channel.manager.get<AppConfigRepository>().readyAsync();
-    await harness.channel.manager.get<DeviceRepository>().readyAsync();
     await harness.agent.post("/api/app-configs", body: _createData(Uuid().v4()));
     await harness.agent.post("/api/app-configs", body: _createData(Uuid().v4()));
     await harness.agent.post("/api/app-configs", body: _createData(Uuid().v4()));
@@ -100,8 +87,6 @@ Future main() async {
   });
 
   test("Multiple POST /api/app-configs/ with same udid does not create multiple devices", () async {
-    await harness.channel.manager.get<AppConfigRepository>().readyAsync();
-    await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final udid = Uuid().v4();
     final uuid1 = Uuid().v4();
     final uuid2 = Uuid().v4();
@@ -127,8 +112,6 @@ Future main() async {
   });
 
   test("Multiple DELETE /api/app-configs/ with same udid does not delete device until last", () async {
-    await harness.channel.manager.get<AppConfigRepository>().readyAsync();
-    await harness.channel.manager.get<DeviceRepository>().readyAsync();
     final udid = Uuid().v4();
     final uuid1 = Uuid().v4();
     final uuid2 = Uuid().v4();
