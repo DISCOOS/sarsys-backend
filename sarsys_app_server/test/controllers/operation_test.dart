@@ -1,5 +1,3 @@
-import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
-
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 

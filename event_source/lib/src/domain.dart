@@ -65,7 +65,7 @@ class RepositoryManager {
   void _awaitReady(Completer<bool> completer) async {
     if (isReady == false) {
       Future.delayed(
-        const Duration(milliseconds: 10),
+        const Duration(milliseconds: 100),
         () => _awaitReady(completer),
       );
     } else {
@@ -252,10 +252,11 @@ class RepositoryManager {
   ) async {
     final backlog = repositories.toSet();
     try {
-      final counts = [];
-      for (var repo in repositories) {
-        counts.add(await repo.build());
-      }
+      final counts = await Future.wait<int>(
+        repositories.map(
+          (repository) => repository.build(),
+        ),
+      );
       _timer?.cancel();
       _timer = null;
       final processed = counts.fold<int>(0, (processed, count) => processed + count);

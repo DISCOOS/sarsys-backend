@@ -10,7 +10,7 @@ Future main() async {
   final harness = EventSourceHarness()
     ..withTenant()
     ..withPrefix()
-    ..withLogger(debug: false)
+    ..withLogger()
     ..withRepository<Foo>(
       (store, instance) => FooRepository(store, instance),
       instances: 2,

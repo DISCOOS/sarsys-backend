@@ -1,5 +1,4 @@
 import 'package:event_source/event_source.dart';
-import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 import 'package:meta/meta.dart';

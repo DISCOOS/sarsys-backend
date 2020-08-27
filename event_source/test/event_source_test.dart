@@ -62,6 +62,57 @@ Future main() async {
     expect(repo2.count(), equals(4), reason: '${repo2.aggregates}');
     expect(repo3.count(), equals(4));
   });
+
+  test('EventStore should catchup after push', () async {
+    // Arrange
+    final repo1 = await harness.get<FooRepository>(port: 4000);
+    final repo2 = await harness.get<FooRepository>(port: 4001);
+    final repo3 = await harness.get<FooRepository>(port: 4002);
+    await repo1.readyAsync();
+    await repo2.readyAsync();
+    await repo3.readyAsync();
+
+    // Act - create new instance stream
+    final uuid = Uuid().v4();
+    final foo = repo1.get(uuid, data: {'property1': 'value1'});
+
+    // Wait for catchup from eventstore
+    final pending = StreamGroup.merge([
+      repo2.store.asStream().where((event) => event.data.elementAt('uuid') == uuid),
+      repo3.store.asStream().where((event) => event.data.elementAt('uuid') == uuid),
+    ]);
+    await repo1.push(foo);
+    await pending.take(2).toList();
+
+    // Assert instances
+    expect(repo1.count(), equals(1), reason: '${repo1.aggregates}');
+    expect(repo2.count(), equals(1), reason: '${repo2.aggregates}');
+    expect(repo3.count(), equals(1), reason: '${repo2.aggregates}');
+  });
+
+  test('EventStore should catchup after replay', () async {
+    // Arrange
+    final repo1 = await _createStreamsAndReplay(harness, 4000, 3);
+    final repo2 = await _createStreamsAndReplay(harness, 4001, 3);
+    final repo3 = await _createStreamsAndReplay(harness, 4002, 3);
+
+    // Act - create new instance stream
+    final uuid = Uuid().v4();
+    final foo = repo1.get(uuid, data: {'property1': 'value1'});
+
+    // Wait for catchup from eventstore
+    final pending = StreamGroup.merge([
+      repo2.store.asStream().where((event) => event.data.elementAt('uuid') == uuid),
+      repo3.store.asStream().where((event) => event.data.elementAt('uuid') == uuid),
+    ]);
+    await repo1.push(foo);
+    await pending.take(2).toList();
+
+    // Assert instances
+    expect(repo1.count(), equals(4));
+    expect(repo2.count(), equals(4), reason: '${repo2.aggregates}');
+    expect(repo3.count(), equals(4));
+  });
 }
 
 Future<FooRepository> _createStreamsAndReplay(EventSourceHarness harness, int port, int count) async {

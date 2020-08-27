@@ -20,7 +20,7 @@ import 'models/AtomFeed.dart';
 import 'models/AtomItem.dart';
 import 'results.dart';
 
-const Duration defaultWaitFor = Duration(milliseconds: 1500);
+const Duration defaultWaitFor = Duration(milliseconds: 3000);
 const Duration defaultPullEvery = Duration(milliseconds: 100);
 
 /// Storage class managing events locally in memory received from event store server
@@ -742,7 +742,7 @@ class EventStore {
   /// Assert that this this [EventStore] is managed by [repository]
   void _assertRepository(Repository<Command, AggregateRoot> repository) {
     if (repository.store != this) {
-      throw InvalidOperation('This $this is not managed by ${repository}');
+      throw InvalidOperation('This $this is not managed by ${repository.runtimeType}');
     }
   }
 
@@ -907,13 +907,16 @@ class SubscriptionController<T extends Repository> {
         .listen(
           (event) => onEvent(repository, event),
           onDone: () => onDone(repository),
-          onError: (error, StackTrace stackTrace) => onError(
-            repository,
-            error,
-            stackTrace,
-          ),
+          onError: (error, stackTrace) {
+            logger.severe("message", error, stackTrace);
+            onError(
+              repository,
+              error,
+              stackTrace,
+            );
+          },
         );
-    logger.fine('${repository} > Subscribed to $stream@$number');
+    logger.fine('${repository.runtimeType} > Subscribed to $stream@$number');
     return this;
   }
 
@@ -950,7 +953,7 @@ class SubscriptionController<T extends Repository> {
             stackTrace,
           ),
         );
-    logger.fine('${repository} > Competing from $stream@$number');
+    logger.fine('${repository.runtimeType} > Competing from $stream@$number');
     return this;
   }
 
@@ -1065,7 +1068,7 @@ class EventStoreConnection {
     bool embed = false,
     EventNumber number = EventNumber.first,
     Direction direction = Direction.forward,
-    Duration waitFor = const Duration(milliseconds: 0),
+    Duration waitFor = defaultWaitFor,
   }) async {
     _assertState();
     final actual = number.isNone ? EventNumber.first : number;
@@ -1081,7 +1084,7 @@ class EventStoreConnection {
       headers: {
         'Authorization': credentials.header,
         'Accept': 'application/vnd.eventstore.atom+json',
-        if (waitFor.inSeconds > 0) 'ES-LongPoll': '${waitFor.inSeconds}'
+        if (waitFor.inMilliseconds > 0) 'ES-LongPoll': '${waitFor.inSeconds}'
       },
     );
     _logger.finer('getFeed: RESPONSE ${response.statusCode}');
@@ -2109,6 +2112,7 @@ class _SubscriptionController {
         await _catchup(controller);
         _isCatchup = false;
       }
+      _timer?.cancel();
       _timer = Timer.periodic(
         pullEvery,
         (_) {
@@ -2123,10 +2127,10 @@ class _SubscriptionController {
         'Listen for events in subscription $name starting from number $_current',
       );
     } catch (e, stackTrace) {
-      // Only throw if running
-      if (_timer != null && _timer.isActive) {
-        _fatal('Failed to catchup to head of stream $name, error: $e', stackTrace);
-      }
+      _fatal(
+        'Failed to start timer for subscription $name, error: $e',
+        stackTrace,
+      );
     }
   }
 
@@ -2177,7 +2181,7 @@ class _SubscriptionController {
     var fetched = 0;
     do {
       feed = await _readNext();
-      fetched = fetched + feed?.atomFeed?.entries?.length ?? 0;
+      fetched = fetched + (feed?.atomFeed?.entries?.length ?? 0);
     } while (feed != null && feed.isOK && !(feed.headOfStream || feed.isEmpty));
 
     if (number < _current) {
@@ -2237,11 +2241,6 @@ class _SubscriptionController {
   }
 
   Future _onResult(ReadResult result, FeedResult feed) async {
-    final match = _current.value == -1 && result.number.value == 1;
-    if (result.events.length == 2 && result.events.first.type == 'FooUpdated') {
-      print('hmm:$match');
-    }
-
     final next = result.number + 1;
     logger.fine(
       'Subscription $name caught up from $_current to ${result.number}, listening for $next',
