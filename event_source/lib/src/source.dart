@@ -448,7 +448,7 @@ class EventStore {
 
   /// Subscription controller for each repository
   /// subscribing to events from [canonicalStream]
-  final _subscriptions = <Type, SubscriptionController>{};
+  final _controllers = <Type, SubscriptionController>{};
 
   /// Subscribe given [repository] to compete for changes from [canonicalStream]
   ///
@@ -471,11 +471,11 @@ class EventStore {
     _assertRepository(repository);
 
     // Dispose current subscription if exists
-    await _subscriptions[repository.runtimeType]?.cancel();
+    await _controllers[repository.runtimeType]?.cancel();
 
     // Get existing or create new
     final controller = await _subscribe(
-      _subscriptions[repository.runtimeType] ??
+      _controllers[repository.runtimeType] ??
           SubscriptionController(
             logger: logger,
             onDone: _onSubscriptionDone,
@@ -488,7 +488,7 @@ class EventStore {
       consume: consume,
       strategy: strategy,
     );
-    _subscriptions[repository.runtimeType] = controller;
+    _controllers[repository.runtimeType] = controller;
   }
 
   /// Subscribe given [repository] to receive changes from [canonicalStream]
@@ -504,11 +504,11 @@ class EventStore {
     _assertRepository(repository);
 
     // Dispose current subscription if exists
-    await _subscriptions[repository.runtimeType]?.cancel();
+    await _controllers[repository.runtimeType]?.cancel();
 
     // Get existing or create new
     final controller = await _subscribe(
-      _subscriptions[repository.runtimeType] ??
+      _controllers[repository.runtimeType] ??
           SubscriptionController(
             logger: logger,
             onDone: _onSubscriptionDone,
@@ -519,7 +519,7 @@ class EventStore {
       repository,
       competing: false,
     );
-    _subscriptions[repository.runtimeType] = controller;
+    _controllers[repository.runtimeType] = controller;
   }
 
   Future<SubscriptionController> _subscribe(
@@ -550,91 +550,98 @@ class EventStore {
 
   /// Handle event from subscriptions
   void _onSubscriptionEvent(Repository repo, SourceEvent event) {
-    seen.add(event);
+    if (isPaused) {
+      logger.severe('Received event when paused: $event');
+    } else {
+      try {
+        // Only catchup if repository have no
+        // pending changes. If updated before
+        // write-op is completed, a concurrent
+        // write will happened and information
+        // will be lost. Repository should therefore
+        // call pause before processing is started
+        // and only call resume when ALL changes
+        // have been processed.
+        if (repo.isProcessing) {
+          throw StateError(
+            'Subscription events not allowed when processing changes',
+          );
+        } else if (repo.isChanged) {
+          throw StateError(
+            'Subscription events not allowed when repository contains changes',
+          );
+        }
 
-    // Only catchup if repository have no
-    // pending changes. If updated before
-    // write-op is completed, a concurrent
-    // write will happened and information
-    // will be lost. Repository should therefore
-    // call pause before processing is started
-    // and only call resume when ALL changes
-    // have been processed.
-    if (repo.isProcessing) {
-      throw StateError('Subscription events not allowed when processing changes');
-    } else if (repo.isChanged) {
-      throw StateError('Subscription events not allowed when repository contains changes');
-    }
+        seen.add(event);
+        final uuid = repo.toAggregateUuid(event);
 
-    final uuid = repo.toAggregateUuid(event);
+        _controllers[repo.runtimeType]?.connected(repo, connection);
 
-    try {
-      _subscriptions[repo.runtimeType]?.connected(repo, connection);
+        // Prepare event sourcing
+        final stream = toInstanceStream(uuid);
+        final actual = current(uuid: uuid);
 
-      // Prepare event sourcing
-      final stream = toInstanceStream(uuid);
-      final actual = current(uuid: uuid);
+        // Event is applied to aggregate?
+        final isApplied = _isApplied(uuid, event, repo);
 
-      // Event is applied to aggregate?
-      final isApplied = _isApplied(uuid, event, repo);
+        if (isApplied) {
+          _onUpdate(uuid, stream, event, repo);
+        } else {
+          _onApply(uuid, stream, event, repo);
+        }
 
-      if (isApplied) {
-        _onUpdate(uuid, stream, event, repo);
-      } else {
-        _onApply(uuid, stream, event, repo);
-      }
-
-      // micro-optimization to
-      // minimize string interpolations
-      if (logger.level <= Level.FINE) {
-        final aggregate = repo.get(uuid);
-        final applied = aggregate.applied.where((e) => e.uuid == event.uuid).firstOrNull;
-        logger.fine(
-          '_onSubscriptionEvent(${repo.runtimeType}, ${event.runtimeType}){\n'
+        // micro-optimization to
+        // minimize string interpolations
+        if (logger.level <= Level.FINE) {
+          final aggregate = repo.get(uuid);
+          final applied = aggregate.applied.where((e) => e.uuid == event.uuid).firstOrNull;
+          logger.fine(
+            '_onSubscriptionEvent(${repo.runtimeType}, ${event.runtimeType}){\n'
+            '  event.type: ${event.type}, \n'
+            '  event.uuid: ${event.uuid}, \n'
+            '  event.number: ${event.number}, \n'
+            '  event.sourced: ${_isSourced(uuid, event)}, \n'
+            '  event.applied: $isApplied, \n'
+            '  aggregate.uuid: ${event.uuid}, \n'
+            '  aggregate.stream: $stream, \n'
+            '  aggregate.applied.patches: ${applied?.patches}, \n'
+            '  aggregate.applied.changed: ${applied?.changed}, \n'
+            '  aggregate.applied.previous: ${applied?.previous}, \n'
+            '  repository: $repo, \n'
+            '  repository.isEmpty: $isEmpty, \n'
+            '  repository.numbers: $_current\n'
+            '  repository.numbers.instance: $actual\n'
+            '  isInstanceStream: $useInstanceStreams, \n'
+            '}',
+          );
+        }
+      } on JsonPatchError catch (e, stackTrace) {
+        logger.network(
+          'Failed to apply patches from aggregate stream ${canonicalStream}{\n'
+          '  error: $e, \n'
+          '  connection: ${repo.store.connection.host}:${repo.store.connection.port}, \n'
           '  event.type: ${event.type}, \n'
           '  event.uuid: ${event.uuid}, \n'
           '  event.number: ${event.number}, \n'
-          '  event.sourced: ${_isSourced(uuid, event)}, \n'
-          '  event.applied: $isApplied, \n'
-          '  aggregate.uuid: ${event.uuid}, \n'
-          '  aggregate.stream: $stream, \n'
-          '  aggregate.applied.patches: ${applied?.patches}, \n'
-          '  aggregate.applied.changed: ${applied?.changed}, \n'
-          '  aggregate.applied.previous: ${applied?.previous}, \n'
           '  repository: $repo, \n'
           '  repository.isEmpty: $isEmpty, \n'
           '  repository.numbers: $_current\n'
-          '  repository.numbers.instance: $actual\n'
           '  isInstanceStream: $useInstanceStreams, \n'
-          '}',
+          '  subscription.seen: ${repo.store.seen}, \n'
+          '  store.events.count: ${repo.store.events.values.fold(0, (count, events) => count + events.length)}, \n'
+          '  store.events.items: ${repo.store.events.values}, \n'
+          '}\n'
+          'stacktrace: $stackTrace',
+          e,
+          stackTrace,
+        );
+      } catch (e, stackTrace) {
+        logger.network(
+          'Failed to process $event for $aggregate, got error $e with stacktrace: $stackTrace',
+          e,
+          stackTrace,
         );
       }
-    } on JsonPatchError catch (e, stackTrace) {
-      logger.network(
-        'Failed to apply patches from aggregate stream ${canonicalStream}{\n'
-        '  error: $e, \n'
-        '  connection: ${repo.store.connection.host}:${repo.store.connection.port}, \n'
-        '  event.type: ${event.type}, \n'
-        '  event.uuid: ${event.uuid}, \n'
-        '  event.number: ${event.number}, \n'
-        '  repository: $repo, \n'
-        '  repository.isEmpty: $isEmpty, \n'
-        '  repository.numbers: $_current\n'
-        '  isInstanceStream: $useInstanceStreams, \n'
-        '  subscription.seen: ${repo.store.seen}, \n'
-        '  store.events.count: ${repo.store.events.values.fold(0, (count, events) => count + events.length)}, \n'
-        '  store.events.items: ${repo.store.events.values}, \n'
-        '}\n'
-        'stacktrace: $stackTrace',
-        e,
-        stackTrace,
-      );
-    } catch (e, stackTrace) {
-      logger.network(
-        'Failed to process $event for $aggregate, got error $e with stacktrace: $stackTrace',
-        e,
-        stackTrace,
-      );
     }
   }
 
@@ -708,7 +715,7 @@ class EventStore {
   void _onSubscriptionDone(Repository repository) {
     logger.fine('${repository.runtimeType}: subscription closed');
     if (!_disposed) {
-      _subscriptions[repository.runtimeType].reconnect(
+      _controllers[repository.runtimeType].reconnect(
         repository,
       );
     }
@@ -716,16 +723,24 @@ class EventStore {
 
   /// Handle subscription errors
   void _onSubscriptionError(Repository repository, Object error, StackTrace stackTrace) {
+    _fatal(
+      repository,
+      error,
+      stackTrace,
+    );
+    if (!_disposed) {
+      _controllers[repository.runtimeType].reconnect(
+        repository,
+      );
+    }
+  }
+
+  void _fatal(Repository repository, Object error, StackTrace stackTrace) {
     logger.network(
       '${repository.runtimeType}: subscription failed with: $error. stacktrace: $stackTrace',
       error,
       stackTrace,
     );
-    if (!_disposed) {
-      _subscriptions[repository.runtimeType].reconnect(
-        repository,
-      );
-    }
   }
 
   /// When true, this store should not be used any more
@@ -787,7 +802,7 @@ class EventStore {
     _assertState();
     if (!_isPaused) {
       _isPaused = true;
-      _subscriptions.values.forEach(
+      _controllers.values.forEach(
         (controller) => controller.pause(),
       );
     }
@@ -798,7 +813,7 @@ class EventStore {
     _assertState();
     if (_isPaused) {
       _isPaused = false;
-      _subscriptions.values.forEach(
+      _controllers.values.forEach(
         (controller) => controller.resume(),
       );
     }
@@ -810,14 +825,14 @@ class EventStore {
 
     try {
       await Future.forEach<SubscriptionController>(
-        _subscriptions.values,
+        _controllers.values,
         (controller) => controller.cancel(),
       );
     } on ClientException catch (e, stackTrace) {
       logger.network('Failed to dispose one or more subscriptions: error: $e, stacktrace: $stackTrace', e, stackTrace);
     }
 
-    _subscriptions.clear();
+    _controllers.clear();
     if (_streamController?.hasListener == true && _streamController?.isClosed == false) {
       // See https://github.com/dart-lang/sdk/issues/19095#issuecomment-108436560
       // ignore: unawaited_futures
@@ -907,14 +922,11 @@ class SubscriptionController<T extends Repository> {
         .listen(
           (event) => onEvent(repository, event),
           onDone: () => onDone(repository),
-          onError: (error, stackTrace) {
-            logger.severe("message", error, stackTrace);
-            onError(
-              repository,
-              error,
-              stackTrace,
-            );
-          },
+          onError: (error, stackTrace) => onError(
+            repository,
+            error,
+            stackTrace,
+          ),
         );
     logger.fine('${repository.runtimeType} > Subscribed to $stream@$number');
     return this;
@@ -1010,21 +1022,14 @@ class SubscriptionController<T extends Repository> {
     }
   }
 
-  bool _isPaused = false;
-  bool get isPaused => _isPaused;
+  bool get isPaused => _subscription.isPaused;
 
   void pause() {
-    if (!_isPaused) {
-      _isPaused = true;
-      _subscription?.pause();
-    }
+    _subscription?.pause();
   }
 
   void resume() {
-    if (_isPaused) {
-      _isPaused = false;
-      _subscription?.resume();
-    }
+    _subscription?.resume();
   }
 
   Future cancel() {
