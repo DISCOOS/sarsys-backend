@@ -1022,7 +1022,7 @@ class SubscriptionController<T extends Repository> {
     }
   }
 
-  bool get isPaused => _subscription.isPaused;
+  bool get isPaused => _subscription?.isPaused == true;
 
   void pause() {
     _subscription?.pause();
