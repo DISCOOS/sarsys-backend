@@ -141,6 +141,12 @@ class EvenStoreConfig extends Configuration {
   ///
   /// This property is required.
   String password;
+
+  /// A password for authenticating to the database.
+  ///
+  /// This property is required.
+  @optionalConfiguration
+  bool requireMaster = false;
 }
 
 class TrackingConfig extends Configuration {

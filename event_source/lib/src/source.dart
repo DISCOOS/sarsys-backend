@@ -607,7 +607,7 @@ class EventStore {
             '  aggregate.applied.patches: ${applied?.patches}, \n'
             '  aggregate.applied.changed: ${applied?.changed}, \n'
             '  aggregate.applied.previous: ${applied?.previous}, \n'
-            '  repository: $repo, \n'
+            '  repository: ${repo.runtimeType}, \n'
             '  repository.isEmpty: $isEmpty, \n'
             '  repository.numbers: $_current\n'
             '  repository.numbers.instance: $actual\n'
@@ -623,7 +623,7 @@ class EventStore {
           '  event.type: ${event.type}, \n'
           '  event.uuid: ${event.uuid}, \n'
           '  event.number: ${event.number}, \n'
-          '  repository: $repo, \n'
+          '  repository: ${repo.runtimeType}, \n'
           '  repository.isEmpty: $isEmpty, \n'
           '  repository.numbers: $_current\n'
           '  isInstanceStream: $useInstanceStreams, \n'
@@ -1047,7 +1047,7 @@ class EventStoreConnection {
     this.host = 'http://127.0.0.1',
     this.port = 2113,
     this.pageSize = 20,
-    this.requireMaster = true,
+    this.requireMaster = false,
     this.enforceAddress = true,
     this.credentials = UserCredentials.defaultCredentials,
     Duration connectionTimeout = const Duration(seconds: 10),

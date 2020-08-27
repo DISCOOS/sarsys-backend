@@ -22,5 +22,6 @@ eventstore:
   port: 4000
   login: admin
   password: changeit
+  requireMaster: false
 logging:
   level: INFO

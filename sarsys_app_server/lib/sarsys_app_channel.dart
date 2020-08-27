@@ -482,6 +482,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
           login: config.eventstore.login,
           password: config.eventstore.password,
         ),
+        requireMaster: config.eventstore.requireMaster,
       ),
       prefix: namespace,
     );
