@@ -84,7 +84,12 @@ class SarSysAppServerChannel extends ApplicationChannel {
         whenComplete: _buildDomainServices,
       );
       _buildMessageChannel();
-      await _buildSecureRouter();
+      router = SecureRouter(
+        config.auth,
+      );
+      if (config.auth.enabled) {
+        await router.prepare();
+      }
 
       if (stopwatch.elapsed.inSeconds > isolateStartupTimeout * 0.8) {
         logger.severe("Approaching maximum duration to wait for each isolate to complete startup");
@@ -623,15 +628,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
     // TODO: MessageChannel - Add Operation events
     // TODO: MessageChannel - Add Unit events
     messages.build();
-  }
-
-  Future _buildSecureRouter() async {
-    router = SecureRouter(
-      config.auth,
-    );
-    if (config.auth.enabled) {
-      await router.prepare();
-    }
   }
 
   void _setResponseFromEnv(String name, String header) {
