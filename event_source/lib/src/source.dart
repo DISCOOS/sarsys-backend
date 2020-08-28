@@ -300,31 +300,6 @@ class EventStore {
         ifAbsent: () => events.toList(),
       );
 
-  EventNumber _getCanonicalNumber(Iterable<SourceEvent> events) {
-    return current() +
-        (useInstanceStreams
-            // NOTE: event numbers in a projected stream is not
-            // monotone, but event order is stable so just do
-            // a 0-based increment. Since EventNumber.none.value
-            // equals -1, this will account for the first event
-            // when adding event.length to it.
-            ? events.length
-            // Event numbers in instance streams SHOULD ALWAYS
-            // be sorted in an ordered monotone incrementing
-            // manner. This check ensures that if and only if
-            // the assumption is violated, an InvalidOperation
-            // exception is thrown. This ensures that previous
-            // next states can be calculated safely without any
-            // risk of applying patches out-of-order, removing the
-            // need to store these states in each event.
-            : events
-                .fold(
-                  EventNumber.none,
-                  _assertMonotone,
-                )
-                .value);
-  }
-
   Iterable<DomainEvent> _applyAll(Repository repository, String uuid, List<SourceEvent> events) {
     final exists = repository.contains(uuid);
     final aggregate = repository.get(uuid);
@@ -335,8 +310,10 @@ class EventStore {
     }
     // Commit remote changes
     aggregate.commit();
+
     // Catch up with last event in stream
-    _setEventNumber(aggregate);
+    _setEventNumber(aggregate, events: events);
+
     return domainEvents;
   }
 
@@ -364,20 +341,45 @@ class EventStore {
     return events;
   }
 
-  void _setEventNumber(AggregateRoot aggregate) {
+  /// Set event number for given [aggregate]
+  ///
+  /// If source [events] are given, event
+  /// numbers are validated to be monotone
+  /// increasing
+  void _setEventNumber(
+    AggregateRoot aggregate, {
+    List<SourceEvent> events = const [],
+  }) {
     var append = 0;
     final applied = _store[aggregate.uuid];
     final stream = toInstanceStream(aggregate.uuid);
-    final previous = _current[stream]?.value ?? 0;
-    if (_current.containsKey(stream)) {
-      append = EventNumber.none.value + applied.length - previous;
-    } else {
-      append = applied.length;
-    }
-    _current[stream] = EventNumber.none + applied.length;
+    final previous = _current[stream];
+    final exists = _current.containsKey(stream);
+
+    // Update canonical stream?
     if (useInstanceStreams) {
+      // Event numbers in instance streams SHOULD ALWAYS
+      // be sorted in an ordered monotone incrementing
+      // manner. This check ensures that if and only if
+      // the assumption is violated, an InvalidOperation
+      // exception is thrown. This ensures that previous
+      // next states can be calculated safely without any
+      // risk of applying patches out-of-order, removing the
+      // need to store these states in each event.
+      events.fold(previous ?? EventNumber.none, _assertMonotone);
+
+      if (exists) {
+        // Append change in events
+        append = EventNumber.none.value + applied.length - (previous?.value ?? 0);
+      } else {
+        // Append all events
+        append = applied.length;
+      }
       _current[canonicalStream] += append;
     }
+
+    // Update aggregate stream
+    _current[stream] = EventNumber.none + applied.length;
   }
 
   /// Publish events to [bus] and [asStream]
@@ -543,7 +545,7 @@ class EventStore {
 
   Future<SubscriptionController> _subscribe(
     SubscriptionController controller,
-    Repository<Command, AggregateRoot> repository, {
+    Repository repository, {
     int consume = 20,
     bool competing = false,
     ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
@@ -714,12 +716,13 @@ class EventStore {
     }
     // Sanity check
     if (aggregate.isChanged) {
-      throw InvalidOperation('Remote event $event modified ${aggregate.runtimeType} ${aggregate.uuid}');
+      throw InvalidOperation(
+        'Remote event $event modified ${aggregate.runtimeType} ${aggregate.uuid}',
+      );
     }
-    // Get last number in canonical stream
-    _current[canonicalStream] = _getCanonicalNumber([event]);
-    // Update last number in canonical stream
-    _current[stream] = event.number;
+
+    _setEventNumber(aggregate, events: [event]);
+
     // Publish remotely created events.
     // Handlers can determine events with
     // local origin using the local field
@@ -792,7 +795,7 @@ class EventStore {
   }
 
   EventNumber _assertMonotone(EventNumber previous, SourceEvent next) {
-    if (previous.value != next.number.value - 1) {
+    if (previous.value > next.number.value) {
       final message = 'EventNumber not monotone increasing, current: $previous, '
           'next: ${next.number} in event ${next.type} with uuid: ${next.uuid}';
       logger.severe('$message, debug: ${toDebugString()}');
@@ -1829,7 +1832,7 @@ class _EventStreamController {
   StreamController<ReadResult> get controller => _controller;
   StreamController<ReadResult> _controller;
 
-  bool _master;
+  final bool _master;
   bool get master => _master;
 
   Stream<ReadResult> read({
