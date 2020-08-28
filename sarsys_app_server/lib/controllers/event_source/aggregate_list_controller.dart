@@ -48,7 +48,10 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
         return Response.notFound(body: "$primaryType $uuid not found");
       }
       final fuuid = data[foreign.uuidFieldName] as String;
-      await doCreate(fuuid, validate("${typeOf<S>()}", data)..addAll(toParentRef(uuid)));
+      await doCreate(
+        fuuid,
+        validate("${typeOf<S>()}", data)..addAll(toParentRef(uuid)),
+      );
       await doCreated(primary.get(uuid), fuuid);
       return Response.created("${toLocation(request)}/$fuuid");
     } on AggregateExists catch (e) {
@@ -84,12 +87,16 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
 
   @visibleForOverriding
   Future<Iterable<DomainEvent>> doCreate(String fuuid, Map<String, dynamic> data) async {
-    return await foreign.execute(onCreate(fuuid, data));
+    return await foreign.execute(
+      onCreate(fuuid, data),
+    );
   }
 
   @visibleForOverriding
   Future<Iterable<DomainEvent>> doCreated(U aggregate, String fuuid) async {
-    return await primary.execute(onCreated(aggregate, fuuid));
+    return await primary.execute(
+      onCreated(aggregate, fuuid),
+    );
   }
 
   /// Add @Operation('PATCH', 'uuid') to activate

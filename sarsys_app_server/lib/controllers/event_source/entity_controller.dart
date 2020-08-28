@@ -48,7 +48,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
   /// not found before checking again.
   Future<bool> exists(String uuid) async {
     if (!repository.exists(uuid)) {
-      await repository.catchUp();
+      await repository.catchUp(master: true);
     }
     return repository.exists(uuid);
   }

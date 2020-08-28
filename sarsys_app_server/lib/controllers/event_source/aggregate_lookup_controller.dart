@@ -25,7 +25,7 @@ class AggregateLookupController<S extends Command, T extends AggregateRoot> exte
   /// not found before checking again.
   Future<bool> exists<T extends AggregateRoot>(Repository repository, String uuid) async {
     if (!repository.contains(uuid)) {
-      await repository.catchUp();
+      await repository.catchUp(master: true);
     }
     return repository.contains(uuid) && !repository.get(uuid).isDeleted;
   }

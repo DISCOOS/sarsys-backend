@@ -421,7 +421,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   T create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data);
 
   /// Check given aggregate root exists.
-  /// An aggregate exists IFF it repository contains it and it is not deleted
+  /// An aggregate exists IFF it repository contains it and is not deleted
   bool exists(String uuid) => _aggregates.containsKey(uuid) && !_aggregates[uuid].isDeleted;
 
   /// Check if repository contains given aggregate root
@@ -571,9 +571,15 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   }
 
   /// Force a catch-up against head of [EventStore.canonicalStream]
-  Future<int> catchUp() {
-    return isProcessing ? 0 : store.catchUp(this);
-  }
+  Future<int> catchUp({
+    bool master = false,
+  }) =>
+      isProcessing
+          ? 0
+          : store.catchUp(
+              this,
+              master: master,
+            );
 
   /// Execute command on given aggregate root.
   ///
