@@ -95,7 +95,7 @@ class OperationTrackingController extends ResourceController {
   /// Report error to Sentry and
   /// return 500 with message as body
   Future<Response> serverError(Object error, StackTrace stackTrace) {
-    final String message = "${request.method} failed: $error";
+    final String message = "${request.method} failed";
     logger.network(message, error, stackTrace);
     return Future.value(
       Response.serverError(body: message),
