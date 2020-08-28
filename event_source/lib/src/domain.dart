@@ -571,7 +571,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   }
 
   /// Force a catch-up against head of [EventStore.canonicalStream]
-  Future<int> catchUp() => store.catchUp(this);
+  Future<int> catchUp() {
+    return isProcessing ? 0 : store.catchUp(this);
+  }
 
   /// Execute command on given aggregate root.
   ///
@@ -635,13 +637,19 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           break;
       }
     }
-    return aggregate.isChanged
-        ? await _schedulePush(
-            aggregate.uuid,
-            changes,
-            maxAttempts,
-          )
-        : <DomainEvent>[];
+    if (aggregate.isChanged) {
+      try {
+        return await _schedulePush(
+          aggregate.uuid,
+          changes,
+          maxAttempts,
+        );
+      } catch (e) {
+        rollback(aggregate);
+        rethrow;
+      }
+    }
+    return <DomainEvent>[];
   }
 
   /// Check if this [Repository] contains any aggregates with [AggregateRoot.isChanged]
@@ -752,6 +760,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         _printDebug('expectedEventNumber: ${store.toExpectedVersion(store.toInstanceStream(aggregate.uuid)).value}');
         _printDebug('store.number.canonical: ${store.current(stream: store.canonicalStream)}');
         _printDebug('aggregate.pending.count: ${aggregate.getUncommittedChanges().length}');
+        _printDebug('aggregate.pending.items: ${aggregate.getUncommittedChanges().length}');
       }
       await store.push(aggregate);
 
@@ -767,15 +776,16 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         _printDebug('store.number.instance: ${store.current(uuid: aggregate.uuid)}');
         _printDebug('store.number.canonical: ${store.current(stream: store.canonicalStream)}');
         _printDebug('aggregate.pending.count: ${aggregate.getUncommittedChanges().length}');
+        _printDebug('aggregate.pending.items: ${aggregate.getUncommittedChanges()}');
       }
     } on WrongExpectedEventVersion {
       return _reconcile(operation);
     } catch (e, stackTrace) {
-      operation.completer.completeError(e, stackTrace);
       logger.severe(
         'Failed to push aggregate ${aggregate.runtimeType} ${aggregate.uuid}: $e, '
         'stacktrace: $stackTrace, debug: ${toDebugString(aggregate?.uuid)}',
       );
+      operation.completer.completeError(e, stackTrace);
     }
     return operation;
   }
@@ -806,10 +816,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       operation.completer.completeError(e, stackTrace);
     } catch (e, stackTrace) {
       operation.completer.completeError(e, stackTrace);
-      logger.severe(
-        'Failed to push aggregate ${aggregate.runtimeType} ${aggregate.uuid}: $e, '
-        'stacktrace: $stackTrace, debug: ${toDebugString(aggregate?.uuid)}',
-      );
     }
     return operation;
   }
@@ -942,11 +948,13 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         'count: ${count()}, '
         'stream: $stream,\n'
         'canonicalStream: ${store.canonicalStream}}},\n'
-        'aggregate.uuid: ${aggregate.uuid},\n'
         'aggregate.type: ${aggregate.runtimeType},\n'
+        'aggregate.uuid: ${aggregate.uuid},\n'
         'aggregate.data: ${aggregate.data},\n'
+        'aggregate.modifications: ${aggregate.modifications},\n'
         'aggregate.applied.count: ${aggregate.applied.length},\n'
         'aggregate.pending.count: ${aggregate.getUncommittedChanges().length},\n'
+        'aggregate.pending.items: ${aggregate.getUncommittedChanges()},\n'
         '}';
   }
 }
@@ -1112,6 +1120,9 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     _data.clear();
     _pending.clear();
     _applied.clear();
+    _createdBy = null;
+    _changedBy = null;
+    _deletedBy = null;
   }
 
   /// Patch [AggregateRoot.data] with given [data].

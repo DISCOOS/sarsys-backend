@@ -504,6 +504,49 @@ Future main() async {
     // Assert - strict order
     _assertStrictOrder(results);
   });
+
+  test('Repository should rollback changes when command fails', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    final stream = harness.server().getStream(repo.store.aggregate);
+    await repo.readyAsync();
+
+    // Act - Simulate conflict by manually updating remote stream
+    final uuid = Uuid().v4();
+    final foo = repo.get(uuid, data: {'property1': 'value1'});
+    await repo.push(foo);
+    stream.append('${stream.instanceStream}-0', [
+      TestStream.asSourceEvent<FooUpdated>(
+        uuid,
+        {'property1': 'value1'},
+        {
+          'property1': 'value1',
+          'property2': 'value2',
+          'property3': 'value3',
+        },
+      )
+    ]);
+    final command = UpdateFoo({
+      'uuid': uuid,
+      'property3': 'value4',
+    });
+
+    // Assert
+    await expectLater(
+      repo.execute(command),
+      throwsA(const TypeMatcher<ConflictNotReconcilable>()),
+    );
+    expect(
+      repo.isChanged,
+      isFalse,
+      reason: 'Repository should rollback changes when command fails',
+    );
+    expect(
+      foo.isChanged,
+      isFalse,
+      reason: 'Repository should rollback changes when command fails',
+    );
+  });
 }
 
 Future _assertCatchUp(FooRepository repo1, FooRepository repo2, FooRepository repo3, int count) async {
