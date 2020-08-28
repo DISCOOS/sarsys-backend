@@ -1668,5 +1668,8 @@ class ThreeWayMerge extends MergeStrategy {
     return events;
   }
 
-  Future _catchup() async => await repository.store.catchUp(repository);
+  Future _catchup() async => await repository.store.catchUp(
+        repository,
+        master: true,
+      );
 }

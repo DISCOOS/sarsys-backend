@@ -178,7 +178,10 @@ class EventStore {
   /// Replay events from stream to given repository
   ///
   /// Throws an [InvalidOperation] if [Repository.store] is not this [EventStore]
-  Future<int> replay<T extends AggregateRoot>(Repository<Command, T> repository) async {
+  Future<int> replay<T extends AggregateRoot>(
+    Repository<Command, T> repository, {
+    bool master = false,
+  }) async {
     // Sanity checks
     _assertState();
     _assertRepository(repository);
@@ -191,7 +194,8 @@ class EventStore {
       // Fetch all events
       final count = await _catchUp(
         repository,
-        EventNumber.first,
+        master: master,
+        number: EventNumber.first,
       );
       logger.info("Replayed $count events from stream '${canonicalStream}'");
       return count;
@@ -207,10 +211,17 @@ class EventStore {
   }
 
   /// Catch up with stream
-  Future<int> catchUp(Repository repository) async {
+  Future<int> catchUp(
+    Repository repository, {
+    bool master = false,
+  }) async {
     final previous = current();
     final next = current() + 1;
-    final count = await _catchUp(repository, next);
+    final count = await _catchUp(
+      repository,
+      number: next,
+      master: master,
+    );
     final actual = current();
     if (count > 0) {
       logger.info(
@@ -225,19 +236,27 @@ class EventStore {
   }
 
   /// Catch up with stream from given number
-  Future<int> _catchUp(Repository repository, EventNumber number) async {
+  Future<int> _catchUp(
+    Repository repository, {
+    EventNumber number,
+    bool master = false,
+  }) async {
     var count = 0;
     // Lower bound is last known event number in stream
-    final head = EventNumber(max(current().value, number.value));
+    final head = EventNumber(
+      max(current().value, number.value),
+    );
     if (head > number) {
       logger.fine(
-        "_catchUp: 'number': $number < current number for $canonicalStream: ${current()}: 'number' changed to $head",
+        "_catchUp: 'number': $number < current number "
+        "for $canonicalStream: ${current()}: 'number' changed to $head",
       );
     }
 
     final stream = await connection.readEventsAsStream(
       stream: canonicalStream,
       number: head,
+      master: master,
     );
 
     // Process results as they arrive
@@ -1068,6 +1087,7 @@ class EventStoreConnection {
     @required String stream,
     int pageSize,
     bool embed = false,
+    bool master = false,
     EventNumber number = EventNumber.first,
     Direction direction = Direction.forward,
     Duration waitFor = defaultWaitFor,
@@ -1081,6 +1101,13 @@ class EventStoreConnection {
       pageSize: pageSize ?? this.pageSize,
     )}';
     _logger.finer('getFeed: REQUEST $url');
+
+    final headers = {
+      'Authorization': credentials.header,
+      'ES-RequireMaster': '${master && requireMaster}',
+      'Accept': 'application/vnd.eventstore.atom+json',
+      if (waitFor.inMilliseconds > 0) 'ES-LongPoll': '${waitFor.inSeconds}',
+    };
     final response = await client.get(
       url,
       headers: {
@@ -1090,13 +1117,44 @@ class EventStoreConnection {
       },
     );
     _logger.finer('getFeed: RESPONSE ${response.statusCode}');
-    return FeedResult.from(
-      stream: stream,
-      number: actual,
-      embedded: embed,
-      response: response,
-      direction: direction,
+    if (response.statusCode != HttpStatus.temporaryRedirect) {
+      return FeedResult.from(
+        stream: stream,
+        number: actual,
+        embedded: embed,
+        response: response,
+        direction: direction,
+      );
+    }
+    _logger.fine(
+      'Redirect read to master ${response.headers['location']}',
     );
+    try {
+      final redirected = await client.get(
+        response.headers['location'],
+        headers: headers,
+      );
+      if (redirected.statusCode != 200) {
+        _logger.warning(
+          'Redirect read from master ${response.headers['location']} '
+          'failed with ${redirected.statusCode} ${redirected.reasonPhrase}',
+        );
+      }
+      return FeedResult.from(
+        stream: stream,
+        number: actual,
+        embedded: embed,
+        response: response,
+        direction: direction,
+      );
+    } catch (e, stackTrace) {
+      _logger.warning(
+        'Redirect read to master ${response.headers['location']} failed',
+        e,
+        stackTrace,
+      );
+      rethrow;
+    }
   }
 
   String _toFeedUri({EventNumber number, Direction direction, int pageSize, bool embed}) {
@@ -1209,6 +1267,7 @@ class EventStoreConnection {
   Stream<ReadResult> readEventsAsStream({
     @required String stream,
     int pageSize = 20,
+    bool master = false,
     EventNumber number = EventNumber.first,
     Direction direction = Direction.forward,
     Duration waitFor = defaultWaitFor,
@@ -1217,6 +1276,7 @@ class EventStoreConnection {
 
     var controller = _EventStreamController(
       this,
+      master: master,
     );
 
     return controller.read(
@@ -1405,7 +1465,7 @@ class EventStoreConnection {
         response,
       );
     }
-    _logger.info(
+    _logger.fine(
       'Redirect write to master ${response.headers['location']}',
     );
     try {
@@ -1736,34 +1796,41 @@ class EventStoreConnection {
 }
 
 class _EventStreamController {
-  _EventStreamController(this.connection) : logger = connection._logger;
+  _EventStreamController(
+    this.connection, {
+    bool master = false,
+  })  : _master = master,
+        logger = connection._logger;
 
   final Logger logger;
   final EventStoreConnection connection;
 
-  int _pageSize;
   int get pageSize => _pageSize;
+  int _pageSize;
 
-  String _stream;
   String get stream => _stream;
+  String _stream;
 
-  Duration _waitFor;
   Duration get waitFor => _waitFor;
+  Duration _waitFor;
 
-  EventNumber _number;
   EventNumber get number => _number;
+  EventNumber _number;
 
-  Direction _direction;
   Direction get direction => _direction;
+  Direction _direction;
 
-  EventNumber _current;
   EventNumber get current => _current;
+  EventNumber _current;
 
-  bool _isPaused = true;
   ReadResult _pendingResume;
+  bool _isPaused = true;
 
-  StreamController<ReadResult> _controller;
   StreamController<ReadResult> get controller => _controller;
+  StreamController<ReadResult> _controller;
+
+  bool _master;
+  bool get master => _master;
 
   Stream<ReadResult> read({
     @required String stream,
@@ -1890,6 +1957,7 @@ class _EventStreamController {
         embed: true,
         stream: stream,
         number: current,
+        master: _master,
         waitFor: waitFor,
         pageSize: _pageSize,
         direction: Direction.forward,
