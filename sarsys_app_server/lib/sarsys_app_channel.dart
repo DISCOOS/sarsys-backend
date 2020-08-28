@@ -405,6 +405,11 @@ class SarSysAppServerChannel extends ApplicationChannel {
       (record) => printRecord(record, debug: config.debug),
     );
 
+    logger.info("EVENTSTORE_HOST is ${config.eventstore.host}");
+    logger.info("EVENTSTORE_PORT is ${config.eventstore.port}");
+    logger.info("EVENTSTORE_LOGIN is ${config.eventstore.login}");
+    logger.info("EVENTSTORE_REQUIRE_MASTER is ${config.eventstore.requireMaster}");
+
     if (config.debug == true) {
       logger.info("Debug mode enabled");
       if (Platform.environment.containsKey("IMAGE")) {
