@@ -49,13 +49,13 @@ class OrganisationImportController
       final failures = responses.where(isError);
       return failures.isEmpty
           ? okAggregate(primary.get(uuid))
-          : Response.serverError(body: {
+          : toServerError({
               'errors': failures
                   .map(
                     (response) => '${response.statusCode}: ${response.body}',
                   )
                   .toList()
-            });
+            }, StackTrace.current);
     } on AggregateExists catch (e) {
       return conflict(
         ConflictType.merge,
@@ -81,7 +81,7 @@ class OrganisationImportController
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
     } on Exception catch (e, stackTrace) {
-      return serverError(e, stackTrace);
+      return toServerError(e, stackTrace);
     }
   }
 

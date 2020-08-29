@@ -78,7 +78,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } catch (e, stackTrace) {
-      return serverError(e, stackTrace);
+      return toServerError(e, stackTrace);
     }
   }
 
@@ -92,7 +92,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } catch (e, stackTrace) {
-      return serverError(e, stackTrace);
+      return toServerError(e, stackTrace);
     }
   }
 
@@ -125,7 +125,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } catch (e, stackTrace) {
-      return serverError(e, stackTrace);
+      return toServerError(e, stackTrace);
     }
   }
 
@@ -161,7 +161,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } catch (e, stackTrace) {
-      return serverError(e, stackTrace);
+      return toServerError(e, stackTrace);
     }
   }
 
@@ -191,7 +191,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
     } catch (e, stackTrace) {
-      return serverError(e, stackTrace);
+      return toServerError(e, stackTrace);
     }
   }
 
@@ -199,13 +199,12 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
 
   /// Report error to Sentry and
   /// return 500 with message as body
-  Future<Response> serverError(Object error, StackTrace stackTrace) {
-    final String message = "${request.method} failed";
-    logger.network(message, error, stackTrace);
-    return Future.value(
-      Response.serverError(body: message),
-    );
-  }
+  Response toServerError(Object error, StackTrace stackTrace) => serverError(
+        request,
+        error,
+        stackTrace,
+        logger: logger,
+      );
 
   /// Wait for given rule result from stream of results
   Future<Response> withResponseWaitForRuleResult<T extends Event>(
@@ -231,7 +230,10 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
           timeout: timeout,
         );
       } catch (e) {
-        return Response.serverError(body: {'error': e});
+        return toServerError(
+          {'error': e},
+          StackTrace.current,
+        );
       }
     }
     return response;
@@ -262,7 +264,10 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
           expected: expected,
         );
       } catch (e) {
-        return Response.serverError(body: {'error': e});
+        return toServerError(
+          {'error': e},
+          StackTrace.current,
+        );
       }
     }
     return response;

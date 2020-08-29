@@ -20,6 +20,19 @@ Response serviceUnavailable({Map<String, dynamic> headers, dynamic body}) => Res
       body,
     );
 
+/// Report error to Sentry and
+/// return 500 with message as body
+Response serverError(
+  Request request,
+  Object error,
+  StackTrace stackTrace, {
+  Logger logger,
+}) {
+  final String message = "${request.method} ${request.raw.uri} failed";
+  logger?.network(message, error, stackTrace);
+  return Response.serverError(body: error);
+}
+
 Response okAggregate(AggregateRoot aggregate) => Response.ok(toAggregateData(aggregate));
 
 Map<String, dynamic> toAggregateData(AggregateRoot aggregate) => {

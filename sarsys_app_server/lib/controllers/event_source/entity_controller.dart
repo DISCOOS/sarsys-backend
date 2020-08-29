@@ -76,7 +76,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } catch (e, stackTrace) {
-      return serverError(e, stackTrace);
+      return toServerError(e, stackTrace);
     }
   }
 
@@ -107,7 +107,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } catch (e, stackTrace) {
-      return serverError(e, stackTrace);
+      return toServerError(e, stackTrace);
     }
   }
 
@@ -134,7 +134,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
     } catch (e, stackTrace) {
-      return serverError(e, stackTrace);
+      return toServerError(e, stackTrace);
     }
   }
 
@@ -178,7 +178,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
     } catch (e, stackTrace) {
-      return serverError(e, stackTrace);
+      return toServerError(e, stackTrace);
     }
   }
 
@@ -210,7 +210,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
     } catch (e, stackTrace) {
-      return serverError(e, stackTrace);
+      return toServerError(e, stackTrace);
     }
   }
 
@@ -218,13 +218,12 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
 
   /// Report error to Sentry and
   /// return 500 with message as body
-  Future<Response> serverError(Object error, StackTrace stackTrace) {
-    final String message = "${request.method} failed";
-    logger.network(message, error, stackTrace);
-    return Future.value(
-      Response.serverError(body: message),
-    );
-  }
+  Response toServerError(Object error, StackTrace stackTrace) => serverError(
+        request,
+        error,
+        stackTrace,
+        logger: logger,
+      );
 
   //////////////////////////////////
   // Documentation

@@ -43,7 +43,7 @@ class TrackingStatusController extends ValueController<TrackingCommand, Tracking
       }
       return super.update(uuid, data);
     } catch (e, stackTrace) {
-      return serverError(e, stackTrace);
+      return toServerError(e, stackTrace);
     }
   }
 

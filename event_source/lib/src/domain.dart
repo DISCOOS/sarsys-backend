@@ -788,8 +788,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       return _reconcile(operation);
     } catch (e, stackTrace) {
       logger.severe(
-        'Failed to push aggregate ${aggregate.runtimeType} ${aggregate.uuid}: $e, '
-        'stacktrace: $stackTrace, debug: ${toDebugString(aggregate?.uuid)}',
+        'Failed to push aggregate ${aggregate.runtimeType} ${aggregate.uuid}, \n'
+        'error: $e, stacktrace: $stackTrace, debug: ${toDebugString(aggregate?.uuid)}',
       );
       operation.completer.completeError(e, stackTrace);
     }
@@ -821,6 +821,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     } on ConflictNotReconcilable catch (e, stackTrace) {
       operation.completer.completeError(e, stackTrace);
     } catch (e, stackTrace) {
+      logger.severe(
+        'Failed to reconcile push of aggregate ${aggregate.runtimeType} ${aggregate.uuid}, \n '
+        'error: $e, stacktrace: $stackTrace, debug: ${toDebugString(aggregate?.uuid)}',
+      );
       operation.completer.completeError(e, stackTrace);
     }
     return operation;

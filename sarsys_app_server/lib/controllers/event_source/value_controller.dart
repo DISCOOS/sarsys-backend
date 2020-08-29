@@ -74,12 +74,15 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
       } else if (value == null) {
         return Response.notFound(body: "Value $aggregateField not found");
       } else {
-        return Response.serverError(body: "Value $aggregateField is an object");
+        return toServerError(
+          "Value $aggregateField is an object",
+          StackTrace.current,
+        );
       }
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } catch (e, stackTrace) {
-      return serverError(e, stackTrace);
+      return toServerError(e, stackTrace);
     }
   }
 
@@ -114,7 +117,7 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } catch (e, stackTrace) {
-      return serverError(e, stackTrace);
+      return toServerError(e, stackTrace);
     }
   }
 
@@ -122,13 +125,12 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
 
   /// Report error to Sentry and
   /// return 500 with message as body
-  Future<Response> serverError(Object error, StackTrace stackTrace) {
-    final String message = "${request.method} failed";
-    logger.network(message, error, stackTrace);
-    return Future.value(
-      Response.serverError(body: message),
-    );
-  }
+  Response toServerError(Object error, StackTrace stackTrace) => serverError(
+        request,
+        error,
+        stackTrace,
+        logger: logger,
+      );
 
   //////////////////////////////////
   // Documentation

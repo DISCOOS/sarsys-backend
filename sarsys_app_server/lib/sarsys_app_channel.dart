@@ -656,7 +656,8 @@ class SarSysAppServerChannel extends ApplicationChannel {
     final message = "${rec.time}: ${rec.level.name}: "
         "${debug ? '${rec.loggerName}: ' : ''}"
         "${debug && Platform.environment.containsKey('POD-NAME') ? '${Platform.environment['POD-NAME']}: ' : ''}"
-        "${rec.message} ${rec.error ?? ""} ${rec.stackTrace ?? ""}";
+        "${rec.message} ${rec.error != null ? 'error: ${rec.error}:' : ''} "
+        "${rec.stackTrace != null ? 'stackTrace: ${rec.stackTrace}' : ''}";
     print(message);
     _remoteLogger?.log(rec);
   }

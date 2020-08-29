@@ -51,7 +51,7 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } catch (e, stackTrace) {
-      return serverError(e, stackTrace);
+      return toServerError(e, stackTrace);
     }
   }
 
@@ -134,7 +134,7 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } catch (e, stackTrace) {
-      return serverError(e, stackTrace);
+      return toServerError(e, stackTrace);
     }
   }
 

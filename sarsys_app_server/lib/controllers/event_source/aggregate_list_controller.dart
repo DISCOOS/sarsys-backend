@@ -81,7 +81,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
     } catch (e, stackTrace) {
-      return serverError(e, stackTrace);
+      return toServerError(e, stackTrace);
     }
   }
 
@@ -146,7 +146,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
     } catch (e, stackTrace) {
-      return serverError(e, stackTrace);
+      return toServerError(e, stackTrace);
     }
   }
 
@@ -208,7 +208,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
     } catch (e, stackTrace) {
-      return serverError(e, stackTrace);
+      return toServerError(e, stackTrace);
     }
   }
 
@@ -270,7 +270,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
     } catch (e, stackTrace) {
-      return serverError(e, stackTrace);
+      return toServerError(e, stackTrace);
     }
   }
 

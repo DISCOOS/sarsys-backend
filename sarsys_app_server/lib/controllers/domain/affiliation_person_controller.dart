@@ -71,7 +71,7 @@ class AffiliationPersonController extends AggregateController<AffiliationCommand
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } on Exception catch (e, stackTrace) {
-      return serverError(e, stackTrace);
+      return toServerError(e, stackTrace);
     }
   }
 
