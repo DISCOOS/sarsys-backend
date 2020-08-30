@@ -33,6 +33,14 @@ class EventSourceHarness {
     return this;
   }
 
+  int _master;
+  int get master => _master;
+  EventSourceHarness withMaster(int port) {
+    assert(_servers.isEmpty, 'Master must be set before adding server');
+    _master = port;
+    return this;
+  }
+
   StreamSubscription _printer;
   final Map<String, Map<String, bool>> _streams = {};
   List<String> get streams => _streams.keys.toList(growable: false);
@@ -105,7 +113,7 @@ class EventSourceHarness {
   final List<StreamSubscription> _errorDetectors = [];
   final Map<int, List<RepositoryManager>> _managers = {};
 
-  void addServer({
+  EventSourceHarness addServer({
     @required int port,
   }) {
     _servers.putIfAbsent(
@@ -114,11 +122,13 @@ class EventSourceHarness {
         _tenant,
         _prefix,
         port,
+        master: port == _master ? null : _master,
         replicate: replicate,
         logger: _logger,
         verbose: _logger != null,
       ),
     );
+    return this;
   }
 
   void install() {
@@ -162,6 +172,7 @@ class EventSourceHarness {
     _connections[port] = EventStoreConnection(
       host: 'http://localhost',
       port: port,
+      requireMaster: _master != null,
     );
   }
 

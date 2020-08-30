@@ -24,6 +24,7 @@ class EventStoreMockServer {
     this.prefix,
     this.port, {
     Logger logger,
+    this.master,
     this.replicate,
     this.verbose = true,
   }) : logger = Logger('EventStoreMockServer');
@@ -36,6 +37,11 @@ class EventStoreMockServer {
 
   /// Eventstore stream prefix
   final String prefix;
+
+  /// Port to master.
+  ///
+  /// If null, this instance is master.
+  final int master;
 
   /// EventStore test routes
   final Map<String, TestRoute> _router = <String, TestRoute>{};
@@ -65,8 +71,16 @@ class EventStoreMockServer {
         (route) => route.isMatch(request),
         orElse: () => null,
       );
+
+      final method = request.method;
+      if (method == 'POST') {
+        print(method);
+      }
+
       if (route == null) {
         _notFound(request);
+      } else if (_shouldTemporaryRedirect(request)) {
+        _temporaryRedirect(request);
       } else {
         await route.handle(request);
       }
@@ -85,10 +99,21 @@ class EventStoreMockServer {
     );
   }
 
+  bool _shouldTemporaryRedirect(HttpRequest request) =>
+      master != null && request.headers.value('es-requiremaster')?.toLowerCase() == 'true';
+
   HttpResponse _notFound(HttpRequest request) {
     return request.response
       ..statusCode = HttpStatus.notFound
       ..reasonPhrase = 'Not found';
+  }
+
+  HttpResponse _temporaryRedirect(HttpRequest request) {
+    final url = 'http://${InternetAddress.loopbackIPv4.address}:$master${request.uri}';
+    return request.response
+      ..headers.add('location', url)
+      ..statusCode = HttpStatus.temporaryRedirect
+      ..reasonPhrase = 'Temporary Redirect';
   }
 
   void _log(String message) {

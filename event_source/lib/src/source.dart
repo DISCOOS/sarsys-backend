@@ -1529,7 +1529,7 @@ class EventStoreConnection {
         stream: stream,
         events: sourced,
         version: version,
-        response: response,
+        response: redirected,
       );
     } catch (e, stackTrace) {
       _logger.warning(

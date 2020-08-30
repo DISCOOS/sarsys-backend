@@ -20,6 +20,7 @@ Future main() async {
       instances: 2,
     )
     ..withProjections(projections: ['\$by_category', '\$by_event_type'])
+    ..withMaster(4000)
     ..addServer(port: 4000)
     ..addServer(port: 4001)
     ..addServer(port: 4002)
@@ -40,6 +41,19 @@ Future main() async {
     expect(await events1.asStream().first, equals([isA<FooCreated>()]));
     await expectLater(events2, throwsA(isA<WrongExpectedEventVersion>()));
   });
+
+  test('EventStore redirects to master when ES-RequireMaster=true', () async {
+    // Arrange for calls to slave
+    final repo = harness.get<FooRepository>(port: 4001);
+    await repo.readyAsync();
+    final foo = repo.get(Uuid().v4());
+
+    // Act
+    final events = await repo.store.push(foo);
+
+    // Assert - store write fails
+    expect(events, equals([isA<FooCreated>()]));
+  }, timeout: Timeout.factor(100));
 
   test('EventStore should catchup after replay', () async {
     // Arrange
