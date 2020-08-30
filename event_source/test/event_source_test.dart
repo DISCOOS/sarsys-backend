@@ -14,7 +14,7 @@ Future main() async {
     ..withPrefix()
     ..withLogger()
     ..withRepository<Foo>(
-      (store, instance) => FooRepository(store, instance),
+      (_, store, instance) => FooRepository(store, instance),
       instances: 2,
     )
     ..withProjections(projections: ['\$by_category', '\$by_event_type'])

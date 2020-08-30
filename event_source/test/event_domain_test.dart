@@ -2,7 +2,9 @@ import 'package:event_source/event_source.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 import 'package:async/async.dart';
+import 'package:pedantic/pedantic.dart';
 
+import 'bar.dart';
 import 'foo.dart';
 import 'harness.dart';
 
@@ -12,7 +14,15 @@ Future main() async {
     ..withPrefix()
     ..withLogger()
     ..withRepository<Foo>(
-      (store, instance) => FooRepository(store, instance),
+      (manager, store, instance) => FooRepository(store, instance),
+      instances: 2,
+    )
+    ..withRepository<Bar>(
+      (manager, store, instance) => BarRepository(
+        store,
+        instance,
+        manager.get<FooRepository>(),
+      ),
       instances: 2,
     )
     ..withProjections(projections: ['\$by_category', '\$by_event_type'])
@@ -546,6 +556,52 @@ Future main() async {
       isFalse,
       reason: 'Repository should rollback changes when command fails',
     );
+  });
+
+  test('Repository should catchup before policy write', () async {
+    // Arrange first server
+    final foos1 = harness.get<FooRepository>(port: 4000);
+    final bars1 = harness.get<BarRepository>(port: 4000);
+    await foos1.readyAsync();
+    await bars1.readyAsync();
+
+    // Arrange second server
+    final foos2 = harness.get<FooRepository>(port: 4001);
+    final bars2 = harness.get<BarRepository>(port: 4001);
+    await foos2.readyAsync();
+    await bars2.readyAsync();
+
+    final group = StreamGroup();
+    await group.add(foos1.store.asStream());
+    await group.add(bars1.store.asStream());
+    await group.add(foos2.store.asStream());
+    await group.add(bars2.store.asStream());
+
+    // Act on first server
+    final fuuid = Uuid().v4();
+    final fdata = {'uuid': fuuid, 'property1': 'value1'};
+    final foo = foos1.get(fuuid, data: fdata);
+    unawaited(foos1.push(foo));
+
+    // Act on second server
+    final buuid = Uuid().v4();
+    final bdata = {
+      'uuid': buuid,
+      'foo': {'uuid': fuuid}
+    };
+    final bar = bars2.get(buuid, data: bdata);
+    await bars2.push(bar);
+
+    // Wait for all 4 creation and 1 update event
+    final events = await group.stream.take(5).toList();
+    await group.close();
+
+    // Assert all states are up to date
+    fdata.addAll({'updated': 'value'});
+    expect(foos1.get(fuuid).data, fdata, reason: 'Foo in instance 1 should be updated');
+    expect(bars1.get(buuid).data, bdata, reason: 'Bar in instance 1 should be updated');
+    expect(foos2.get(fuuid).data, fdata, reason: 'Foo in instance 2 should be updated');
+    expect(bars2.get(buuid).data, bdata, reason: 'Bar in instance 2 should be updated');
   });
 }
 

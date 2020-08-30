@@ -1,30 +1,32 @@
 import 'package:meta/meta.dart';
 import 'package:event_source/event_source.dart';
 
-class Foo extends AggregateRoot<FooCreated, FooDeleted> {
-  Foo(
+import 'foo.dart';
+
+class Bar extends AggregateRoot<BarCreated, BarDeleted> {
+  Bar(
     String uuid,
     Map<String, ProcessCallback> processors, {
     Map<String, dynamic> data = const {},
   }) : super(uuid, processors, data);
 }
 
-class FooRepository extends Repository<FooCommand, Foo> {
-  FooRepository(EventStore store, this.instance)
+class BarRepository extends Repository<BarCommand, Bar> {
+  BarRepository(EventStore store, this.instance, this.foos)
       : super(store: store, processors: {
-          FooCreated: (event) => FooCreated(
+          BarCreated: (event) => BarCreated(
                 uuid: event.uuid,
                 data: event.data,
                 created: event.created,
                 local: event.local,
               ),
-          FooUpdated: (event) => FooUpdated(
+          BarUpdated: (event) => BarUpdated(
                 uuid: event.uuid,
                 data: event.data,
                 local: event.local,
                 created: event.created,
               ),
-          FooDeleted: (event) => FooDeleted(
+          BarDeleted: (event) => BarDeleted(
                 uuid: event.uuid,
                 data: event.data,
                 local: event.local,
@@ -33,12 +35,32 @@ class FooRepository extends Repository<FooCommand, Foo> {
         });
 
   final int instance;
+  final FooRepository foos;
 
   @override
-  Foo create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Foo(
+  Bar create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Bar(
         uuid,
         processors,
         data: data,
+      );
+
+  @override
+  void willStartProcessingEvents() {
+    rule<BarCreated>(newUpdateFooRule);
+    super.willStartProcessingEvents();
+  }
+
+  /// Will update [Foo] that
+  /// matches path 'foo/uuid'
+  /// in [Bar.data]
+  AggregateRule newUpdateFooRule(_) => AssociationRule(
+        (source, target) => UpdateFoo(
+          {'uuid': target, 'updated': 'value'},
+        ),
+        target: foos,
+        targetField: 'uuid',
+        sourceField: 'foo/uuid',
+        intent: Action.update,
       );
 
   @override
@@ -47,34 +69,34 @@ class FooRepository extends Repository<FooCommand, Foo> {
   }
 }
 
-abstract class FooCommand<T extends DomainEvent> extends Command<T> {
-  FooCommand(
+abstract class BarCommand<T extends DomainEvent> extends Command<T> {
+  BarCommand(
     Action action, {
     String uuid,
     Map<String, dynamic> data = const {},
   }) : super(action, uuid: uuid, data: data);
 }
 
-class CreateFoo extends FooCommand<FooCreated> {
-  CreateFoo(
+class CreateBar extends BarCommand<BarCreated> {
+  CreateBar(
     Map<String, dynamic> data,
   ) : super(Action.create, data: data);
 }
 
-class UpdateFoo extends FooCommand<FooUpdated> {
-  UpdateFoo(
+class UpdateBar extends BarCommand<BarUpdated> {
+  UpdateBar(
     Map<String, dynamic> data,
   ) : super(Action.update, data: data);
 }
 
-class DeleteFoo extends FooCommand<FooDeleted> {
-  DeleteFoo(
+class DeleteBar extends BarCommand<BarDeleted> {
+  DeleteBar(
     Map<String, dynamic> data,
   ) : super(Action.delete, data: data);
 }
 
-class FooCreated extends DomainEvent {
-  FooCreated({
+class BarCreated extends DomainEvent {
+  BarCreated({
     @required bool local,
     @required String uuid,
     @required DateTime created,
@@ -82,7 +104,7 @@ class FooCreated extends DomainEvent {
   }) : super(
           uuid: uuid,
           local: local,
-          type: '$FooCreated',
+          type: '$BarCreated',
           created: created,
           data: data,
         );
@@ -90,8 +112,8 @@ class FooCreated extends DomainEvent {
   int get index => changed.elementAt('index');
 }
 
-class FooUpdated extends DomainEvent {
-  FooUpdated({
+class BarUpdated extends DomainEvent {
+  BarUpdated({
     @required String uuid,
     @required DateTime created,
     @required Map<String, dynamic> data,
@@ -99,14 +121,14 @@ class FooUpdated extends DomainEvent {
   }) : super(
           uuid: uuid,
           local: local,
-          type: '$FooUpdated',
+          type: '$BarUpdated',
           created: created,
           data: data,
         );
 }
 
-class FooDeleted extends DomainEvent {
-  FooDeleted({
+class BarDeleted extends DomainEvent {
+  BarDeleted({
     @required String uuid,
     @required DateTime created,
     @required Map<String, dynamic> data,
@@ -114,7 +136,7 @@ class FooDeleted extends DomainEvent {
   }) : super(
           uuid: uuid,
           local: local,
-          type: '$FooDeleted',
+          type: '$BarDeleted',
           created: created,
           data: data,
         );

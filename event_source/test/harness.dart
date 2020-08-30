@@ -6,7 +6,11 @@ import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:test/test.dart';
 
-typedef _Creator<T extends AggregateRoot> = Repository<Command, T> Function(EventStore store, int instance);
+typedef _Creator<T extends AggregateRoot> = Repository<Command, T> Function(
+  RepositoryManager manager,
+  EventStore store,
+  int instance,
+);
 
 class EventSourceHarness {
   final Map<int, EventStoreMockServer> _servers = {};
@@ -62,7 +66,7 @@ class EventSourceHarness {
   MessageBus get bus => _bus;
 
   EventSourceHarness withRepository<T extends AggregateRoot>(
-    Repository<Command, T> Function(EventStore, int) create, {
+    Repository<Command, T> Function(RepositoryManager, EventStore, int) create, {
     int instances = 1,
     bool useInstanceStreams = true,
   }) {
@@ -249,7 +253,7 @@ class _RepositoryBuilder<T extends AggregateRoot> {
 
   void call(RepositoryManager manager, int instance) {
     manager.register<T>(
-      (store) => _create(store, instance),
+      (store) => _create(manager, store, instance),
       stream: stream,
       useInstanceStreams: useInstanceStreams,
     );

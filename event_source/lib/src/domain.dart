@@ -788,7 +788,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       return _reconcile(operation);
     } catch (e, stackTrace) {
       logger.severe(
-        'Failed to push aggregate ${aggregate.runtimeType} ${aggregate.uuid}, \n'
+        'Failed to push ${aggregate.runtimeType}{uuid: ${aggregate.uuid}},\n'
         'error: $e, stacktrace: $stackTrace, debug: ${toDebugString(aggregate?.uuid)}',
       );
       operation.completer.completeError(e, stackTrace);
@@ -822,7 +822,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       operation.completer.completeError(e, stackTrace);
     } catch (e, stackTrace) {
       logger.severe(
-        'Failed to reconcile push of aggregate ${aggregate.runtimeType} ${aggregate.uuid}, \n '
+        'Failed to reconcile before push of ${aggregate.runtimeType}{uuid: ${aggregate.uuid}},\n'
         'error: $e, stacktrace: $stackTrace, debug: ${toDebugString(aggregate?.uuid)}',
       );
       operation.completer.completeError(e, stackTrace);
@@ -1016,7 +1016,8 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     DateTime created,
   }) : _processors = Map.from(processors) {
     _createdBy = _change(
-      data ?? {},
+      // Ensure data and uuid is given
+      (data ?? {})..addAll({uuidFieldName: uuid}),
       ops,
       typeOf<C>(),
       created ?? DateTime.now(),
