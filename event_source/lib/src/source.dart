@@ -143,7 +143,7 @@ class EventStore {
   /// [LinkedHashMap] remembers the insertion order of keys, and
   /// keys are iterated in the order they were inserted into the map.
   /// This is important for stream id inference from key order.
-  final LinkedHashMap<String, List<Event>> _store = LinkedHashMap<String, List<Event>>();
+  final LinkedHashMap<String, Set<Event>> _store = LinkedHashMap<String, Set<Event>>();
 
   /// Current event numbers mapped to associated stream
   final Map<String, EventNumber> _current = {};
@@ -155,7 +155,7 @@ class EventStore {
   bool get isNotEmpty => _store.isNotEmpty;
 
   /// Get all events
-  Map<String, List<Event>> get events => Map.from(_store);
+  Map<String, Set<Event>> get events => Map.from(_store);
 
   /// Current event number for [canonicalStream]
   ///
@@ -294,10 +294,10 @@ class EventStore {
     return count;
   }
 
-  List<Event> _updateAll(String uuid, Iterable<Event> events) => _store.update(
+  Set<Event> _updateAll(String uuid, Iterable<Event> events) => _store.update(
         uuid,
-        (current) => List.from(current)..addAll(events),
-        ifAbsent: () => events.toList(),
+        (current) => Set.from(current)..addAll(events),
+        ifAbsent: () => events.toSet(),
       );
 
   Iterable<DomainEvent> _applyAll(Repository repository, String uuid, List<SourceEvent> events) {

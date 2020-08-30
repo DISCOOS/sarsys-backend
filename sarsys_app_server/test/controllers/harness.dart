@@ -28,12 +28,24 @@ export 'package:aqueduct/aqueduct.dart';
 ///
 class SarSysHarness extends TestHarness<SarSysAppServerChannel> {
   EventStoreMockServer eventStoreMockServer;
+  final Set<int> _ports = {};
+  final Map<int, Agent> _agents = {};
+  final List<Application<SarSysAppServerChannel>> _instances = [];
+
+  Map<int, Agent> get agents => _agents;
 
   EventStoreMockServer withEventStoreMock() => eventStoreMockServer = EventStoreMockServer(
         'discoos',
         'test',
         4000,
       );
+
+  SarSysHarness withInstance(int port) {
+    assert(port != 80, 'Instance with port 80 exists');
+    assert(!_ports.contains(port), 'Instance with port $port exists');
+    _ports.add(port);
+    return this;
+  }
 
   @override
   Future beforeStart() async {
@@ -75,6 +87,11 @@ class SarSysHarness extends TestHarness<SarSysAppServerChannel> {
           "   $missing\n\n"
           ">> Add missing stream(s) to SarSysHarness.onSetUp()";
     }
+    for (var port in _ports) {
+      final agent = await _startInstance(port);
+      _agents.putIfAbsent(port, () => agent);
+    }
+    _agents.putIfAbsent(80, () => agent);
     return channel.manager.readyAsync();
   }
 
@@ -94,10 +111,26 @@ class SarSysHarness extends TestHarness<SarSysAppServerChannel> {
   @override
   Future stop() async {
     await channel.dispose();
+    for (var instance in _instances) {
+      await instance.channel.dispose();
+      await instance.stop();
+    }
     if (eventStoreMockServer != null) {
       await eventStoreMockServer.close();
     }
+    _agents.clear();
+    _instances.clear();
     return super.stop();
+  }
+
+  Future<Agent> _startInstance(int port) async {
+    final application = Application<SarSysAppServerChannel>()..options = options;
+    await application.startOnCurrentIsolate();
+    application.channel.config.logging.stdout = false;
+    final agent = Agent(application);
+    await application.channel.manager.readyAsync();
+    _instances.add(application);
+    return agent;
   }
 }
 
@@ -109,10 +142,11 @@ Future expectAggregateInList(
   SarSysHarness harness, {
   String uri,
   String uuid,
+  int port = 80,
   String listField,
   List<String> uuids,
 }) async {
-  final response = expectResponse(await harness.agent.get("$uri/$uuid"), 200);
+  final response = expectResponse(await harness.agents[port].get("$uri/$uuid"), 200);
   final actual = await response.body.decode();
   expect(
     Map.from(actual['data'] as Map).elementAt(listField),
@@ -123,12 +157,13 @@ Future expectAggregateInList(
 Future expectAggregateReference(
   SarSysHarness harness, {
   String uri,
+  int port = 80,
   String childUuid,
   Map<String, dynamic> child,
   String parentField,
   String parentUuid,
 }) async {
-  final response = expectResponse(await harness.agent.get("$uri/$childUuid"), 200);
+  final response = expectResponse(await harness.agents[port].get("$uri/$childUuid"), 200);
   final actual = await response.body.decode();
   expect(
     actual['data'],

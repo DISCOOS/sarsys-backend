@@ -593,7 +593,7 @@ Future main() async {
     await bars2.push(bar);
 
     // Wait for all 4 creation and 1 update event
-    final events = await group.stream.take(5).toList();
+    await group.stream.take(5).toList();
     await group.close();
 
     // Assert all states are up to date

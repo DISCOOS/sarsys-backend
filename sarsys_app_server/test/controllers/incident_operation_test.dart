@@ -1,34 +1,44 @@
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
+import 'package:pedantic/pedantic.dart';
 
 import 'harness.dart';
 
 Future main() async {
   final harness = SarSysHarness()
     ..withEventStoreMock()
+    ..withInstance(8080)
     ..install(restartForEachTest: true);
 
   test("POST /api/incident/{uuid}/operation adds operation to aggregate list", () async {
-    final iuuid = await _prepare(harness);
+    // Arrange
+    final iuuid = Uuid().v4();
+    final incident = createIncident(iuuid);
+    unawaited(harness.agent.post("/api/incidents", body: incident));
+
+    await Future.delayed(const Duration(milliseconds: 10));
+
     final ouuid = Uuid().v4();
     final operation = _createData(ouuid);
     expectResponse(
-      await harness.agent.post("/api/incidents/$iuuid/operations", body: operation),
+      await harness.agents[8080].post("/api/incidents/$iuuid/operations", body: operation),
       201,
       body: null,
     );
     await expectAggregateReference(
       harness,
-      uri: '/api/operations',
+      port: 8080,
       childUuid: ouuid,
       child: operation,
-      parentField: 'incident',
       parentUuid: iuuid,
+      uri: '/api/operations',
+      parentField: 'incident',
     );
     await expectAggregateInList(
       harness,
-      uri: '/api/incidents',
+      port: 8080,
       uuid: iuuid,
+      uri: '/api/incidents',
       listField: 'operations',
       uuids: [
         ouuid,
