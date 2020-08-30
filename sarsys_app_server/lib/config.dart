@@ -36,6 +36,10 @@ class SarSysConfig extends Configuration {
 class LoggerConfig extends Configuration {
   LoggerConfig();
 
+  /// Logging print to stdout
+  @optionalConfiguration
+  bool stdout = true;
+
   /// Log level
   @optionalConfiguration
   String level = Level.INFO.name;

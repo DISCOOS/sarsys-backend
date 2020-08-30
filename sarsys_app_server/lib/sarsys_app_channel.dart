@@ -402,7 +402,11 @@ class SarSysAppServerChannel extends ApplicationChannel {
     // Parse from config file, given by --config to main.dart or default config.yaml
     config = SarSysConfig(options.configurationFilePath);
     logger.onRecord.listen(
-      (record) => printRecord(record, debug: config.debug),
+      (record) => printRecord(
+        record,
+        debug: config.debug,
+        stdout: config.logging.stdout,
+      ),
     );
 
     logger.info("EVENTSTORE_HOST is ${config.eventstore.host}");
@@ -652,13 +656,15 @@ class SarSysAppServerChannel extends ApplicationChannel {
   static RemoteLogger _remoteLogger;
 
   /// Print [LogRecord] formatted
-  static void printRecord(LogRecord rec, {bool debug = false}) {
+  static void printRecord(LogRecord rec, {bool debug = false, bool stdout = false}) {
     final message = "${rec.time}: ${rec.level.name}: "
         "${debug ? '${rec.loggerName}: ' : ''}"
         "${debug && Platform.environment.containsKey('POD-NAME') ? '${Platform.environment['POD-NAME']}: ' : ''}"
         "${rec.message} ${rec.error != null ? 'error: ${rec.error}:' : ''} "
         "${rec.stackTrace != null ? 'stackTrace: ${rec.stackTrace}' : ''}";
-    print(message);
+    if (stdout) {
+      print(message);
+    }
     _remoteLogger?.log(rec);
   }
 
