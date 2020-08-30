@@ -99,7 +99,9 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   /// Add @Operation.post() to activate
   Future<Response> create(@Bind.body() Map<String, dynamic> data) async {
     try {
-      await repository.execute(onCreate(validate("$aggregateType", data)));
+      await repository.execute(
+        onCreate(validate("$aggregateType", data)),
+      );
       return Response.created(
         "${toLocation(request)}/${data[repository.uuidFieldName]}",
       );
@@ -139,7 +141,9 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       }
       data[repository.uuidFieldName] = uuid;
       final events = await repository.execute(
-        onUpdate(validate("$aggregateType", data, isPatch: true)),
+        onUpdate(
+          validate("$aggregateType", data, isPatch: true),
+        ),
       );
       return events.isEmpty ? Response.noContent() : okAggregate(repository.get(uuid));
     } on AggregateNotFound catch (e) {

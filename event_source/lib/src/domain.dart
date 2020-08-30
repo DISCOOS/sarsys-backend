@@ -1037,6 +1037,9 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// Field name in [Message.data] for [EntityObject.id].
   final String entityIdFieldName;
 
+  /// Get event number of [DomainEvent] applied last
+  EventNumber get number => applied.isEmpty ? EventNumber.none : applied.last.number;
+
   /// [Message] to [DomainEvent] processors
   final Map<String, ProcessCallback> _processors;
 

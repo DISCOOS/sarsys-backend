@@ -38,6 +38,7 @@ Response okAggregate(AggregateRoot aggregate) => Response.ok(toAggregateData(agg
 
 Map<String, dynamic> toAggregateData(AggregateRoot aggregate) => {
       "type": "${aggregate.runtimeType}",
+      "number": aggregate.number.value,
       "created": aggregate.createdWhen.toIso8601String(),
       "changed": aggregate.changedWhen.toIso8601String(),
       if (aggregate.isDeleted) "deleted": aggregate.deletedWhen.toIso8601String(),
@@ -64,44 +65,63 @@ Map<String, dynamic> toDataPaged(int count, int offset, int limit, Iterable<Map<
 Response okEntityPaged<T extends AggregateRoot>(
   String uuid,
   String entity,
+  EventNumber number,
   List<Map<String, dynamic>> entities,
 ) {
   return Response.ok({
     "total": entities.length,
-    "entries": entities.map((data) => toEntityData<T>(uuid, entity, data)).toList() ?? [],
+    "entries": entities.map((data) => toEntityData<T>(uuid, entity, number, data)).toList() ?? [],
   });
 }
 
 Response okEntityObject<T extends AggregateRoot>(
   String uuid,
   String entity,
+  EventNumber number,
   Map<String, dynamic> data,
 ) =>
-    Response.ok(toEntityData<T>(uuid, entity, data));
+    Response.ok(
+      toEntityData<T>(uuid, entity, number, data),
+    );
 
-Map<String, dynamic> toEntityData<T extends AggregateRoot>(String uuid, String type, Map<String, dynamic> data) => {
+Map<String, dynamic> toEntityData<T extends AggregateRoot>(
+  String uuid,
+  String type,
+  EventNumber number,
+  Map<String, dynamic> data,
+) =>
+    {
       "aggregate": {
         "type": "${typeOf<T>()}",
         "uuid": uuid,
       },
       "type": type,
       "data": data,
+      if (!number.isNone) "number": number.value,
     };
 
 Response okValueObject<T extends AggregateRoot>(
   String uuid,
   String type,
+  EventNumber number,
   Map<String, dynamic> data,
 ) =>
-    Response.ok(toValueData<T>(uuid, type, data));
+    Response.ok(toValueData<T>(uuid, type, number, data));
 
-Map<String, dynamic> toValueData<T extends AggregateRoot>(String uuid, String type, Map<String, dynamic> data) => {
+Map<String, dynamic> toValueData<T extends AggregateRoot>(
+  String uuid,
+  String type,
+  EventNumber number,
+  Map<String, dynamic> data,
+) =>
+    {
       "aggregate": {
         "type": "${typeOf<T>()}",
         "uuid": uuid,
       },
       "type": type,
       "data": data,
+      if (!number.isNone) "number": number.value,
     };
 
 enum ConflictType {

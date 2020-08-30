@@ -149,6 +149,9 @@ APISchemaObject documentAggregateResponse(
         ..description = "When Aggregate was created"
         ..format = 'date-time'
         ..isReadOnly = true,
+      "number": APISchemaObject.integer()
+        ..description = "Last event applied to aggregate (can be used as version)"
+        ..isReadOnly = true,
       "data": type != null ? context.schema[type] : APISchemaObject.freeForm()
         ..description = "${type == null ? "Aggregate Root" : type}  Data"
         ..isReadOnly = true,
@@ -188,6 +191,9 @@ APISchemaObject documentEntityResponse(
         ..description = "${type == null ? "Entity Object" : type} Type"
         ..defaultValue = type
         ..isReadOnly = true,
+      "number": APISchemaObject.integer()
+        ..description = "Last event applied to aggregate (can be used as version)"
+        ..isReadOnly = true,
       "data": type != null ? context.schema[type] : APISchemaObject.freeForm()
         ..description = "${type == null ? "Entity Object" : type}  Data"
         ..isReadOnly = true,
@@ -204,6 +210,9 @@ APISchemaObject documentValueResponse(
       "type": APISchemaObject.string()
         ..description = "${type == null ? "Value Object" : type} Type"
         ..defaultValue = type
+        ..isReadOnly = true,
+      "number": APISchemaObject.integer()
+        ..description = "Last event applied to aggregate (can be used as version)"
         ..isReadOnly = true,
       "data": type != null ? context.schema[type] : APISchemaObject.freeForm()
         ..description = "${type == null ? "Value Object" : type}  Data"

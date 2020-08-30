@@ -71,6 +71,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       return okEntityPaged<T>(
         uuid,
         entityType,
+        aggregate.number,
         array.toList(),
       );
     } on InvalidOperation catch (e) {
@@ -100,6 +101,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       return okEntityObject<T>(
         uuid,
         entityType,
+        aggregate.number,
         array[id].data,
       );
     } on EntityNotFound catch (e) {

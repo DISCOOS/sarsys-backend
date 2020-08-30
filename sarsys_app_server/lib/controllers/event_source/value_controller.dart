@@ -69,6 +69,7 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
         return okValueObject<T>(
           uuid,
           valueType,
+          aggregate.number,
           value,
         );
       } else if (value == null) {

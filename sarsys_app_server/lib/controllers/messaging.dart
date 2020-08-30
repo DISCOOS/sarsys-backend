@@ -199,8 +199,12 @@ class MessageChannel extends MessageHandler<Event> {
       final data = _toData(message);
       _states.forEach(
         (appId, state) {
-          if (state.messages.isEmpty || state.messages.contains(data['type'])) {
-            _send(appId, state, data);
+          if (state.types.isEmpty || state.types.contains(data['type'])) {
+            _send(
+              appId,
+              state: state,
+              data: data,
+            );
           }
         },
       );
@@ -208,10 +212,10 @@ class MessageChannel extends MessageHandler<Event> {
   }
 
   void _send(
-    String appId,
-    _SocketState state,
-    Map<String, dynamic> data,
-  ) {
+    String appId, {
+    @required _SocketState state,
+    @required Map<String, dynamic> data,
+  }) {
     try {
       final message = Map.from(data)
         ..removeWhere(
@@ -232,7 +236,12 @@ class MessageChannel extends MessageHandler<Event> {
 
   Map<String, dynamic> _toData(Message message) {
     if (message is Event) {
-      return {'uuid': message.uuid, 'type': message.type, 'data': message.data};
+      return {
+        'uuid': message.uuid,
+        'type': message.type,
+        'data': message.data,
+        'number': message.number.value,
+      };
     } else {
       return {'type': '${message.runtimeType}'};
     }
@@ -246,7 +255,7 @@ class MessageChannel extends MessageHandler<Event> {
       _states[appId] = state.alive();
       final message = _toMessage(appId, event);
       if (message is WebSocketError) {
-        _send(appId, state, _toData(message));
+        _send(appId, state: state, data: _toData(message));
       } else {
         _handler?.handle(message);
       }
@@ -400,7 +409,7 @@ class _SocketState {
     @required this.lastTime,
     @required this.withHeartbeat,
     @required this.subscription,
-    this.messages = const {},
+    this.types = const {},
   });
 
   factory _SocketState.init(
@@ -415,14 +424,14 @@ class _SocketState {
         lastTime: DateTime.now(),
         withHeartbeat: withHeartbeat,
         subscription: subscription,
-        messages: messages,
+        types: messages,
       );
 
   final WebSocket socket;
   final DateTime lastTime;
   final _Liveliness status;
   final bool withHeartbeat;
-  final Set<String> messages;
+  final Set<String> types;
   final StreamSubscription subscription;
 
   bool get isAlive => _Liveliness.alive == status;
@@ -442,7 +451,7 @@ class _SocketState {
         lastTime: DateTime.now(),
         withHeartbeat: withHeartbeat,
         subscription: subscription,
-        messages: messages ?? const {},
+        types: messages ?? const {},
       );
 
   _SocketState alive() => _SocketState(
@@ -451,7 +460,7 @@ class _SocketState {
         lastTime: DateTime.now(),
         withHeartbeat: withHeartbeat,
         subscription: subscription,
-        messages: messages,
+        types: types,
       );
 
   _SocketState idle() => _SocketState(
@@ -460,7 +469,7 @@ class _SocketState {
         lastTime: lastTime,
         withHeartbeat: withHeartbeat,
         subscription: subscription,
-        messages: messages,
+        types: types,
       );
 }
 
