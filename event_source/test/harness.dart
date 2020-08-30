@@ -102,6 +102,7 @@ class EventSourceHarness {
   final Map<Type, _RepositoryBuilder> _builders = {};
   T get<T extends Repository>({int port = 4000, int instance = 1}) => _managers[port][instance - 1].get<T>();
 
+  final List<StreamSubscription> _errorDetectors = [];
   final Map<int, List<RepositoryManager>> _managers = {};
 
   void addServer({
@@ -198,6 +199,11 @@ class EventSourceHarness {
     for (var manager in list) {
       await manager.prepare(withProjections: _projections.toList());
       await manager.build();
+      manager.repos.forEach(
+        (r) => _errorDetectors.add(
+          r.store.asStream().listen((_) {}, onError: onError),
+        ),
+      );
     }
   }
 
@@ -209,6 +215,7 @@ class EventSourceHarness {
       }
       _managers[port].clear();
     }
+    _errorDetectors.forEach((s) => s.cancel());
   }
 
   void _close(int port, EventStoreMockServer server) async {
@@ -237,6 +244,10 @@ class EventSourceHarness {
       server.getStream(stream).append(path, data);
     });
     _logger.fine('---replicate--->ok');
+  }
+
+  void onError(Object error, StackTrace stackTrace) {
+    throw error;
   }
 }
 

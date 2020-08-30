@@ -23,6 +23,17 @@ class ProjectionNotAvailable extends InvalidOperation {
   const ProjectionNotAvailable(String message) : super(message);
 }
 
+/// Thrown when an error has occurred
+class RepositoryError extends Error {
+  RepositoryError(this.message) : super();
+  final String message;
+
+  @override
+  String toString() {
+    return '$runtimeType{message: $message}';
+  }
+}
+
 /// Thrown when an required repository is not available
 class RepositoryNotAvailable extends InvalidOperation {
   const RepositoryNotAvailable(String message) : super(message);

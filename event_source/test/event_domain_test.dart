@@ -468,6 +468,27 @@ Future main() async {
     _assertUniqueEvents(repo, events);
   });
 
+  test('Repository should enforce strict order of event numbers', () async {
+    // Arrange
+    final uuid = Uuid().v4();
+    final repo1 = harness.get<FooRepository>();
+    final repo2 = harness.get<FooRepository>();
+    await repo1.readyAsync();
+    await repo2.readyAsync();
+
+    // Act - execute
+    unawaited(_createMultipleEvents(repo1, uuid));
+    expect(await repo2.store.asStream().take(10).length, equals(10));
+
+    // Assert - repo 1
+    final events1 = _assertEventNumberStrictOrder(repo1, uuid);
+    _assertUniqueEvents(repo1, events1);
+
+    // Assert - repo 2
+    final events2 = _assertEventNumberStrictOrder(repo2, uuid);
+    _assertUniqueEvents(repo1, events2);
+  });
+
   test('Repository should resolve concurrent remote modification on command execute', () async {
     // Arrange
     final repo = harness.get<FooRepository>();
@@ -690,6 +711,38 @@ Iterable<DomainEvent> _assertMonotonePatch(List<Iterable<DomainEvent>> results) 
       (event as FooUpdated).data.elementAt('changed/property1'),
       equals(i + 1),
       reason: 'Result ${results[i]} should be an monotone increment',
+    );
+  }
+  return events;
+}
+
+Future<List<DomainEvent>> _createMultipleEvents(FooRepository repo, String uuid) async {
+  final operations = <DomainEvent>[];
+  final foo = repo.get(uuid, data: {'index': 0});
+  // Create
+  final events = await repo.push(foo);
+  operations.addAll(
+    events.toList(),
+  );
+  // Patch
+  for (var i = 1; i < 10; i++) {
+    final events = await repo.push(
+      foo..patch({'index': i}, emits: FooUpdated),
+    );
+    operations.addAll(
+      events.toList(),
+    );
+  }
+  return operations;
+}
+
+Iterable<DomainEvent> _assertEventNumberStrictOrder(Repository repo, String uuid) {
+  final events = repo.get(uuid).applied.toList();
+  for (var i = 0; i < events.length; i++) {
+    expect(
+      events[i].number.value,
+      equals(i),
+      reason: 'Event number should be $i',
     );
   }
   return events;

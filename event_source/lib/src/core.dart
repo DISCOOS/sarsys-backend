@@ -80,13 +80,15 @@ class Message {
 
 /// Event class
 class Event extends Message {
-  const Event({
+  Event({
+    @required bool local,
     @required String uuid,
     @required String type,
-    @required bool local,
     @required DateTime created,
     @required Map<String, dynamic> data,
-  }) : super(
+    EventNumber number = EventNumber.none,
+  })  : _number = number,
+        super(
           uuid: uuid,
           type: type,
           data: data,
@@ -100,14 +102,33 @@ class Event extends Message {
     @required String type,
     @required DateTime created,
     @required Map<String, dynamic> data,
+    EventNumber number = EventNumber.none,
   }) =>
       Event(
         uuid: Uuid().v4(),
         type: type,
         data: data,
         local: local,
+        number: number,
         created: created,
       );
+
+  /// Get [EventNumber] in stream
+  EventNumber get number => _number;
+  EventNumber _number = EventNumber.none;
+
+  /// Set [EventNumber] in stream.
+  ///
+  /// Is only allowed to set if [number]
+  /// equals [EventNumber.none]. This
+  /// ensures that event number can be lazily
+  /// set after creation.
+  set number(EventNumber number) {
+    if (_number != EventNumber.none) {
+      throw StateError('Event number can only be set once');
+    }
+    _number = number;
+  }
 
   /// Test if all data is deleted by evaluating if `data['deleted'] == 'true'`
   bool get isDeleted => data['deleted'] == true;
@@ -129,20 +150,23 @@ class DomainEvent extends Event {
     @required String type,
     @required DateTime created,
     @required Map<String, dynamic> data,
+    EventNumber number = EventNumber.none,
   }) : super(
           uuid: uuid,
           type: type,
           data: data,
           local: local,
+          number: number,
           created: created ?? DateTime.now(),
         );
 
-  DomainEvent rebase(Map<String, dynamic> base) {
+  Event rebase(Map<String, dynamic> base) {
     final changed = JsonPatch.apply(base, patches, strict: false);
-    return DomainEvent(
+    return Event(
       uuid: uuid,
       type: type,
       local: local,
+      number: number,
       created: created,
       data: data
         ..addAll({
@@ -165,13 +189,14 @@ class DomainEvent extends Event {
 
   @override
   String toString() {
-    return '$runtimeType{uuid: $uuid, type: $type, created: $created, data: $data}';
+    return '$runtimeType{uuid: $uuid, type: $type, created: $created, data: $data, number: $number}';
   }
 
   Event toEvent(uuidFieldName) => Event(
       uuid: uuid,
       type: type,
       local: local,
+      number: number,
       created: created,
       data: SourceEvent.toData(
         data?.elementAt<String>('uuid'),
@@ -187,19 +212,20 @@ class DomainEvent extends Event {
     @required String uuidFieldName,
   }) =>
       SourceEvent(
-          uuid: uuid,
-          type: type,
-          local: local,
-          number: number,
-          created: created,
-          streamId: streamId,
-          data: SourceEvent.toData(
-            data?.elementAt<String>('uuid'),
-            uuidFieldName,
-            patches: patches,
-            deleted: isDeleted,
-            index: data?.elementAt<int>('index'),
-          ));
+        uuid: uuid,
+        type: type,
+        local: local,
+        created: created,
+        streamId: streamId,
+        data: SourceEvent.toData(
+          data?.elementAt<String>('uuid'),
+          uuidFieldName,
+          patches: patches,
+          deleted: isDeleted,
+          index: data?.elementAt<int>('index'),
+        ),
+        number: number ?? this.number,
+      );
 
   static Map<String, dynamic> toData(
     String uuid,
@@ -218,14 +244,6 @@ class DomainEvent extends Event {
         if (index != null) 'index': index,
         if (previous != null) 'previous': previous,
       };
-
-  DomainEvent copyWith({DateTime created}) => DomainEvent(
-        uuid: uuid,
-        data: data,
-        type: type,
-        local: local,
-        created: created,
-      );
 }
 
 class EntityObjectEvent extends DomainEvent {
@@ -283,20 +301,20 @@ class SourceEvent extends Event {
   SourceEvent({
     @required String uuid,
     @required String type,
-    @required this.number,
     @required this.streamId,
     @required DateTime created,
+    @required EventNumber number,
     @required Map<String, dynamic> data,
     bool local,
   }) : super(
           uuid: uuid,
           type: type,
           data: data,
+          number: number,
           local: local ?? false,
           created: created ?? DateTime.now(),
         );
   final String streamId;
-  final EventNumber number;
 
   @override
   String toString() {

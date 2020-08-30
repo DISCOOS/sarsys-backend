@@ -583,94 +583,103 @@ class EventStore {
   void _onSubscriptionEvent(Repository repo, SourceEvent event) {
     final uuid = repo.toAggregateUuid(event);
     final stream = toInstanceStream(uuid);
+    final actual = current(uuid: uuid);
+
     seen.add(event);
 
-    try {
-      // Only catchup if repository have no
-      // pending changes. If updated before
-      // write-op is completed, a concurrent
-      // write will happened and information
-      // will be lost. Repository should therefore
-      // call pause before processing is started
-      // and only call resume when ALL changes
-      // have been processed.
-      if (repo.isProcessing) {
-        throw StateError(
-          'Subscription events not allowed when processing changes',
-        );
-      } else if (repo.isChanged) {
-        throw StateError(
-          'Subscription events not allowed when repository contains changes',
-        );
-      }
+    // Allow update of existing event
+    if (event.number >= actual) {
+      try {
+        // Only catchup if repository have no
+        // pending changes. If updated before
+        // write-op is completed, a concurrent
+        // write will happened and information
+        // will be lost. Repository should therefore
+        // call pause before processing is started
+        // and only call resume when ALL changes
+        // have been processed.
+        if (repo.isProcessing) {
+          throw StateError(
+            'Subscription events not allowed when processing changes',
+          );
+        } else if (repo.isChanged) {
+          throw StateError(
+            'Subscription events not allowed when repository contains changes',
+          );
+        }
 
-      _controllers[repo.runtimeType]?.connected(repo, connection);
+        _controllers[repo.runtimeType]?.connected(repo, connection);
 
-      // Prepare event sourcing
-      final actual = current(uuid: uuid);
+        // Event is applied to aggregate?
+        final isApplied = _isApplied(uuid, event, repo);
 
-      // Event is applied to aggregate?
-      final isApplied = _isApplied(uuid, event, repo);
+        if (isApplied) {
+          _onUpdate(uuid, stream, event, repo);
+        } else {
+          _onApply(uuid, stream, event, repo);
+        }
 
-      if (isApplied) {
-        _onUpdate(uuid, stream, event, repo);
-      } else {
-        _onApply(uuid, stream, event, repo);
-      }
-
-      // micro-optimization to
-      // minimize string interpolations
-      if (logger.level <= Level.FINE) {
-        final aggregate = repo.get(uuid);
-        final applied = aggregate.applied.where((e) => e.uuid == event.uuid).firstOrNull;
-        logger.fine(
-          '_onSubscriptionEvent(${repo.runtimeType}, ${event.runtimeType}){\n'
+        // micro-optimization to
+        // minimize string interpolations
+        if (logger.level <= Level.FINE) {
+          final aggregate = repo.get(uuid);
+          final applied = aggregate.applied.where((e) => e.uuid == event.uuid).firstOrNull;
+          logger.fine(
+            '_onSubscriptionEvent(${repo.runtimeType}, ${event.runtimeType}){\n'
+            '  event.type: ${event.type}, \n'
+            '  event.uuid: ${event.uuid}, \n'
+            '  event.number: ${event.number}, \n'
+            '  event.sourced: ${_isSourced(uuid, event)}, \n'
+            '  event.applied: $isApplied, \n'
+            '  aggregate.uuid: ${event.uuid}, \n'
+            '  aggregate.stream: $stream, \n'
+            '  aggregate.applied.patches: ${applied?.patches}, \n'
+            '  aggregate.applied.changed: ${applied?.changed}, \n'
+            '  aggregate.applied.previous: ${applied?.previous}, \n'
+            '  repository: ${repo.runtimeType}, \n'
+            '  repository.isEmpty: $isEmpty, \n'
+            '  repository.numbers: $_current\n'
+            '  repository.numbers.instance: $actual\n'
+            '  isInstanceStream: $useInstanceStreams, \n'
+            '}',
+          );
+        }
+      } on JsonPatchError catch (e, stackTrace) {
+        logger.network(
+          'Failed to apply patches from aggregate stream ${canonicalStream}{\n'
+          '  error: $e, \n'
+          '  connection: ${repo.store.connection.host}:${repo.store.connection.port}, \n'
           '  event.type: ${event.type}, \n'
           '  event.uuid: ${event.uuid}, \n'
           '  event.number: ${event.number}, \n'
-          '  event.sourced: ${_isSourced(uuid, event)}, \n'
-          '  event.applied: $isApplied, \n'
-          '  aggregate.uuid: ${event.uuid}, \n'
-          '  aggregate.stream: $stream, \n'
-          '  aggregate.applied.patches: ${applied?.patches}, \n'
-          '  aggregate.applied.changed: ${applied?.changed}, \n'
-          '  aggregate.applied.previous: ${applied?.previous}, \n'
           '  repository: ${repo.runtimeType}, \n'
           '  repository.isEmpty: $isEmpty, \n'
           '  repository.numbers: $_current\n'
-          '  repository.numbers.instance: $actual\n'
           '  isInstanceStream: $useInstanceStreams, \n'
-          '}',
+          '  subscription.seen: ${repo.store.seen}, \n'
+          '  store.events.count: ${repo.store.events.values.fold(0, (count, events) => count + events.length)}, \n'
+          '  store.events.items: ${repo.store.events.values}, \n'
+          '}\n'
+          'stacktrace: $stackTrace',
+          e,
+          stackTrace,
         );
+      } catch (e, stackTrace) {
+        _onFatal(event, stream, e, stackTrace);
       }
-    } on JsonPatchError catch (e, stackTrace) {
-      logger.network(
-        'Failed to apply patches from aggregate stream ${canonicalStream}{\n'
-        '  error: $e, \n'
-        '  connection: ${repo.store.connection.host}:${repo.store.connection.port}, \n'
-        '  event.type: ${event.type}, \n'
-        '  event.uuid: ${event.uuid}, \n'
-        '  event.number: ${event.number}, \n'
-        '  repository: ${repo.runtimeType}, \n'
-        '  repository.isEmpty: $isEmpty, \n'
-        '  repository.numbers: $_current\n'
-        '  isInstanceStream: $useInstanceStreams, \n'
-        '  subscription.seen: ${repo.store.seen}, \n'
-        '  store.events.count: ${repo.store.events.values.fold(0, (count, events) => count + events.length)}, \n'
-        '  store.events.items: ${repo.store.events.values}, \n'
-        '}\n'
-        'stacktrace: $stackTrace',
-        e,
-        stackTrace,
-      );
-    } catch (e, stackTrace) {
-      logger.network(
-        'Failed to process $event for $stream, \n'
-        'error: $e with stacktrace: $stackTrace',
-        e,
-        stackTrace,
-      );
     }
+  }
+
+  void _onFatal(SourceEvent event, String stream, Object error, StackTrace stackTrace) {
+    logger.network(
+      'Failed to process $event for $stream, \n'
+      'error: $error with stacktrace: $stackTrace',
+      error,
+      stackTrace,
+    );
+    _streamController.addError(
+      RepositoryError('Failed to process $event for $stream with error: $error'),
+    );
   }
 
   bool _isSourced(String uuid, SourceEvent event) => _store.containsKey(uuid) && _store[uuid].contains(event);

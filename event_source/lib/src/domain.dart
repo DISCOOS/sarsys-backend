@@ -518,7 +518,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
             deleted: event.elementAt<bool>('deleted') ?? aggregate?.isDeleted,
           ),
         ),
-      );
+      )..number = event.number;
     }
     final message = 'Message ${event.type} not recognized';
     logger.severe(message);
@@ -1279,7 +1279,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
           local: true,
           created: timestamp,
         ),
-      );
+      )..number = EventNumber(_applied.length);
     }
     throw InvalidOperation('Message ${emits} not recognized');
   }
