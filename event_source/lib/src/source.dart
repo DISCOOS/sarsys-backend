@@ -138,24 +138,24 @@ class EventStore {
   /// [EventStoreConnection] instance
   final EventStoreConnection connection;
 
-  /// [Map] of events for each aggregate root sourced from stream.
-  ///
-  /// [LinkedHashMap] remembers the insertion order of keys, and
-  /// keys are iterated in the order they were inserted into the map.
-  /// This is important for stream id inference from key order.
-  final LinkedHashMap<String, Set<Event>> _store = LinkedHashMap<String, Set<Event>>();
-
-  /// Current event numbers mapped to associated stream
-  final Map<String, EventNumber> _current = {};
-
   /// Check if store is empty
   bool get isEmpty => _store.isEmpty;
 
   /// Check if store is not empty
   bool get isNotEmpty => _store.isNotEmpty;
 
+  /// Current event numbers mapped to associated stream
+  final Map<String, EventNumber> _current = {};
+
   /// Get all events
-  Map<String, Set<Event>> get events => Map.from(_store);
+  Map<String, Set<SourceEvent>> get events => Map.from(_store);
+
+  /// [Map] of events for each aggregate root sourced from stream.
+  ///
+  /// [LinkedHashMap] remembers the insertion order of keys, and
+  /// keys are iterated in the order they were inserted into the map.
+  /// This is important for stream id inference from key order.
+  final LinkedHashMap<String, Set<SourceEvent>> _store = LinkedHashMap<String, Set<SourceEvent>>();
 
   /// Current event number for [canonicalStream]
   ///
@@ -294,9 +294,9 @@ class EventStore {
     return count;
   }
 
-  Set<Event> _updateAll(String uuid, Iterable<Event> events) => _store.update(
+  Set<Event> _updateAll(String uuid, Iterable<SourceEvent> events) => _store.update(
         uuid,
-        (current) => Set.from(current)..addAll(events),
+        (current) => current..addAll(events),
         ifAbsent: () => events.toSet(),
       );
 
@@ -325,13 +325,23 @@ class EventStore {
     _assertState();
     final events = aggregate.commit(changes: changes);
 
-    // Do not save during replay
+    // Do not save events during replay
     if (bus.isReplaying == false && events.isNotEmpty) {
+      final stream = toInstanceStream(aggregate.uuid);
+      final number = _current[stream] ?? EventNumber.none;
+
       _updateAll(
         aggregate.uuid,
-        events,
+        _toSourceEvents(
+          stream: stream,
+          number: number,
+          events: events,
+          uuidFieldName: aggregate.uuidFieldName,
+        ),
       );
+
       _setEventNumber(aggregate);
+
       // Publish locally created events.
       // Handlers can determine events with
       // local origin using the local field
@@ -871,6 +881,24 @@ class EventStore {
         'store.canonicalStream: $canonicalStream},\n'
         'store.count: ${_store.length},\n'
         '}';
+  }
+
+  Iterable<SourceEvent> _toSourceEvents({
+    @required String stream,
+    @required EventNumber number,
+    @required String uuidFieldName,
+    @required Iterable<DomainEvent> events,
+  }) {
+    assert(stream != null);
+    assert(events != null);
+    assert(number != null);
+    assert(uuidFieldName != null);
+    var version = number;
+    return events.map((e) => e.toSourceEvent(
+          streamId: stream,
+          number: ++version,
+          uuidFieldName: uuidFieldName,
+        ));
   }
 }
 
@@ -1439,12 +1467,17 @@ class EventStoreConnection {
     ExpectedVersion version = ExpectedVersion.any,
   }) async {
     _assertState();
-    final eventIds = <String>[];
+    final sourced = <SourceEvent>[];
     final data = events.map(
       (event) => {
-        'eventId': _uuid(eventIds, event),
-        'eventType': event.type,
         'data': event.data,
+        'eventType': event.type,
+        'eventId': _toSourceEvent(
+          event,
+          stream: stream,
+          events: sourced,
+          number: version.toNumber(),
+        ),
       },
     );
     final url = _toStreamUri(stream);
@@ -1462,10 +1495,10 @@ class EventStoreConnection {
     );
     if (response.statusCode != HttpStatus.temporaryRedirect) {
       return WriteResult.from(
-        stream,
-        version,
-        eventIds,
-        response,
+        stream: stream,
+        events: sourced,
+        version: version,
+        response: response,
       );
     }
     _logger.fine(
@@ -1484,10 +1517,10 @@ class EventStoreConnection {
         );
       }
       return WriteResult.from(
-        stream,
-        version,
-        eventIds,
-        redirected,
+        stream: stream,
+        events: sourced,
+        version: version,
+        response: response,
       );
     } catch (e, stackTrace) {
       _logger.warning(
@@ -1501,8 +1534,21 @@ class EventStoreConnection {
 
   String _toStreamUri(String stream) => '$host:$port/streams/$stream';
 
-  String _uuid(List<String> eventIds, Event event) {
-    eventIds.add(event.uuid);
+  String _toSourceEvent(
+    Event event, {
+    @required String stream,
+    @required EventNumber number,
+    @required List<SourceEvent> events,
+  }) {
+    events.add(SourceEvent(
+      streamId: stream,
+      number: number + events.length + 1,
+      created: event.created,
+      type: event.type,
+      data: event.data,
+      uuid: event.uuid,
+      local: event.local,
+    ));
     return event.uuid;
   }
 

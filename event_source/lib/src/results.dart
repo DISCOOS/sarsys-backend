@@ -256,7 +256,7 @@ class WriteResult extends StreamResult {
     @required String stream,
     @required int statusCode,
     @required String reasonPhrase,
-    this.eventIds = const [],
+    this.events = const [],
     this.location,
     this.expected,
     this.actual,
@@ -266,43 +266,45 @@ class WriteResult extends StreamResult {
           reasonPhrase: reasonPhrase,
         );
 
-  factory WriteResult.from(
-    String stream,
-    ExpectedVersion version,
-    List<String> eventIds,
-    Response response,
-  ) {
+  factory WriteResult.from({
+    @required String stream,
+    @required Response response,
+    @required ExpectedVersion version,
+    @required List<SourceEvent> events,
+  }) {
     switch (response.statusCode) {
       case HttpStatus.created:
         return WriteResult(
           stream: stream,
+          events: events,
+          expected: version,
           statusCode: response.statusCode,
           reasonPhrase: response.reasonPhrase,
-          eventIds: eventIds,
-          expected: version,
           actual: EventNumber(_toNumber(response)),
           location: response.headers['location'],
         );
       case HttpStatus.badRequest:
         return WriteResult(
           stream: stream,
+          expected: version,
           statusCode: response.statusCode,
           reasonPhrase: response.reasonPhrase,
-          expected: version,
-          actual: EventNumber(int.tryParse(response.headers['es-currentversion'] ?? '${EventNumber.none.value}')),
+          actual: EventNumber(int.tryParse(
+            response.headers['es-currentversion'] ?? '${EventNumber.none.value}',
+          )),
         );
       default:
         return WriteResult(
           stream: stream,
+          expected: version,
           statusCode: response.statusCode,
           reasonPhrase: response.reasonPhrase,
-          expected: version,
         );
     }
   }
 
-  /// Ids of created events
-  final List<String> eventIds;
+  /// Created events
+  final List<SourceEvent> events;
 
   /// Last event number in local [stream]
   final ExpectedVersion expected;

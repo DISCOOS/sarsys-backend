@@ -431,10 +431,12 @@ Future main() async {
     await repo.readyAsync();
 
     // Act - execute pushes without awaiting the result
-    final results = await Future.wait<Iterable<DomainEvent>>(_createMultiple(repo).cast());
+    final results = await Future.wait<Iterable<DomainEvent>>(
+      _createMultipleAggregates(repo).cast(),
+    );
 
     // Assert - strict order
-    final events = _assertStrictOrder(results);
+    final events = _assertResultStrictOrder(results);
 
     // Assert - unique events
     _assertUniqueEvents(repo, events);
@@ -506,13 +508,13 @@ Future main() async {
     await repo2.readyAsync();
 
     // Act - execute pushes and await the results
-    final requests1 = _createMultiple(repo1);
-    final requests2 = _createMultiple(repo2);
+    final requests1 = _createMultipleAggregates(repo1);
+    final requests2 = _createMultipleAggregates(repo2);
     final requests = List.from(requests1)..addAll(requests2);
     final results = await Future.wait<Iterable<DomainEvent>>(requests.cast());
 
     // Assert - strict order
-    _assertStrictOrder(results);
+    _assertResultStrictOrder(results);
   });
 
   test('Repository should rollback changes when command fails', () async {
@@ -657,7 +659,7 @@ Future _assertCatchUp(FooRepository repo1, FooRepository repo2, FooRepository re
   expect(foo3.data, containsPair('property1', 'value1'));
 }
 
-Iterable<DomainEvent> _assertStrictOrder(List<Iterable<DomainEvent>> results) {
+Iterable<DomainEvent> _assertResultStrictOrder(List<Iterable<DomainEvent>> results) {
   final events = <DomainEvent>[];
   for (var i = 0; i < 10; i++) {
     expect(
@@ -702,7 +704,7 @@ void _assertUniqueEvents(Repository repo, Iterable<DomainEvent> events) {
   expect(expected, equals(actual));
 }
 
-List<Future<Iterable<DomainEvent>>> _createMultiple(FooRepository repo) {
+List<Future<Iterable<DomainEvent>>> _createMultipleAggregates(FooRepository repo) {
   final operations = <Future<Iterable<DomainEvent>>>[];
   for (var i = 0; i < 10; i++) {
     operations.add(repo.push(repo.get(Uuid().v4(), data: {'index': i})));

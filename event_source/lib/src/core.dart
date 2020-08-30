@@ -168,7 +168,7 @@ class DomainEvent extends Event {
     return '$runtimeType{uuid: $uuid, type: $type, created: $created, data: $data}';
   }
 
-  Event toEvent(String uuidFieldName) => Event(
+  Event toEvent(uuidFieldName) => Event(
       uuid: uuid,
       type: type,
       local: local,
@@ -180,6 +180,26 @@ class DomainEvent extends Event {
         deleted: isDeleted,
         index: data?.elementAt<int>('index'),
       ));
+
+  SourceEvent toSourceEvent({
+    @required String streamId,
+    @required EventNumber number,
+    @required String uuidFieldName,
+  }) =>
+      SourceEvent(
+          uuid: uuid,
+          type: type,
+          local: local,
+          number: number,
+          created: created,
+          streamId: streamId,
+          data: SourceEvent.toData(
+            data?.elementAt<String>('uuid'),
+            uuidFieldName,
+            patches: patches,
+            deleted: isDeleted,
+            index: data?.elementAt<int>('index'),
+          ));
 
   static Map<String, dynamic> toData(
     String uuid,
@@ -267,11 +287,12 @@ class SourceEvent extends Event {
     @required this.streamId,
     @required DateTime created,
     @required Map<String, dynamic> data,
+    bool local,
   }) : super(
           uuid: uuid,
           type: type,
           data: data,
-          local: false,
+          local: local ?? false,
           created: created ?? DateTime.now(),
         );
   final String streamId;
@@ -506,6 +527,8 @@ class ExpectedVersion {
   String toString() {
     return 'ExpectedVersion{value: $value}';
   }
+
+  EventNumber toNumber() => EventNumber(value);
 }
 
 /// Get enum value name

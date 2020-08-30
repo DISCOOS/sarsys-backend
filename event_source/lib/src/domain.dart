@@ -694,7 +694,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
             aggregate.getUncommittedChanges(),
             maxAttempts,
           )
-        : <DomainEvent>[];
+        : Future.value(<DomainEvent>[]);
   }
 
   /// Queue of push operations performed in FIFO manner.
