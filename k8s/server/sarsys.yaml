@@ -121,7 +121,7 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 1
             failureThreshold: 2
-            initialDelaySeconds: 60
+            initialDelaySeconds: 120
           livenessProbe:
             httpGet:
               path: /api/healthz
@@ -136,7 +136,7 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 4
-            initialDelaySeconds: 60
+            initialDelaySeconds: 120
       securityContext:
         runAsNonRoot: true
         # Needed for write access to volume with non-root user 1000
