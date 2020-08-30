@@ -3,20 +3,17 @@ import 'dart:convert';
 import 'package:http/http.dart';
 import 'package:event_source/event_source.dart';
 import 'package:jose/jose.dart';
-import 'package:sarsys_app_server/auth/any.dart';
-import 'package:sarsys_app_server/controllers/domain/controllers.dart';
-import 'package:sarsys_app_server/sarsys_app_server.dart';
-import 'package:sarsys_app_server/controllers/messages.dart';
+
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
 
 import 'auth/auth.dart';
 import 'controllers/domain/controllers.dart';
 import 'controllers/domain/schemas.dart';
+import 'controllers/messaging.dart';
 import 'controllers/system/controllers.dart';
 import 'controllers/tenant/app_config.dart';
 import 'controllers/tenant/controllers.dart';
-import 'controllers/websocket_controller.dart';
 import 'logging.dart';
 import 'sarsys_app_server.dart';
 import 'validation/validation.dart';
