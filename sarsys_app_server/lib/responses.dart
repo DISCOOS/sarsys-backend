@@ -30,7 +30,8 @@ Response serverError(
 }) {
   final String message = "${request.method} ${request.raw.uri} failed";
   logger?.network(message, error, stackTrace);
-  return Response.serverError(body: error);
+  final body = error is Map || error is Iterable ? error : "$error";
+  return Response.serverError(body: body);
 }
 
 Response okAggregate(AggregateRoot aggregate) => Response.ok(toAggregateData(aggregate));
