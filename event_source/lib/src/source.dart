@@ -376,7 +376,10 @@ class EventStore {
       // next states can be calculated safely without any
       // risk of applying patches out-of-order, removing the
       // need to store these states in each event.
-      events.fold(previous ?? EventNumber.none, _assertMonotone);
+      events.fold(
+        previous ?? EventNumber.none,
+        (previous, next) => _assertMonotone(stream, previous, next),
+      );
 
       if (exists) {
         // Append change in events
@@ -813,12 +816,13 @@ class EventStore {
     }
   }
 
-  EventNumber _assertMonotone(EventNumber previous, SourceEvent next) {
+  EventNumber _assertMonotone(String stream, EventNumber previous, SourceEvent next) {
     if (previous.value > next.number.value) {
       final message = 'EventNumber not monotone increasing, current: $previous, '
           'next: ${next.number} in event ${next.type} with uuid: ${next.uuid}';
-      logger.severe('$message, debug: ${toDebugString()}');
-      throw InvalidOperation(message);
+      final error = InvalidOperation('$message, debug: ${toDebugString(stream)}');
+      logger.severe(error.message, error, StackTrace.current);
+      throw error;
     }
     return next.number;
   }
