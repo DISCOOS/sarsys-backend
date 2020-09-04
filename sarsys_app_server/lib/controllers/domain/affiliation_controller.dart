@@ -175,6 +175,20 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
   // Documentation
   //////////////////////////////////
 
+  @override
+  List<APIParameter> documentOperationParameters(APIDocumentContext context, Operation operation) {
+    final parameters = super.documentOperationParameters(context, operation);
+    switch (operation.method) {
+      case "GET":
+        parameters.add(
+          APIParameter.query('expand')
+            ..description = "Expand response with information from references. Legal values are: 'person'",
+        );
+        break;
+    }
+    return parameters;
+  }
+
   /// Affiliation - Aggregate root
   @override
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object({

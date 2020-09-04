@@ -631,7 +631,7 @@ class EventStore {
             '  event.number: ${event.number}, \n'
             '  event.sourced: ${_isSourced(uuid, event)}, \n'
             '  event.applied: $isApplied, \n'
-            '  aggregate.uuid: ${event.uuid}, \n'
+            '  aggregate.uuid: ${aggregate.uuid}, \n'
             '  aggregate.stream: $stream, \n'
             '  aggregate.applied.patches: ${applied?.patches}, \n'
             '  aggregate.applied.changed: ${applied?.changed}, \n'
@@ -2289,13 +2289,14 @@ class _SubscriptionController {
 
   void _pauseTimer() {
     _isPaused = true;
-    logger.fine('Paused subscription timer for $name');
+
+    logger.fine('Paused ${_strategy == null ? 'pull' : enumName(_strategy)} subscription timer for $name');
     _timer?.cancel();
     _timer = null;
   }
 
   void _stopTimer() {
-    logger.fine('Stop subscription timer for $name');
+    logger.fine('Stop ${_strategy == null ? 'pull' : enumName(_strategy)} subscription timer for $name');
     _timer?.cancel();
     _timer = null;
   }
