@@ -222,7 +222,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       HttpStatus.noContent,
     ],
     Duration timeout = const Duration(
-      milliseconds: 100,
+      milliseconds: PolicyUtils.defaultTimeout,
     ),
   }) async {
     if (statusCodes.contains(response.statusCode) && (test == null || test(response))) {
@@ -255,7 +255,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       HttpStatus.noContent,
     ],
     Duration timeout = const Duration(
-      milliseconds: 100,
+      milliseconds: PolicyUtils.defaultTimeout,
     ),
   }) async {
     if (statusCodes.contains(response.statusCode) && (test == null || test(response))) {

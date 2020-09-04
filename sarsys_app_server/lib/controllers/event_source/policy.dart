@@ -5,13 +5,15 @@ import 'package:aqueduct/aqueduct.dart';
 import 'package:event_source/event_source.dart';
 
 abstract class PolicyUtils {
+  static const int defaultTimeout = 10000;
+
   /// Wait for given rule result from stream of results
   static Future<Iterable<Event>> waitForRuleResult<T extends Event>(
     Repository repository, {
     int count = 1,
     bool fail = true,
     Duration timeout = const Duration(
-      milliseconds: 100,
+      milliseconds: defaultTimeout,
     ),
     Logger logger,
   }) async {
@@ -50,7 +52,7 @@ abstract class PolicyUtils {
       HttpStatus.noContent,
     ],
     Duration timeout = const Duration(
-      milliseconds: 100,
+      milliseconds: defaultTimeout,
     ),
     Logger logger,
   }) async {
@@ -76,7 +78,7 @@ abstract class PolicyUtils {
     @required Map<Type, int> expected,
     bool fail = true,
     Duration timeout = const Duration(
-      milliseconds: 100,
+      milliseconds: defaultTimeout,
     ),
     Logger logger,
   }) async {
