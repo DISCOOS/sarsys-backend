@@ -888,7 +888,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     switch (command.action) {
       case Action.create:
         if (_aggregates.containsKey(command.uuid)) {
-          throw AggregateExists('${typeOf<T>()} ${command.uuid} exists');
+          final existing = _aggregates[command.uuid];
+          throw AggregateExists(
+            '${typeOf<T>()} ${command.uuid} exists',
+            existing,
+          );
         }
         break;
       case Action.update:
@@ -915,7 +919,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     switch (command.action) {
       case Action.create:
         if (array.contains(command.entityId)) {
-          throw EntityExists('Entity ${command.aggregateField} ${command.entityId} exists');
+          final existing = array[command.entityId];
+          throw EntityExists(
+            'Entity ${command.aggregateField} ${command.entityId} exists',
+            existing,
+          );
         }
         var id = command.entityId ?? array.nextId;
         final entities = array.add(command.data, id: id);
@@ -1453,8 +1461,12 @@ class EntityArray {
     final actual = id ?? nextId;
     final entities = _asArray();
     final entity = Map<String, dynamic>.from(data);
-    if (entities.where((data) => _toId(data) == actual).isNotEmpty) {
-      throw EntityExists('Entity $actual exists');
+    final existing = entities.where((data) => _toId(data) == actual);
+    if (existing.isNotEmpty) {
+      throw EntityExists(
+        'Entity $entityIdFieldName $actual exists',
+        EntityObject(actual, existing.first, entityIdFieldName),
+      );
     }
     entity[entityIdFieldName] = actual;
     final array = entities.toList();

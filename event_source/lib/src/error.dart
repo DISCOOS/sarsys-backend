@@ -1,3 +1,4 @@
+import 'package:event_source/event_source.dart';
 import 'package:meta/meta.dart';
 
 import 'core.dart';
@@ -51,7 +52,8 @@ class AggregateNotFound extends InvalidOperation {
 
 /// Thrown when an [Command.action] with [Action.create] is attempted on an existing [AggregateRoot]
 class AggregateExists extends InvalidOperation {
-  const AggregateExists(String message) : super(message);
+  const AggregateExists(String message, this.aggregate) : super(message);
+  final AggregateRoot aggregate;
 }
 
 /// Thrown when an [Command] is attempted on an [EntityObject] not found
@@ -61,7 +63,8 @@ class EntityNotFound extends InvalidOperation {
 
 /// Thrown when an [Command.action] with [Action.create] is attempted on an existing [EntityObject]
 class EntityExists extends InvalidOperation {
-  const EntityExists(String message) : super(message);
+  const EntityExists(String message, this.entity) : super(message);
+  final EntityObject entity;
 }
 
 /// Thrown when writing events and 'ES-ExpectedVersion' differs from 'ES-CurrentVersion'

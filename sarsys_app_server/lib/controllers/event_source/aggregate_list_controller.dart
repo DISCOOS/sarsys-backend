@@ -56,12 +56,12 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       return Response.created("${toLocation(request)}/$fuuid");
     } on AggregateExists catch (e) {
       return conflict(
-        ConflictType.merge,
+        ConflictType.exists,
         e.message,
       );
     } on EntityExists catch (e) {
       return conflict(
-        ConflictType.merge,
+        ConflictType.exists,
         e.message,
       );
     } on ConflictNotReconcilable catch (e) {
@@ -121,12 +121,12 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       return Response.noContent();
     } on AggregateExists catch (e) {
       return conflict(
-        ConflictType.merge,
+        ConflictType.exists,
         e.message,
       );
     } on EntityExists catch (e) {
       return conflict(
-        ConflictType.merge,
+        ConflictType.exists,
         e.message,
       );
     } on ConflictNotReconcilable catch (e) {
@@ -183,12 +183,12 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       return Response.noContent();
     } on AggregateExists catch (e) {
       return conflict(
-        ConflictType.merge,
+        ConflictType.exists,
         e.message,
       );
     } on EntityExists catch (e) {
       return conflict(
-        ConflictType.merge,
+        ConflictType.exists,
         e.message,
       );
     } on ConflictNotReconcilable catch (e) {
@@ -245,12 +245,12 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       return Response.noContent();
     } on AggregateExists catch (e) {
       return conflict(
-        ConflictType.merge,
+        ConflictType.exists,
         e.message,
       );
     } on EntityExists catch (e) {
       return conflict(
-        ConflictType.merge,
+        ConflictType.exists,
         e.message,
       );
     } on ConflictNotReconcilable catch (e) {

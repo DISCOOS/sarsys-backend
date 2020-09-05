@@ -58,12 +58,12 @@ class OrganisationImportController
             }, StackTrace.current);
     } on AggregateExists catch (e) {
       return conflict(
-        ConflictType.merge,
+        ConflictType.exists,
         e.message,
       );
     } on EntityExists catch (e) {
       return conflict(
-        ConflictType.merge,
+        ConflictType.exists,
         e.message,
       );
     } on ConflictNotReconcilable catch (e) {

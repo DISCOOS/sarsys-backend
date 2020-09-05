@@ -160,7 +160,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       return events.isEmpty ? Response.noContent() : Response.noContent();
     } on EntityExists catch (e) {
       return conflict(
-        ConflictType.merge,
+        ConflictType.exists,
         e.message,
       );
     } on ConflictNotReconcilable catch (e) {
