@@ -19,11 +19,12 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
   @override
   @Operation.get()
   Future<Response> getAll({
+    @Bind.query('uuids') String uuids,
     @Bind.query('filter') String filter,
+    @Bind.query('expand') String expand,
     @Bind.query('limit') int limit = 20,
     @Bind.query('offset') int offset = 0,
     @Bind.query('deleted') bool deleted = false,
-    @Bind.query('expand') List<String> expand = const [],
   }) async {
     try {
       final shouldMerge = _shouldMerge(expand);
@@ -31,18 +32,21 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
 
       // Get aggregates
       final aggregates = repository.aggregates
-          .where((a) => deleted || !a.isDeleted)
-          .where((a) => !shouldFilter || _match(merge(a), filter));
+          .where((a) => isEmptyOrNull(uuids) || uuids.contains(a.uuid))
+          .where((a) => deleted || !a.isDeleted);
+
+      // Apply filter
+      final matches = aggregates.where((a) => !shouldFilter || _match(merge(a), filter));
 
       // Get actual page
-      final page = aggregates.toPage(
+      final page = matches.toPage(
         offset: offset,
         limit: limit,
       );
 
       return Response.ok(
         toDataPaged(
-          aggregates.length,
+          matches.length,
           offset,
           limit,
           page.map(shouldMerge ? merge : toAggregateData),
@@ -88,12 +92,14 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
     return "$data";
   }
 
-  bool _shouldMerge(List<String> expand) {
-    if (expand.any((element) => element.toLowerCase() == 'person')) {
-      return true;
-    }
-    if (expand.isNotEmpty) {
-      throw "Invalid query parameter 'expand' values: $expand, expected any of: {person}";
+  bool _shouldMerge(String expand) {
+    if (expand != null) {
+      if (expand.toLowerCase() == 'person') {
+        return true;
+      }
+      if (expand.isNotEmpty) {
+        throw "Invalid query parameter 'expand' values: $expand, expected any of: person";
+      }
     }
     return false;
   }
@@ -121,7 +127,7 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
   @Operation.get('uuid')
   Future<Response> getByUuid(
     @Bind.path('uuid') String uuid, {
-    @Bind.query('expand') List<String> expand = const [],
+    @Bind.query('expand') String expand,
   }) async {
     try {
       if (!await exists(uuid)) {
@@ -180,10 +186,19 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
     final parameters = super.documentOperationParameters(context, operation);
     switch (operation.method) {
       case "GET":
-        parameters.add(
-          APIParameter.query('expand')
-            ..description = "Expand response with information from references. Legal values are: 'person'",
-        );
+        parameters
+          ..add(
+            APIParameter.query('filter')..description = "Match values against given filter",
+          )
+          ..add(
+            APIParameter.query('uuids')
+              ..description = "Only get aggregates in list of given comma-separated uuids. "
+                  "If filter is given, it is only applied on aggregates matching any uuids",
+          )
+          ..add(
+            APIParameter.query('expand')
+              ..description = "Expand response with information from references. Legal values are: 'person'",
+          );
         break;
     }
     return parameters;

@@ -34,9 +34,9 @@ class OperationPersonnelController
   @Operation.get('uuid')
   Future<Response> get(
     @Bind.path('uuid') String uuid, {
+    @Bind.query('expand') String expand,
     @Bind.query('limit') int limit = 20,
     @Bind.query('offset') int offset = 0,
-    @Bind.query('expand') List<String> expand = const [],
   }) async {
     try {
       if (!await exists(primary, uuid)) {
@@ -67,12 +67,14 @@ class OperationPersonnelController
     }
   }
 
-  bool _shouldExpand(List<String> expand) {
-    if (expand.any((element) => element.toLowerCase() == 'person')) {
-      return true;
-    }
-    if (expand.isNotEmpty) {
-      throw "Invalid query parameter 'expand' values: $expand, expected any of: {person}";
+  bool _shouldExpand(String expand) {
+    if (expand != null) {
+      if (expand.toLowerCase() == 'person') {
+        return true;
+      }
+      if (expand.isNotEmpty) {
+        throw "Invalid query parameter 'expand' values: $expand, expected any of: person";
+      }
     }
     return false;
   }
@@ -208,10 +210,19 @@ class OperationPersonnelController
     final parameters = super.documentOperationParameters(context, operation);
     switch (operation.method) {
       case "GET":
-        parameters.add(
-          APIParameter.query('expand')
-            ..description = "Expand response with information from references. Legal values are: 'person'",
-        );
+        parameters
+          ..add(
+            APIParameter.query('filter')..description = "Match values with given string",
+          )
+          ..add(
+            APIParameter.query('uuids')
+              ..description = "Only get aggregates in list of given comma-separated uuids. "
+                  "If filter is given, it is only applied on aggregates matching any uuids",
+          )
+          ..add(
+            APIParameter.query('expand')
+              ..description = "Expand response with information from references. Legal values are: 'person'",
+          );
         break;
     }
     return parameters;

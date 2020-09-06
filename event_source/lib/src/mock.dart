@@ -72,11 +72,6 @@ class EventStoreMockServer {
         orElse: () => null,
       );
 
-      final method = request.method;
-      if (method == 'POST') {
-        print(method);
-      }
-
       if (route == null) {
         _notFound(request);
       } else if (_shouldTemporaryRedirect(request)) {

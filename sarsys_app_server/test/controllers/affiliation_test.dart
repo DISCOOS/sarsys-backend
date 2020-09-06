@@ -10,7 +10,7 @@ Future main() async {
     ..withEventStoreMock()
     ..install(restartForEachTest: true);
 
-  test("POST /api/affiliations/ returns status code 201 with empty body", () async {
+  test("POST /api/affiliations/ returns 201 with empty body", () async {
     final auuid = Uuid().v4();
     final puuid = Uuid().v4();
     final orguuid = Uuid().v4();
@@ -19,28 +19,32 @@ Future main() async {
     expectResponse(await harness.agent.post("/api/affiliations", body: body), 201, body: null);
   });
 
-  test("GET /api/affiliations/{uuid} returns status code 200", () async {
+  test("GET /api/affiliations/{uuid} returns 200", () async {
     await _testGet(harness, expand: false);
   });
 
-  test("GET /api/affiliations/{uuid} returns status code 200 with expand=person", () async {
+  test("GET /api/affiliations/{uuid} returns 200 with expand=person", () async {
     await _testGet(harness, expand: true);
   });
 
-  test("GET /api/affiliations returns status code 200 with offset=1&limit=2", () async {
+  test("GET /api/affiliations returns 200 with offset=1&limit=2", () async {
     await _testGetAll(harness, expand: false);
   });
 
-  test("GET /api/affiliations returns status code 200 with offset=1&limit=2&expand=person", () async {
+  test("GET /api/affiliations returns 200 with offset=1&limit=2&expand=person", () async {
     await _testGetAll(harness, expand: true);
   });
 
-  test("GET /api/affiliations returns status code 200 with offset=1&limit=2&filter=fname", () async {
+  test("GET /api/affiliations returns 200 with offset=1&limit=2&filter=fname", () async {
     await _testGetAll(harness, filter: true);
   });
 
-  test("GET /api/affiliations returns status code 200 with offset=1&limit=2&expand=person&filter=fname", () async {
+  test("GET /api/affiliations returns 200 with offset=1&limit=2&expand=person&filter=fname", () async {
     await _testGetAll(harness, expand: true, filter: true);
+  });
+
+  test("GET /api/affiliations returns 200 with offset=1&limit=2&uuids=auuid1,auuid2,auuid3,auuid4", () async {
+    await _testGetAll(harness, expand: false, filter: false, uuids: true);
   });
 
   test("PATCH /api/affiliations/{uuid} is idempotent", () async {
@@ -69,7 +73,7 @@ Future main() async {
     expect(actual['data'], equals(body));
   });
 
-  test("DELETE /api/affiliations/{uuid} returns status code 204", () async {
+  test("DELETE /api/affiliations/{uuid} returns 204", () async {
     final auuid = Uuid().v4();
     final puuid = Uuid().v4();
     final orguuid = Uuid().v4();
@@ -79,7 +83,7 @@ Future main() async {
     expectResponse(await harness.agent.delete("/api/affiliations/$auuid"), 204);
   });
 
-  test("DELETE person returns status code 204 after affiliations are deleted", () async {
+  test("DELETE person returns 204 after affiliations are deleted", () async {
     final puuid = Uuid().v4();
     final orguuid = Uuid().v4();
     await _prepare(harness, puuid: puuid, orguuid: orguuid);
@@ -98,7 +102,7 @@ Future main() async {
     expectResponse(await harness.agent.get("/api/affiliations/${a4.elementAt('uuid')}"), 404);
   });
 
-  test("DELETE division returns status code 204 after affiliations are deleted", () async {
+  test("DELETE division returns 204 after affiliations are deleted", () async {
     final puuid = Uuid().v4();
     final orguuid = Uuid().v4();
     final divuuid = Uuid().v4();
@@ -118,7 +122,7 @@ Future main() async {
     expectResponse(await harness.agent.get("/api/affiliations/${a4.elementAt('uuid')}"), 404);
   });
 
-  test("DELETE department returns status code 204 after affiliations are deleted", () async {
+  test("DELETE department returns 204 after affiliations are deleted", () async {
     final puuid = Uuid().v4();
     final orguuid = Uuid().v4();
     final divuuid = Uuid().v4();
@@ -166,20 +170,23 @@ Future _testGetAll(
   SarSysHarness harness, {
   bool expand = false,
   bool filter = false,
+  bool uuids = false,
 }) async {
   final puuid = Uuid().v4();
   final orguuid = Uuid().v4();
   await _prepare(harness, puuid: puuid, orguuid: orguuid);
-  await harness.agent.post(
-    "/api/affiliations",
-    body: _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid),
-  );
-  await harness.agent.post("/api/affiliations", body: _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid));
-  await harness.agent.post("/api/affiliations", body: _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid));
-  await harness.agent.post("/api/affiliations", body: _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid));
+  final auuid1 = Uuid().v4();
+  final auuid2 = Uuid().v4();
+  final auuid3 = Uuid().v4();
+  final auuid4 = Uuid().v4();
+  await harness.agent.post("/api/affiliations", body: _createData(auuid1, puuid: puuid, orguuid: orguuid));
+  await harness.agent.post("/api/affiliations", body: _createData(auuid2, puuid: puuid, orguuid: orguuid));
+  await harness.agent.post("/api/affiliations", body: _createData(auuid3, puuid: puuid, orguuid: orguuid));
+  await harness.agent.post("/api/affiliations", body: _createData(auuid4, puuid: puuid, orguuid: orguuid));
   final query = <String>[
     if (filter) 'filter=fname',
     if (expand) 'expand=person',
+    if (uuids) 'uuids=$auuid1,$auuid2,$auuid3,$auuid4',
   ];
   final response = expectResponse(
     await harness.agent.get("/api/affiliations?offset=1&limit=2&${query.join('&')}"),
