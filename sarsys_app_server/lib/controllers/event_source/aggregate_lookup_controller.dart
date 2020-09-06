@@ -27,7 +27,7 @@ class AggregateLookupController<S extends Command, T extends AggregateRoot> exte
     if (!repository.contains(uuid)) {
       await repository.catchUp(master: true);
     }
-    return repository.contains(uuid) && !repository.get(uuid).isDeleted;
+    return repository.exists(uuid);
   }
 
   //////////////////////////////////

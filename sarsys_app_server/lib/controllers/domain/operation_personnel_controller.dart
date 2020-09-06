@@ -112,7 +112,7 @@ class OperationPersonnelController
       );
     } else if (!await exists(affiliations, auuid as String)) {
       return Response.badRequest(
-        body: "Affiliation $uuid not found",
+        body: "Affiliation $auuid not found",
       );
     }
     return super.create(uuid, data);
