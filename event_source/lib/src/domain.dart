@@ -575,7 +575,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     bool master = false,
   }) =>
       isProcessing
-          ? 0
+          ? Future.value(0)
           : store.catchUp(
               this,
               master: master,
