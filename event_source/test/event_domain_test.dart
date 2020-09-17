@@ -153,7 +153,11 @@ Future main() async {
     await repository.push(foo);
 
     // Allow subscription to catch up
-    await repository.store.asStream().where((event) => event.remote).first;
+    await repository.store.asStream().where(
+      (event) {
+        return event.remote;
+      },
+    ).first;
     final createdWhen = repository.get(uuid).createdWhen;
 
     // Assert

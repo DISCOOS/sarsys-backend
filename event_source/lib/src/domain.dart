@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:collection';
 import 'dart:math';
 
 import 'package:collection/collection.dart';
-import 'package:event_source/event_source.dart';
+import 'package:event_source/src/stream.dart';
+import 'package:event_source/src/util.dart';
 import 'package:http/http.dart';
 import 'package:json_patch/json_patch.dart';
 import 'package:logging/logging.dart';
@@ -320,9 +320,11 @@ class RepositoryManager {
   /// Dispose all [RepositoryManager] instances
   Future dispose() async {
     try {
-      await Future.forEach<EventStore>(
-        _stores.values,
-        (store) => store.dispose(),
+      await Future.wait(
+        _stores.values.map((store) => store.dispose()),
+      );
+      await Future.wait(
+        _stores.keys.map((repo) => repo.dispose()),
       );
     } on ClientException catch (e, stackTrace) {
       logger.warning(
@@ -430,6 +432,19 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Build repository from local events.
   /// Returns number of events processed.
   Future<int> build() async {
+    // Listen for push-queue to finish processing
+    _idleSubscription = _pushQueue.onIdle().listen((event) {
+      store.resume();
+    });
+    _pushQueue.catchError((e, stackTrace) {
+      logger.severe(
+        'Processing request ${_pushQueue.current} failed with: $e',
+        e,
+        stackTrace,
+      );
+      return true;
+    });
+
     final count = await replay();
     subscribe();
     willStartProcessingEvents();
@@ -712,7 +727,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// will throw a [ConcurrentWriteOperation] exception. This prevents
   /// partial writes and commits which will result in an [EventNumberMismatch]
   /// being thrown by the [EventStoreConnection].
-  final _pushQueue = ListQueue<_PushOperation>();
+  final _pushQueue = StreamRequestQueue<Iterable<DomainEvent>>();
+
+  StreamSubscription _idleSubscription;
 
   /// Schedule [_PushOperation] for execution
   Future<Iterable<DomainEvent>> _schedulePush(
@@ -725,12 +742,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
     final aggregate = _assertExists(uuid);
     final operation = _PushOperation(aggregate, changes, maxAttempts);
-    if (_pushQueue.isEmpty) {
-      // Process LATER but BEFORE any asynchronous
-      // events like Future, Timer or DOM Event
-      scheduleMicrotask(_processPushQueue);
-    }
-    _pushQueue.add(operation);
+    _pushQueue.add(StreamRequest<Iterable<DomainEvent>>(
+      execute: () => _push(operation),
+    ));
     return operation.completer.future;
   }
 
@@ -742,17 +756,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     return aggregate;
   }
 
-  /// Execute push operations in FIFO-manner until empty
-  void _processPushQueue() async {
-    while (_pushQueue.isNotEmpty) {
-      final operation = await _push(_pushQueue.first);
-      _pushQueue.remove(operation);
-    }
-    // Resume subscriptions
-    store.resume();
-  }
-
-  Future<_PushOperation> _push(_PushOperation operation) async {
+  Future<StreamResult<Iterable<DomainEvent>>> _push(_PushOperation operation) async {
     final aggregate = operation.aggregate;
     try {
       if (debugConflicts) {
@@ -784,6 +788,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         _printDebug('aggregate.pending.count: ${aggregate.getUncommittedChanges().length}');
         _printDebug('aggregate.pending.items: ${aggregate.getUncommittedChanges()}');
       }
+      return StreamResult(
+        value: operation.changes,
+      );
     } on WrongExpectedEventVersion {
       return _reconcile(operation);
     } catch (e, stackTrace) {
@@ -792,12 +799,14 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         'error: $e, stacktrace: $stackTrace, debug: ${toDebugString(aggregate?.uuid)}',
       );
       operation.completer.completeError(e, stackTrace);
+      return StreamResult(
+        value: operation.changes,
+      );
     }
-    return operation;
   }
 
   /// Attempts to reconcile conflicts between concurrent modifications
-  Future<_PushOperation> _reconcile(_PushOperation operation) async {
+  Future<StreamResult<Iterable<DomainEvent>>> _reconcile(_PushOperation operation) async {
     final aggregate = operation.aggregate;
     if (debugConflicts) {
       _printDebug('---CONFLICT---');
@@ -818,6 +827,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         operation.maxAttempts,
       );
       operation.completer.complete(events);
+      return StreamResult(value: events);
     } on ConflictNotReconcilable catch (e, stackTrace) {
       operation.completer.completeError(e, stackTrace);
     } catch (e, stackTrace) {
@@ -827,7 +837,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       );
       operation.completer.completeError(e, stackTrace);
     }
-    return operation;
+    return StreamResult(
+      value: operation.changes,
+    );
   }
 
   /// Rollback all changes
@@ -974,6 +986,14 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         'aggregate.pending.count: ${aggregate.getUncommittedChanges().length},\n'
         'aggregate.pending.items: ${aggregate.getUncommittedChanges()},\n'
         '}';
+  }
+
+  /// Dispose resources.
+  ///
+  /// Can not be called after this.
+  Future<void> dispose() {
+    _idleSubscription?.cancel();
+    return _pushQueue.dispose();
   }
 }
 

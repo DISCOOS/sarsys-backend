@@ -215,14 +215,10 @@ class EventStoreMockServer {
   }
 
   /// Shuts down the server listening for HTTP requests.
-  Future close() async {
+  Future<void> close() async {
     _clear();
     try {
-      // Allow open requests to finish before closing
-      return Future.delayed(
-        const Duration(milliseconds: 1),
-        await _server?.close,
-      );
+      await _server?.close(force: true);
     } finally {
       _server = null;
       _log(

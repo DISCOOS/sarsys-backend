@@ -19,6 +19,8 @@ import 'domain.dart';
 import 'models/AtomFeed.dart';
 import 'models/AtomItem.dart';
 import 'results.dart';
+import 'stream.dart' hide StreamResult;
+import 'stream.dart' as queue show StreamResult;
 
 const Duration defaultWaitFor = Duration(milliseconds: 3000);
 const Duration defaultPullEvery = Duration(milliseconds: 100);
@@ -398,7 +400,7 @@ class EventStore {
   /// Publish events to [bus] and [asStream]
   void _publishAll(Iterable<DomainEvent> events) {
     // Notify later but before next Future
-    scheduleMicrotask(() => events.forEach(bus.publish));
+    events.forEach(bus.publish);
     _streamController ??= StreamController.broadcast();
     events.forEach(_streamController.add);
   }
@@ -866,9 +868,8 @@ class EventStore {
     _store.clear();
 
     try {
-      await Future.forEach<SubscriptionController>(
-        _controllers.values,
-        (controller) => controller.cancel(),
+      await Future.wait(
+        _controllers.values.map((c) => c.cancel()),
       );
     } on ClientException catch (e, stackTrace) {
       logger.network('Failed to dispose one or more subscriptions: error: $e, stacktrace: $stackTrace', e, stackTrace);
@@ -2106,7 +2107,16 @@ enum SubscriptionAction {
 
 /// Implements periodic fetch of events from event-store
 class _SubscriptionController {
-  _SubscriptionController(this.connection) : logger = connection._logger;
+  _SubscriptionController(this.connection) : logger = connection._logger {
+    _requestQueue.catchError((e, stackTrace) {
+      logger.severe(
+        'Processing request ${_requestQueue.current} failed with: $e',
+        e,
+        stackTrace,
+      );
+      return true;
+    });
+  }
 
   final Logger logger;
   final EventStoreConnection connection;
@@ -2154,8 +2164,8 @@ class _SubscriptionController {
   /// This queue ensures that each command is processed in order
   /// waiting for the previous request has completed. This
   /// is need because the [Timer] class will not block on
-  /// await in it't callback method.
-  final _requestQueue = ListQueue<_SubscriptionRequest>();
+  /// await in it's callback method.
+  final _requestQueue = StreamRequestQueue<FeedResult>();
 
   Stream<SourceEvent> pull({
     @required String stream,
@@ -2248,10 +2258,11 @@ class _SubscriptionController {
       _timer = Timer.periodic(
         pullEvery,
         (_) {
-          // Timer could will fire before previous read has completed
+          // Timer will fire before previous read has completed
           if (_requestQueue.isEmpty) {
-            _schedule<FeedResult>(_readNext);
-            scheduleMicrotask(_process);
+            _requestQueue.add(StreamRequest<FeedResult>(
+              execute: () async => queue.StreamResult(value: await _readNext()),
+            ));
           }
         },
       );
@@ -2263,26 +2274,6 @@ class _SubscriptionController {
         'Failed to start timer for subscription $name, error: $e',
         stackTrace,
       );
-    }
-  }
-
-  void _schedule<T>(Future<T> Function() execute) {
-    _requestQueue.add(
-      _SubscriptionRequest<T>(execute),
-    );
-  }
-
-  /// Execute [_SubscriptionRequest] in FIFO-manner until empty
-  void _process() async {
-    while (_requestQueue.isNotEmpty) {
-      final request = _requestQueue.first;
-      try {
-        await request();
-      } catch (e, stackTrace) {
-        _fatal('Failed to execute $request, error: $e', stackTrace);
-      }
-      // Only remove after execution is completed
-      _requestQueue.remove(request);
     }
   }
 
@@ -2425,28 +2416,6 @@ class _SubscriptionController {
       );
     }
     return answer;
-  }
-}
-
-class _SubscriptionRequest<T> {
-  _SubscriptionRequest(this.execute);
-  final Completer completer = Completer();
-  final Future<T> Function() execute;
-
-  Future<T> call() async {
-    var response;
-    try {
-      response = await execute();
-      completer.complete(response);
-    } catch (e, stackTrace) {
-      completer.completeError(e, stackTrace);
-    }
-    return response;
-  }
-
-  @override
-  String toString() {
-    return '_SubscriptionRequest{execute: $execute}';
   }
 }
 
