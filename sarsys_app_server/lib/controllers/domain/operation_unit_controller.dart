@@ -59,20 +59,23 @@ class OperationUnitController extends AggregateListController<UnitCommand, Unit,
       throw AggregateNotFound("Personnels not found: ${notFound.join(', ')}");
     }
     // Create without personnels
-    final events = await super.doCreate(fuuid, Map.from(data)..remove('personnels'));
-    // Add personnels to unit just created
-    if (_personnels.isNotEmpty) {
-      final unit = foreign.get(uuuid);
-      await Future.wait(_personnels.map((String puuid) async {
-        return foreign.execute(AssignPersonnelToUnit(unit, puuid));
-      }));
-    }
+    final events = await super.doCreate(
+      fuuid,
+      Map.from(data)..remove('personnels'),
+    );
     if (hasTracking) {
       await PolicyUtils.waitForRuleResult<TrackingCreated>(
         foreign,
         fail: true,
         timeout: const Duration(milliseconds: 1000),
       );
+    }
+    // Add personnels to unit just created
+    if (_personnels.isNotEmpty) {
+      final unit = foreign.get(uuuid);
+      await Future.wait(_personnels.map((String puuid) async {
+        return foreign.execute(AssignPersonnelToUnit(unit, puuid));
+      }));
     }
     return events;
   }

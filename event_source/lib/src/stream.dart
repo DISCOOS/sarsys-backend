@@ -5,19 +5,9 @@ import 'package:meta/meta.dart';
 import 'package:async/async.dart';
 
 class StreamRequestQueue<T> {
-  StreamRequestQueue({
-    this.loop = false,
-    Function(Object, StackTrace) onError,
-  }) : _onError = onError;
+  StreamRequestQueue();
 
   Type get type => typeOf<T>();
-
-  /// Start infinite processing
-  /// loop waiting on next [StreamRequest]
-  /// arrives. Is stopped by [StreamResult.isStop]
-  /// response from [_onError] or manually calling
-  /// [stop], [cancel] or [dispose].
-  final bool loop;
 
   /// List of [StreamRequest.key]s.
   ///
@@ -112,7 +102,7 @@ class StreamRequestQueue<T> {
     // If already processing
     // (not idle), the method
     // will do nothing
-    _process(loop: loop);
+    _process();
 
     return !exists;
   }
@@ -141,14 +131,14 @@ class StreamRequestQueue<T> {
   }
 
   /// Process scheduled requests
-  Future<void> _process({bool loop = false}) async {
+  Future<void> _process() async {
     var attempts = 0;
     StreamResult<T> result;
 
     if (isIdle) {
       try {
         _isIdle = false;
-        while (_hasNext || loop && (await _waitNext())) {
+        while (_hasNext) {
           if (isProcessing) {
             final request = await _queue.peek;
             if (isProcessing && contains(request.key)) {
@@ -166,7 +156,7 @@ class StreamRequestQueue<T> {
                 attempts = 0;
                 result = null;
                 // Move to next request?
-                if (await _waitNext()) {
+                if (await _queue.hasNext) {
                   if (isProcessing) {
                     await _queue.next;
                     _requests.remove(request);
@@ -248,17 +238,6 @@ class StreamRequestQueue<T> {
   ///
   bool get _hasNext => isProcessing && _requests.isNotEmpty;
 
-  /// Should only process next
-  /// request if [isProcessing],
-  /// if queue contains more
-  /// requests, or when next
-  /// request is added to it.
-  ///
-  /// This method will wait
-  /// for next request
-  ///
-  Future<bool> _waitNext() => _queue.hasNext;
-
   Future<bool> _shouldExecute(
     StreamRequest<T> request,
     StreamResult<T> previous,
@@ -327,7 +306,7 @@ class StreamRequestQueue<T> {
   bool start() {
     _checkState();
     if (isIdle) {
-      _process(loop: true);
+      _process();
     }
     return isProcessing;
   }

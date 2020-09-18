@@ -8,7 +8,6 @@ import 'package:meta/meta.dart';
 import 'package:json_patch/json_patch.dart';
 import 'package:logging/logging.dart';
 import 'package:uuid/uuid.dart';
-import 'package:pedantic/pedantic.dart';
 
 import 'package:event_source/event_source.dart';
 
