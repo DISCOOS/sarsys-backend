@@ -8,6 +8,7 @@ import 'package:meta/meta.dart';
 import 'package:json_patch/json_patch.dart';
 import 'package:logging/logging.dart';
 import 'package:uuid/uuid.dart';
+import 'package:pedantic/pedantic.dart';
 
 import 'package:event_source/event_source.dart';
 
@@ -87,6 +88,7 @@ class EventStoreMockServer {
           '> ${request.response.statusCode} ${request.response.reasonPhrase}',
         );
       }
+      await request.response.flush();
       await request.response.close();
     });
     _log(
@@ -243,8 +245,6 @@ class TestRoute {
     // Hack - workaround for unable
     // to make regexp work directly
     if (matches && _isPathPrefix(test)) {
-//      print('HttpRequest.path=$test');
-//      print('TestRoute.path=$path');
       return true;
     }
     return false;

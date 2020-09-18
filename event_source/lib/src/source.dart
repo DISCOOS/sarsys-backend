@@ -2261,7 +2261,13 @@ class _SubscriptionController {
           // Timer will fire before previous read has completed
           if (_requestQueue.isEmpty) {
             _requestQueue.add(StreamRequest<FeedResult>(
-              execute: () async => queue.StreamResult(value: await _readNext()),
+              execute: () async {
+                final next = await _readNext();
+                return queue.StreamResult(
+                  value: next,
+                  stop: next == null,
+                );
+              },
             ));
           }
         },

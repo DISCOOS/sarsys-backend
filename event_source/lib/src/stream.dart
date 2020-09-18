@@ -204,6 +204,8 @@ class StreamRequestQueue<T> {
   bool _shouldConsume(StreamRequest request, StreamResult result) =>
       // Removed from queue?
       !contains(request?.key) ||
+      // Request is empty?
+      result?.isNone == true ||
       // Request is completed?
       result?.isComplete == true ||
       // Internal error?
@@ -393,10 +395,10 @@ class StreamRequestQueue<T> {
     _checkState();
     if (!_isDisposed) {
       _isDisposed = true;
+      await stop();
       if (_idleController.hasListener) {
         await _idleController.close();
       }
-      return stop();
     }
   }
 

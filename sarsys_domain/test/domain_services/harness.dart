@@ -141,7 +141,7 @@ class EventSourceHarness {
     });
   }
 
-  Future _open(int port, EventStoreMockServer server) async {
+  Future<void> _open(int port, EventStoreMockServer server) async {
     await server.open();
     _connections[port] = EventStoreConnection(
       host: 'http://localhost',
@@ -149,7 +149,7 @@ class EventSourceHarness {
     );
   }
 
-  Future _build(int port, EventStoreMockServer server) async {
+  Future<void> _build(int port, EventStoreMockServer server) async {
     _streams.forEach(
       (stream, flags) => server.withStream(
         stream,
@@ -192,17 +192,21 @@ class EventSourceHarness {
     );
   }
 
-  void _clear(int port, EventStoreMockServer server) async {
+  Future<void> _clear(int port, EventStoreMockServer server) async {
     server.clear();
     if (_managers.containsKey(port)) {
-      await Future.forEach<RepositoryManager>(_managers[port], (manager) => manager.dispose());
+      await Future.wait(
+        _managers[port].map((e) => e.dispose()),
+      );
       _managers[port].clear();
     }
   }
 
-  void _close(int port, EventStoreMockServer server) async {
+  Future<void> _close(int port, EventStoreMockServer server) async {
     if (_managers.containsKey(port)) {
-      await Future.forEach<RepositoryManager>(_managers[port], (manager) => manager.dispose());
+      await Future.wait(
+        _managers[port].map((e) => e.dispose()),
+      );
       _managers[port].clear();
     }
     _connections[port]?.close();
