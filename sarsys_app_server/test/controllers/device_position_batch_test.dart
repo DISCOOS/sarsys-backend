@@ -19,7 +19,11 @@ Future main() async {
   test("POST /api/devices/{uuid}/positions returns status code 204 if set", () async {
     final uuid = Uuid().v4();
     final device = _createData(uuid);
-    expectResponse(await harness.agent.post("/api/devices", body: device), 201, body: null);
+    expectResponse(
+      await harness.agent.post("/api/devices", body: device),
+      201,
+      body: null,
+    );
     final positions = [
       createPosition(lat: 1.0),
       createPosition(lat: 2.0),
@@ -31,7 +35,10 @@ Future main() async {
       204,
       body: null,
     );
-    final response = expectResponse(await harness.agent.get("/api/devices/$uuid/position"), 200);
+    final response = expectResponse(
+      await harness.agent.get("/api/devices/$uuid/position"),
+      200,
+    );
     final actual = await response.body.decode();
     expect(actual['data'], equals(positions.last));
   });

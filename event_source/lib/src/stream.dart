@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:event_source/event_source.dart';
 import 'package:meta/meta.dart';
 import 'package:async/async.dart';
 
@@ -8,6 +9,8 @@ class StreamRequestQueue<T> {
     this.loop = false,
     Function(Object, StackTrace) onError,
   }) : _onError = onError;
+
+  Type get type => typeOf<T>();
 
   /// Start infinite processing
   /// loop waiting on next [StreamRequest]
@@ -51,7 +54,7 @@ class StreamRequestQueue<T> {
   bool get isNotEmpty => _requests.isNotEmpty;
 
   /// Flag indicating that [process] should be called
-  bool get isIdle => _isIdle || (_isStopping || _dispatcher == null || _dispatcher.isClosed);
+  bool get isIdle => _isIdle || (_isDisposed || _dispatcher == null || _dispatcher.isClosed);
   bool _isIdle = true;
 
   /// Get stream of last [StreamResult]
@@ -87,9 +90,8 @@ class StreamRequestQueue<T> {
 
   /// Schedule singleton [request] for execution.
   /// This will cancel current requests.
-  Future<bool> only(StreamRequest<T> request) async {
-    _checkState();
-    await cancel();
+  bool only(StreamRequest<T> request) {
+    cancel();
     return add(request);
   }
 
@@ -98,10 +100,9 @@ class StreamRequestQueue<T> {
     _checkState();
     _prepare();
 
+    // Duplicates not allowed
     final exists = contains(request.key);
-
-    if (!exists) {
-      // Schedule request
+    if (!contains(request.key)) {
       _requests.add(request);
       _dispatcher.add(request);
     }
@@ -147,7 +148,7 @@ class StreamRequestQueue<T> {
     if (isIdle) {
       try {
         _isIdle = false;
-        while (await _hasNext(wait: loop)) {
+        while (_hasNext || loop && (await _waitNext())) {
           if (isProcessing) {
             final request = await _queue.peek;
             if (isProcessing && contains(request.key)) {
@@ -157,7 +158,7 @@ class StreamRequestQueue<T> {
                   result = await _execute(request);
                   _last = result;
                   if (result.isStop) {
-                    return await stop();
+                    return stop();
                   }
                 }
               }
@@ -165,7 +166,7 @@ class StreamRequestQueue<T> {
                 attempts = 0;
                 result = null;
                 // Move to next request?
-                if (await _hasNext()) {
+                if (await _waitNext()) {
                   if (isProcessing) {
                     await _queue.next;
                     _requests.remove(request);
@@ -175,9 +176,10 @@ class StreamRequestQueue<T> {
             }
           }
         }
-        _current = null;
+      } catch (e, stackTrace) {
+        _handleError(e, stackTrace);
       } finally {
-        await stop();
+        stop();
       }
     }
   }
@@ -188,12 +190,6 @@ class StreamRequestQueue<T> {
       _dispatcher = StreamController();
       _queue = StreamQueue(
         _dispatcher.stream,
-      );
-      // Add requests not
-      // processed before
-      // previous _dispose
-      _requests.forEach(
-        _dispatcher.add,
       );
     }
   }
@@ -229,7 +225,7 @@ class StreamRequestQueue<T> {
         _handleError(
           result.error,
           result.stackTrace,
-          request.onResult,
+          onResult: request.onResult,
         );
       }
       return result;
@@ -237,7 +233,7 @@ class StreamRequestQueue<T> {
       _handleError(
         error,
         stackTrace,
-        request.onResult,
+        onResult: request.onResult,
       );
       return StreamResult(
         value: await request.fallback(),
@@ -246,28 +242,22 @@ class StreamRequestQueue<T> {
   }
 
   /// Should only process next
-  /// request if not [isIdle],
+  /// request if [isProcessing],
+  /// if queue contains more
+  /// requests.
+  ///
+  bool get _hasNext => isProcessing && _requests.isNotEmpty;
+
+  /// Should only process next
+  /// request if [isProcessing],
   /// if queue contains more
   /// requests, or when next
   /// request is added to it.
   ///
   /// This method will wait
-  /// for next request if
-  /// [wait] is [true] and
-  /// queue is not [isIdle]
+  /// for next request
   ///
-  Future<bool> _hasNext({bool wait = false}) async {
-    var hasNext = false;
-    if (isProcessing) {
-      hasNext = isProcessing && _requests.isNotEmpty;
-      if (wait && hasNext) {
-        hasNext = await _queue.hasNext;
-      }
-      // If cancelled during wait
-      hasNext = isProcessing && hasNext;
-    }
-    return hasNext;
-  }
+  Future<bool> _waitNext() => _queue.hasNext;
 
   Future<bool> _shouldExecute(
     StreamRequest<T> request,
@@ -284,7 +274,7 @@ class StreamRequestQueue<T> {
           '${request.runtimeType} failed with to execute after '
           '${request.maxAttempts} attempts with error: ${previous.error}',
           previous.stackTrace ?? StackTrace.current,
-          request.onResult,
+          onResult: request.onResult,
         );
       } else if (request.onResult?.isCompleted == false) {
         request.onResult?.complete(
@@ -311,10 +301,10 @@ class StreamRequestQueue<T> {
   /// state.
   ///
   void _handleError(
-    error,
-    StackTrace stackTrace,
+    Object error,
+    StackTrace stackTrace, {
     Completer<T> onResult,
-  ) {
+  }) {
     if (onResult?.isCompleted == false) {
       onResult.completeError(
         error,
@@ -342,48 +332,22 @@ class StreamRequestQueue<T> {
     return isProcessing;
   }
 
-  /// Stop processing this queue.
-  ///
-  /// If [immediate] is `true` (the default), the queue is
-  /// stopped immediately. Any pending requests are
-  /// completed as though the underlying stream had closed.
-  ///
-  /// If [immediate] is `false`, the operation instead waits
-  /// until all scheduled requests have been processed,
-  /// then it stops processing the queue.
-  ///
-  /// The returned future completes with the result of calling
-  /// `cancel` of the underlying stream.
-  ///
-  Future<void> stop() async {
-    if (!_isStopping && _queue != null) {
-      _isStopping = true;
-      if (_requests.isNotEmpty) {
-        await _queue.cancel(immediate: true);
-      }
-      _queue = null;
+  /// Stop processing requests.
+  void stop() {
+    if (isProcessing) {
       _isIdle = true;
-      _current = null;
-      _dispatcher = null;
-      _isStopping = false;
-
       // Notify listeners
-      _idleController.add(_last);
-      _last = null;
+      _idleController?.add(_last);
     }
   }
 
-  bool _isStopping = false;
-
-  /// Cancel all requests.
+  /// Clear all pending requests
+  /// and stop processing events.
   ///
-  /// The returned future completes with the result of calling
-  /// `cancel` of the underlying stream.
-  ///
-  Future<void> cancel() async {
+  void cancel() async {
     _checkState();
     clear();
-    return stop();
+    stop();
   }
 
   /// Dispose queue. Can not be used afterwords
@@ -394,8 +358,15 @@ class StreamRequestQueue<T> {
   Future<void> dispose() async {
     _checkState();
     if (!_isDisposed) {
+      clear();
+      stop();
       _isDisposed = true;
-      await stop();
+      if (_requests.isNotEmpty) {
+        await _queue.cancel(immediate: true);
+      }
+      _queue = null;
+      _current = null;
+      _dispatcher = null;
       if (_idleController.hasListener) {
         await _idleController.close();
       }

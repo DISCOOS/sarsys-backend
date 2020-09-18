@@ -772,7 +772,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         _printDebug('aggregate.pending.count: ${aggregate.getUncommittedChanges().length}');
         _printDebug('aggregate.pending.items: ${aggregate.getUncommittedChanges().length}');
       }
-      await store.push(aggregate);
+      final events = await store.push(aggregate);
 
       // Only return changes applied by this operation
       operation.completer.complete(operation.changes);
