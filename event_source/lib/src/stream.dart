@@ -36,6 +36,9 @@ class StreamRequestQueue<T> {
   /// Check if queue is empty
   bool get isEmpty => _requests.isEmpty;
 
+  /// Check if queue is ready for processing
+  bool get isReady => !(_isDisposed || _queue == null);
+
   /// Check if queue is disposed
   bool get isDisposed => _isDisposed;
   bool _isDisposed = false;
@@ -44,7 +47,7 @@ class StreamRequestQueue<T> {
   bool get isNotEmpty => _requests.isNotEmpty;
 
   /// Flag indicating that [process] should be called
-  bool get isIdle => _isIdle || (_isDisposed || _dispatcher == null || _dispatcher.isClosed);
+  bool get isIdle => _isIdle || !isReady;
   bool _isIdle = true;
 
   /// Get stream of last [StreamResult]
@@ -52,7 +55,7 @@ class StreamRequestQueue<T> {
   Stream<StreamResult<T>> onIdle() => _idleController.stream;
 
   /// Flag indicating that queue is [process]ing requests
-  bool get isProcessing => !isIdle;
+  bool get isProcessing => isReady && !isIdle;
 
   /// Check if a [StreamRequest] with given [key] is queued
   bool contains(String key) {
@@ -132,7 +135,6 @@ class StreamRequestQueue<T> {
 
   /// Process scheduled requests
   Future<void> _process() async {
-    var attempts = 0;
     StreamResult<T> result;
 
     if (isIdle) {
@@ -141,27 +143,22 @@ class StreamRequestQueue<T> {
         while (_hasNext) {
           if (isProcessing) {
             final request = await _queue.peek;
-            if (isProcessing && contains(request.key)) {
-              _current = request;
-              if (await _shouldExecute(request, result, ++attempts)) {
-                if (isProcessing && contains(request.key)) {
-                  result = await _execute(request);
-                  _last = result;
-                  if (result.isStop) {
-                    return stop();
+            if (isProcessing) {
+              if (contains(request.key)) {
+                _current = request;
+                if (await _shouldExecute(request)) {
+                  if (isProcessing && contains(request.key)) {
+                    result = await _execute(request);
+                    _last = result;
+                    if (result.isStop) {
+                      stop();
+                    }
                   }
                 }
               }
-              if (_shouldConsume(request, result)) {
-                attempts = 0;
-                result = null;
-                // Move to next request?
-                if (await _queue.hasNext) {
-                  if (isProcessing) {
-                    await _queue.next;
-                    _requests.remove(request);
-                  }
-                }
+              if (isReady) {
+                await _queue.next;
+                _requests.remove(request);
               }
             }
           }
@@ -183,19 +180,6 @@ class StreamRequestQueue<T> {
       );
     }
   }
-
-  /// Check if result is complete.
-  /// If complete, proceed with next
-  /// request, otherwise try again.
-  bool _shouldConsume(StreamRequest request, StreamResult result) =>
-      // Removed from queue?
-      !contains(request?.key) ||
-      // Request is empty?
-      result?.isNone == true ||
-      // Request is completed?
-      result?.isComplete == true ||
-      // Internal error?
-      request?.onResult?.isCompleted == true;
 
   /// Get request currently processing
   StreamRequest<T> get current => _current;
@@ -238,38 +222,17 @@ class StreamRequestQueue<T> {
   ///
   bool get _hasNext => isProcessing && _requests.isNotEmpty;
 
-  Future<bool> _shouldExecute(
-    StreamRequest<T> request,
-    StreamResult<T> previous,
-    int attempts,
-  ) async {
-    if (isIdle) {
-      return false;
+  Future<bool> _shouldExecute(StreamRequest<T> request) async {
+    if (isProcessing && _requests.contains(request)) {
+      return true;
     }
-    final skip = _shouldSkip(request, attempts);
-    if (skip) {
-      if (request.fail) {
-        _handleError(
-          '${request.runtimeType} failed with to execute after '
-          '${request.maxAttempts} attempts with error: ${previous.error}',
-          previous.stackTrace ?? StackTrace.current,
-          onResult: request.onResult,
-        );
-      } else if (request.onResult?.isCompleted == false) {
-        request.onResult?.complete(
-          request.fallback == null ? null : await request.fallback(),
-        );
-      }
+    if (request.onResult?.isCompleted == false && request.fallback != null) {
+      request.onResult?.complete(
+        await request.fallback(),
+      );
     }
-    return !skip;
+    return false;
   }
-
-  /// Check if given request should be skipped
-  bool _shouldSkip(StreamRequest request, int attempts) =>
-      // Removed form queue?
-      !_requests.contains(request) ||
-      // Maximum attempts reached?
-      request.maxAttempts != null && attempts > request.maxAttempts;
 
   /// Error handler.
   /// Will complete [onResult]
@@ -364,12 +327,8 @@ class StreamRequest<T> {
     String key,
     this.fallback,
     this.onResult,
-    this.fail = true,
-    this.maxAttempts,
   }) : _key = key;
 
-  final bool fail;
-  final int maxAttempts;
   final Completer<T> onResult;
   final Future<T> Function() fallback;
   final Future<StreamResult<T>> Function() execute;
