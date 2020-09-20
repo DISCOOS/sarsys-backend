@@ -312,7 +312,7 @@ class RepositoryManager {
       _stores.values.forEach(
         (store) => store.pause(),
       );
-      logger.info('Paused ${_stores.length} subscriptions');
+      logger.fine('Paused ${_stores.length} subscriptions');
     }
   }
 
@@ -323,7 +323,7 @@ class RepositoryManager {
       _stores.values.forEach(
         (store) => store.resume(),
       );
-      logger.info('Resumed ${_stores.length} subscriptions');
+      logger.fine('Resumed ${_stores.length} subscriptions');
     }
   }
 
@@ -482,14 +482,14 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Save snapshot of current states
   SnapshotModel save() {
     final snapshot = store.snapshots?.add(this);
-    _suuid = snapshot?.uuid;
+    _reset(snapshot?.uuid);
     return snapshot;
   }
 
   /// Replay events into this [Repository].
   ///
   Future<int> replay() async {
-    _reset();
+    _reset(store.snapshots?.last?.uuid);
     final events = await store.replay<T>(this);
     if (events == 0) {
       logger.info("Stream '${store.canonicalStream}' is empty");
@@ -748,8 +748,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         aggregate.getUncommittedChanges(),
         maxAttempts,
       );
-      // Check if snapshot should be saved
-      _snapshotWhen(store.snapshots?.threshold);
     }
     return result;
   }
@@ -779,13 +777,18 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     Iterable<DomainEvent> changes,
     int maxAttempts,
   ) {
-    // Stop subscriptions
-    store.pause();
-
+    if (_pushQueue.isEmpty) {
+      store.pause();
+    }
     final aggregate = _assertExists(uuid);
     final operation = _PushOperation(aggregate, changes, maxAttempts);
     _pushQueue.add(StreamRequest<Iterable<DomainEvent>>(
-      execute: () => _push(operation),
+      execute: () async {
+        final result = await _push(operation);
+        // Check if snapshot should be saved
+        _snapshotWhen(store.snapshots?.threshold);
+        return result;
+      },
     ));
     return operation.completer.future;
   }
@@ -844,6 +847,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       return StreamResult(
         value: operation.changes,
       );
+    } finally {
+      // Check if snapshot should be saved
+      _snapshotWhen(store.snapshots?.threshold);
     }
   }
 
@@ -1020,13 +1026,13 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         'count: ${count()}, '
         'stream: $stream,\n'
         'canonicalStream: ${store.canonicalStream}}},\n'
-        'aggregate.type: ${aggregate.runtimeType},\n'
-        'aggregate.uuid: ${aggregate.uuid},\n'
-        'aggregate.data: ${aggregate.data},\n'
-        'aggregate.modifications: ${aggregate.modifications},\n'
-        'aggregate.applied.count: ${aggregate.applied.length},\n'
-        'aggregate.pending.count: ${aggregate.getUncommittedChanges().length},\n'
-        'aggregate.pending.items: ${aggregate.getUncommittedChanges()},\n'
+        'aggregate.type: ${aggregate?.runtimeType},\n'
+        'aggregate.uuid: ${aggregate?.uuid},\n'
+        'aggregate.data: ${aggregate?.data},\n'
+        'aggregate.modifications: ${aggregate?.modifications},\n'
+        'aggregate.applied.count: ${aggregate?.applied?.length},\n'
+        'aggregate.pending.count: ${aggregate?.getUncommittedChanges()?.length},\n'
+        'aggregate.pending.items: ${aggregate?.getUncommittedChanges()},\n'
         '}';
   }
 
@@ -1036,25 +1042,26 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// nothing is changed by
   /// this method.
   ///
-  void _reset() {
-    if (store.snapshots?.isNotEmpty == true) {
-      if (hasSnapshot) {
-        _pushQueue.cancel();
-        _aggregates.clear();
-      }
-      _suuid = store.snapshots.last?.uuid;
+  void _reset(String suuid) {
+    if (store.snapshots?.contains(suuid) == true) {
+      _suuid = suuid;
       final snapshot = store.snapshots[_suuid];
-      _aggregates.addAll(snapshot.aggregates.map(
-        (uuid, model) {
+      // Remove missing
+      _aggregates.removeWhere(
+        (key, _) => !snapshot.aggregates.containsKey(key),
+      );
+      // Update existing and add missing
+      snapshot.aggregates.forEach((uuid, model) {
+        _aggregates.update(uuid, (a) => a.._reset(this), ifAbsent: () {
           final aggregate = create(
             _processors,
             uuid,
             Map.from(model.data),
           );
           aggregate._reset(this);
-          return MapEntry(uuid, aggregate);
-        },
-      ));
+          return aggregate;
+        });
+      });
     }
   }
 
@@ -1127,6 +1134,10 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     this.entityIdFieldName = 'id',
     DateTime created,
   }) : _processors = Map.from(processors) {
+    _create(data, created);
+  }
+
+  void _create(Map<String, dynamic> data, DateTime created) {
     _createdBy = _change(
       // Ensure data and uuid is given
       (data ?? {})..addAll({uuidFieldName: uuid}),
@@ -1268,7 +1279,8 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     if (events.isNotEmpty || repo.store.snapshots?.contains(uuid) == true) {
       _reset(repo);
     }
-    events?.forEach((event) => _apply(
+    final offset = number;
+    events?.where((event) => event.number > offset)?.forEach((event) => _apply(
           repo.toDomainEvent(event),
           isChanged: false,
         ));
@@ -1807,6 +1819,7 @@ class ThreeWayMerge extends MergeStrategy {
   Future<Iterable<DomainEvent>> merge(AggregateRoot aggregate) async {
     final local = aggregate.data;
     final isNew = aggregate.isNew;
+    final previous = aggregate.number;
     final events = repository.rollback(aggregate);
     if (isNew) {
       // This implies that an instance stream with
@@ -1815,7 +1828,10 @@ class ThreeWayMerge extends MergeStrategy {
       // above any retry must get a new aggregate
       // instance before another push is attempted
       await _catchup();
-      return events;
+      final next = aggregate.number;
+      final delta = next.value - previous.value;
+      // Append base count
+      return events.map((e) => e..number += delta);
     }
 
     // Keep base state and catchup to remote state
@@ -1851,7 +1867,10 @@ class ThreeWayMerge extends MergeStrategy {
         );
       }
     }
-    return events;
+    // Append base count from catchup
+    final next = aggregate.number;
+    final delta = next.value - previous.value;
+    return events.map((e) => e..number += delta);
   }
 
   Future _catchup() async => await repository.store.catchUp(

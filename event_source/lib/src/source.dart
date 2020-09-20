@@ -159,7 +159,12 @@ class EventStore {
   /// [LinkedHashMap] remembers the insertion order of keys, and
   /// keys are iterated in the order they were inserted into the map.
   /// This is important for stream id inference from key order.
-  final LinkedHashMap<String, Set<SourceEvent>> _store = LinkedHashMap<String, Set<SourceEvent>>();
+  ///
+  /// [LinkedHashSet] remembers the insertion order of keys, and
+  /// keys are iterated in the order they were inserted into the map.
+  /// This is important for ensuring that last added [SourceEvent]
+  /// can be fetched using [Iterable.last] operation.
+  final LinkedHashMap<String, LinkedHashSet<SourceEvent>> _store = LinkedHashMap<String, LinkedHashSet<SourceEvent>>();
 
   /// Get [Storage] instance
   final Storage snapshots;
@@ -196,18 +201,18 @@ class EventStore {
     try {
       // Stop subscriptions
       // from catching up
-      resume();
+      pause();
 
       bus.replayStarted<T>();
 
       // Clear current state to
-      _reset(repository);
+      final offset = _reset(repository);
 
       // Fetch all events
       final count = await _catchUp(
         repository,
         master: master,
-        number: EventNumber.first,
+        number: offset,
       );
       logger.info(
         "Replayed $count events from stream '${canonicalStream}'",
@@ -215,13 +220,11 @@ class EventStore {
       return count;
     } finally {
       bus.replayEnded<T>();
-      if (!_isDisposed) {
-        resume();
-      }
+      resume();
     }
   }
 
-  void _reset(Repository repository) {
+  EventNumber _reset(Repository repository) {
     _store.clear();
     _current.clear();
     final snapshot = repository.snapshot;
@@ -236,6 +239,7 @@ class EventStore {
         });
       }
     }
+    return _current[canonicalStream].isNone ? EventNumber.first : _current[canonicalStream];
   }
 
   /// Catch up with stream
@@ -244,7 +248,7 @@ class EventStore {
     bool master = false,
   }) async {
     final previous = current();
-    final next = current() + 1;
+    final next = previous + 1;
     final count = await _catchUp(
       repository,
       number: next,
@@ -274,11 +278,11 @@ class EventStore {
 
       // Stop subscriptions
       // from catching up
-      resume();
+      pause();
 
       // Lower bound is last known event number in stream
       final head = EventNumber(
-        max(current().value, number.value),
+        max(number.value, current().value),
       );
       if (head > number) {
         logger.fine(
@@ -326,23 +330,47 @@ class EventStore {
       await stream.length;
       return count;
     } finally {
-      if (!_isDisposed) {
-        resume();
-      }
+      resume();
     }
   }
 
-  Set<Event> _updateAll(String uuid, Iterable<SourceEvent> events) => _store.update(
+  void _updateAll(String uuid, Iterable<SourceEvent> events) {
+    if (events.isNotEmpty) {
+      if (useInstanceStreams) {
+        final stream = toInstanceStream(uuid);
+        final offset = current(stream: stream);
+        // Event numbers in instance streams SHOULD ALWAYS
+        // be sorted in an ordered monotone incrementing
+        // manner. This check ensures that if and only if
+        // the assumption is violated, an InvalidOperation
+        // exception is thrown. This ensures that previous
+        // next states can be calculated safely without any
+        // risk of applying patches out-of-order, removing the
+        // need to store these states in each event.
+        events.fold(
+          offset,
+          (previous, next) => _assertMonotone(stream, previous, next),
+        );
+      }
+      _store.update(
         uuid,
         (current) => current..addAll(events),
-        ifAbsent: () => events.toSet(),
+        ifAbsent: () => LinkedHashSet.of(events),
       );
+    }
+  }
 
-  Iterable<DomainEvent> _applyAll(Repository repository, String uuid, List<SourceEvent> events) {
+  Iterable<DomainEvent> _applyAll(
+    Repository repository,
+    String uuid,
+    List<SourceEvent> events,
+  ) {
     final exists = repository.contains(uuid);
     final aggregate = repository.get(uuid);
 
-    final domainEvents = exists ? events.map(repository.toDomainEvent) : aggregate.applied;
+    final domainEvents = events.map(
+      repository.toDomainEvent,
+    );
     if (exists) {
       domainEvents.forEach(aggregate.apply);
     }
@@ -358,23 +386,24 @@ class EventStore {
   /// Get events for given [AggregateRoot.uuid]
   Iterable<Event> get(String uuid) => List.from(_store[uuid] ?? []);
 
-  /// Commit events to local storage.
-  Iterable<DomainEvent> _commit(AggregateRoot aggregate, Iterable<DomainEvent> changes) {
+  /// Commit applied events to aggregate.
+  Iterable<DomainEvent> _commit(
+    AggregateRoot aggregate,
+    Iterable<DomainEvent> changes,
+  ) {
     _assertState();
-    final events = aggregate.commit(changes: changes);
+    final events = aggregate.commit(
+      changes: changes,
+    );
 
     // Do not save events during replay
     if (bus.isReplaying == false && events.isNotEmpty) {
-      final stream = toInstanceStream(aggregate.uuid);
-      final number = _current[stream] ?? EventNumber.none;
-
       _updateAll(
         aggregate.uuid,
         _toSourceEvents(
-          stream: stream,
-          number: number,
           events: events,
           uuidFieldName: aggregate.uuidFieldName,
+          stream: toInstanceStream(aggregate.uuid),
         ),
       );
 
@@ -394,32 +423,20 @@ class EventStore {
   /// If source [events] are given, event
   /// numbers are validated to be monotone
   /// increasing
+  ///
   void _setEventNumber(
     AggregateRoot aggregate, {
     List<SourceEvent> events = const [],
   }) {
-    var append = 0;
     final applied = _store[aggregate.uuid];
     final stream = toInstanceStream(aggregate.uuid);
-    final previous = _current[stream];
-    final exists = _current.containsKey(stream);
 
     // Update canonical stream?
     if (useInstanceStreams) {
-      // Event numbers in instance streams SHOULD ALWAYS
-      // be sorted in an ordered monotone incrementing
-      // manner. This check ensures that if and only if
-      // the assumption is violated, an InvalidOperation
-      // exception is thrown. This ensures that previous
-      // next states can be calculated safely without any
-      // risk of applying patches out-of-order, removing the
-      // need to store these states in each event.
-      events.fold(
-        previous ?? EventNumber.none,
-        (previous, next) => _assertMonotone(stream, previous, next),
-      );
+      var append = 0;
+      final previous = _current[stream];
 
-      if (exists) {
+      if (_current.containsKey(stream)) {
         // Append change in events
         append = EventNumber.none.value + applied.length - (previous?.value ?? 0);
       } else {
@@ -430,7 +447,8 @@ class EventStore {
     }
 
     // Update aggregate stream
-    _current[stream] = EventNumber.none + applied.length;
+    // from last applied event
+    _current[stream] = applied.isNotEmpty ? applied.last.number : EventNumber.none;
   }
 
   /// Publish events to [bus] and [asStream]
@@ -736,6 +754,8 @@ class EventStore {
     SourceEvent event,
     Repository repository,
   ) {
+    logger.fine('_onUpdate(${event.type}(uuid: ${event.uuid}, number:${event.number}, remote:${event.remote}))');
+
     // Catch up with stream
     final aggregate = repository.get(uuid);
 
@@ -769,6 +789,8 @@ class EventStore {
     SourceEvent event,
     Repository repository,
   ) {
+    logger.fine('_onApply(${event.type}(uuid: ${event.uuid}, number:${event.number}, remote:${event.remote}))');
+
     // IMPORTANT: append to store before applying to repository
     // This ensures that the event added to an aggregate during
     // construction is overwritten with the remote actual
@@ -849,12 +871,13 @@ class EventStore {
 
   /// Assert that current event number for [stream] is caught up with last known event
   void _assertCurrentVersion(String stream, EventNumber actual) {
-    if (_current[stream] < actual) {
+    if (_current[stream] != actual) {
       final e = EventNumberMismatch(
-        stream,
-        _current[stream],
-        actual,
-        'Catch up failed, current numbers: $_current',
+        stream: stream,
+        actual: actual,
+        numbers: _current,
+        current: _current[stream],
+        message: 'Catch up failed',
       );
       logger.severe('${e.message}, debug: ${toDebugString(stream)}');
       throw e;
@@ -881,33 +904,37 @@ class EventStore {
     return _streamController.stream;
   }
 
-  bool _isPaused = false;
-  bool get isPaused => _isPaused;
+  int _paused = 0;
+  bool get isPaused => !isDisposed && _paused > 0;
 
   /// Pause all subscriptions
-  void pause() async {
+  void pause() {
     _assertState();
-    if (!_isPaused) {
-      _isPaused = true;
+    if (!isPaused) {
       _controllers.values.forEach(
         (controller) => controller.pause(),
       );
     }
+    _paused++;
+    logger.fine('pause($_paused)');
   }
 
   /// Resume all subscriptions
-  void resume() async {
-    _assertState();
-    if (_isPaused) {
-      _isPaused = false;
-      _controllers.values.forEach(
-        (controller) => controller.resume(),
-      );
+  void resume() {
+    if (isPaused) {
+      _paused--;
+      if (!isPaused) {
+        _controllers.values.forEach(
+          (controller) => controller.resume(),
+        );
+      }
     }
+    logger.fine('resume($_paused)');
   }
 
   /// Clear events in store and close connection
   Future dispose() async {
+    _isDisposed = true;
     _store.clear();
 
     try {
@@ -924,7 +951,6 @@ class EventStore {
       // ignore: unawaited_futures
       _streamController.close();
     }
-    _isDisposed = true;
   }
 
   String toDebugString([String stream]) {
@@ -942,18 +968,15 @@ class EventStore {
 
   Iterable<SourceEvent> _toSourceEvents({
     @required String stream,
-    @required EventNumber number,
     @required String uuidFieldName,
     @required Iterable<DomainEvent> events,
   }) {
     assert(stream != null);
     assert(events != null);
-    assert(number != null);
     assert(uuidFieldName != null);
-    var version = number;
     return events.map((e) => e.toSourceEvent(
           streamId: stream,
-          number: ++version,
+          number: e.number,
           uuidFieldName: uuidFieldName,
         ));
   }

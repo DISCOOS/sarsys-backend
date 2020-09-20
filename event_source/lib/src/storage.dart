@@ -137,10 +137,19 @@ class Storage {
         model.uuid,
         StorageState(value: model),
       );
+      logger.info(
+        'Added snapshot ${model.uuid} of '
+        '${repo.runtimeType}@${model.number.value}',
+      );
     }
     // Always keep 1 snapshot
     if (length > max(keep ?? 1, 1)) {
+      final model = _states.get(first.uuid).value;
       _states.delete(first.uuid);
+      logger.info(
+        'Deleted snapshot ${model.uuid} of '
+        '${repo.runtimeType}@${model.number.value}',
+      );
     }
     return model;
   }

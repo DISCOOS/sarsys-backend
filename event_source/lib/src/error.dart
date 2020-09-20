@@ -117,8 +117,15 @@ class WriteFailed extends EventSourceException {
 
 /// Thrown when catchup ended in mismatch between current number and number in remote event stream
 class EventNumberMismatch extends WriteFailed implements Exception {
-  EventNumberMismatch(String stream, EventNumber current, EventNumber actual, String message)
-      : super('$message: stream $stream current event number ($current) not equal to actual ($actual)');
+  EventNumberMismatch({
+    String stream,
+    String message,
+    EventNumber actual,
+    EventNumber current,
+    Map<String, EventNumber> numbers,
+  }) : super(
+          '$message: stream $stream current event number ($current) not equal to actual ($actual), numbers: $numbers',
+        );
 }
 
 /// Thrown when [MergeStrategy] fails to reconcile [WrongExpectedEventVersion] after maximum number of attempts

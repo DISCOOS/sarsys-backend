@@ -119,15 +119,16 @@ class Event extends Message {
 
   /// Set [EventNumber] in stream.
   ///
-  /// Is only allowed to set if [number]
-  /// equals [EventNumber.none]. This
-  /// ensures that event number can be lazily
-  /// set after creation.
-  set number(EventNumber number) {
-    if (_number != EventNumber.none) {
-      throw StateError('Event number can only be set once');
+  /// Is only allowed to set if [next]
+  /// is larger then current [number].
+  /// This ensures that event number
+  /// can be lazily set after creation
+  /// or rebased after catchup.
+  set number(EventNumber next) {
+    if (_number > next) {
+      throw StateError('Event number can only be increased');
     }
-    _number = number;
+    _number = next;
   }
 
   /// Test if all data is deleted by evaluating if `data['deleted'] == 'true'`
@@ -138,7 +139,7 @@ class Event extends Message {
 
   @override
   String toString() {
-    return '$runtimeType{uuid: $uuid, type: $type, created: $created}';
+    return '$runtimeType{uuid: $uuid, type: $type, number: $number, created: $created}';
   }
 }
 
@@ -189,7 +190,7 @@ class DomainEvent extends Event {
 
   @override
   String toString() {
-    return '$runtimeType{uuid: $uuid, type: $type, created: $created, data: $data, number: $number}';
+    return '$runtimeType{uuid: $uuid, type: $type, number: $number, created: $created}';
   }
 
   Event toEvent(uuidFieldName) => Event(
@@ -318,7 +319,7 @@ class SourceEvent extends Event {
 
   @override
   String toString() {
-    return '$runtimeType{uuid: $uuid, type: $type, number: $number, data: $data}';
+    return '$runtimeType{uuid: $uuid, type: $type, number: $number, created: $created}';
   }
 
   static Map<String, dynamic> toData(

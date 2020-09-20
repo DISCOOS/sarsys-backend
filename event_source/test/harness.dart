@@ -163,6 +163,7 @@ class EventSourceHarness {
       for (var entry in _servers.entries) {
         await _open(entry.key, entry.value);
       }
+      return Future.value();
     });
 
     setUp(() async {
@@ -173,12 +174,13 @@ class EventSourceHarness {
         await _build(entry.key, entry.value);
       }
       _logger.info('---setUp--->ok');
+      return Future.value();
     });
 
     tearDown(() async {
       _logger.info('---tearDown---');
       for (var entry in _servers.entries) {
-        _clear(entry.key, entry.value);
+        await _clear(entry.key, entry.value);
       }
       _logger.info('---tearDown---ok');
       await Hive.deleteFromDisk();
@@ -187,7 +189,7 @@ class EventSourceHarness {
 
     tearDownAll(() async {
       for (var entry in _servers.entries) {
-        _close(entry.key, entry.value);
+        await _close(entry.key, entry.value);
       }
       return await Hive.deleteFromDisk();
     });
@@ -200,7 +202,7 @@ class EventSourceHarness {
     hiveDir.createSync();
   }
 
-  void _open(int port, EventStoreMockServer server) async {
+  Future<void> _open(int port, EventStoreMockServer server) async {
     await server.open();
     _connections[port] = EventStoreConnection(
       host: 'http://localhost',
@@ -209,7 +211,7 @@ class EventSourceHarness {
     );
   }
 
-  void _build(int port, EventStoreMockServer server) async {
+  Future<void> _build(int port, EventStoreMockServer server) async {
     _streams.forEach(
       (stream, flags) => server.withStream(
         stream,
@@ -252,7 +254,7 @@ class EventSourceHarness {
     }
   }
 
-  void _clear(int port, EventStoreMockServer server) async {
+  Future<void> _clear(int port, EventStoreMockServer server) async {
     server.clear();
     if (_managers.containsKey(port)) {
       for (var manager in _managers[port]) {
@@ -263,7 +265,7 @@ class EventSourceHarness {
     _errorDetectors.forEach((s) => s.cancel());
   }
 
-  void _close(int port, EventStoreMockServer server) async {
+  Future<void> _close(int port, EventStoreMockServer server) async {
     if (_managers.containsKey(port)) {
       for (var manager in _managers[port]) {
         await manager.dispose();
@@ -280,13 +282,11 @@ class EventSourceHarness {
     _logger.fine('path: $path');
     _logger.fine('data:$data');
     _logger.fine('stream: $stream');
-    _servers.values
-        .where(
-      (server) => server.isOpen,
-    )
-        .forEach((server) {
-      _logger.fine('append to $stream in server:${server.port}');
-      server.getStream(stream).append(path, data);
+    _servers.values.where((server) => server.isOpen).forEach((server) {
+      if (server.port != port) {
+        _logger.fine('append to $stream in server:${server.port}');
+        server.getStream(stream).append(path, data);
+      }
     });
     _logger.fine('---replicate--->ok');
   }

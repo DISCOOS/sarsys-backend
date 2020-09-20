@@ -292,10 +292,11 @@ class TestStream {
     DateTime updated,
   }) =>
       {
+        'data': event.data,
         'eventId': event.uuid,
         'eventType': event.type,
+        'eventNumber': event.number.value,
         'updated': event.created.toIso8601String(),
-        'data': event.data,
       };
 
   /// Get [SourceEvent] as JSON compatible object with aggregate [uuid], type [T], [oldData], [newData] and legal [operations]
@@ -305,11 +306,13 @@ class TestStream {
     Map<String, dynamic> newData, {
     DateTime updated,
     bool deleted = false,
+    EventNumber number = EventNumber.first,
     List<String> operations = AggregateRoot.ops,
   }) =>
       {
         'eventId': Uuid().v4(),
         'eventType': '${typeOf<T>()}',
+        'eventNumber': number.value,
         'updated': (updated ?? DateTime.now()).toIso8601String(),
         'data': {
           'uuid': uuid,
@@ -443,7 +446,7 @@ class TestStream {
   Future _createStream(HttpRequest request, String path) async {
     final content = await utf8.decoder.bind(request).join();
     final data = json.decode(content);
-    final list = _toEventsWithUpdatedField(data);
+    final list = _toEvents(data);
     if (_checkEventNumber(request, path)) {
       final events = append(path, list);
       request.response
@@ -477,7 +480,7 @@ class TestStream {
     return true;
   }
 
-  List<Map<String, dynamic>> _toEventsWithUpdatedField(data) =>
+  List<Map<String, dynamic>> _toEvents(data) =>
       (data is List ? List<Map<String, dynamic>>.from(data) : [data as Map<String, dynamic>])
           .map(_ensureUpdated)
           .toList();
@@ -531,9 +534,13 @@ class TestStream {
       ..removeWhere(
         (e) => events.containsKey(e.elementAt<String>('eventId')),
       );
+    var i = 0;
     events.addEntries(unseen.map((event) => MapEntry(
           event.elementAt<String>('eventId'),
-          event,
+          event
+            ..addAll({
+              'eventNumber': events.length + (i++),
+            }),
         )));
     if (_partitioned) {
       _cached.update(path, (events) => events..addAll(unseen), ifAbsent: () => unseen);
@@ -609,7 +616,11 @@ class TestStream {
       final number = toNumber(stream, path);
       if (number >= 0 && number < _canonical.keys.length) {
         final data = _canonical[_canonical.keys.elementAt(number)];
-        _toAtomItemContentResponse(request, number, data);
+        _toAtomItemContentResponse(
+          request,
+          number,
+          data,
+        );
       } else {
         _notFound(request);
       }
@@ -959,31 +970,31 @@ Map<String, dynamic> _toAtomItem(
       'author': _toAtomAuthor(),
       'updated': data['updated'],
       'summary': data['eventType'],
-      if (embedBody) 'streamId': stream,
-      if (embedBody) 'eventId': data['eventId'],
-      if (embedBody) 'eventType': data['eventType'],
-      if (embedBody) 'eventNumber': number,
       if (embedBody) 'isJSON': true,
+      if (embedBody) 'streamId': stream,
+      if (embedBody) 'data': data['data'],
       if (embedBody) 'isMetaData': false,
       if (embedBody) 'isLinkMetaData': false,
-      if (embedBody) 'data': data['data'],
+      if (embedBody) 'eventId': data['eventId'],
+      if (embedBody) 'eventType': data['eventType'],
+      if (embedBody) 'eventNumber': data['eventNumber'],
       if (withContent)
         'content': {
+          'data': data['data'],
           'eventStreamId': stream,
-          'eventNumber': number,
           'eventId': data['eventId'],
           'eventType': data['eventType'],
-          'data': data['data'],
+          'eventNumber': data['eventNumber'],
           'metadata': '',
         },
       'links': [
         {
-          'uri': '${isSubscription ? "$host/streams/$stream" : selfUrl}/$number',
           'relation': 'edit',
+          'uri': '${isSubscription ? "$host/streams/$stream" : selfUrl}/$number',
         },
         {
-          'uri': '${isSubscription ? "$host/streams/$stream" : selfUrl}/$number',
           'relation': 'alternate',
+          'uri': '${isSubscription ? "$host/streams/$stream" : selfUrl}/$number',
         },
         if (isSubscription) {'uri': '$selfUrl/ack/${data['eventId']}', 'relation': 'ack'},
         if (isSubscription) {'uri': '$selfUrl/nack/${data['eventId']}', 'relation': 'nack'},
