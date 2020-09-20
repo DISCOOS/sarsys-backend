@@ -19,6 +19,7 @@ import 'domain.dart';
 import 'models/AtomFeed.dart';
 import 'models/AtomItem.dart';
 import 'results.dart';
+import 'storage.dart';
 import 'stream.dart' hide StreamResult;
 import 'stream.dart' as queue show StreamResult;
 
@@ -75,6 +76,7 @@ class EventStore {
   ///
   EventStore({
     @required this.bus,
+    @required this.snapshots,
     @required this.aggregate,
     @required this.connection,
     this.prefix,
@@ -159,6 +161,9 @@ class EventStore {
   /// This is important for stream id inference from key order.
   final LinkedHashMap<String, Set<SourceEvent>> _store = LinkedHashMap<String, Set<SourceEvent>>();
 
+  /// Get [Storage] instance
+  final Storage snapshots;
+
   /// Current event number for [canonicalStream]
   ///
   /// If [AggregateRoot.uuid] is given, the aggregate
@@ -177,7 +182,7 @@ class EventStore {
           : _current[canonicalStream]) ??
       EventNumber.none;
 
-  /// Replay events from stream to given repository
+  /// Replay events from stream to given repository.
   ///
   /// Throws an [InvalidOperation] if [Repository.store] is not this [EventStore]
   Future<int> replay<T extends AggregateRoot>(
@@ -189,9 +194,14 @@ class EventStore {
     _assertRepository(repository);
 
     try {
+      // Stop subscriptions
+      // from catching up
+      resume();
+
       bus.replayStarted<T>();
 
-      _reset();
+      // Clear current state to
+      _reset(repository);
 
       // Fetch all events
       final count = await _catchUp(
@@ -199,17 +209,33 @@ class EventStore {
         master: master,
         number: EventNumber.first,
       );
-      logger.info("Replayed $count events from stream '${canonicalStream}'");
+      logger.info(
+        "Replayed $count events from stream '${canonicalStream}'",
+      );
       return count;
     } finally {
       bus.replayEnded<T>();
+      if (!_isDisposed) {
+        resume();
+      }
     }
   }
 
-  void _reset() {
+  void _reset(Repository repository) {
     _store.clear();
     _current.clear();
-    _current[canonicalStream] = EventNumber.none;
+    final snapshot = repository.snapshot;
+    if (snapshot == null) {
+      _current[canonicalStream] = EventNumber.none;
+    } else {
+      _current[canonicalStream] = EventNumber(snapshot.number.value);
+      if (useInstanceStreams) {
+        snapshot.aggregates.values.forEach((a) {
+          final stream = toInstanceStream(a.uuid);
+          _current[stream] = EventNumber(a.number.value);
+        });
+      }
+    }
   }
 
   /// Catch up with stream
@@ -243,57 +269,67 @@ class EventStore {
     EventNumber number,
     bool master = false,
   }) async {
-    var count = 0;
-    // Lower bound is last known event number in stream
-    final head = EventNumber(
-      max(current().value, number.value),
-    );
-    if (head > number) {
-      logger.fine(
-        "_catchUp: 'number': $number < current number "
-        "for $canonicalStream: ${current()}: 'number' changed to $head",
+    try {
+      var count = 0;
+
+      // Stop subscriptions
+      // from catching up
+      resume();
+
+      // Lower bound is last known event number in stream
+      final head = EventNumber(
+        max(current().value, number.value),
       );
-    }
-
-    final stream = await connection.readEventsAsStream(
-      stream: canonicalStream,
-      number: head,
-      master: master,
-    );
-
-    // Process results as they arrive
-    stream.listen((result) {
-      if (result.isOK) {
-        // Group events by aggregate uuid
-        final eventsPerAggregate = groupBy<SourceEvent, String>(
-          result.events,
-          (event) => repository.toAggregateUuid(event),
+      if (head > number) {
+        logger.fine(
+          "_catchUp: 'number': $number < current number "
+          "for $canonicalStream: ${current()}: 'number' changed to $head",
         );
-
-        // Hydrate store with events
-        eventsPerAggregate.forEach(
-          (uuid, events) {
-            _updateAll(uuid, events);
-            final domainEvents = _applyAll(
-              repository,
-              uuid,
-              events,
-            );
-            // Publish remotely created events.
-            // Handlers can determine events with
-            // local origin using the local field
-            // in each Event
-            _publishAll(domainEvents);
-          },
-        );
-
-        count += result.events.length;
       }
-    });
 
-    await stream.length;
+      final stream = await connection.readEventsAsStream(
+        stream: canonicalStream,
+        number: head,
+        master: master,
+      );
 
-    return count;
+      // Process results as they arrive
+      stream.listen((result) {
+        if (result.isOK) {
+          // Group events by aggregate uuid
+          final eventsPerAggregate = groupBy<SourceEvent, String>(
+            result.events,
+            (event) => repository.toAggregateUuid(event),
+          );
+
+          // Hydrate store with events
+          eventsPerAggregate.forEach(
+            (uuid, events) {
+              _updateAll(uuid, events);
+              final domainEvents = _applyAll(
+                repository,
+                uuid,
+                events,
+              );
+              // Publish remotely created events.
+              // Handlers can determine events with
+              // local origin using the local field
+              // in each Event
+              _publishAll(domainEvents);
+            },
+          );
+
+          count += result.events.length;
+        }
+      });
+
+      await stream.length;
+      return count;
+    } finally {
+      if (!_isDisposed) {
+        resume();
+      }
+    }
   }
 
   Set<Event> _updateAll(String uuid, Iterable<SourceEvent> events) => _store.update(
@@ -441,9 +477,12 @@ class EventStore {
       events: changes.map((e) => e.toEvent(aggregate.uuidFieldName)),
     );
     if (result.isCreated) {
-      // Commit all changes after successful write
+      // Commit all changes
+      // after successful write
       _commit(aggregate, changes);
-      // Check if commits caught up with last known event in aggregate instance stream
+      // Check if commits caught up
+      // with last known event in
+      // aggregate instance stream
       _assertCurrentVersion(stream, result.actual);
       return changes;
     } else if (result.isWrongESNumber) {
@@ -702,13 +741,17 @@ class EventStore {
 
     // Sanity check
     if (aggregate.isChanged) {
-      throw InvalidOperation('Remote event $event modified ${aggregate.runtimeType} ${aggregate.uuid}');
+      throw InvalidOperation(
+        'Remote event $event modified ${aggregate.runtimeType} ${aggregate.uuid}',
+      );
     }
 
     // Apply event with stable created date?
     final applied = aggregate.getApplied(event.uuid);
     if (applied == null) {
-      throw InvalidOperation('Remote event $event not seen by ${aggregate.runtimeType} ${aggregate.uuid}');
+      throw InvalidOperation(
+        'Remote event $event not seen by ${aggregate.runtimeType} ${aggregate.uuid}',
+      );
     }
     final domainEvent = repository.toDomainEvent(event);
     aggregate.apply(domainEvent);
@@ -757,7 +800,7 @@ class EventStore {
   /// Handle subscription completed
   void _onSubscriptionDone(Repository repository) {
     logger.fine('${repository.runtimeType}: subscription closed');
-    if (!_disposed) {
+    if (!_isDisposed) {
       _controllers[repository.runtimeType].reconnect(
         repository,
       );
@@ -771,7 +814,7 @@ class EventStore {
       error,
       stackTrace,
     );
-    if (!_disposed) {
+    if (!_isDisposed) {
       _controllers[repository.runtimeType].reconnect(
         repository,
       );
@@ -787,12 +830,12 @@ class EventStore {
   }
 
   /// When true, this store should not be used any more
-  bool get disposed => _disposed;
-  bool _disposed = false;
+  bool get isDisposed => _isDisposed;
+  bool _isDisposed = false;
 
-  /// Assert that this [EventStore] is not [disposed]
+  /// Assert that this [EventStore] is not [isDisposed]
   void _assertState() {
-    if (_disposed) {
+    if (_isDisposed) {
       throw InvalidOperation('$this is disposed');
     }
   }
@@ -881,7 +924,7 @@ class EventStore {
       // ignore: unawaited_futures
       _streamController.close();
     }
-    _disposed = true;
+    _isDisposed = true;
   }
 
   String toDebugString([String stream]) {

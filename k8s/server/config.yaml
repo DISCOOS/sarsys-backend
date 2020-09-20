@@ -22,6 +22,9 @@ data:
   AUTH_REALM_ACCESS_ROLES_CLAIM: "realm_access_roles"
   DATA_ENABLED: "true"
   DATA_PATH: "/var/lib/sarsys"
+  DATA_SNAPSHOTS_ENABLED: "true"
+  DATA_SNAPSHOTS_KEEP: "20"
+  DATA_SNAPSHOTS_THRESHOLD: "1000"
 
 ---
 apiVersion: v1

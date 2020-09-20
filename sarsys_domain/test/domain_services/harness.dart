@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:event_source/event_source.dart';
+import 'package:hive/hive.dart';
 import 'package:logging/logging.dart';
 
 import 'package:meta/meta.dart';
@@ -112,7 +115,15 @@ class EventSourceHarness {
       add(port: 4000);
     }
 
+    final hiveDir = Directory('test/.hive');
+
     setUpAll(() async {
+      _initHiveDir(hiveDir);
+      Hive.init(hiveDir.path);
+
+      // Initialize
+      await Storage.init();
+
       return await Future.forEach<MapEntry<int, EventStoreMockServer>>(
         _servers.entries,
         (entry) => _open(entry.key, entry.value),
@@ -120,6 +131,7 @@ class EventSourceHarness {
     });
 
     setUp(() async {
+      _initHiveDir(hiveDir);
       return await Future.forEach<MapEntry<int, EventStoreMockServer>>(
         _servers.entries,
         (entry) => _build(entry.key, entry.value),
@@ -127,18 +139,27 @@ class EventSourceHarness {
     });
 
     tearDown(() async {
-      return await Future.forEach(
+      await Future.forEach(
         _servers.entries,
         (server) => _clear(server.key, server.value),
       );
+      return await Hive.deleteFromDisk();
     });
 
     tearDownAll(() async {
-      return await Future.forEach<MapEntry<int, EventStoreMockServer>>(
+      await Future.forEach<MapEntry<int, EventStoreMockServer>>(
         _servers.entries,
         (entry) => _close(entry.key, entry.value),
       );
+      return await Hive.deleteFromDisk();
     });
+  }
+
+  void _initHiveDir(Directory hiveDir) {
+    if (hiveDir.existsSync()) {
+      hiveDir.deleteSync(recursive: true);
+    }
+    hiveDir.createSync();
   }
 
   Future<void> _open(int port, EventStoreMockServer server) async {

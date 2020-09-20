@@ -1,4 +1,9 @@
 import 'package:event_source/event_source.dart';
+import 'package:event_source/src/models/aggregate_root_model.dart';
+import 'package:event_source/src/models/event_number_model.dart';
+import 'package:event_source/src/models/snapshot_model.dart';
+import 'package:hive/hive.dart';
+import 'package:json_patch/json_patch.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 import 'package:async/async.dart';
@@ -13,6 +18,7 @@ Future main() async {
     ..withTenant()
     ..withPrefix()
     ..withLogger()
+    ..withSnapshot()
     ..withRepository<Foo>(
       (manager, store, instance) => FooRepository(store, instance),
       instances: 2,
@@ -629,6 +635,193 @@ Future main() async {
     expect(bars1.get(buuid).data, bdata, reason: 'Bar in instance 1 should be updated');
     expect(foos2.get(fuuid).data, fdata, reason: 'Foo in instance 2 should be updated');
     expect(bars2.get(buuid).data, bdata, reason: 'Bar in instance 2 should be updated');
+  });
+
+  test('Repository should build from last snapshot', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
+    expect(repo.snapshot, isNull, reason: 'Should have NO snapshot');
+    final box = await Hive.openBox<StorageState>(repo.store.snapshots.filename);
+    final fuuid1 = Uuid().v4();
+    final data1 = {
+      'uuid': fuuid1,
+      'parameter1': 'value1',
+    };
+    final event1 = Event(
+      uuid: Uuid().v4(),
+      data: {
+        'patches': JsonPatch.diff({}, data1),
+      },
+      local: false,
+      type: '$FooCreated',
+      number: EventNumber(0),
+      created: DateTime.now(),
+    );
+    final fuuid2 = Uuid().v4();
+    final data2 = {
+      'uuid': fuuid2,
+      'parameter2': 'value2',
+    };
+    final event2 = Event(
+      uuid: Uuid().v4(),
+      data: {
+        'patches': JsonPatch.diff({}, data2),
+      },
+      local: false,
+      type: '$FooCreated',
+      number: EventNumber(0),
+      created: DateTime.now(),
+    );
+    final timestamp = DateTime.now();
+    final suuid1 = Uuid().v4();
+    final snapshot1 = SnapshotModel(
+      uuid: suuid1,
+      timestamp: timestamp,
+      number: EventNumberModel.from(EventNumber.none),
+    );
+    await box.put(
+      suuid1,
+      StorageState(value: snapshot1),
+    );
+    final suuid2 = Uuid().v4();
+    final snapshot2 = SnapshotModel(
+      uuid: suuid2,
+      timestamp: timestamp,
+      number: EventNumberModel(value: 1),
+      aggregates: {
+        fuuid1: AggregateRootModel(
+          uuid: fuuid1,
+          createdBy: event1,
+          data: data1,
+          number: EventNumberModel.from(event1.number),
+        ),
+        fuuid2: AggregateRootModel(
+          uuid: fuuid2,
+          createdBy: event2,
+          data: data2,
+          number: EventNumberModel.from(event2.number),
+        ),
+      },
+    );
+    await box.put(
+      suuid2,
+      StorageState(value: snapshot2),
+    );
+    await repo.store.snapshots.load();
+
+    // Act
+    final count = await repo.replay();
+
+    // Assert
+    expect(count, equals(0), reason: 'Should replay 0 events');
+    expect(repo.snapshot, isNotNull, reason: 'Should have a snapshot');
+    expect(repo.snapshot.uuid, equals(suuid2), reason: 'Should have snapshot $suuid2');
+    expect(repo.contains(fuuid1), isTrue, reason: 'Should contain aggregate root $fuuid1');
+    final foo1 = repo.get(fuuid1);
+    expect(foo1.number, equals(event1.number));
+    expect(foo1.data, equals(data1));
+    expect(repo.contains(fuuid2), isTrue, reason: 'Should contain aggregate root $fuuid2');
+    final foo2 = repo.get(fuuid2);
+    expect(foo2.number, equals(event2.number));
+    expect(foo2.data, equals(data2));
+  });
+
+  test('Repository should save snapshot manually', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
+    expect(repo.snapshot, isNull, reason: 'Should have NO snapshot');
+
+    // Act
+    final uuid = Uuid().v4();
+    final foo = repo.get(uuid, data: {
+      'property1': 'value1',
+    });
+    expect(foo.data, containsPair('property1', 'value1'));
+    await repo.push(foo);
+
+    // Act
+    final snapshot = await repo.save();
+
+    // Assert
+    expect(repo.snapshot, isNotNull, reason: 'Should have a snapshot');
+    expect(repo.snapshot.uuid, equals(snapshot.uuid), reason: 'Should have snapshot ${snapshot.uuid}');
+    expect(repo.contains(uuid), isTrue, reason: 'Should contain aggregate root $uuid');
+    expect(foo.number.value, equals(snapshot.number.value));
+    expect(foo.data, equals(snapshot.aggregates.values.first.data));
+  });
+
+  test('Repository should not save snapshot', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
+    expect(repo.snapshot, isNull, reason: 'Should have NO snapshot');
+
+    // Act
+    final uuid = Uuid().v4();
+    final foo = repo.get(uuid, data: {
+      'property1': 'value1',
+    });
+    expect(foo.data, containsPair('property1', 'value1'));
+    await repo.push(foo);
+
+    // Act
+    final snapshot1 = await repo.save();
+    final snapshot2 = await repo.save();
+
+    // Assert
+    expect(snapshot1, equals(snapshot2), reason: 'Should not have a new snapshot');
+  });
+
+  test('Repository should save snapshot on threshold automatically', () async {
+    // Arrange
+    final threshold = 10;
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
+    repo.store.snapshots.keep = threshold;
+    repo.store.snapshots.threshold = threshold;
+    expect(repo.snapshot, isNull, reason: 'Should have NO snapshot');
+
+    // Act
+    final uuid = Uuid().v4();
+    final foo = repo.get(uuid);
+    for (var i = 1; i <= 100; i++) {
+      foo.patch({'property1': 'value$i'}, emits: FooUpdated);
+      await repo.push(foo);
+    }
+    expect(foo.data, containsPair('property1', 'value100'));
+    expect(repo.number.value, equals(100));
+
+    // Assert
+    expect(repo.snapshot, isNotNull, reason: 'Should have snapshot');
+    expect(repo.snapshot.number.value, equals(100), reason: 'Event number should be 100');
+    expect(repo.store.snapshots.length, equals(10), reason: 'Should have 2 snapshots');
+  });
+
+  test('Repository should delete snapshots automatically', () async {
+    // Arrange
+    final keep = 5;
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
+    expect(repo.snapshot, isNull, reason: 'Should have NO snapshot');
+    repo.store.snapshots.keep = keep;
+    repo.store.snapshots.threshold = 10;
+
+    // Act
+    final uuid = Uuid().v4();
+    final foo = repo.get(uuid);
+    for (var i = 1; i <= 100; i++) {
+      foo.patch({'property1': 'value$i'}, emits: FooUpdated);
+      await repo.push(foo);
+    }
+    expect(foo.data, containsPair('property1', 'value100'));
+    expect(repo.number.value, equals(100));
+
+    // Assert
+    expect(repo.snapshot, isNotNull, reason: 'Should have snapshot');
+    expect(repo.snapshot.number.value, equals(100), reason: 'Event number should be 100');
+    expect(repo.store.snapshots.length, equals(keep), reason: 'Should have 2 snapshots');
   });
 }
 

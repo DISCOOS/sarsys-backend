@@ -31,3 +31,6 @@ Dart_Packages.xml
 
 # Project
 .data*
+
+# Test artifacts
+test/.hive

@@ -6,7 +6,7 @@ part of 'AtomAuthor.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-AtomAuthor _$AtomAuthorFromJson(Map<String, dynamic> json) {
+AtomAuthor _$AtomAuthorFromJson(Map json) {
   return AtomAuthor(name: json['name'] as String);
 }
 

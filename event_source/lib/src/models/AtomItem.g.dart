@@ -6,18 +6,23 @@ part of 'AtomItem.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-AtomItem _$AtomItemFromJson(Map<String, dynamic> json) {
+AtomItem _$AtomItemFromJson(Map json) {
   return AtomItem(
       id: json['id'] as String,
       title: json['title'] as String,
       updated: json['updated'] as String,
       author: json['author'] == null
           ? null
-          : AtomAuthor.fromJson(json['author'] as Map<String, dynamic>),
+          : AtomAuthor.fromJson((json['author'] as Map)?.map(
+              (k, e) => MapEntry(k as String, e),
+            )),
       summary: json['summary'] as String,
       links: (json['links'] as List)
-          ?.map((e) =>
-              e == null ? null : AtomLink.fromJson(e as Map<String, dynamic>))
+          ?.map((e) => e == null
+              ? null
+              : AtomLink.fromJson((e as Map)?.map(
+                  (k, e) => MapEntry(k as String, e),
+                )))
           ?.toList(),
       streamId: json['streamId'] as String,
       eventId: json['eventId'] as String,
@@ -26,7 +31,9 @@ AtomItem _$AtomItemFromJson(Map<String, dynamic> json) {
       isJson: json['isJson'] as bool,
       isMetaData: json['isMetaData'] as bool,
       isLinkMetaData: json['isLinkMetaData'] as bool,
-      data: json['data'] as Map<String, dynamic>);
+      data: (json['data'] as Map)?.map(
+        (k, e) => MapEntry(k as String, e),
+      ));
 }
 
 Map<String, dynamic> _$AtomItemToJson(AtomItem instance) => <String, dynamic>{

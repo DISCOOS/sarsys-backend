@@ -5,6 +5,10 @@ tenant: $TENANT
 data:
   enabled: $DATA_ENABLED
   path: $DATA_PATH
+  snapshots:
+    enabled: $DATA_SNAPSHOTS_ENABLED
+    keep: $DATA_SNAPSHOTS_KEEP
+    threshold: $DATA_SNAPSHOTS_THRESHOLD
 
 auth:
   enabled: $AUTH_ENABLED

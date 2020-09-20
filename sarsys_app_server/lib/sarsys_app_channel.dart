@@ -1,7 +1,8 @@
 import 'dart:convert';
 
-import 'package:http/http.dart';
 import 'package:event_source/event_source.dart';
+import 'package:hive/hive.dart';
+import 'package:http/http.dart';
 import 'package:jose/jose.dart';
 
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
@@ -72,6 +73,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
       final stopwatch = Stopwatch()..start();
 
       _loadConfig();
+      _initHive();
       _configureLogger();
       _buildValidators();
       _buildRepoManager();
@@ -448,6 +450,12 @@ class SarSysAppServerChannel extends ApplicationChannel {
       } else {
         logger.info("Data path is ${config.data.path}");
       }
+      if (config.data.snapshots.enabled) {
+        logger.info("Snapshot keep is ${config.data.snapshots.keep}");
+        logger.info("Snapshot threshold is ${config.data.snapshots.threshold}");
+      } else {
+        logger.info("Snapshots DISABLED");
+      }
     } else {
       logger.info("Data is DISABLED");
     }
@@ -500,44 +508,44 @@ class SarSysAppServerChannel extends ApplicationChannel {
     Function(Object error, StackTrace stackTrace) catchError,
   }) {
     // Register independent repositories
-    manager.register<Incident>((store) => IncidentRepository(store));
-    manager.register<Device>((store) => DeviceRepository(store));
-    manager.register<Tracking>((store) => TrackingRepository(store));
-    manager.register<Affiliation>((store) => AffiliationRepository(store));
+    register<Incident>((store) => IncidentRepository(store));
+    register<Device>((store) => DeviceRepository(store));
+    register<Tracking>((store) => TrackingRepository(store));
+    register<Affiliation>((store) => AffiliationRepository(store));
 
     // Register dependent repositories
-    manager.register<AppConfig>(
+    register<AppConfig>(
       (store) => AppConfigRepository(
         store,
         devices: manager.get<DeviceRepository>(),
       ),
     );
-    manager.register<Subject>(
+    register<Subject>(
       (store) => SubjectRepository(
         store,
         incidents: manager.get<IncidentRepository>(),
       ),
     );
-    manager.register<sar.Operation>(
+    register<sar.Operation>(
       (store) => OperationRepository(
         store,
         incidents: manager.get<IncidentRepository>(),
       ),
     );
-    manager.register<Mission>(
+    register<Mission>(
       (store) => MissionRepository(
         store,
         operations: manager.get<OperationRepository>(),
       ),
     );
-    manager.register<Unit>(
+    register<Unit>(
       (store) => UnitRepository(
         store,
         trackings: manager.get<TrackingRepository>(),
         operations: manager.get<OperationRepository>(),
       ),
     );
-    manager.register<Personnel>(
+    register<Personnel>(
       (store) => PersonnelRepository(
         store,
         units: manager.get<UnitRepository>(),
@@ -545,26 +553,26 @@ class SarSysAppServerChannel extends ApplicationChannel {
         operations: manager.get<OperationRepository>(),
       ),
     );
-    manager.register<Person>(
+    register<Person>(
       (store) => PersonRepository(
         store,
         affiliations: manager.get<AffiliationRepository>(),
       ),
     );
-    manager.register<Organisation>(
+    register<Organisation>(
       (store) => OrganisationRepository(
         store,
         affiliations: manager.get<AffiliationRepository>(),
       ),
     );
-    manager.register<Division>(
+    register<Division>(
       (store) => DivisionRepository(
         store,
         organisations: manager.get<OrganisationRepository>(),
         affiliations: manager.get<AffiliationRepository>(),
       ),
     );
-    manager.register<Department>(
+    register<Department>(
       (store) => DepartmentRepository(
         store,
         divisions: manager.get<DivisionRepository>(),
@@ -579,7 +587,39 @@ class SarSysAppServerChannel extends ApplicationChannel {
       ..catchError(catchError);
   }
 
+  void register<T extends AggregateRoot>(
+    Repository<Command, T> Function(EventStore store) create, {
+    String prefix,
+    String stream,
+    bool useInstanceStreams = true,
+  }) {
+    final snapshots = config.data.snapshots.enabled
+        ? Storage.fromType<T>(
+            keep: config.data.snapshots.keep,
+            threshold: config.data.snapshots.threshold,
+          )
+        : null;
+    manager.register<T>(
+      create,
+      prefix: prefix,
+      stream: stream,
+      snapshots: snapshots,
+      useInstanceStreams: useInstanceStreams,
+    );
+  }
+
+  void _initHive() {
+    if (config.data.enabled) {
+      final hiveDir = Directory(config.data.path);
+      hiveDir.createSync(recursive: true);
+      Hive.init(hiveDir.path);
+    }
+  }
+
   Future _buildReposAsync(Stopwatch stopwatch) async {
+    // Initialize
+    await Storage.init();
+
     await manager.prepare(withProjections: [
       '\$by_category',
       '\$by_event_type',

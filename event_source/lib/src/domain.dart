@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:math';
 
 import 'package:collection/collection.dart';
+import 'package:event_source/src/models/snapshot_model.dart';
+import 'package:event_source/src/storage.dart';
 import 'package:event_source/src/stream.dart';
 import 'package:event_source/src/util.dart';
 import 'package:http/http.dart';
@@ -14,6 +17,7 @@ import 'bus.dart';
 import 'core.dart';
 import 'error.dart';
 import 'extension.dart';
+import 'models/aggregate_root_model.dart';
 import 'rule.dart';
 import 'source.dart';
 
@@ -94,10 +98,12 @@ class RepositoryManager {
     Repository<Command, T> Function(EventStore store) create, {
     String prefix,
     String stream,
+    Storage snapshots,
     bool useInstanceStreams = true,
   }) {
     final store = EventStore(
       bus: bus,
+      snapshots: snapshots,
       connection: connection,
       prefix: EventStore.toCanonical([
         this.prefix,
@@ -228,6 +234,10 @@ class RepositoryManager {
     int maxAttempts = 10,
     Duration maxBackoffTime = const Duration(seconds: 10),
   }) async {
+    if (!Storage.isInitialized) {
+      throw StateError('Storage is not initialized');
+    }
+
     if (_timer != null) {
       logger.severe('Build not allowed, prepare is pending');
       throw InvalidOperation('Build not allowed, prepare is pending');
@@ -343,6 +353,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     implements CommandHandler<S>, MessageHandler<DomainEvent> {
   /// Internal - for local debugging
   bool debugConflicts = false;
+
   void _printDebug(Object message) {
     logger.info(message);
   }
@@ -378,7 +389,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   Type get aggregateType => typeOf<T>();
 
   /// Flag indicating that [build] succeeded
-  /// and that events are not beeing replayed
+  /// and that events are not being replayed
   bool get isReady => _ready && !isReplaying;
   bool _ready = false;
 
@@ -399,6 +410,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       completer.complete(true);
     }
   }
+
+  /// Get current event number.
+  /// see [EventStore.current].
+  EventNumber get number => store.current();
 
   /// Maximum backoff duration between reconnect attempts
   final Duration maxBackoffTime;
@@ -429,7 +444,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Check if repository contains given aggregate root
   bool contains(String uuid) => _aggregates.containsKey(uuid);
 
-  /// Build repository from local events.
+  /// Build repository from [store].
   /// Returns number of events processed.
   Future<int> build() async {
     // Listen for push-queue to finish processing
@@ -444,7 +459,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       );
       return true;
     });
-
+    if (store.snapshots != null) {
+      await store.snapshots.load();
+      _suuid = store.snapshots.last?.uuid;
+    }
     final count = await replay();
     subscribe();
     willStartProcessingEvents();
@@ -452,9 +470,26 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     return count;
   }
 
-  /// Replay events into this [Repository]
-  /// Returns number of events processed.
+  /// Check if repository has a active snapshot
+  bool get hasSnapshot => _suuid != null;
+
+  /// Get current [SnapshotModel]
+  SnapshotModel get snapshot => store.snapshots != null ? store.snapshots[_suuid] : null;
+
+  /// Current [SnapshotModel.uuid]
+  String _suuid;
+
+  /// Save snapshot of current states
+  SnapshotModel save() {
+    final snapshot = store.snapshots?.add(this);
+    _suuid = snapshot?.uuid;
+    return snapshot;
+  }
+
+  /// Replay events into this [Repository].
+  ///
   Future<int> replay() async {
+    _reset();
     final events = await store.replay<T>(this);
     if (events == 0) {
       logger.info("Stream '${store.canonicalStream}' is empty");
@@ -491,6 +526,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Get domain event from given event
   DomainEvent toDomainEvent(Event event) {
+    if (event == null) {
+      return null;
+    }
     final process = _processors['${event.type}'];
     if (process != null) {
       final uuid = toAggregateUuid(event);
@@ -509,12 +547,12 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
       // Prepare REQUIRED fields
       final patches = event.listAt<Map<String, dynamic>>('patches');
+      assert(patches != null, 'Patches can not be null');
       final changed = event.mapAt<String, dynamic>('changed') ??
           JsonUtils.apply(
             base,
             patches,
           );
-      assert(patches != null, 'Patches can not be null');
       assert(changed != null, 'Changed can not be null');
 
       return process(
@@ -702,14 +740,18 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// This failure is not recoverable.
   ///
   /// Throws [WriteFailed] for all other failures. This failure is not recoverable.
-  Future<Iterable<DomainEvent>> push(T aggregate, {int maxAttempts = 10}) {
-    return aggregate.isChanged
-        ? _schedulePush(
-            aggregate.uuid,
-            aggregate.getUncommittedChanges(),
-            maxAttempts,
-          )
-        : Future.value(<DomainEvent>[]);
+  Future<Iterable<DomainEvent>> push(T aggregate, {int maxAttempts = 10}) async {
+    var result = <DomainEvent>[];
+    if (aggregate.isChanged) {
+      result = await _schedulePush(
+        aggregate.uuid,
+        aggregate.getUncommittedChanges(),
+        maxAttempts,
+      );
+      // Check if snapshot should be saved
+      _snapshotWhen(store.snapshots?.threshold);
+    }
+    return result;
   }
 
   /// Queue of push operations performed in FIFO manner.
@@ -988,11 +1030,53 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         '}';
   }
 
+  /// Reset current state to
+  /// snapshot given by [_suuid].
+  /// If no snapshot exists,
+  /// nothing is changed by
+  /// this method.
+  ///
+  void _reset() {
+    if (store.snapshots?.isNotEmpty == true) {
+      if (hasSnapshot) {
+        _pushQueue.cancel();
+        _aggregates.clear();
+      }
+      _suuid = store.snapshots.last?.uuid;
+      final snapshot = store.snapshots[_suuid];
+      _aggregates.addAll(snapshot.aggregates.map(
+        (uuid, model) {
+          final aggregate = create(
+            _processors,
+            uuid,
+            Map.from(model.data),
+          );
+          aggregate._reset(this);
+          return MapEntry(uuid, aggregate);
+        },
+      ));
+    }
+  }
+
+  void _snapshotWhen(int threshold) {
+    if (threshold is num && store.snapshots != null) {
+      final last = store.snapshots.last?.number?.value ?? EventNumber.first.value;
+      if (number.value - last >= threshold) {
+        save();
+      }
+    }
+  }
+
   /// Dispose resources.
   ///
   /// Can not be called after this.
-  Future<void> dispose() {
-    _idleSubscription?.cancel();
+  Future<void> dispose() async {
+    _pushQueue.cancel();
+    _aggregates.clear();
+    await _idleSubscription?.cancel();
+    if (_ruleController.hasListener) {
+      await _ruleController.close();
+    }
     return _pushQueue.dispose();
   }
 }
@@ -1066,14 +1150,21 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   final String entityIdFieldName;
 
   /// Get event number of [DomainEvent] applied last
-  EventNumber get number => applied.isEmpty ? EventNumber.none : applied.last.number;
+  EventNumber get number =>
+      applied.isNotEmpty ? applied.last.number : EventNumber(_snapshot?.number?.value ?? EventNumber.none.value);
+
+  /// Get [EventNumber] of next [DomainEvent]
+  /// from next modification. Since [EventNumber]
+  /// is 0-based, next [EventNumber] is equal to
+  /// current number of [modifications].
+  EventNumber get nextNumber => EventNumber(modifications);
 
   /// [Message] to [DomainEvent] processors
   final Map<String, ProcessCallback> _processors;
 
   /// Aggregate root data (weak schema)
-  final Map<String, dynamic> _data = {};
   Map<String, dynamic> get data => Map.from(_data);
+  final Map<String, dynamic> _data = {};
 
   /// Get element at given path
   T elementAt<T>(String path) => _data.elementAt(path) as T;
@@ -1084,22 +1175,48 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// Get Map at given path
   Map<S, T> mapAt<S, T>(String path, {Map<S, T> defaultMap}) => _data.mapAt<S, T>(path) ?? defaultMap;
 
-  /// Get number of modifications since creations
+  /// Get number of modifications since creation
   ///
-  /// Number of modifications is the sum of
-  /// applied and pending events
-  int get modifications => _applied.length + _pending.length;
+  /// Since [EventNumber] is 0-based, the number
+  /// of modifications is equal to [EventNumber]
+  /// of [lastEvent] + 1.
+  ///
+  int get modifications {
+    final base = lastEvent;
+    return base == null ? 0 : base.number.value + 1;
+  }
+
+  /// Get last event patched with [data]
+  ///
+  /// Is either
+  /// 1. last event in pending
+  /// 2. last event in applied
+  /// 3. [SnapshotModel.changedBy]
+  /// 4. [changedBy]
+  ///
+  DomainEvent get lastEvent => _pending.isNotEmpty
+      ? _pending.last
+      : (_applied.isNotEmpty ? _applied.values.last : _snapshot?.changedBy ?? _changedBy);
 
   /// Local uncommitted changes
   final _pending = <DomainEvent>[];
 
   /// [Message.uuid]s of applied events
-  final _applied = <String, DomainEvent>{};
+  final LinkedHashMap<String, DomainEvent> _applied = LinkedHashMap<String, DomainEvent>();
+
+  /// Get current snapshot if taken
+  AggregateRootModel get snapshot => _snapshot;
+  AggregateRootModel _snapshot;
 
   /// Get uuids of applied events
   Iterable<DomainEvent> get applied => List.from(_applied.values);
 
-  /// Check if event is applied
+  /// Check if event is applied to
+  /// this [AggregateRoot] instance
+  /// and can be fetched
+  /// Note that this will return
+  /// false if it was applied to
+  /// current snapshot.
   bool isApplied(Event event) => _applied.containsKey(event.uuid);
 
   /// Check if event is applied
@@ -1109,7 +1226,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   Iterable<DomainEvent> getUncommittedChanges() => List.from(_pending);
 
   /// Check if uncommitted changes exists
-  bool get isNew => _applied.isEmpty;
+  bool get isNew => number.isNone && _applied.isEmpty;
 
   /// Check if uncommitted changes exists
   bool get isChanged => _pending.isNotEmpty;
@@ -1145,9 +1262,11 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// Load events from history.
   @protected
   AggregateRoot loadFromHistory(Repository repo, Iterable<Event> events) {
-    // Only clear if history exist, otherwise keep the event from construction
-    if (events.isNotEmpty) {
-      _clear();
+    // Only clear if history exist,
+    // otherwise keep the event
+    // from construction
+    if (events.isNotEmpty || repo.store.snapshots?.contains(uuid) == true) {
+      _reset(repo);
     }
     events?.forEach((event) => _apply(
           repo.toDomainEvent(event),
@@ -1157,15 +1276,33 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     return this;
   }
 
-  /// Clear to initial state
-  void _clear() {
+  /// Reset to initial state
+  void _reset(Repository repo) {
     _data.clear();
     _pending.clear();
     _applied.clear();
     _createdBy = null;
     _changedBy = null;
     _deletedBy = null;
+    if (repo.hasSnapshot) {
+      _snapshot = repo.snapshot.aggregates[uuid];
+      if (_snapshot != null) {
+        _data.addAll(snapshot.data);
+        _createdBy = toDomainEvent(snapshot.createdBy);
+        _changedBy = toDomainEvent(snapshot.changedBy);
+        _deletedBy = toDomainEvent(snapshot.deletedBy);
+      }
+    }
   }
+
+  DomainEvent toDomainEvent(Event event) => event != null
+      ? _process(
+          event.type,
+          event.data,
+          event.created,
+          event.number,
+        )
+      : null;
 
   /// Patch [AggregateRoot.data] with given [data].
   ///
@@ -1270,7 +1407,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     List<Map<String, dynamic>> patches = const [],
   }) =>
       _process(
-        emits,
+        emits.toString(),
         DomainEvent.toData(
           uuid,
           uuidFieldName,
@@ -1280,12 +1417,13 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
           previous: previous,
         ),
         timestamp,
+        nextNumber,
       );
 
   /// Get aggregate deleted event. Invoked from [Repository]
   @protected
   DomainEvent _deleted(DateTime timestamp) => _process(
-        typeOf<D>(),
+        typeOf<D>().toString(),
         DomainEvent.toData(
           uuid,
           uuidFieldName,
@@ -1293,24 +1431,26 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
           previous: data,
         ),
         timestamp,
+        nextNumber,
       );
 
   DomainEvent _process(
-    Type emits,
+    String emits,
     Map<String, dynamic> data,
     DateTime timestamp,
+    EventNumber number,
   ) {
     final process = _processors['$emits'];
     if (process != null) {
       return process(
         Message(
           uuid: Uuid().v4(),
-          type: '$emits',
+          type: emits,
           data: data,
           local: true,
           created: timestamp,
         ),
-      )..number = EventNumber(_applied.length);
+      )..number = number;
     }
     throw InvalidOperation('Message ${emits} not recognized');
   }
@@ -1420,8 +1560,8 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   String toString() {
     return '$runtimeType{$uuidFieldName: $uuid, '
         'modifications: $modifications, '
-        'pending.count: ${_pending.length}, '
-        'applied.count: ${_applied.length}'
+        'applied.count: ${_applied.length},'
+        'pending.count: ${_pending.length}'
         '}';
   }
 }
@@ -1621,7 +1761,7 @@ abstract class MergeStrategy {
       // Was removed by merge?
       if (isNew) {
         // Add again and remove initial event
-        aggregate = repository.get(aggregate.uuid).._clear();
+        aggregate = repository.get(aggregate.uuid).._reset(repository);
       }
 
       // Rebase 'previous' and 'changed' by

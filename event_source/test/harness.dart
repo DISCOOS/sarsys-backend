@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:event_source/event_source.dart';
+import 'package:hive/hive.dart';
 import 'package:logging/logging.dart';
 
 import 'package:meta/meta.dart';
@@ -83,6 +85,9 @@ class EventSourceHarness {
       () => _RepositoryBuilder<T>(
         instances,
         create,
+        keep: _keep,
+        threshold: _threshold,
+        withSnapshots: _withSnapshots,
         useInstanceStreams: useInstanceStreams,
       ),
     );
@@ -95,6 +100,16 @@ class EventSourceHarness {
     if (debug) {
       Logger.root.level = Level.FINE;
     }
+    return this;
+  }
+
+  int _keep;
+  int _threshold;
+  bool _withSnapshots = false;
+  EventSourceHarness withSnapshot({int threshold = 100, int keep = 10}) {
+    _keep = keep;
+    _threshold = threshold;
+    _withSnapshots = true;
     return this;
   }
 
@@ -136,7 +151,15 @@ class EventSourceHarness {
       addServer(port: 4000);
     }
 
+    final hiveDir = Directory('test/.hive');
+
     setUpAll(() async {
+      _initHiveDir(hiveDir);
+      Hive.init(hiveDir.path);
+
+      // Initialize
+      await Storage.init();
+
       for (var entry in _servers.entries) {
         await _open(entry.key, entry.value);
       }
@@ -144,6 +167,7 @@ class EventSourceHarness {
 
     setUp(() async {
       _logger.info('---setUp---');
+      _initHiveDir(hiveDir);
       _printer = onRecord.listen(_print);
       for (var entry in _servers.entries) {
         await _build(entry.key, entry.value);
@@ -157,6 +181,7 @@ class EventSourceHarness {
         _clear(entry.key, entry.value);
       }
       _logger.info('---tearDown---ok');
+      await Hive.deleteFromDisk();
       return _printer.cancel();
     });
 
@@ -164,7 +189,15 @@ class EventSourceHarness {
       for (var entry in _servers.entries) {
         _close(entry.key, entry.value);
       }
+      return await Hive.deleteFromDisk();
     });
+  }
+
+  void _initHiveDir(Directory hiveDir) {
+    if (hiveDir.existsSync()) {
+      hiveDir.deleteSync(recursive: true);
+    }
+    hiveDir.createSync();
   }
 
   void _open(int port, EventStoreMockServer server) async {
@@ -207,6 +240,7 @@ class EventSourceHarness {
       }
       server.withStream(builder.stream);
     });
+
     for (var manager in list) {
       await manager.prepare(withProjections: _projections.toList());
       await manager.build();
@@ -267,16 +301,29 @@ class _RepositoryBuilder<T extends AggregateRoot> {
     this.instances,
     _Creator<T> create, {
     @required this.useInstanceStreams,
+    this.keep,
+    this.threshold,
+    this.withSnapshots,
   }) : _create = create;
+  final int keep;
+  final int threshold;
   final int instances;
+  final bool withSnapshots;
   final _Creator<T> _create;
   final bool useInstanceStreams;
   String get stream => typeOf<T>().toColonCase();
 
   void call(RepositoryManager manager, int instance) {
+    final snapshots = withSnapshots
+        ? Storage.fromType<T>(
+            keep: keep,
+            threshold: threshold,
+          )
+        : null;
     manager.register<T>(
       (store) => _create(manager, store, instance),
       stream: stream,
+      snapshots: snapshots,
       useInstanceStreams: useInstanceStreams,
     );
   }

@@ -13,4 +13,5 @@ export 'src/mock.dart';
 export 'src/results.dart';
 export 'src/rule.dart';
 export 'src/source.dart';
+export 'src/storage.dart';
 export 'src/util.dart';

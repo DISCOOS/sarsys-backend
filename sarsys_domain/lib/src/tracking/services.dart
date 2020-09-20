@@ -153,7 +153,6 @@ class TrackingService extends MessageHandler<DomainEvent> {
   }
 
   Future _load(bool init) async {
-    Hive.init('$dataPath');
     _box = await Hive.openBox('$runtimeType');
     if (init) {
       await _box.clear();

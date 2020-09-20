@@ -81,6 +81,26 @@ class DataConfig extends Configuration {
   /// SARSys data enabled
   @optionalConfiguration
   bool enabled = false;
+
+  /// SARSys snapshots config
+  @optionalConfiguration
+  SnapshotsConfig snapshots = SnapshotsConfig();
+}
+
+class SnapshotsConfig extends Configuration {
+  SnapshotsConfig();
+
+  /// SARSys snapshots enabled
+  @optionalConfiguration
+  bool enabled = false;
+
+  /// SARSys snapshots keep number
+  @optionalConfiguration
+  int keep = 20;
+
+  /// SARSys snapshots events applied threshold number
+  @optionalConfiguration
+  int threshold = 1000;
 }
 
 class AuthConfig extends Configuration {
