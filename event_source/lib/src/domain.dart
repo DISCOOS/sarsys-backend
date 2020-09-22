@@ -1062,6 +1062,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           return aggregate;
         });
       });
+      logger.info('Reset to snapshot $_suuid@${snapshot.number}');
     }
   }
 
