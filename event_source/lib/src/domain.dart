@@ -1248,7 +1248,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   ///
   DomainEvent get lastEvent => _pending.isNotEmpty
       ? _pending.last
-      : (_applied.isNotEmpty ? _applied.values.last : _snapshot?.changedBy ?? _changedBy);
+      : (_applied.isNotEmpty ? _applied.values.last : toDomainEvent(_snapshot?.changedBy) ?? _changedBy);
 
   /// Local uncommitted changes
   final _pending = <DomainEvent>[];
