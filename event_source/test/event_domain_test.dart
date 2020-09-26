@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:event_source/event_source.dart';
 import 'package:event_source/src/models/aggregate_root_model.dart';
 import 'package:event_source/src/models/event_number_model.dart';
@@ -709,7 +711,7 @@ Future main() async {
       uuid: suuid2,
       timestamp: timestamp,
       number: EventNumberModel(value: 1),
-      aggregates: {
+      aggregates: LinkedHashMap.from({
         fuuid1: AggregateRootModel(
           uuid: fuuid1,
           createdBy: event1,
@@ -722,7 +724,7 @@ Future main() async {
           data: data2,
           number: EventNumberModel.from(event2.number),
         ),
-      },
+      }),
     );
     await box.put(
       suuid2,
