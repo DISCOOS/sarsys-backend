@@ -214,9 +214,12 @@ class EventStore {
         master: master,
         number: offset,
       );
+      final snapshot = repository.hasSnapshot
+          ? '(snapshot ${repository.snapshot.uuid}'
+              '@${repository.snapshot.number.value})'
+          : '';
       logger.info(
-        "Replayed $count events from stream '${canonicalStream}' with offset ${offset.value} "
-        '(snapshot ${repository.snapshot.uuid}@${repository.snapshot.number.value})',
+        "Replayed $count events from stream '${canonicalStream}' with offset ${offset.value}$snapshot",
       );
       return count;
     } finally {
