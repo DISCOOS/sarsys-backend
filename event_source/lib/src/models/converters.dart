@@ -6,8 +6,10 @@ import 'package:uuid/uuid.dart';
 import 'aggregate_root_model.dart';
 import 'event_number_model.dart';
 
-Event fromEventModelJson(Map<String, dynamic> json) {
-  final model = EventModel.fromJson(json);
+Event fromEventModelJson(Map json) {
+  final model = EventModel.fromJson(
+    toMapJson(json),
+  );
   return Event(
     local: false,
     type: model.type,
@@ -32,11 +34,11 @@ Map<String, dynamic> toEventModelJson(Event event) {
 Map<String, dynamic> toMapJson(Map data) => Map<String, dynamic>.from(data);
 
 Map<String, AggregateRootModel> fromAggregateRootsJson(Map aggregates) => Map<String, AggregateRootModel>.from(
-      aggregates.map((key, value) => MapEntry(key, AggregateRootModel.fromJson(Map.from(value)))),
+      aggregates.map((key, value) => MapEntry(key, AggregateRootModel.fromJson(toMapJson(value)))),
     );
 
 Map<String, dynamic> toAggregateRootsJson(Map<String, AggregateRootModel> aggregates) =>
-    Map.from(aggregates.map((key, value) => MapEntry(key, value.toJson())));
+    toMapJson(aggregates.map((key, value) => MapEntry(key, value.toJson())));
 
 SnapshotModel toSnapshot(Repository repo, {DateTime timestamp}) => SnapshotModel(
       uuid: Uuid().v4(),
