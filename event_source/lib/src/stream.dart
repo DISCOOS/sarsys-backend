@@ -17,6 +17,31 @@ class StreamRequestQueue<T> {
   /// Stream of last [StreamResult] processed before stopping
   final StreamController<StreamResult<T>> _idleController = StreamController.broadcast();
 
+  /// Stream of [StreamRequest] timeouts
+  final StreamController<StreamRequest<T>> _timeoutController = StreamController.broadcast();
+
+  /// Stream of completed [StreamResult]
+  final StreamController<StreamResult<T>> _completeController = StreamController.broadcast();
+
+  /// Get number of processed [StreamRequest]s from creation
+  int get processed => _timeouts + _failed + _cancelled + _completed;
+
+  /// Get number of timeouts from creation
+  int get timeouts => _timeouts;
+  int _timeouts = 0;
+
+  /// Get number of cancelled [StreamRequest] from creation
+  int get cancelled => _cancelled;
+  int _cancelled = 0;
+
+  /// Get number of failed [StreamRequest] from creation
+  int get failed => _failed;
+  int _failed = 0;
+
+  /// Get number of completed [StreamRequest] from creation
+  int get completed => _completed;
+  int _completed = 0;
+
   StreamQueue<StreamRequest<T>> _queue;
   StreamController<StreamRequest<T>> _dispatcher;
 
@@ -53,6 +78,12 @@ class StreamRequestQueue<T> {
   /// Get stream of last [StreamResult]
   /// processed before stopping.
   Stream<StreamResult<T>> onIdle() => _idleController.stream;
+
+  /// Get stream of [StreamRequest] timeouts.
+  Stream<StreamRequest<T>> onTimeout() => _timeoutController.stream;
+
+  /// Get stream of completed [StreamResult] .
+  Stream<StreamRequest<T>> onComplete() => _timeoutController.stream;
 
   /// Flag indicating that queue is [process]ing requests
   bool get isProcessing => isReady && !isIdle;
@@ -120,6 +151,8 @@ class StreamRequestQueue<T> {
       ..toList()
       ..forEach(_requests.remove);
 
+    _cancelled += found.length;
+
     return found.isNotEmpty;
   }
 
@@ -142,7 +175,7 @@ class StreamRequestQueue<T> {
         _isIdle = false;
         while (_hasNext) {
           if (isProcessing) {
-            final request = await _queue.peek;
+            final request = await _next();
             if (isProcessing) {
               if (contains(request.key)) {
                 _current = request;
@@ -157,7 +190,7 @@ class StreamRequestQueue<T> {
                 }
               }
               if (isReady) {
-                await _queue.next;
+                await _pop();
                 _requests.remove(request);
               }
             }
@@ -169,6 +202,28 @@ class StreamRequestQueue<T> {
         stop();
       }
     }
+  }
+
+  Future<StreamRequest> _pop() => _queue.next;
+
+  Future<StreamRequest> _next() async {
+    var next = await _queue.peek;
+    while (next.isTimedOut) {
+      _timeoutController.add(next);
+      _requests.remove(next);
+      _timeouts++;
+      if (next.fail) {
+        next.onResult?.complete(
+          next.fallback(),
+        );
+      } else if (next.fallback != null) {
+        next.onResult?.complete(
+          next.fallback(),
+        );
+      }
+      next = await _queue.peek;
+    }
+    return next;
   }
 
   /// Prepare queue for requests
@@ -191,11 +246,13 @@ class StreamRequestQueue<T> {
   Future<StreamResult<T>> _execute(StreamRequest<T> request) async {
     try {
       final result = await request.execute();
+      _completeController.add(result);
       if (result.isOK) {
         request.onResult?.complete(
           result.value,
         );
       } else if (result.isError) {
+        _failed++;
         _handleError(
           result.error,
           result.stackTrace,
@@ -204,6 +261,7 @@ class StreamRequestQueue<T> {
       }
       return result;
     } catch (error, stackTrace) {
+      _failed++;
       _handleError(
         error,
         stackTrace,
@@ -227,6 +285,7 @@ class StreamRequestQueue<T> {
       return true;
     }
     if (request.onResult?.isCompleted == false && request.fallback != null) {
+      _completed++;
       request.onResult?.complete(
         await request.fallback(),
       );
@@ -288,7 +347,7 @@ class StreamRequestQueue<T> {
   ///
   void cancel() async {
     _checkState();
-    clear();
+    _cancelled += clear().length;
     stop();
   }
 
@@ -299,6 +358,7 @@ class StreamRequestQueue<T> {
   ///
   Future<void> dispose() async {
     _checkState();
+    _cancelled += clear().length;
     if (!_isDisposed) {
       clear();
       stop();
@@ -311,6 +371,12 @@ class StreamRequestQueue<T> {
       _dispatcher = null;
       if (_idleController.hasListener) {
         await _idleController.close();
+      }
+      if (_timeoutController.hasListener) {
+        await _timeoutController.close();
+      }
+      if (_completeController.hasListener) {
+        await _completeController.close();
       }
     }
   }
@@ -325,21 +391,30 @@ class StreamRequest<T> {
   StreamRequest({
     @required this.execute,
     String key,
+    this.timeout,
+    this.message,
     this.fallback,
     this.onResult,
+    this.fail = false,
   }) : _key = key;
 
+  final bool fail;
+  final String message;
+  final Duration timeout;
   final Completer<T> onResult;
   final Future<T> Function() fallback;
+  final DateTime created = DateTime.now();
   final Future<StreamResult<T>> Function() execute;
 
   String get key => _key ?? '$hashCode';
   final String _key;
+
+  bool get isTimedOut => timeout != null && DateTime.now().difference(created) > timeout;
 }
 
 @Immutable()
 class StreamResult<T> {
-  const StreamResult({
+  StreamResult({
     this.value,
     this.error,
     bool stop,

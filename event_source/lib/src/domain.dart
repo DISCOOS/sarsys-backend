@@ -373,8 +373,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   Repository({
     @required this.store,
     @required Map<Type, ProcessCallback> processors,
+    this.maxPushPressure,
     this.uuidFieldName = 'uuid',
-    int maxBackoffTimeSeconds = 10,
+    int maxBackoffTimeSeconds = 3,
   })  : _processors = Map.unmodifiable(processors.map(
           (type, process) => MapEntry('$type', process),
         )),
@@ -383,6 +384,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   final Logger logger;
   final EventStore store;
+  final int maxPushPressure;
   final String uuidFieldName;
 
   /// Get [AggregateRoot] type
@@ -444,13 +446,28 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Check if repository contains given aggregate root
   bool contains(String uuid) => _aggregates.containsKey(uuid);
 
+  /// Used in [dispose] to close open subscriptions
+  final List<StreamSubscription> _subscriptions = [];
+
   /// Build repository from [store].
   /// Returns number of events processed.
   Future<int> build() async {
     // Listen for push-queue to finish processing
-    _idleSubscription = _pushQueue.onIdle().listen((event) {
-      store.resume();
-    });
+    _subscriptions
+      ..add(_pushQueue.onIdle().listen((event) {
+        logger.info('Push queue idle');
+        store.resume();
+      }))
+      ..add(_pushQueue.onTimeout().listen((event) {
+        logger.info(
+          'Push command timeout: ${event.message} (queue pressure: $pending)',
+        );
+      }))
+      ..add(_pushQueue.onComplete().listen((event) {
+        logger.info(
+          'Push command complete: ${event.message} (queue pressure: $pending)',
+        );
+      }));
     _pushQueue.catchError((e, stackTrace) {
       logger.severe(
         'Processing request ${_pushQueue.current} failed with: $e',
@@ -656,9 +673,15 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   FutureOr<Iterable<DomainEvent>> execute(S command, {int maxAttempts = 10}) async {
     T aggregate;
     final changes = <DomainEvent>[];
+
     if (command.uuid == null) {
       throw UUIDIsNull('Field [${command.uuidFieldName}] is null in $command');
+    } else if (isMaximumPushPressure) {
+      throw RepositoryMaxPressureExceeded(
+        '$runtimeType Push exceeded maximum: $maxPushPressure',
+      );
     }
+
     final exists = contains(command.uuid);
     if (command is EntityCommand) {
       final next = _asEntityData(command);
@@ -742,7 +765,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Throws [WriteFailed] for all other failures. This failure is not recoverable.
   Future<Iterable<DomainEvent>> push(T aggregate, {int maxAttempts = 10}) async {
     var result = <DomainEvent>[];
-    if (aggregate.isChanged) {
+    if (isMaximumPushPressure) {
+      throw RepositoryMaxPressureExceeded(
+        '$runtimeType Push exceeded maximum: $maxPushPressure',
+      );
+    } else if (aggregate.isChanged) {
       result = await _schedulePush(
         aggregate.uuid,
         aggregate.getUncommittedChanges(),
@@ -751,6 +778,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     }
     return result;
   }
+
+  /// Get number of pending [push]
+  int get pending => _pushQueue.length;
 
   /// Queue of push operations performed in FIFO manner.
   ///
@@ -769,8 +799,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// being thrown by the [EventStoreConnection].
   final _pushQueue = StreamRequestQueue<Iterable<DomainEvent>>();
 
-  StreamSubscription _idleSubscription;
-
   /// Schedule [_PushOperation] for execution
   Future<Iterable<DomainEvent>> _schedulePush(
     String uuid,
@@ -781,6 +809,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       store.pause();
     }
     final aggregate = _assertExists(uuid);
+    final message = '${typeOf<T>()} ${uuid} with ${changes.length} changes';
     final operation = _PushOperation(aggregate, changes, maxAttempts);
     _pushQueue.add(StreamRequest<Iterable<DomainEvent>>(
       execute: () async {
@@ -789,9 +818,18 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         _snapshotWhen(store.snapshots?.threshold);
         return result;
       },
+      fail: true,
+      message: message,
+      timeout: const Duration(seconds: 60),
     ));
+    logger.info(
+      'Scheduled push of ${aggregate.runtimeType} ${aggregate.uuid} (queue pressure: $pending)',
+    );
     return operation.completer.future;
   }
+
+  /// Check if [push] is possible
+  bool get isMaximumPushPressure => maxPushPressure != null && pending >= maxPushPressure;
 
   T _assertExists(String uuid) {
     final aggregate = _aggregates[uuid];
@@ -1081,7 +1119,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   Future<void> dispose() async {
     _pushQueue.cancel();
     _aggregates.clear();
-    await _idleSubscription?.cancel();
+    await Future.wait(
+      _subscriptions.map((s) => s.cancel()),
+    );
     if (_ruleController.hasListener) {
       await _ruleController.close();
     }
@@ -1221,7 +1261,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   AggregateRootModel _snapshot;
 
   /// Get uuids of applied events
-  Iterable<DomainEvent> get applied => List.from(_applied.values);
+  Iterable<DomainEvent> get applied => List.unmodifiable(_applied.values);
 
   /// Check if event is applied to
   /// this [AggregateRoot] instance
@@ -1235,7 +1275,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   DomainEvent getApplied(String uuid) => _applied[uuid];
 
   /// Get changed not committed to store
-  Iterable<DomainEvent> getUncommittedChanges() => List.from(_pending);
+  Iterable<DomainEvent> getUncommittedChanges() => List.unmodifiable(_pending);
 
   /// Check if uncommitted changes exists
   bool get isNew => number.isNone && _applied.isEmpty;
@@ -1765,7 +1805,9 @@ abstract class MergeStrategy {
       // Wait with exponential backoff
       // until default waitFor is reached
       await Future.delayed(
-        Duration(milliseconds: toNextTimeout(attempt, defaultWaitFor)),
+        Duration(
+          milliseconds: toNextTimeout(attempt, defaultWaitFor),
+        ),
       );
 
       final isNew = aggregate.isNew;

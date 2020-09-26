@@ -198,6 +198,11 @@ Future<List<DomainEvent>> _createMultipleEvents(FooRepository repo, String uuid)
       events.toList(),
     );
   }
+  expect(
+    repo.number.value,
+    9,
+    reason: 'Event number should match',
+  );
   return operations;
 }
 
@@ -210,6 +215,11 @@ Iterable<SourceEvent> _assertEventNumberStrictOrder(Repository repo, String uuid
       reason: 'Event number should be $i',
     );
   }
+  expect(
+    repo.number.value,
+    events.length - 1,
+    reason: 'Event number should match',
+  );
   return events;
 }
 

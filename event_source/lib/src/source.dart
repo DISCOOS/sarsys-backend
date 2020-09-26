@@ -309,7 +309,6 @@ class EventStore {
           // Hydrate store with events
           eventsPerAggregate.forEach(
             (uuid, events) {
-              _updateAll(uuid, events);
               final domainEvents = _applyAll(
                 repository,
                 uuid,
@@ -365,6 +364,7 @@ class EventStore {
     String uuid,
     List<SourceEvent> events,
   ) {
+    _updateAll(uuid, events);
     final exists = repository.contains(uuid);
     final aggregate = repository.get(uuid);
 

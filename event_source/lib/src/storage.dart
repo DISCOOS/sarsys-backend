@@ -14,7 +14,7 @@ class Storage {
     this.type, {
     this.keep = 20,
     this.threshold = 1000,
-  }) : logger = Logger('RepositoryManager');
+  }) : logger = Logger('Storage');
 
   /// Create storage for given [AggregateRoot] type [T]
   static Storage fromType<T extends AggregateRoot>({

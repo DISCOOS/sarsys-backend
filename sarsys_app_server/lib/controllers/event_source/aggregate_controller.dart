@@ -182,7 +182,9 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       }
       final aggregate = data ?? {};
       aggregate[repository.uuidFieldName] = uuid;
-      final events = await repository.execute(onDelete(aggregate));
+      final events = await repository.execute(
+        onDelete(aggregate),
+      );
       return events.isEmpty ? Response.noContent() : Response.noContent();
     } on AggregateNotFound catch (e) {
       return Response.notFound(body: e.message);

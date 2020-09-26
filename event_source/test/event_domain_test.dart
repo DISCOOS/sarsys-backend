@@ -450,7 +450,7 @@ Future main() async {
 
     // Act - execute pushes without awaiting the result
     final results = await Future.wait<Iterable<DomainEvent>>(
-      _createMultipleAggregates(repo).cast(),
+      _createMultipleAggregates(repo, 10).cast(),
     );
 
     // Assert - strict order
@@ -538,6 +538,7 @@ Future main() async {
     expect(foo.data, containsPair('property1', 'value1'));
     expect(foo.data, containsPair('property2', 'value2'));
     expect(foo.data, containsPair('property3', 'value3'));
+    expect(repo.number.value, equals(2));
   });
 
   test('Repository should enforce strict order of concurrent create aggregate operations ', () async {
@@ -546,15 +547,22 @@ Future main() async {
     final repo2 = harness.get<FooRepository>(port: 4001);
     await repo1.readyAsync();
     await repo2.readyAsync();
+    final group = StreamGroup<Event>();
+    await group.add(repo1.store.asStream());
+    await group.add(repo2.store.asStream());
 
     // Act - execute pushes and await the results
-    final requests1 = _createMultipleAggregates(repo1);
-    final requests2 = _createMultipleAggregates(repo2);
+    final requests1 = _createMultipleAggregates(repo1, 10);
+    final requests2 = _createMultipleAggregates(repo2, 10);
     final requests = List.from(requests1)..addAll(requests2);
+
     final results = await Future.wait<Iterable<DomainEvent>>(requests.cast());
+    await takeRemote(group.stream, 20);
+    await group.close();
 
     // Assert - strict order
     _assertResultStrictOrder(results);
+    expect(repo1.number.value, equals(19));
   });
 
   test('Repository should rollback changes when command fails', () async {
@@ -996,11 +1004,12 @@ void _assertUniqueEvents(Repository repo, Iterable<DomainEvent> events) {
   );
   final expected = events.map((e) => e.uuid).toList();
   expect(expected, equals(actual));
+  expect(repo.number.value, equals(events.length - 1));
 }
 
-List<Future<Iterable<DomainEvent>>> _createMultipleAggregates(FooRepository repo) {
+List<Future<Iterable<DomainEvent>>> _createMultipleAggregates(FooRepository repo, int count) {
   final operations = <Future<Iterable<DomainEvent>>>[];
-  for (var i = 0; i < 10; i++) {
+  for (var i = 0; i < count; i++) {
     operations.add(repo.push(repo.get(Uuid().v4(), data: {'index': i})));
   }
   return operations;

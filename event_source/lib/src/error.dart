@@ -35,6 +35,11 @@ class RepositoryError extends Error {
   }
 }
 
+/// Thrown when an maximum pressure in repository is exceeded
+class RepositoryMaxPressureExceeded extends InvalidOperation {
+  const RepositoryMaxPressureExceeded(String message) : super(message);
+}
+
 /// Thrown when an required repository is not available
 class RepositoryNotAvailable extends InvalidOperation {
   const RepositoryNotAvailable(String message) : super(message);
