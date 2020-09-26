@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:event_source/event_source.dart';
 import 'package:event_source/src/models/event_model.dart';
 import 'package:event_source/src/models/snapshot_model.dart';
@@ -32,13 +34,15 @@ Map<String, dynamic> toEventModelJson(Event event) {
 }
 
 Map<String, dynamic> toMapJson(Map data) => Map<String, dynamic>.from(data);
+LinkedHashMap<String, dynamic> toLinkedHashMapJson(Map data) => LinkedHashMap<String, dynamic>.from(data);
 
-Map<String, AggregateRootModel> fromAggregateRootsJson(Map aggregates) => Map<String, AggregateRootModel>.from(
-      aggregates.map((key, value) => MapEntry(key, AggregateRootModel.fromJson(toMapJson(value)))),
+Map<String, AggregateRootModel> fromAggregateRootsJson(Map aggregates) =>
+    LinkedHashMap<String, AggregateRootModel>.from(
+      aggregates.map((key, value) => MapEntry(key, AggregateRootModel.fromJson(toLinkedHashMapJson(value)))),
     );
 
-Map<String, dynamic> toAggregateRootsJson(Map<String, AggregateRootModel> aggregates) =>
-    toMapJson(aggregates.map((key, value) => MapEntry(key, value.toJson())));
+LinkedHashMap<String, dynamic> toAggregateRootsJson(Map<String, AggregateRootModel> aggregates) =>
+    toLinkedHashMapJson(aggregates.map((key, value) => MapEntry(key, value.toJson())));
 
 SnapshotModel toSnapshot(Repository repo, {DateTime timestamp}) => SnapshotModel(
       uuid: Uuid().v4(),
@@ -47,17 +51,17 @@ SnapshotModel toSnapshot(Repository repo, {DateTime timestamp}) => SnapshotModel
       number: EventNumberModel.from(repo.number),
     );
 
-Map<String, AggregateRootModel> toAggregateRoots(Repository repo) =>
-    Map.fromEntries(repo.aggregates.map(toAggregateRoot).map(
+LinkedHashMap<String, AggregateRootModel> toAggregateRoots(Repository repo) =>
+    LinkedHashMap.fromEntries(repo.aggregates.map(toAggregateRoot).map(
           (a) => MapEntry(a.uuid, a),
         ));
 
-Map<String, AggregateRootModel> replaceAggregateRoot(
+LinkedHashMap<String, AggregateRootModel> replaceAggregateRoot(
   Map<String, AggregateRootModel> aggregates,
   AggregateRoot root,
 ) {
   final model = toAggregateRoot(root);
-  final updated = Map.from(aggregates);
+  final updated = LinkedHashMap.from(aggregates);
   updated.update(root.uuid, (_) => model, ifAbsent: () => model);
   return updated;
 }

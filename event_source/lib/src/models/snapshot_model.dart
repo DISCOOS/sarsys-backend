@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:equatable/equatable.dart';
 import 'package:event_source/event_source.dart';
 import 'package:event_source/src/models/aggregate_root_model.dart';
@@ -14,7 +16,7 @@ class SnapshotModel extends Equatable {
     this.uuid,
     this.number,
     this.timestamp,
-    Map<String, AggregateRootModel> aggregates,
+    LinkedHashMap<String, AggregateRootModel> aggregates,
   }) : aggregates = aggregates ?? <String, AggregateRootModel>{};
 
   /// [SnapshotModel] uuid
@@ -31,7 +33,7 @@ class SnapshotModel extends Equatable {
     toJson: toAggregateRootsJson,
     fromJson: fromAggregateRootsJson,
   )
-  final Map<String, AggregateRootModel> aggregates;
+  final LinkedHashMap<String, AggregateRootModel> aggregates;
 
   /// Get updated snapshot model
   SnapshotModel copyWith(Repository repo, {String uuid, AggregateRoot root}) => SnapshotModel(
