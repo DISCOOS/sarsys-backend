@@ -215,7 +215,8 @@ class EventStore {
         number: offset,
       );
       logger.info(
-        "Replayed $count events from stream '${canonicalStream}'",
+        "Replayed $count events from stream '${canonicalStream}' with offset ${offset.value} "
+        '(snapshot ${repository.snapshot.uuid}@${repository.snapshot.number.value})',
       );
       return count;
     } finally {
