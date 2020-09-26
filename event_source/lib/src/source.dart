@@ -216,7 +216,7 @@ class EventStore {
       );
       final snapshot = repository.hasSnapshot ? ' (snapshot)' : '';
       logger.info(
-        "Replayed $count events from stream '${canonicalStream}'$snapshot",
+        "Replayed $count events from stream '${canonicalStream}' with offset ${offset.value} $snapshot",
       );
       return count;
     } finally {
