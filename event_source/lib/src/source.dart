@@ -235,6 +235,7 @@ class EventStore {
       _current[canonicalStream] = EventNumber(snapshot.number.value);
       if (useInstanceStreams) {
         snapshot.aggregates.values.forEach((a) {
+          _updateAll(a.uuid, <SourceEvent>[]);
           final stream = toInstanceStream(a.uuid);
           _current[stream] = EventNumber(a.number.value);
         });
