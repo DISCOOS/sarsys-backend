@@ -375,7 +375,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     @required Map<Type, ProcessCallback> processors,
     this.maxPushPressure,
     this.uuidFieldName = 'uuid',
-    int maxBackoffTimeSeconds = 3,
+    int maxBackoffTimeSeconds = 10,
   })  : _processors = Map.unmodifiable(processors.map(
           (type, process) => MapEntry('$type', process),
         )),
