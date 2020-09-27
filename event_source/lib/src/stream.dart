@@ -213,8 +213,9 @@ class StreamRequestQueue<T> {
       _requests.remove(next);
       _timeouts++;
       if (next.fail) {
-        next.onResult?.complete(
-          next.fallback(),
+        _handleError(
+          StreamRequestTimeout(this, next),
+          StackTrace.current,
         );
       } else if (next.fallback != null) {
         next.onResult?.complete(
@@ -437,4 +438,10 @@ class StreamResult<T> {
   bool get isNone => !isComplete;
   bool get isStop => _stop == true;
   bool get isComplete => !isStop && (isOK || isError);
+}
+
+class StreamRequestTimeout implements Exception {
+  StreamRequestTimeout(this.queue, this.request);
+  final StreamRequest request;
+  final StreamRequestQueue queue;
 }

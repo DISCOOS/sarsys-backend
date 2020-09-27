@@ -14,4 +14,5 @@ export 'src/results.dart';
 export 'src/rule.dart';
 export 'src/source.dart';
 export 'src/storage.dart';
+export 'src/stream.dart' show StreamRequestTimeout;
 export 'src/util.dart';

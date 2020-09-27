@@ -665,12 +665,22 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// [AggregateRoot.data], which implies a manual merge must be performed by then
   /// consumer. This failure is not recoverable.
   ///
+  /// Throws an [RepositoryMaxPressureExceeded] failure if [maxPushPressure] was
+  /// exceeded by this call.
+  ///
+  /// Throws an [StreamRequestTimeout] failure if [maxPushPressure] was
+  /// exceeded by this call.
+  ///
   /// Throws an [SocketException] failure if calls on [EventStore.connection] fails.
   /// This failure is not recoverable.
   ///
   /// Throws [WriteFailed] for all other failures. This failure is not recoverable.
   @override
-  FutureOr<Iterable<DomainEvent>> execute(S command, {int maxAttempts = 10}) async {
+  FutureOr<Iterable<DomainEvent>> execute(
+    S command, {
+    int maxAttempts = 10,
+    Duration timeout = const Duration(seconds: 60),
+  }) async {
     T aggregate;
     final changes = <DomainEvent>[];
 
@@ -724,6 +734,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         return await _schedulePush(
           aggregate.uuid,
           changes,
+          timeout,
           maxAttempts,
         );
       } catch (e) {
@@ -759,11 +770,21 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// [Repository]. This failure is not recoverable. If one is found the instance
   /// in this repository is pushed, not the instance given.
   ///
+  /// Throws an [RepositoryMaxPressureExceeded] failure if [maxPushPressure] was
+  /// exceeded by this call.
+  ///
+  /// Throws an [StreamRequestTimeout] failure if [maxPushPressure] was
+  /// exceeded by this call.
+  ///
   /// Throws an [SocketException] failure if calls on [EventStore.connection] fails.
   /// This failure is not recoverable.
   ///
   /// Throws [WriteFailed] for all other failures. This failure is not recoverable.
-  Future<Iterable<DomainEvent>> push(T aggregate, {int maxAttempts = 10}) async {
+  Future<Iterable<DomainEvent>> push(
+    T aggregate, {
+    int maxAttempts = 10,
+    Duration timeout = const Duration(seconds: 60),
+  }) async {
     var result = <DomainEvent>[];
     if (isMaximumPushPressure) {
       throw RepositoryMaxPressureExceeded(
@@ -773,6 +794,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       result = await _schedulePush(
         aggregate.uuid,
         aggregate.getUncommittedChanges(),
+        timeout,
         maxAttempts,
       );
     }
@@ -797,12 +819,14 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// will throw a [ConcurrentWriteOperation] exception. This prevents
   /// partial writes and commits which will result in an [EventNumberMismatch]
   /// being thrown by the [EventStoreConnection].
+  ///
   final _pushQueue = StreamRequestQueue<Iterable<DomainEvent>>();
 
   /// Schedule [_PushOperation] for execution
   Future<Iterable<DomainEvent>> _schedulePush(
     String uuid,
     Iterable<DomainEvent> changes,
+    Duration timeout,
     int maxAttempts,
   ) {
     if (_pushQueue.isEmpty) {
@@ -820,7 +844,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       },
       fail: true,
       tag: message,
-      timeout: const Duration(seconds: 60),
+      timeout: timeout,
     ));
     logger.info(
       'Scheduled push of ${aggregate.runtimeType} ${aggregate.uuid} (queue pressure: $pending)',

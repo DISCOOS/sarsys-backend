@@ -661,92 +661,31 @@ Future main() async {
 
   test('Repository should build from last snapshot', () async {
     // Arrange
+    await _testShouldBuildFromLastSnapshot(harness);
+  });
+
+  test('Repository push from last snapshot', () async {
+    // Arrange
+    await _testShouldBuildFromLastSnapshot(harness);
     final repo = harness.get<FooRepository>();
-    await repo.readyAsync();
-    expect(repo.snapshot, isNull, reason: 'Should have NO snapshot');
-    final box = await Hive.openBox<StorageState>(repo.store.snapshots.filename);
-    final fuuid1 = Uuid().v4();
-    final data1 = {
-      'uuid': fuuid1,
-      'parameter1': 'value1',
-    };
-    final event1 = Event(
-      uuid: Uuid().v4(),
-      data: {
-        'patches': JsonPatch.diff({}, data1),
-      },
-      local: false,
-      type: '$FooCreated',
-      number: EventNumber(0),
-      created: DateTime.now(),
-    );
-    final fuuid2 = Uuid().v4();
-    final data2 = {
-      'uuid': fuuid2,
-      'parameter2': 'value2',
-    };
-    final event2 = Event(
-      uuid: Uuid().v4(),
-      data: {
-        'patches': JsonPatch.diff({}, data2),
-      },
-      local: false,
-      type: '$FooCreated',
-      number: EventNumber(0),
-      created: DateTime.now(),
-    );
-    final timestamp = DateTime.now();
-    final suuid1 = Uuid().v4();
-    final snapshot1 = SnapshotModel(
-      uuid: suuid1,
-      timestamp: timestamp,
-      number: EventNumberModel.from(EventNumber.none),
-    );
-    await box.put(
-      suuid1,
-      StorageState(value: snapshot1),
-    );
-    final suuid2 = Uuid().v4();
-    final snapshot2 = SnapshotModel(
-      uuid: suuid2,
-      timestamp: timestamp,
-      number: EventNumberModel(value: 1),
-      aggregates: LinkedHashMap.from({
-        fuuid1: AggregateRootModel(
-          uuid: fuuid1,
-          createdBy: event1,
-          data: data1,
-          number: EventNumberModel.from(event1.number),
-        ),
-        fuuid2: AggregateRootModel(
-          uuid: fuuid2,
-          createdBy: event2,
-          data: data2,
-          number: EventNumberModel.from(event2.number),
-        ),
-      }),
-    );
-    await box.put(
-      suuid2,
-      StorageState(value: snapshot2),
-    );
-    await repo.store.snapshots.load();
+    final foo1 = repo.aggregates.first;
+    final foo2 = repo.aggregates.last;
 
     // Act
-    final count = await repo.replay();
+    final event3 = foo1.patch({'property3': 'value3'}, emits: FooUpdated);
+    await repo.push(foo1);
+    final event4 = foo2.patch({'property3': 'value3'}, emits: FooUpdated);
+    await repo.push(foo2);
 
     // Assert
-    expect(count, equals(0), reason: 'Should replay 0 events');
     expect(repo.snapshot, isNotNull, reason: 'Should have a snapshot');
-    expect(repo.snapshot.uuid, equals(suuid2), reason: 'Should have snapshot $suuid2');
-    expect(repo.contains(fuuid1), isTrue, reason: 'Should contain aggregate root $fuuid1');
-    final foo1 = repo.get(fuuid1);
-    expect(foo1.number, equals(event1.number));
-    expect(foo1.data, equals(data1));
-    expect(repo.contains(fuuid2), isTrue, reason: 'Should contain aggregate root $fuuid2');
-    final foo2 = repo.get(fuuid2);
-    expect(foo2.number, equals(event2.number));
-    expect(foo2.data, equals(data2));
+    expect(repo.number, repo.store.current(), reason: 'Should be equal');
+    expect(repo.store.current(), equals(EventNumber(3)), reason: 'Should cumulate to (offset + events.length - 1)');
+    expect(event3.number, repo.store.current(uuid: foo1.uuid), reason: 'Should be equal');
+    expect(event4.number, repo.store.current(uuid: foo2.uuid), reason: 'Should be equal');
+
+    expect(foo1.number, equals(event3.number));
+    expect(foo2.number, equals(event4.number));
   });
 
   test('Repository should save snapshot manually', () async {
@@ -849,6 +788,123 @@ Future main() async {
     expect(repo.snapshot.number.value, equals(100), reason: 'Event number should be 100');
     expect(repo.store.snapshots.length, equals(keep), reason: 'Should have 2 snapshots');
   });
+}
+
+Future _testShouldBuildFromLastSnapshot(EventSourceHarness harness) async {
+  final repo = harness.get<FooRepository>();
+  final stream = harness.server().getStream(repo.store.aggregate);
+  await repo.readyAsync();
+  expect(repo.snapshot, isNull, reason: 'Should have NO snapshot');
+  final box = await Hive.openBox<StorageState>(repo.store.snapshots.filename);
+
+  // Foo1
+  final fuuid1 = Uuid().v4();
+  final data1 = {
+    'uuid': fuuid1,
+    'parameter1': 'value1',
+  };
+  final event1 = Event(
+    uuid: Uuid().v4(),
+    data: {
+      'patches': JsonPatch.diff({}, data1),
+    },
+    local: false,
+    type: '$FooCreated',
+    number: EventNumber(0),
+    created: DateTime.now(),
+  );
+  stream.append('${stream.instanceStream}-0', [
+    TestStream.asSourceEvent<FooCreated>(
+      fuuid1,
+      {},
+      data1,
+    )
+  ]);
+
+  // Foo2
+  final fuuid2 = Uuid().v4();
+  final data2 = {
+    'uuid': fuuid2,
+    'parameter2': 'value2',
+  };
+  final event2 = Event(
+    uuid: Uuid().v4(),
+    data: {
+      'patches': JsonPatch.diff({}, data2),
+    },
+    local: false,
+    type: '$FooCreated',
+    number: EventNumber(0),
+    created: DateTime.now(),
+  );
+  stream.append('${stream.instanceStream}-1', [
+    TestStream.asSourceEvent<FooCreated>(
+      fuuid2,
+      {},
+      data2,
+    )
+  ]);
+
+  // Create snapshot
+  final timestamp = DateTime.now();
+  final suuid1 = Uuid().v4();
+  final snapshot1 = SnapshotModel(
+    uuid: suuid1,
+    timestamp: timestamp,
+    number: EventNumberModel.from(EventNumber.none),
+  );
+  await box.put(
+    suuid1,
+    StorageState(value: snapshot1),
+  );
+  final suuid2 = Uuid().v4();
+  final snapshot2 = SnapshotModel(
+    uuid: suuid2,
+    timestamp: timestamp,
+    number: EventNumberModel(value: 1),
+    aggregates: LinkedHashMap.from({
+      fuuid1: AggregateRootModel(
+        uuid: fuuid1,
+        createdBy: event1,
+        changedBy: event1,
+        data: data1,
+        number: EventNumberModel.from(event1.number),
+      ),
+      fuuid2: AggregateRootModel(
+        uuid: fuuid2,
+        createdBy: event2,
+        changedBy: event2,
+        data: data2,
+        number: EventNumberModel.from(event2.number),
+      ),
+    }),
+  );
+  await box.put(
+    suuid2,
+    StorageState(value: snapshot2),
+  );
+  await repo.store.snapshots.load();
+
+  // Act
+  final count = await repo.replay();
+
+  // Assert
+  expect(count, equals(0), reason: 'Should replay 0 events');
+  expect(repo.snapshot, isNotNull, reason: 'Should have a snapshot');
+  expect(repo.snapshot.uuid, equals(suuid2), reason: 'Should have snapshot $suuid2');
+  expect(repo.number, repo.store.current(), reason: 'Should be equal');
+  expect(repo.store.current(), equals(EventNumber(1)), reason: 'Should cumulate to (events.length - 1)');
+  expect(event1.number, repo.store.current(uuid: fuuid1), reason: 'Should be equal');
+  expect(event2.number, repo.store.current(uuid: fuuid2), reason: 'Should be equal');
+
+  expect(repo.contains(fuuid1), isTrue, reason: 'Should contain aggregate root $fuuid1');
+  final foo1 = repo.get(fuuid1);
+  expect(foo1.number, equals(event1.number));
+  expect(foo1.data, equals(data1));
+  expect(repo.contains(fuuid2), isTrue, reason: 'Should contain aggregate root $fuuid2');
+  final foo2 = repo.get(fuuid2);
+  expect(foo2.number, equals(event2.number));
+  expect(foo2.data, equals(data2));
 }
 
 Future<List<Event>> takeLocal(Stream<Event> stream, int count) => stream

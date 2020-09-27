@@ -16,7 +16,7 @@ Future main() async {
     final incident = createIncident(iuuid);
     unawaited(harness.agent.post("/api/incidents", body: incident));
 
-    await Future.delayed(const Duration(milliseconds: 10));
+    await Future.delayed(const Duration(milliseconds: 100));
 
     final ouuid = Uuid().v4();
     final operation = _createData(ouuid);

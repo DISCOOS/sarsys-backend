@@ -241,7 +241,22 @@ class EventStore {
         });
       }
     }
-    return _current[canonicalStream].isNone ? EventNumber.first : _current[canonicalStream];
+    final offset = _assertCanonicalStreamOffset(
+      repository,
+    );
+    return repository.hasSnapshot ? offset + 1 : offset;
+  }
+
+  EventNumber _assertCanonicalStreamOffset(Repository repository) {
+    final offset = _current[canonicalStream].isNone ? EventNumber.first : _current[canonicalStream];
+    if (offset.value < 0) {
+      throw StateError(
+        'Canonical stream $canonicalStream for '
+        'repository ${repository.runtimeType} is negative.'
+        '',
+      );
+    }
+    return offset;
   }
 
   /// Catch up with stream
@@ -249,7 +264,7 @@ class EventStore {
     Repository repository, {
     bool master = false,
   }) async {
-    final previous = current();
+    final previous = _assertCanonicalStreamOffset(repository);
     final next = previous + 1;
     final count = await _catchUp(
       repository,
@@ -336,29 +351,27 @@ class EventStore {
   }
 
   void _updateAll(String uuid, Iterable<SourceEvent> events) {
-    if (events.isNotEmpty) {
-      if (useInstanceStreams) {
-        final stream = toInstanceStream(uuid);
-        final offset = current(stream: stream);
-        // Event numbers in instance streams SHOULD ALWAYS
-        // be sorted in an ordered monotone incrementing
-        // manner. This check ensures that if and only if
-        // the assumption is violated, an InvalidOperation
-        // exception is thrown. This ensures that previous
-        // next states can be calculated safely without any
-        // risk of applying patches out-of-order, removing the
-        // need to store these states in each event.
-        events.fold(
-          offset,
-          (previous, next) => _assertMonotone(stream, previous, next),
-        );
-      }
-      _store.update(
-        uuid,
-        (current) => current..addAll(events),
-        ifAbsent: () => LinkedHashSet.of(events),
+    if (useInstanceStreams) {
+      final stream = toInstanceStream(uuid);
+      final offset = current(stream: stream);
+      // Event numbers in instance streams SHOULD ALWAYS
+      // be sorted in an ordered monotone incrementing
+      // manner. This check ensures that if and only if
+      // the assumption is violated, an InvalidOperation
+      // exception is thrown. This ensures that previous
+      // next states can be calculated safely without any
+      // risk of applying patches out-of-order, removing the
+      // need to store these states in each event.
+      events.fold(
+        offset,
+        (previous, next) => _assertMonotone(stream, previous, next),
       );
     }
+    _store.update(
+      uuid,
+      (current) => current..addAll(events),
+      ifAbsent: () => LinkedHashSet.of(events),
+    );
   }
 
   Iterable<DomainEvent> _applyAll(
@@ -380,7 +393,7 @@ class EventStore {
     aggregate.commit();
 
     // Catch up with last event in stream
-    _setEventNumber(aggregate, events: events);
+    _setEventNumber(aggregate, events);
 
     return domainEvents;
   }
@@ -409,7 +422,7 @@ class EventStore {
         ),
       );
 
-      _setEventNumber(aggregate);
+      _setEventNumber(aggregate, changes);
 
       // Publish locally created events.
       // Handlers can determine events with
@@ -427,30 +440,24 @@ class EventStore {
   /// increasing
   ///
   void _setEventNumber(
-    AggregateRoot aggregate, {
-    List<SourceEvent> events = const [],
-  }) {
-    final applied = _store[aggregate.uuid];
+    AggregateRoot aggregate,
+    Iterable<Event> events,
+  ) {
     final stream = toInstanceStream(aggregate.uuid);
+    if (_current.containsKey(stream)) {
+      _current[stream] += events.length;
+    } else {
+      _current[stream] = EventNumber.none + events.length;
+    }
 
     // Update canonical stream?
     if (useInstanceStreams) {
-      var append = 0;
-      final previous = _current[stream];
-
-      if (_current.containsKey(stream)) {
-        // Append change in events
-        append = EventNumber.none.value + applied.length - (previous?.value ?? 0);
+      if (_current.containsKey(canonicalStream)) {
+        _current[canonicalStream] += events.length;
       } else {
-        // Append all events
-        append = applied.length;
+        _current[canonicalStream] = EventNumber.none + events.length;
       }
-      _current[canonicalStream] += append;
     }
-
-    // Update aggregate stream
-    // from last applied event
-    _current[stream] = applied.isNotEmpty ? applied.last.number : EventNumber.none;
   }
 
   /// Publish events to [bus] and [asStream]
@@ -490,10 +497,10 @@ class EventStore {
     }
     final stream = toInstanceStream(aggregate.uuid);
     final changes = aggregate.getUncommittedChanges();
-    final number = toExpectedVersion(stream);
+    final version = toExpectedVersion(stream);
     final result = await connection.writeEvents(
       stream: stream,
-      version: number,
+      version: version,
       events: changes.map((e) => e.toEvent(aggregate.uuidFieldName)),
     );
     if (result.isCreated) {
@@ -503,7 +510,11 @@ class EventStore {
       // Check if commits caught up
       // with last known event in
       // aggregate instance stream
-      _assertCurrentVersion(stream, result.actual);
+      _assertCurrentVersion(
+        stream,
+        result.actual,
+        reason: 'Push with expected version ${version.value} failed',
+      );
       return changes;
     } else if (result.isWrongESNumber) {
       throw WrongExpectedEventVersion(
@@ -812,7 +823,7 @@ class EventStore {
       );
     }
 
-    _setEventNumber(aggregate, events: [event]);
+    _setEventNumber(aggregate, [event]);
 
     // Publish remotely created events.
     // Handlers can determine events with
@@ -872,14 +883,14 @@ class EventStore {
   }
 
   /// Assert that current event number for [stream] is caught up with last known event
-  void _assertCurrentVersion(String stream, EventNumber actual) {
+  void _assertCurrentVersion(String stream, EventNumber actual, {String reason = 'Catch up failed'}) {
     if (_current[stream] != actual) {
       final e = EventNumberMismatch(
         stream: stream,
         actual: actual,
+        message: reason,
         numbers: _current,
         current: _current[stream],
-        message: 'Catch up failed',
       );
       logger.severe('${e.message}, debug: ${toDebugString(stream)}');
       throw e;

@@ -14,9 +14,16 @@ bool isError(Response response) => !const [
     ].contains(response.statusCode);
 
 /// Represents a 503 response.
-Response serviceUnavailable({Map<String, dynamic> headers, dynamic body}) => Response(
+Response serviceUnavailable({int retryAfter = 30, Map<String, dynamic> headers, dynamic body}) => Response(
       HttpStatus.serviceUnavailable,
-      headers,
+      headers..addAll({'retry-after': retryAfter}),
+      body,
+    );
+
+/// Represents a 429 response.
+Response tooManyRequests({int retryAfter = 30, Map<String, dynamic> headers, dynamic body}) => Response(
+      HttpStatus.tooManyRequests,
+      headers..addAll({'retry-after': retryAfter}),
       body,
     );
 

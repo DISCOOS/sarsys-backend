@@ -67,10 +67,16 @@ class OperationTrackingController extends ResourceController {
         limit,
         page.map((uuid) => trackings.get(uuid)),
       );
-    } on InvalidOperation catch (e) {
-      return Response.badRequest(body: e.message);
+    } on RepositoryMaxPressureExceeded {
+      return tooManyRequests();
+    } on StreamRequestTimeout catch (e) {
+      return serviceUnavailable(
+        body: "Repository command queue was unable to process ${e.request.tag}",
+      );
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
+    } on InvalidOperation catch (e) {
+      return Response.badRequest(body: e.message);
     } catch (e, stackTrace) {
       return toServerError(e, stackTrace);
     }
