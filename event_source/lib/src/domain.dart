@@ -417,7 +417,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// see [EventStore.current].
   EventNumber get number => store.current();
 
-  /// Maximum backoff duration between reconnect attempts
+  /// Maximum backoff duration between retries
   final Duration maxBackoffTime;
 
   /// [Message] type name to [DomainEvent] processors
@@ -455,17 +455,17 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     // Listen for push-queue to finish processing
     _subscriptions
       ..add(_pushQueue.onIdle().listen((event) {
-        logger.info('Push queue idle');
+        logger.info('Push queue idle: ${event?.tag}');
         store.resume();
       }))
       ..add(_pushQueue.onTimeout().listen((event) {
         logger.info(
-          'Push command timeout: ${event.message} (queue pressure: $pending)',
+          'Push command timeout: ${event.tag} (queue pressure: $pending)',
         );
       }))
       ..add(_pushQueue.onComplete().listen((event) {
         logger.info(
-          'Push command complete: ${event.message} (queue pressure: $pending)',
+          'Push command complete: ${event.tag} (queue pressure: $pending)',
         );
       }));
     _pushQueue.catchError((e, stackTrace) {
@@ -809,7 +809,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       store.pause();
     }
     final aggregate = _assertExists(uuid);
-    final message = '${typeOf<T>()} ${uuid} with ${changes.length} changes';
+    final message = _toTag(uuid, changes);
     final operation = _PushOperation(aggregate, changes, maxAttempts);
     _pushQueue.add(StreamRequest<Iterable<DomainEvent>>(
       execute: () async {
@@ -819,7 +819,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         return result;
       },
       fail: true,
-      message: message,
+      tag: message,
       timeout: const Duration(seconds: 60),
     ));
     logger.info(
@@ -827,6 +827,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     );
     return operation.completer.future;
   }
+
+  String _toTag(String uuid, Iterable<DomainEvent> changes) => '${typeOf<T>()} ${uuid} with ${changes.length} changes';
 
   /// Check if [push] is possible
   bool get isMaximumPushPressure => maxPushPressure != null && pending >= maxPushPressure;
@@ -841,6 +843,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   Future<StreamResult<Iterable<DomainEvent>>> _push(_PushOperation operation) async {
     final aggregate = operation.aggregate;
+    final tag = _toTag(aggregate.uuid, operation.changes);
     try {
       if (debugConflicts) {
         _printDebug('---PUSH---');
@@ -872,6 +875,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         _printDebug('aggregate.pending.items: ${aggregate.getUncommittedChanges()}');
       }
       return StreamResult(
+        tag: tag,
         value: operation.changes,
       );
     } on WrongExpectedEventVersion {
@@ -883,6 +887,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       );
       operation.completer.completeError(e, stackTrace);
       return StreamResult(
+        tag: tag,
         value: operation.changes,
       );
     } finally {
@@ -894,6 +899,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Attempts to reconcile conflicts between concurrent modifications
   Future<StreamResult<Iterable<DomainEvent>>> _reconcile(_PushOperation operation) async {
     final aggregate = operation.aggregate;
+    final tag = _toTag(aggregate.uuid, operation.changes);
     if (debugConflicts) {
       _printDebug('---CONFLICT---');
       _printDebug('timestamp: ${DateTime.now().toIso8601String()}');
@@ -908,12 +914,15 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       _printDebug('aggregate.pending.items: ${aggregate.getUncommittedChanges()}');
     } // Attempt to automatic merge until maximum attempts
     try {
-      final events = await ThreeWayMerge(this).reconcile(
+      final events = await ThreeWayMerge(this, maxBackoffTime).reconcile(
         aggregate,
         operation.maxAttempts,
       );
       operation.completer.complete(events);
-      return StreamResult(value: events);
+      return StreamResult(
+        tag: tag,
+        value: events,
+      );
     } on ConflictNotReconcilable catch (e, stackTrace) {
       operation.completer.completeError(e, stackTrace);
     } catch (e, stackTrace) {
@@ -924,6 +933,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       operation.completer.completeError(e, stackTrace);
     }
     return StreamResult(
+      tag: tag,
       value: operation.changes,
     );
   }
@@ -1795,8 +1805,10 @@ class EntityObject {
 
 /// Class for implementing a strategy for merging concurrent modifications
 abstract class MergeStrategy {
-  MergeStrategy(this.repository);
+  MergeStrategy(this.repository, this.maxBackoffTime);
   Repository repository;
+
+  final Duration maxBackoffTime;
 
   Future<Iterable<DomainEvent>> merge(AggregateRoot aggregate);
   Future<Iterable<DomainEvent>> reconcile(AggregateRoot aggregate, int max) => _reconcileWithRetry(aggregate, max, 1);
@@ -1806,7 +1818,7 @@ abstract class MergeStrategy {
       // until default waitFor is reached
       await Future.delayed(
         Duration(
-          milliseconds: toNextTimeout(attempt, defaultWaitFor),
+          milliseconds: toNextTimeout(attempt, maxBackoffTime),
         ),
       );
 
@@ -1856,7 +1868,10 @@ abstract class MergeStrategy {
 
 /// Implements a three-way merge algorithm of concurrent modifications
 class ThreeWayMerge extends MergeStrategy {
-  ThreeWayMerge(Repository repository) : super(repository);
+  ThreeWayMerge(
+    Repository repository,
+    Duration maxBackoffTime,
+  ) : super(repository, maxBackoffTime);
 
   @override
   Future<Iterable<DomainEvent>> merge(AggregateRoot aggregate) async {

@@ -83,7 +83,7 @@ class StreamRequestQueue<T> {
   Stream<StreamRequest<T>> onTimeout() => _timeoutController.stream;
 
   /// Get stream of completed [StreamResult] .
-  Stream<StreamRequest<T>> onComplete() => _timeoutController.stream;
+  Stream<StreamResult<T>> onComplete() => _completeController.stream;
 
   /// Flag indicating that queue is [process]ing requests
   bool get isProcessing => isReady && !isIdle;
@@ -391,15 +391,15 @@ class StreamRequest<T> {
   StreamRequest({
     @required this.execute,
     String key,
+    this.tag,
     this.timeout,
-    this.message,
     this.fallback,
     this.onResult,
     this.fail = false,
   }) : _key = key;
 
   final bool fail;
-  final String message;
+  final Object tag;
   final Duration timeout;
   final Completer<T> onResult;
   final Future<T> Function() fallback;
@@ -415,9 +415,10 @@ class StreamRequest<T> {
 @Immutable()
 class StreamResult<T> {
   StreamResult({
+    this.tag,
+    bool stop,
     this.value,
     this.error,
-    bool stop,
     this.stackTrace,
   }) : _stop = stop;
 
@@ -425,6 +426,7 @@ class StreamResult<T> {
   static StreamResult<T> stop<T>() => StreamResult<T>(stop: true);
 
   final T value;
+  final Object tag;
   final bool _stop;
   final Object error;
   final StackTrace stackTrace;
