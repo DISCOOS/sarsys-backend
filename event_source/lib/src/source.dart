@@ -286,7 +286,7 @@ class EventStore {
 
   /// Catch up with stream from given number
   Future<int> _catchUp(
-    Repository repository, {
+    Repository repo, {
     EventNumber number,
     bool master = false,
   }) async {
@@ -320,14 +320,14 @@ class EventStore {
           // Group events by aggregate uuid
           final eventsPerAggregate = groupBy<SourceEvent, String>(
             result.events,
-            (event) => repository.toAggregateUuid(event),
+            (event) => repo.toAggregateUuid(event),
           );
 
           // Hydrate store with events
           eventsPerAggregate.forEach(
             (uuid, events) {
               final domainEvents = _applyAll(
-                repository,
+                repo,
                 uuid,
                 events,
               );
@@ -346,7 +346,20 @@ class EventStore {
       await stream.length;
       return count;
     } finally {
+      snapshotWhen(repo);
       resume();
+    }
+  }
+
+  /// Save a snapshot when locally
+  /// stored events exceed
+  /// [snapshots.threshold]
+  void snapshotWhen(Repository repo) {
+    if (snapshots?.threshold is num) {
+      final last = snapshots.last?.number?.value ?? EventNumber.first.value;
+      if (repo.number.value - last >= snapshots.threshold) {
+        repo.save();
+      }
     }
   }
 
@@ -597,24 +610,24 @@ class EventStore {
     _controllers[repository.runtimeType] = controller;
   }
 
-  /// Subscribe given [repository] to receive changes from [canonicalStream]
+  /// Subscribe given [repo] to receive changes from [canonicalStream]
   ///
   /// Throws an [InvalidOperation] if [Repository.store] is not this [EventStore]
   /// Throws an [InvalidOperation] if [Repository] is already subscribing to events
   Future subscribe(
-    Repository repository, {
+    Repository repo, {
     Duration maxBackoffTime = const Duration(seconds: 10),
   }) async {
     // Sanity checks
     _assertState();
-    _assertRepository(repository);
+    _assertRepository(repo);
 
     // Dispose current subscription if exists
-    await _controllers[repository.runtimeType]?.cancel();
+    await _controllers[repo.runtimeType]?.cancel();
 
     // Get existing or create new
     final controller = await _subscribe(
-      _controllers[repository.runtimeType] ??
+      _controllers[repo.runtimeType] ??
           SubscriptionController(
             logger: logger,
             onDone: _onSubscriptionDone,
@@ -622,10 +635,10 @@ class EventStore {
             onError: _onSubscriptionError,
             maxBackoffTime: maxBackoffTime,
           ),
-      repository,
+      repo,
       competing: false,
     );
-    _controllers[repository.runtimeType] = controller;
+    _controllers[repo.runtimeType] = controller;
   }
 
   Future<SubscriptionController> _subscribe(
@@ -741,6 +754,8 @@ class EventStore {
         );
       } catch (e, stackTrace) {
         _onFatal(event, stream, e, stackTrace);
+      } finally {
+        snapshotWhen(repo);
       }
     }
   }

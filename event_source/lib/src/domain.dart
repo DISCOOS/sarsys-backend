@@ -836,12 +836,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     final message = _toTag(uuid, changes);
     final operation = _PushOperation(aggregate, changes, maxAttempts);
     _pushQueue.add(StreamRequest<Iterable<DomainEvent>>(
-      execute: () async {
-        final result = await _push(operation);
-        // Check if snapshot should be saved
-        _snapshotWhen(store.snapshots?.threshold);
-        return result;
-      },
+      execute: () => _push(operation),
       fail: true,
       tag: message,
       timeout: timeout,
@@ -915,8 +910,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         value: operation.changes,
       );
     } finally {
-      // Check if snapshot should be saved
-      _snapshotWhen(store.snapshots?.threshold);
+      store.snapshotWhen(this);
     }
   }
 
@@ -1135,15 +1129,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         });
       });
       logger.info('Reset to snapshot $_suuid@${snapshot.number}');
-    }
-  }
-
-  void _snapshotWhen(int threshold) {
-    if (threshold is num && store.snapshots != null) {
-      final last = store.snapshots.last?.number?.value ?? EventNumber.first.value;
-      if (number.value - last >= threshold) {
-        save();
-      }
     }
   }
 
