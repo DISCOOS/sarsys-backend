@@ -373,7 +373,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   Repository({
     @required this.store,
     @required Map<Type, ProcessCallback> processors,
-    this.maxPushPressure,
+    this.maxPushPressure = 100,
     this.uuidFieldName = 'uuid',
     int maxBackoffTimeSeconds = 10,
   })  : _processors = Map.unmodifiable(processors.map(
@@ -668,7 +668,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Throws an [RepositoryMaxPressureExceeded] failure if [maxPushPressure] was
   /// exceeded by this call.
   ///
-  /// Throws an [StreamRequestTimeout] failure if [maxPushPressure] was
+  /// Throws an [StreamRequestTimeout] failure if [timeout] was
   /// exceeded by this call.
   ///
   /// Throws an [SocketException] failure if calls on [EventStore.connection] fails.
@@ -773,7 +773,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Throws an [RepositoryMaxPressureExceeded] failure if [maxPushPressure] was
   /// exceeded by this call.
   ///
-  /// Throws an [StreamRequestTimeout] failure if [maxPushPressure] was
+  /// Throws an [StreamRequestTimeout] failure if [timeout] was
   /// exceeded by this call.
   ///
   /// Throws an [SocketException] failure if calls on [EventStore.connection] fails.
@@ -854,7 +854,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   String _toTag(String uuid, Iterable<DomainEvent> changes) => '${typeOf<T>()} ${uuid} with ${changes.length} changes';
 
-  /// Check if [push] is possible
+  /// Check if [push] or [execute] is possible
   bool get isMaximumPushPressure => maxPushPressure != null && pending >= maxPushPressure;
 
   T _assertExists(String uuid) {
