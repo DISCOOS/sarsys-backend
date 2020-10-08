@@ -363,10 +363,12 @@ class EventStore {
     }
   }
 
-  void _updateAll(String uuid, Iterable<SourceEvent> events) {
+  Iterable<SourceEvent> _updateAll(String uuid, Iterable<SourceEvent> events) {
+    final stream = toInstanceStream(uuid);
+    final offset = current(stream: stream);
+    final unseen = events.where((e) => e.number > offset).toList();
     if (useInstanceStreams) {
-      final stream = toInstanceStream(uuid);
-      final offset = current(stream: stream);
+      var idx = 0;
       // Event numbers in instance streams SHOULD ALWAYS
       // be sorted in an ordered monotone incrementing
       // manner. This check ensures that if and only if
@@ -375,16 +377,17 @@ class EventStore {
       // next states can be calculated safely without any
       // risk of applying patches out-of-order, removing the
       // need to store these states in each event.
-      events.fold(
+      unseen.fold(
         offset,
-        (previous, next) => _assertMonotone(stream, previous, next),
+        (previous, next) => _assertMonotone(stream, idx++, previous, next),
       );
     }
     _store.update(
       uuid,
-      (current) => current..addAll(events),
-      ifAbsent: () => LinkedHashSet.of(events),
+      (current) => current..addAll(unseen),
+      ifAbsent: () => LinkedHashSet.of(unseen),
     );
+    return unseen;
   }
 
   Iterable<DomainEvent> _applyAll(
@@ -392,11 +395,11 @@ class EventStore {
     String uuid,
     List<SourceEvent> events,
   ) {
-    _updateAll(uuid, events);
+    final unseen = _updateAll(uuid, events);
     final exists = repository.contains(uuid);
     final aggregate = repository.get(uuid);
 
-    final domainEvents = events.map(
+    final domainEvents = unseen.map(
       repository.toDomainEvent,
     );
     if (exists) {
@@ -406,7 +409,7 @@ class EventStore {
     aggregate.commit();
 
     // Catch up with last event in stream
-    _setEventNumber(aggregate, events);
+    _setEventNumber(aggregate, unseen);
 
     return domainEvents;
   }
@@ -426,7 +429,7 @@ class EventStore {
 
     // Do not save events during replay
     if (bus.isReplaying == false && events.isNotEmpty) {
-      _updateAll(
+      final unseen = _updateAll(
         aggregate.uuid,
         _toSourceEvents(
           events: events,
@@ -435,7 +438,7 @@ class EventStore {
         ),
       );
 
-      _setEventNumber(aggregate, changes);
+      _setEventNumber(aggregate, unseen);
 
       // Publish locally created events.
       // Handlers can determine events with
@@ -446,11 +449,8 @@ class EventStore {
     return events;
   }
 
-  /// Set event number for given [aggregate]
-  ///
-  /// If source [events] are given, event
-  /// numbers are validated to be monotone
-  /// increasing
+  /// Set event number for
+  /// given [aggregate]
   ///
   void _setEventNumber(
     AggregateRoot aggregate,
@@ -823,7 +823,7 @@ class EventStore {
     // This ensures that the event added to an aggregate during
     // construction is overwritten with the remote actual
     // received here.
-    _updateAll(uuid, [event]);
+    final unseen = _updateAll(uuid, [event]);
 
     // Catch up with stream
     final aggregate = repository.get(uuid);
@@ -838,7 +838,7 @@ class EventStore {
       );
     }
 
-    _setEventNumber(aggregate, [event]);
+    _setEventNumber(aggregate, unseen);
 
     // Publish remotely created events.
     // Handlers can determine events with
@@ -912,9 +912,9 @@ class EventStore {
     }
   }
 
-  EventNumber _assertMonotone(String stream, EventNumber previous, SourceEvent next) {
+  EventNumber _assertMonotone(String stream, int index, EventNumber previous, SourceEvent next) {
     if (previous.value > next.number.value) {
-      final message = 'EventNumber not monotone increasing, current: $previous, '
+      final message = 'EventNumber of event $index not monotone increasing, current: $previous, '
           'next: ${next.number} in event ${next.type} with uuid: ${next.uuid}';
       final error = InvalidOperation('$message, debug: ${toDebugString(stream)}');
       logger.severe(error.message, error, StackTrace.current);
