@@ -67,8 +67,8 @@ class OperationTrackingController extends ResourceController {
         limit,
         page.map((uuid) => trackings.get(uuid)),
       );
-    } on RepositoryMaxPressureExceeded {
-      return tooManyRequests();
+    } on RepositoryMaxPressureExceeded catch (e) {
+      return tooManyRequests(body: e.message);
     } on StreamRequestTimeout catch (e) {
       return serviceUnavailable(
         body: "Repository command queue was unable to process ${e.request.tag}",

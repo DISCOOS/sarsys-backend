@@ -131,8 +131,8 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       return Response.conflict(body: e.message);
     } on SchemaException catch (e) {
       return Response.badRequest(body: e.message);
-    } on RepositoryMaxPressureExceeded {
-      return tooManyRequests();
+    } on RepositoryMaxPressureExceeded catch (e) {
+      return tooManyRequests(body: e.message);
     } on StreamRequestTimeout catch (e) {
       return serviceUnavailable(
         body: "Repository command queue was unable to process ${e.request.tag}",
@@ -217,8 +217,8 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       return Response.notFound(body: e.message);
     } on SchemaException catch (e) {
       return Response.badRequest(body: e.message);
-    } on RepositoryMaxPressureExceeded {
-      return tooManyRequests();
+    } on RepositoryMaxPressureExceeded catch (e) {
+      return tooManyRequests(body: e.message);
     } on StreamRequestTimeout catch (e) {
       return serviceUnavailable(
         body: "Repository command queue was unable to process ${e.request.tag}",

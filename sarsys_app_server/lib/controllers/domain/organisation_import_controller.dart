@@ -76,8 +76,8 @@ class OrganisationImportController
       );
     } on SchemaException catch (e) {
       return Response.badRequest(body: e.message);
-    } on RepositoryMaxPressureExceeded {
-      return tooManyRequests();
+    } on RepositoryMaxPressureExceeded catch (e) {
+      return tooManyRequests(body: e.message);
     } on StreamRequestTimeout catch (e) {
       return serviceUnavailable(
         body: "Repository command queue was unable to process ${e.request.tag}",

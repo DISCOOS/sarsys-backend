@@ -364,7 +364,7 @@ class StreamRequestQueue<T> {
       clear();
       stop();
       _isDisposed = true;
-      if (_requests.isNotEmpty) {
+      if (_requests.isNotEmpty && _queue != null) {
         await _queue.cancel(immediate: true);
       }
       _queue = null;

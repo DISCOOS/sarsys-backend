@@ -688,7 +688,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       throw UUIDIsNull('Field [${command.uuidFieldName}] is null in $command');
     } else if (isMaximumPushPressure) {
       throw RepositoryMaxPressureExceeded(
-        '$runtimeType Push exceeded maximum: $maxPushPressure',
+        '$runtimeType: Push exceeded maximum: $maxPushPressure',
+        maxPushPressure,
       );
     }
 
@@ -788,7 +789,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     var result = <DomainEvent>[];
     if (isMaximumPushPressure) {
       throw RepositoryMaxPressureExceeded(
-        '$runtimeType Push exceeded maximum: $maxPushPressure',
+        '$runtimeType: Push exceeded maximum: $maxPushPressure',
+        maxPushPressure,
       );
     } else if (aggregate.isChanged) {
       result = await _schedulePush(

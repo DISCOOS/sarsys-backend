@@ -109,8 +109,8 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       return Response.badRequest(body: "Field [uuid] in $aggregateType is required");
     } on SchemaException catch (e) {
       return Response.badRequest(body: e.message);
-    } on RepositoryMaxPressureExceeded {
-      return tooManyRequests();
+    } on RepositoryMaxPressureExceeded catch (e) {
+      return tooManyRequests(body: e.message);
     } on StreamRequestTimeout catch (e) {
       return serviceUnavailable(
         body: "Repository command queue was unable to process ${e.request.tag}",
@@ -166,8 +166,8 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       );
     } on SchemaException catch (e) {
       return Response.badRequest(body: e.message);
-    } on RepositoryMaxPressureExceeded {
-      return tooManyRequests();
+    } on RepositoryMaxPressureExceeded catch (e) {
+      return tooManyRequests(body: e.message);
     } on StreamRequestTimeout catch (e) {
       return serviceUnavailable(
         body: "Repository command queue was unable to process ${e.request.tag}",
@@ -204,8 +204,8 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       return Response.badRequest(body: "Field [uuid] in $aggregateType is required");
     } on SchemaException catch (e) {
       return Response.badRequest(body: e.message);
-    } on RepositoryMaxPressureExceeded {
-      return tooManyRequests();
+    } on RepositoryMaxPressureExceeded catch (e) {
+      return tooManyRequests(body: e.message);
     } on StreamRequestTimeout catch (e) {
       return serviceUnavailable(
         body: "Repository command queue was unable to process ${e.request.tag}",
