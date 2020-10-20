@@ -106,10 +106,10 @@ class StreamRequestQueue<T> {
     return _requests.isEmpty ? false : _requests.first.key == key;
   }
 
-  /// Check if queue is executing given [request]
-  bool isCurrent(StreamRequest<T> request) {
+  /// Check if queue is executing [StreamRequest] with given [key]
+  bool isCurrent(String key) {
     _checkState();
-    return _current == request;
+    return _current?.key == key;
   }
 
   /// Schedule singleton [request] for execution.
@@ -147,12 +147,9 @@ class StreamRequestQueue<T> {
     if (_current?.key == key) {
       return false;
     }
-    final found = _requests.where((element) => element.key == key)
-      ..toList()
-      ..forEach(_requests.remove);
-
+    final found = _requests.where((element) => element.key == key).toList();
+    found.forEach(_requests.remove);
     _cancelled += found.length;
-
     return found.isNotEmpty;
   }
 
@@ -161,15 +158,14 @@ class StreamRequestQueue<T> {
   /// Returns a list of [StreamRequest]s.
   List<StreamRequest<T>> clear() {
     _checkState();
-    return _requests
-      ..toList()
-      ..clear();
+    final removed = _requests.toList();
+    _cancelled += removed.length;
+    _requests.clear();
+    return removed;
   }
 
   /// Process scheduled requests
   Future<void> _process() async {
-    StreamResult<T> result;
-
     if (isIdle) {
       try {
         _isIdle = false;
@@ -181,25 +177,18 @@ class StreamRequestQueue<T> {
                 _current = request;
                 if (await _shouldExecute(request)) {
                   if (isProcessing && contains(request.key)) {
-                    result = await _execute(request);
-                    _last = result;
-                    if (result.isStop) {
-                      stop();
-                    }
+                    _last = await _execute(request);
                   }
                 }
               }
-              if (isReady) {
-                await _pop();
-                _requests.remove(request);
-              }
+              _current = null;
             }
           }
         }
       } catch (e, stackTrace) {
         _handleError(e, stackTrace);
       } finally {
-        stop();
+        await stop();
       }
     }
   }
@@ -247,18 +236,25 @@ class StreamRequestQueue<T> {
   Future<StreamResult<T>> _execute(StreamRequest<T> request) async {
     try {
       final result = await request.execute();
+      _requests.remove(request);
       _completeController.add(result);
-      if (result.isOK) {
-        request.onResult?.complete(
-          result.value,
-        );
-      } else if (result.isError) {
+      if (result.isError) {
         _failed++;
         _handleError(
           result.error,
           result.stackTrace,
           onResult: request.onResult,
         );
+      } else {
+        request.onResult?.complete(
+          result.value,
+        );
+      }
+      if (result.isStop) {
+        await stop();
+      }
+      if (isReady) {
+        await _pop();
       }
       return result;
     } catch (error, stackTrace) {
@@ -421,7 +417,7 @@ class StreamResult<T> {
     this.value,
     this.error,
     this.stackTrace,
-  }) : _stop = stop;
+  }) : _stop = stop ?? false;
 
   static StreamResult<T> none<T>() => StreamResult<T>();
   static StreamResult<T> stop<T>() => StreamResult<T>(stop: true);
@@ -432,12 +428,9 @@ class StreamResult<T> {
   final Object error;
   final StackTrace stackTrace;
 
-  bool get isOK => value != null;
+  bool get isStop => _stop;
+  bool get isComplete => !isStop;
   bool get isError => error != null;
-
-  bool get isNone => !isComplete;
-  bool get isStop => _stop == true;
-  bool get isComplete => !isStop && (isOK || isError);
 }
 
 class StreamRequestTimeout implements Exception {
