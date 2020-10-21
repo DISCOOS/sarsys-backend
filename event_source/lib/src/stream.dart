@@ -173,12 +173,10 @@ class StreamRequestQueue<T> {
           if (isProcessing) {
             final request = await _next();
             if (isProcessing) {
-              if (contains(request.key)) {
-                _current = request;
-                if (await _shouldExecute(request)) {
-                  if (isProcessing && contains(request.key)) {
-                    _last = await _execute(request);
-                  }
+              _current = request;
+              if (await _shouldExecute(request)) {
+                if (isProcessing && contains(request.key)) {
+                  _last = await _execute(request);
                 }
               }
               _current = null;
@@ -197,20 +195,24 @@ class StreamRequestQueue<T> {
 
   Future<StreamRequest> _next() async {
     var next = await _queue.peek;
-    while (next.isTimedOut) {
-      _timeoutController.add(next);
-      _requests.remove(next);
-      _timeouts++;
-      if (next.fail) {
-        _handleError(
-          StreamRequestTimeout(this, next),
-          StackTrace.current,
-        );
-      } else if (next.fallback != null) {
-        next.onResult?.complete(
-          next.fallback(),
-        );
+    while (next.isTimedOut || !contains(next.key)) {
+      if (contains(next.key)) {
+        _timeoutController.add(next);
+        _requests.remove(next);
+        _timeouts++;
+        if (next.fail) {
+          _handleError(
+            StreamRequestTimeout(this, next),
+            StackTrace.current,
+          );
+        } else if (next.fallback != null) {
+          next.onResult?.complete(
+            next.fallback(),
+          );
+        }
       }
+      // Consume and peek next
+      await _queue.next;
       next = await _queue.peek;
     }
     return next;
