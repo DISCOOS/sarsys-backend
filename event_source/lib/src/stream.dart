@@ -238,25 +238,26 @@ class StreamRequestQueue<T> {
   Future<StreamResult<T>> _execute(StreamRequest<T> request) async {
     try {
       final result = await request.execute();
-      _requests.remove(request);
-      _completeController.add(result);
-      if (result.isError) {
-        _failed++;
-        _handleError(
-          result.error,
-          result.stackTrace,
-          onResult: request.onResult,
-        );
-      } else {
-        request.onResult?.complete(
-          result.value,
-        );
-      }
       if (result.isStop) {
         await stop();
-      }
-      if (isReady) {
-        await _pop();
+      } else {
+        _requests.remove(request);
+        _completeController.add(result);
+        if (result.isError) {
+          _failed++;
+          _handleError(
+            result.error,
+            result.stackTrace,
+            onResult: request.onResult,
+          );
+        } else {
+          request.onResult?.complete(
+            result.value,
+          );
+        }
+        if (isReady) {
+          await _pop();
+        }
       }
       return result;
     } catch (error, stackTrace) {
