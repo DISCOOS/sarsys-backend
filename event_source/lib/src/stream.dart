@@ -406,10 +406,17 @@ class StreamRequest<T> {
   final DateTime created = DateTime.now();
   final Future<StreamResult<T>> Function() execute;
 
-  String get key => _key ?? '$hashCode';
-  final String _key;
-
   bool get isTimedOut => timeout != null && DateTime.now().difference(created) > timeout;
+
+  Object get key => _key ?? '${super.hashCode}';
+  Object _key;
+
+  @override
+  int get hashCode => key.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is StreamRequest && runtimeType == other.runtimeType && key == other.key;
 }
 
 @Immutable()
