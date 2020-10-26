@@ -173,13 +173,17 @@ class StreamRequestQueue<T> {
           if (isProcessing) {
             final request = await _next();
             if (isProcessing) {
-              _current = request;
-              if (await _shouldExecute(request)) {
-                if (isProcessing && contains(request.key)) {
-                  _last = await _execute(request);
+              if (contains(request.key)) {
+                _current = request;
+                if (await _shouldExecute(request)) {
+                  if (isProcessing && contains(request.key)) {
+                    _last = await _execute(request);
+                  }
                 }
+                _current = null;
+              } else {
+                await _queue.next;
               }
-              _current = null;
             }
           }
         }
@@ -190,8 +194,6 @@ class StreamRequestQueue<T> {
       }
     }
   }
-
-  Future<StreamRequest> _pop() => _queue.next;
 
   Future<StreamRequest> _next() async {
     var next = await _queue.peek;
@@ -243,6 +245,9 @@ class StreamRequestQueue<T> {
         await stop();
       } else {
         _requests.remove(request);
+        if (_queue != null) {
+          await _queue.next;
+        }
         _completeController.add(result);
         if (result.isError) {
           _failed++;
@@ -255,9 +260,6 @@ class StreamRequestQueue<T> {
           request.onResult?.complete(
             result.value,
           );
-        }
-        if (isReady) {
-          await _pop();
         }
       }
       return result;
