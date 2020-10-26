@@ -204,6 +204,7 @@ class StreamRequestQueue<T> {
           _handleError(
             StreamRequestTimeout(this, next),
             StackTrace.current,
+            onResult: next.onResult,
           );
         } else if (next.fallback != null) {
           next.onResult?.complete(
