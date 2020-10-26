@@ -2,10 +2,7 @@ imageTag: release-5.0.8
 clusterSize: 3
 nodeSelector: 
  doks.digitalocean.com/node-pool: k8s-3
-persistence:
-  enabled: true
-  storageClass: do-block-storage-retain
-  size: 50Gi
+
 resources:
   limits:
     cpu: 1600m
@@ -14,7 +11,37 @@ resources:
     cpu: 800m
     memory: 512Mi
 
+##
+## Configure a pod disruption budget for the Event Store StatefulSet.
+## ref: https://kubernetes.io/docs/tasks/run-application/configure-pdb/
+podDisruptionBudget:
+  ##
+  ## Enable a pod disruption budget.
+  enabled: true
+  ##
+  ## Number of pods that must still be available after eviction.
+  minAvailable: 2
+
+## Persist data to a persistent volume
+persistence:
+  enabled: true
+  storageClass: do-block-storage-retain
+  size: 50Gi
+
+##
+## Schedule a scavenging CronJob
+## ref: https://eventstore.org/docs/server/scavenging/
+scavenging:
+  enabled: true
+  image: lachlanevenson/k8s-kubectl
+  imageTag: latest
+  # At 02:00 every day
+  schedule: 0 2 * * *
+
 eventStoreConfig:
+  # Ensure caching is enabled
+  EVENTSTORE_DISABLE_HTTP_CACHING: false
+
   # Use recommended cloud settings,
   # see https://eventstore.com/docs/server/ports-and-networking/index.html#heartbeat-timeouts
   INT_TCP_HEARTBEAT_TIMEOUT: 1000

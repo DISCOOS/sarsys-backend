@@ -409,7 +409,7 @@ class StreamRequest<T> {
   bool get isTimedOut => timeout != null && DateTime.now().difference(created) > timeout;
 
   Object get key => _key ?? '${super.hashCode}';
-  Object _key;
+  final Object _key;
 
   @override
   int get hashCode => key.hashCode;
