@@ -184,6 +184,7 @@ class EventSourceHarness {
       }
       _logger.info('---tearDown---ok');
       await Hive.deleteFromDisk();
+      hiveDir.deleteSync();
       return _printer.cancel();
     });
 

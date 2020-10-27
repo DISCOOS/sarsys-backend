@@ -345,6 +345,61 @@ class RepositoryManager {
   }
 }
 
+/// Class for transactional change handling
+class Transaction<S extends Command, T extends AggregateRoot> {
+  Transaction(this.uuid, this.repository);
+
+  /// Get [AggregateRoot.uuid] this [Transaction] applies to
+  final String uuid;
+
+  /// Get [Repository] which this [Transaction] applies to
+  final Repository<S, T> repository;
+
+  /// Check if [aggregate] with [uuid] exists in [repository]
+  bool get exists => repository.contains(uuid);
+
+  /// Get [aggregate] of type [T] from [repository].
+  /// Returns null if not exist
+  T get aggregate => repository.get(uuid, createNew: false);
+
+  /// Execute command on given [aggregate]
+  /// root. Changes are not pushed to
+  /// [Repository.store] until [push] is
+  /// called. See also [Repository.push].
+  FutureOr<Iterable<DomainEvent>> execute(S command) async {
+    return repository.execute(command);
+  }
+
+  /// Push aggregate changes to remote
+  /// storage. Changes are committed when
+  /// on successful push. On failure,
+  /// changes are rolled back. See also
+  /// [Repository.push].
+  ///
+  /// If aggregate does not [exists] an
+  /// [AggregateNotFound] exception is  thrown.
+  ///
+  Future<Iterable<DomainEvent>> push({
+    int maxAttempts = 10,
+    Duration timeout = const Duration(seconds: 60),
+  }) {
+    if (!exists) {
+      throw AggregateNotFound('Aggregate ${typeOf<T>()} not found');
+    }
+    return repository.push(aggregate);
+  }
+
+  /// Rollback all pending changes
+  /// in aggregate.
+  Iterable<DomainEvent> rollback() {
+    try {
+      return exists ? repository.rollback(repository.get(uuid)) : <DomainEvent>[];
+    } finally {
+      repository._transactions.remove(uuid);
+    }
+  }
+}
+
 /// [Message] type name to [DomainEvent] processor method
 typedef ProcessCallback = DomainEvent Function(Message change);
 
@@ -456,17 +511,24 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     _subscriptions
       ..add(_pushQueue.onIdle().listen((event) {
         logger.info('Push queue idle: ${event?.tag}');
-        store.resume();
       }))
       ..add(_pushQueue.onTimeout().listen((event) {
         logger.info(
           'Push command timeout: ${event.tag} (queue pressure: $pending)',
         );
+        store.resume();
+      }))
+      ..add(_pushQueue.onFailure().listen((event) {
+        logger.info(
+          'Push command failed: ${event.tag} (queue pressure: $pending)',
+        );
+        store.resume();
       }))
       ..add(_pushQueue.onComplete().listen((event) {
         logger.info(
           'Push command complete: ${event.tag} (queue pressure: $pending)',
         );
+        store.resume();
       }));
     _pushQueue.catchError((e, stackTrace) {
       logger.severe(
@@ -651,6 +713,34 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
               master: master,
             );
 
+  final Map<String, Transaction> _transactions = {};
+
+  /// Get a [Transaction] for
+  /// given [AggregateRoot.uuid].
+  ///
+  /// If no [Transaction] exists,
+  /// one will be created. This
+  /// transaction will not end
+  /// until [Transaction.push]
+  /// or [Transaction.rollback] is called.
+  ///
+  /// If an [AggregateRoot] with
+  /// given [uuid] does not [exists],
+  /// it will not be created until
+  /// [get] is called directly, or
+  /// by execution of an [Command]
+  /// of type [S] with [Action.create].
+  ///
+  Transaction<S, T> getTransaction(String uuid) => _transactions.putIfAbsent(
+        uuid,
+        () => Transaction<S, T>(uuid, this),
+      );
+
+  /// Check if modifications of [AggregateRoot]
+  /// with given [uuid] is wrapped in an
+  /// [Transaction]
+  bool inTransaction(String uuid) => _transactions.containsKey(uuid);
+
   /// Execute command on given aggregate root.
   ///
   /// Throws an [InvalidOperation] exception if [prepare] on [command] fails.
@@ -693,44 +783,14 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       );
     }
 
-    final exists = contains(command.uuid);
-    if (command is EntityCommand) {
-      final next = _asEntityData(command);
-      aggregate = get(command.uuid);
-      if (!exists) {
-        changes.addAll(aggregate.getUncommittedChanges());
-      }
-      changes.add(aggregate.patch(
-        Map<String, dynamic>.from(next['data']),
-        index: next['index'] as int,
-        emits: command.emits,
-        timestamp: command.created,
-        previous: Map<String, dynamic>.from(next['previous']),
-      ));
-    } else {
-      final data = _asAggregateData(command);
-      switch (command.action) {
-        case Action.create:
-          aggregate = get(command.uuid, data: data);
-          changes.addAll(aggregate.getUncommittedChanges());
-          break;
-        case Action.update:
-          aggregate = get(command.uuid);
-          changes.add(aggregate.patch(
-            data,
-            emits: command.emits,
-            timestamp: command.created,
-          ));
-          break;
-        case Action.delete:
-          aggregate = get(command.uuid);
-          changes.add(aggregate.delete(
-            timestamp: command.created,
-          ));
-          break;
-      }
-    }
+    // Execute command on given aggregate
+    aggregate = _execute(aggregate, command, changes);
     if (aggregate.isChanged) {
+      // If in transaction return
+      // changes without pushing them
+      if (_transactions.containsKey(command.uuid)) {
+        return changes;
+      }
       try {
         return await _schedulePush(
           aggregate.uuid,
@@ -744,6 +804,66 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       }
     }
     return <DomainEvent>[];
+  }
+
+  T _execute(aggregate, command, List<DomainEvent> changes) {
+    aggregate = command is EntityCommand
+        ? _applyEntityData(
+            command,
+            changes,
+          )
+        : _applyAggregateData(
+            command,
+            changes,
+          );
+    return aggregate;
+  }
+
+  T _applyAggregateData(S command, List<DomainEvent> changes) {
+    T aggregate;
+    final remaining = [];
+    final list = _asAggregateData(command);
+    switch (command.action) {
+      case Action.create:
+        aggregate = get(command.uuid, data: list.first);
+        changes.addAll(aggregate.getUncommittedChanges());
+        remaining.addAll(list.skip(1));
+        break;
+      case Action.update:
+        aggregate = get(command.uuid);
+        remaining.addAll(list);
+        break;
+      case Action.delete:
+        aggregate = get(command.uuid);
+        changes.add(aggregate.delete(
+          timestamp: command.created,
+        ));
+        return aggregate;
+    }
+    for (var data in remaining) {
+      changes.add(aggregate.patch(
+        data,
+        emits: command.emits,
+        timestamp: command.created,
+      ));
+    }
+    return aggregate;
+  }
+
+  T _applyEntityData(EntityCommand command, List<DomainEvent> changes) {
+    final next = _asEntityData(command);
+    final aggregate = get(command.uuid);
+    if (!contains(command.uuid)) {
+      changes.addAll(aggregate.getUncommittedChanges());
+    }
+    changes.add(aggregate.patch(
+      Map<String, dynamic>.from(next['data']),
+      index: next['index'] as int,
+      emits: command.emits,
+      timestamp: command.created,
+      previous: Map<String, dynamic>.from(next['previous']),
+    ));
+    return aggregate;
   }
 
   /// Check if this [Repository] contains any aggregates with [AggregateRoot.isChanged]
@@ -786,21 +906,30 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     int maxAttempts = 10,
     Duration timeout = const Duration(seconds: 60),
   }) async {
-    var result = <DomainEvent>[];
-    if (isMaximumPushPressure) {
-      throw RepositoryMaxPressureExceeded(
-        '$runtimeType: Push exceeded maximum: $maxPushPressure',
-        maxPushPressure,
-      );
-    } else if (aggregate.isChanged) {
-      result = await _schedulePush(
-        aggregate.uuid,
-        aggregate.getUncommittedChanges(),
-        timeout,
-        maxAttempts,
-      );
+    try {
+      var result = <DomainEvent>[];
+      if (isMaximumPushPressure) {
+        throw RepositoryMaxPressureExceeded(
+          '$runtimeType: Push exceeded maximum: $maxPushPressure',
+          maxPushPressure,
+        );
+      } else if (aggregate.isChanged) {
+        result = await _schedulePush(
+          aggregate.uuid,
+          aggregate.getUncommittedChanges(),
+          timeout,
+          maxAttempts,
+        );
+      }
+      return result;
+    } catch (e) {
+      if (_transactions.containsKey(aggregate.uuid)) {
+        rollback(aggregate);
+      }
+      rethrow;
+    } finally {
+      _transactions.remove(aggregate.uuid);
     }
-    return result;
   }
 
   /// Get number of pending [push]
@@ -831,9 +960,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     Duration timeout,
     int maxAttempts,
   ) {
-    if (_pushQueue.isEmpty) {
-      store.pause();
-    }
+    // Increment
+    store.pause();
     final aggregate = _assertExists(uuid);
     final message = _toTag(uuid, changes);
     final operation = _PushOperation(aggregate, changes, maxAttempts);
@@ -963,7 +1091,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         (aggregate) => rollback,
       );
 
-  /// Rollback all pending changes in aggregate
+  /// Rollback all pending changes
+  /// in [aggregate]. Any [Transaction]
+  /// on given [aggregate] will end.
   Iterable<DomainEvent> rollback(T aggregate) {
     final events = aggregate.getUncommittedChanges();
     if (aggregate.isNew) {
@@ -974,6 +1104,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         store.get(aggregate.uuid),
       );
     }
+    _transactions.remove(aggregate.uuid);
     return events;
   }
 
@@ -1012,7 +1143,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
             limit: limit,
           );
 
-  Map<String, dynamic> _asAggregateData(S command) {
+  List<Map<String, dynamic>> _asAggregateData(S command) {
     switch (command.action) {
       case Action.create:
         if (_aggregates.containsKey(command.uuid)) {
@@ -1030,7 +1161,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         }
         break;
     }
-    return command.data;
+    return [command.data];
   }
 
   Map<String, dynamic> _asEntityData(EntityCommand command) {

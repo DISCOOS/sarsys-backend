@@ -20,6 +20,9 @@ class StreamRequestQueue<T> {
   /// Stream of [StreamRequest] timeouts
   final StreamController<StreamRequest<T>> _timeoutController = StreamController.broadcast();
 
+  /// Stream of [StreamRequest] errors
+  final StreamController<StreamRequest<T>> _failureController = StreamController.broadcast();
+
   /// Stream of completed [StreamResult]
   final StreamController<StreamResult<T>> _completeController = StreamController.broadcast();
 
@@ -81,6 +84,9 @@ class StreamRequestQueue<T> {
 
   /// Get stream of [StreamRequest] timeouts.
   Stream<StreamRequest<T>> onTimeout() => _timeoutController.stream;
+
+  /// Get stream of failed [StreamRequest] .
+  Stream<StreamRequest<T>> onFailure() => _failureController.stream;
 
   /// Get stream of completed [StreamResult] .
   Stream<StreamResult<T>> onComplete() => _completeController.stream;
@@ -206,7 +212,7 @@ class StreamRequestQueue<T> {
           _handleError(
             StreamRequestTimeout(this, next),
             StackTrace.current,
-            onResult: next.onResult,
+            request: next,
           );
         } else if (next.onResult?.isCompleted == false) {
           next.onResult?.complete(
@@ -260,7 +266,7 @@ class StreamRequestQueue<T> {
           _handleError(
             result.error,
             result.stackTrace,
-            onResult: request.onResult,
+            request: request,
           );
         } else {
           request.onResult?.complete(
@@ -274,7 +280,7 @@ class StreamRequestQueue<T> {
       _handleError(
         error,
         stackTrace,
-        onResult: request.onResult,
+        request: request,
       );
       return StreamResult(
         value: await _onFallback(request),
@@ -313,7 +319,7 @@ class StreamRequestQueue<T> {
   void _handleError(
     Object error,
     StackTrace stackTrace, {
-    Completer<T> onResult,
+    StreamRequest<T> request,
   }) {
     if (_onError != null) {
       final shouldStop = _onError(
@@ -324,11 +330,14 @@ class StreamRequestQueue<T> {
         stop();
       }
     }
-    if (onResult?.isCompleted == false) {
-      onResult.completeError(
-        error,
-        stackTrace,
-      );
+    if (request != null) {
+      if (request.onResult?.isCompleted == false) {
+        request.onResult.completeError(
+          error,
+          stackTrace,
+        );
+      }
+      _failureController.add(request);
     }
   }
 
@@ -383,6 +392,9 @@ class StreamRequestQueue<T> {
       }
       if (_timeoutController.hasListener) {
         await _timeoutController.close();
+      }
+      if (_failureController.hasListener) {
+        await _failureController.close();
       }
       if (_completeController.hasListener) {
         await _completeController.close();

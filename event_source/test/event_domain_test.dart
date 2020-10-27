@@ -19,7 +19,7 @@ Future main() async {
   final harness = EventSourceHarness()
     ..withTenant()
     ..withPrefix()
-    ..withLogger()
+    ..withLogger(debug: false)
     ..withSnapshot()
     ..withRepository<Foo>(
       (manager, store, instance) => FooRepository(store, instance),
@@ -122,7 +122,7 @@ Future main() async {
     expect(foo.isNew, equals(true), reason: "Foo should be flagged as 'New'");
     expect(foo.isChanged, equals(true), reason: "Foo should be flagged as 'Changed'");
     expect(foo.isDeleted, equals(false), reason: "Foo should not be flagged as 'Deleted'");
-    expect(stream.toEvents().isEmpty, equals(true), reason: 'Events should not be commited yet');
+    expect(stream.toEvents().isEmpty, equals(true), reason: 'Events should not be committed yet');
 
     // Assert patch operation
     foo.patch({'property': 'patched'}, emits: FooUpdated);
@@ -150,23 +150,23 @@ Future main() async {
 
   test('Repository should update field createdBy after create and push', () async {
     // Arrange
-    final repository = harness.get<FooRepository>();
-    await repository.readyAsync();
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
 
     // Act
     final uuid = Uuid().v4();
-    final foo = repository.get(uuid);
+    final foo = repo.get(uuid);
     final createdBy = foo.createdBy;
     final createdLocally = createdBy.created;
-    await repository.push(foo);
+    unawaited(repo.push(foo));
 
     // Allow subscription to catch up
-    await repository.store.asStream().where(
+    await repo.store.asStream().where(
       (event) {
         return event.remote;
       },
     ).first;
-    final createdWhen = repository.get(uuid).createdWhen;
+    final createdWhen = repo.get(uuid).createdWhen;
 
     // Assert
     expect(foo.createdBy, equals(createdBy), reason: 'createdBy should not change identity');
@@ -193,10 +193,14 @@ Future main() async {
       isNot(equals(changedBy)),
       reason: 'Patch should changed updatedBy',
     );
-    await repository.push(foo);
+    unawaited(repository.push(foo));
 
     // Allow subscription to catch up
-    await repository.store.asStream().where((event) => event.remote).first;
+    await repository.store.asStream().where(
+      (event) {
+        return event.remote;
+      },
+    ).first;
     final changedWhen = repository.get(uuid).changedWhen;
 
     // Assert
@@ -270,7 +274,7 @@ Future main() async {
         'member2': 'value2',
       }
     });
-    await repo1.push(foo1);
+    unawaited(repo1.push(foo1));
     await repo2.store.asStream().first;
     final foo2 = repo2.get(uuid);
     foo2.patch({
@@ -282,8 +286,10 @@ Future main() async {
         'member3': 'value3',
       }
     }, emits: FooUpdated);
-    await repo2.push(foo2);
-    await repo1.store.asStream().where((event) => event.type == 'FooUpdated').first;
+    unawaited(repo2.push(foo2));
+    await repo1.store.asStream().where((event) {
+      return event.type == 'FooUpdated';
+    }).first;
 
     // Assert
     expect(foo1.data, containsPair('property1', 'value1')); // keep
@@ -392,6 +398,70 @@ Future main() async {
     expect(foo.data, containsPair('property3', 'value3'));
   });
 
+  test('Repository should not push on execute in an transaction', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
+    final uuid = Uuid().v4();
+    final trx = repo.getTransaction(uuid);
+    final foo = repo.get(uuid, data: {'property1': 1});
+
+    // Act on repo
+    await repo.execute(
+      UpdateFoo({'uuid': uuid, 'property1': repo.get(uuid).elementAt<int>('property1') + 1}),
+    );
+
+    // Act on transaction
+    await trx.execute(
+      UpdateFoo({'uuid': uuid, 'property1': repo.get(uuid).elementAt<int>('property1') + 1}),
+    );
+
+    // Assert
+    expect(foo.isChanged, isTrue);
+    expect(foo.getUncommittedChanges(), isNotEmpty);
+    expect(await trx.push(), isA<Iterable<DomainEvent>>());
+    expect(foo.isChanged, isFalse);
+    expect(foo.getUncommittedChanges(), isEmpty);
+    expect(repo.count(), equals(1));
+    expect(repo.inTransaction(uuid), isFalse);
+    expect(foo.data, containsPair('property1', 3));
+  });
+
+  test('Transaction should fail on push when manual merge is needed', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    final stream = harness.server().getStream(repo.store.aggregate);
+    await repo.readyAsync();
+
+    // Act - Simulate conflict by manually updating remote stream
+    final uuid = Uuid().v4();
+    final foo = repo.get(uuid, data: {'property1': 'value1'});
+    final trx = repo.getTransaction(uuid);
+    await repo.push(foo);
+    stream.append('${stream.instanceStream}-0', [
+      TestStream.asSourceEvent<FooUpdated>(
+        uuid,
+        {'property1': 'value1'},
+        {
+          'property1': 'value1',
+          'property2': 'value2',
+          'property3': 'value3',
+        },
+      )
+    ]);
+    foo.patch({'property3': 'value4'}, emits: FooUpdated);
+
+    // Assert
+    await expectLater(trx.push(), throwsA(const TypeMatcher<ConflictNotReconcilable>()));
+
+    // Assert conflict resolved
+    expect(repo.count(), equals(1));
+    expect(repo.inTransaction(uuid), isFalse);
+    expect(foo.data, containsPair('property1', 'value1'));
+    expect(foo.data, containsPair('property2', 'value2'));
+    expect(foo.data, containsPair('property3', 'value3'));
+  });
+
   test('Repository should consume events with strategy RoundRobin', () async {
     // Arrange
     final repo1 = harness.get<FooRepository>(instance: 1)..compete(consume: 1);
@@ -443,6 +513,22 @@ Future main() async {
 
     // Assert
     await expectLater(() => repo2.push(foo1), throwsA(isA<AggregateNotFound>()));
+  });
+
+  test('Transaction should throw AggregateNotFound on push with unknown AggregateRoot', () async {
+    // Arrange - start two empty repos both assuming stream-0 to be first write
+    final repo1 = harness.get<FooRepository>(instance: 1);
+    await repo1.readyAsync();
+    final repo2 = harness.get<FooRepository>(instance: 2);
+    await repo2.readyAsync();
+
+    // Act
+    final foo1 = repo1.get(Uuid().v4());
+
+    // Assert
+    final trx = repo2.getTransaction(foo1.uuid);
+    await expectLater(() => trx.push(), throwsA(isA<AggregateNotFound>()));
+    expect(repo2.inTransaction(foo1.uuid), isTrue);
   });
 
   test('Repository should enforce strict order of in-proc create aggregate operations', () async {
@@ -598,6 +684,52 @@ Future main() async {
       repo.execute(command),
       throwsA(const TypeMatcher<ConflictNotReconcilable>()),
     );
+    expect(
+      repo.isChanged,
+      isFalse,
+      reason: 'Repository should rollback changes when command fails',
+    );
+    expect(
+      foo.isChanged,
+      isFalse,
+      reason: 'Repository should rollback changes when command fails',
+    );
+  });
+
+  test('Repository should rollback changes when transaction fails', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    final stream = harness.server().getStream(repo.store.aggregate);
+    await repo.readyAsync();
+    final uuid = Uuid().v4();
+    final foo = repo.get(uuid, data: {'property1': 'value1'});
+    await repo.push(foo);
+    final trx = repo.getTransaction(uuid);
+
+    // Act - Simulate conflict by manually updating remote stream
+    stream.append('${stream.instanceStream}-0', [
+      TestStream.asSourceEvent<FooUpdated>(
+        uuid,
+        {'property1': 'value1'},
+        {
+          'property1': 'value1',
+          'property2': 'value2',
+          'property3': 'value3',
+        },
+      )
+    ]);
+    final command = UpdateFoo({
+      'uuid': uuid,
+      'property3': 'value4',
+    });
+    trx.execute(command);
+
+    // Assert
+    await expectLater(
+      trx.push(),
+      throwsA(const TypeMatcher<ConflictNotReconcilable>()),
+    );
+    expect(repo.inTransaction(uuid), isFalse);
     expect(
       repo.isChanged,
       isFalse,
