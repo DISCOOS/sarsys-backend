@@ -117,7 +117,7 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
       return tooManyRequests(body: e.message);
     } on StreamRequestTimeout catch (e) {
       return serviceUnavailable(
-        body: "Repository command queue was unable to process ${e.request.tag}",
+        body: "Repository $aggregateType was unable to process request ${e.request.tag}",
       );
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");

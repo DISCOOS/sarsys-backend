@@ -106,17 +106,21 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
         "${toLocation(request)}/${data[repository.uuidFieldName]}",
       );
     } on UUIDIsNull {
-      return Response.badRequest(body: "Field [uuid] in $aggregateType is required");
+      return Response.badRequest(
+        body: "Field [${repository.uuidFieldName}] in $aggregateType is required",
+      );
     } on SchemaException catch (e) {
       return Response.badRequest(body: e.message);
     } on RepositoryMaxPressureExceeded catch (e) {
       return tooManyRequests(body: e.message);
     } on StreamRequestTimeout catch (e) {
       return serviceUnavailable(
-        body: "Repository command queue was unable to process ${e.request.tag}",
+        body: "Repository $aggregateType was unable to process request ${e.request.tag}",
       );
     } on SocketException catch (e) {
-      return serviceUnavailable(body: "Eventstore unavailable: $e");
+      return serviceUnavailable(
+        body: "Eventstore unavailable: $e",
+      );
     } on AggregateExists catch (e) {
       return conflict(
         ConflictType.exists,
@@ -155,7 +159,9 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     } on AggregateNotFound catch (e) {
       return Response.notFound(body: e.message);
     } on UUIDIsNull {
-      return Response.badRequest(body: "Field [uuid] in $aggregateType is required");
+      return Response.badRequest(
+        body: "Field [${repository.uuidFieldName}] in $aggregateType is required",
+      );
     } on ConflictNotReconcilable catch (e) {
       return conflict(
         ConflictType.merge,
@@ -170,10 +176,12 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       return tooManyRequests(body: e.message);
     } on StreamRequestTimeout catch (e) {
       return serviceUnavailable(
-        body: "Repository command queue was unable to process ${e.request.tag}",
+        body: "Repository $aggregateType was unable to process request ${e.request.tag}",
       );
     } on SocketException catch (e) {
-      return serviceUnavailable(body: "Eventstore unavailable: $e");
+      return serviceUnavailable(
+        body: "Eventstore unavailable: $e",
+      );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } catch (e, stackTrace) {
@@ -201,17 +209,21 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     } on AggregateNotFound catch (e) {
       return Response.notFound(body: e.message);
     } on UUIDIsNull {
-      return Response.badRequest(body: "Field [uuid] in $aggregateType is required");
+      return Response.badRequest(
+        body: "Field [${repository.uuidFieldName}] in $aggregateType is required",
+      );
     } on SchemaException catch (e) {
       return Response.badRequest(body: e.message);
     } on RepositoryMaxPressureExceeded catch (e) {
       return tooManyRequests(body: e.message);
     } on StreamRequestTimeout catch (e) {
       return serviceUnavailable(
-        body: "Repository command queue was unable to process ${e.request.tag}",
+        body: "Repository $aggregateType was unable to process request ${e.request.tag}",
       );
     } on SocketException catch (e) {
-      return serviceUnavailable(body: "Eventstore unavailable: $e");
+      return serviceUnavailable(
+        body: "Eventstore unavailable: $e",
+      );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } catch (e, stackTrace) {

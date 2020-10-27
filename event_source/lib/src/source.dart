@@ -2202,9 +2202,9 @@ enum SubscriptionAction {
 /// Implements periodic fetch of events from event-store
 class _SubscriptionController {
   _SubscriptionController(this.connection) : logger = connection._logger {
-    _requestQueue.catchError((e, stackTrace) {
+    _readQueue.catchError((e, stackTrace) {
       logger.severe(
-        'Processing request ${_requestQueue.current} failed with: $e',
+        'Processing fetch requests failed with: $e',
         e,
         stackTrace,
       );
@@ -2259,7 +2259,7 @@ class _SubscriptionController {
   /// waiting for the previous request has completed. This
   /// is need because the [Timer] class will not block on
   /// await in it's callback method.
-  final _requestQueue = StreamRequestQueue<FeedResult>();
+  final _readQueue = StreamRequestQueue<FeedResult>();
 
   Stream<SourceEvent> pull({
     @required String stream,
@@ -2353,8 +2353,8 @@ class _SubscriptionController {
         pullEvery,
         (_) {
           // Timer will fire before previous read has completed
-          if (_requestQueue.isEmpty) {
-            _requestQueue.add(StreamRequest<FeedResult>(
+          if (_readQueue.isEmpty) {
+            _readQueue.add(StreamRequest<FeedResult>(
               execute: () async {
                 final next = await _readNext();
                 return queue.StreamResult(

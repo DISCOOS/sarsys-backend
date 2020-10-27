@@ -470,7 +470,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       }));
     _pushQueue.catchError((e, stackTrace) {
       logger.severe(
-        'Processing request ${_pushQueue.current} failed with: $e',
+        'Processing push requests failed with: $e',
         e,
         stackTrace,
       );
@@ -838,10 +838,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     final message = _toTag(uuid, changes);
     final operation = _PushOperation(aggregate, changes, maxAttempts);
     _pushQueue.add(StreamRequest<Iterable<DomainEvent>>(
-      execute: () => _push(operation),
       fail: true,
       tag: message,
       timeout: timeout,
+      execute: () => _push(operation),
     ));
     logger.info(
       'Scheduled push of ${aggregate.runtimeType} ${aggregate.uuid} (queue pressure: $pending)',
