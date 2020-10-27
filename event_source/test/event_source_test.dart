@@ -145,10 +145,12 @@ Future main() async {
     // Assert - repo 1
     final events1 = _assertEventNumberStrictOrder(repo1, uuid);
     _assertUniqueEvents(repo1, events1);
+    expect(repo1.number.value, 9);
 
     // Assert - repo 2
     final events2 = _assertEventNumberStrictOrder(repo2, uuid);
-    _assertUniqueEvents(repo1, events2);
+    _assertUniqueEvents(repo2, events2);
+    expect(repo2.number.value, 9);
   });
 }
 

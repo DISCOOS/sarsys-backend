@@ -456,19 +456,17 @@ class EventStore {
     AggregateRoot aggregate,
     Iterable<Event> events,
   ) {
-    final stream = toInstanceStream(aggregate.uuid);
-    if (_current.containsKey(stream)) {
-      _current[stream] += events.length;
-    } else {
-      _current[stream] = EventNumber.none + events.length;
-    }
+    if (events.isNotEmpty) {
+      // Always equal to last in events
+      _current[toInstanceStream(aggregate.uuid)] = events.last.number;
 
-    // Update canonical stream?
-    if (useInstanceStreams) {
-      if (_current.containsKey(canonicalStream)) {
-        _current[canonicalStream] += events.length;
-      } else {
-        _current[canonicalStream] = EventNumber.none + events.length;
+      // Update canonical stream?
+      if (useInstanceStreams) {
+        if (_current.containsKey(canonicalStream)) {
+          _current[canonicalStream] += events.length;
+        } else {
+          _current[canonicalStream] = EventNumber.none + events.length;
+        }
       }
     }
   }

@@ -427,6 +427,49 @@ Future main() async {
     expect(foo.data, containsPair('property1', 3));
   });
 
+  // test('fwefwefwefwe transaction', () async {
+  //   // Arrange
+  //   final repo1 = harness.get<FooRepository>(instance: 1);
+  //   final repo2 = harness.get<FooRepository>(instance: 2);
+  //   await repo1.readyAsync();
+  //   await repo2.readyAsync();
+  //
+  //   final uuid = Uuid().v4();
+  //   final foo = repo1.get(uuid, data: {'property1': 1});
+  //   await repo1.push(foo);
+  //   await repo2.store.asStream().first;
+  //
+  //   // Act on repo 1
+  //   for (var i = 1; i <= 10; i++) {
+  //     final trx1 = repo1.getTransaction(uuid);
+  //     for (var j = 1; j <= 10; j++) {
+  //       repo1.execute(
+  //         UpdateFoo({'uuid': uuid, 'property1': repo1.get(uuid).elementAt<int>('property1') + 1}),
+  //       );
+  //     }
+  //     unawaited(trx1.push());
+  //     final trx2 = repo2.getTransaction(uuid);
+  //     for (var j = 1; j <= 10; j++) {
+  //       repo2.execute(
+  //         UpdateFoo({'uuid': uuid, 'property1': repo2.get(uuid).elementAt<int>('property1') + 1}),
+  //       );
+  //     }
+  //     unawaited(trx2.push());
+  //   }
+  //
+  //   await Future.delayed(Duration(seconds: 30));
+  //
+  //   // Assert
+  //   // expect(foo.isChanged, isTrue);
+  //   // expect(foo.getUncommittedChanges(), isNotEmpty);
+  //   // expect(await trx.push(), isA<Iterable<DomainEvent>>());
+  //   expect(foo.isChanged, isFalse);
+  //   expect(foo.getUncommittedChanges(), isEmpty);
+  //   // expect(repo1.count(), equals(1));
+  //   // expect(repo1.inTransaction(uuid), isFalse);
+  //   // expect(foo.data, containsPair('property1', 3));
+  // });
+
   test('Transaction should fail on push when manual merge is needed', () async {
     // Arrange
     final repo = harness.get<FooRepository>();
