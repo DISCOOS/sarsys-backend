@@ -406,13 +406,6 @@ typedef ProcessCallback = DomainEvent Function(Message change);
 /// Repository or [AggregateRoot]s as the single responsible for all transactions on each aggregate
 abstract class Repository<S extends Command, T extends AggregateRoot>
     implements CommandHandler<S>, MessageHandler<DomainEvent> {
-  /// Internal - for local debugging
-  bool debugConflicts = false;
-
-  void _printDebug(Object message) {
-    logger.info(message);
-  }
-
   /// Repository constructor
   ///
   /// Parameter [store] is required.
@@ -441,6 +434,15 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   final EventStore store;
   final int maxPushPressure;
   final String uuidFieldName;
+
+  static const timeout = Duration(seconds: 30);
+
+  /// Internal - for local debugging
+  bool debugConflicts = false;
+
+  void _printDebug(Object message) {
+    logger.info(message);
+  }
 
   /// Get [AggregateRoot] type
   Type get aggregateType => typeOf<T>();
@@ -769,7 +771,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   FutureOr<Iterable<DomainEvent>> execute(
     S command, {
     int maxAttempts = 10,
-    Duration timeout = const Duration(seconds: 60),
+    Duration timeout = timeout,
   }) async {
     T aggregate;
     final changes = <DomainEvent>[];
@@ -904,7 +906,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   Future<Iterable<DomainEvent>> push(
     T aggregate, {
     int maxAttempts = 10,
-    Duration timeout = const Duration(seconds: 60),
+    Duration timeout = timeout,
   }) async {
     try {
       var result = <DomainEvent>[];

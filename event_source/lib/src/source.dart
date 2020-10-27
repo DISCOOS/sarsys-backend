@@ -829,9 +829,6 @@ class EventStore {
     final aggregate = repository.get(uuid);
     final domainEvent = repository.toDomainEvent(event);
     if (!aggregate.isApplied(event)) {
-      if (event.remote) {
-        print('hm');
-      }
       aggregate.apply(domainEvent);
     }
     // Sanity check
