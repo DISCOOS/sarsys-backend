@@ -208,18 +208,24 @@ class StreamRequestQueue<T> {
             StackTrace.current,
             onResult: next.onResult,
           );
-        } else if (next.fallback != null) {
+        } else if (next.onResult?.isCompleted == false) {
           next.onResult?.complete(
-            next.fallback(),
+            await _onFallback(next),
           );
         }
       }
       // Consume and peek next
-      await _queue.next;
-      next = await _queue.peek;
+      if (_hasNext) {
+        await _queue.next;
+        next = await _queue.peek;
+      } else {
+        break;
+      }
     }
     return next;
   }
+
+  Future<T> _onFallback(StreamRequest<T> request) => request.fallback == null ? Future<T>.value() : request.fallback();
 
   /// Prepare queue for requests
   void _prepare() {
@@ -271,7 +277,7 @@ class StreamRequestQueue<T> {
         onResult: request.onResult,
       );
       return StreamResult(
-        value: await request.fallback(),
+        value: await _onFallback(request),
       );
     }
   }
@@ -287,10 +293,10 @@ class StreamRequestQueue<T> {
     if (isProcessing && _requests.contains(request)) {
       return true;
     }
-    if (request.onResult?.isCompleted == false && request.fallback != null) {
+    if (request.onResult?.isCompleted == false) {
       _completed++;
       request.onResult?.complete(
-        await request.fallback(),
+        await _onFallback(request),
       );
     }
     return false;
@@ -309,12 +315,6 @@ class StreamRequestQueue<T> {
     StackTrace stackTrace, {
     Completer<T> onResult,
   }) {
-    if (onResult?.isCompleted == false) {
-      onResult.completeError(
-        error,
-        stackTrace,
-      );
-    }
     if (_onError != null) {
       final shouldStop = _onError(
         error,
@@ -323,6 +323,12 @@ class StreamRequestQueue<T> {
       if (shouldStop) {
         stop();
       }
+    }
+    if (onResult?.isCompleted == false) {
+      onResult.completeError(
+        error,
+        stackTrace,
+      );
     }
   }
 
@@ -387,6 +393,16 @@ class StreamRequestQueue<T> {
   void _checkState() {
     assert(!_isDisposed, '$runtimeType is disposed');
   }
+
+  @override
+  String toString() => '$runtimeType{\n'
+      '  isIdle: $_isIdle,\n'
+      '  pending: ${_requests.length},\n'
+      '  failed: $_failed,\n'
+      '  timeouts: $_timeouts,\n'
+      '  cancelled: $_cancelled,\n'
+      '  completed: $_completed,\n'
+      '  isDisposed: $_isDisposed\n}';
 }
 
 @Immutable()
@@ -420,6 +436,9 @@ class StreamRequest<T> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) || other is StreamRequest && runtimeType == other.runtimeType && key == other.key;
+
+  @override
+  String toString() => '$runtimeType{tag: $tag}';
 }
 
 @Immutable()
@@ -450,4 +469,9 @@ class StreamRequestTimeout implements Exception {
   StreamRequestTimeout(this.queue, this.request);
   final StreamRequest request;
   final StreamRequestQueue queue;
+
+  @override
+  String toString() => '$runtimeType{\n'
+      '  queue: $queue,\n '
+      '  request: $request\n}';
 }

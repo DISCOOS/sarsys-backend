@@ -214,4 +214,49 @@ void main() async {
     // Cleanup
     await queue.cancel();
   });
+
+  test('StreamRequestQueue should throw StreamRequestTimeouts', () async {
+    // Arrange
+    var errors = 0;
+    final onError = (Object e, StackTrace stackTrace) {
+      errors++;
+      return /*Don't stop*/ false;
+    };
+    final queue = StreamRequestQueue()..catchError(onError);
+    final requests = List.generate(
+      10,
+      (index) => StreamRequest(
+        fail: true,
+        execute: () => Future.delayed(
+          Duration(milliseconds: 2),
+        ),
+        onResult: Completer(),
+        timeout: const Duration(milliseconds: 1),
+      ),
+    );
+
+    // Act
+    requests.forEach(queue.add);
+
+    // Assert
+    for (var request in requests) {
+      await expectLater(
+        request.onResult.future,
+        throwsA(isA<StreamRequestTimeout>()),
+        reason: 'should throw',
+      );
+    }
+    expect(errors, 10, reason: 'should fail 10 times');
+    expect(await queue.onIdle().first, isNull);
+    expect(queue.isIdle, isTrue, reason: 'should be idle');
+    expect(queue.isEmpty, isTrue, reason: 'should be empty');
+    expect(queue.current, isNull, reason: 'should not have current');
+    expect(queue.isProcessing, isFalse, reason: 'should not be processing');
+    expect(queue.processed, 10, reason: 'should have processed 10 requests');
+    expect(queue.timeouts, 10, reason: 'should have timed out 10 times');
+    expect(queue.failed, 0, reason: 'should have failed zero times');
+
+    // Cleanup
+    await queue.cancel();
+  });
 }
