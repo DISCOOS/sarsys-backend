@@ -47,6 +47,13 @@ class DevicePositionControllerBase extends ValueController<DeviceCommand, Device
     if (!await exists(uuid)) {
       return Response.notFound(body: "$aggregateType $uuid not found");
     }
+    return super.update(
+      uuid,
+      process(uuid, data),
+    );
+  }
+
+  Map<String, dynamic> process(String uuid, Map<String, dynamic> data) {
     final aggregate = repository.get(uuid);
     final currProps = aggregate.data.elementAt('$aggregateField/properties');
     final nextProps = data.elementAt('properties') ?? {};
@@ -55,13 +62,11 @@ class DevicePositionControllerBase extends ValueController<DeviceCommand, Device
       nextProps['timestamp'] ??= DateTime.now().toIso8601String();
     }
     nextProps['source'] ??= 'manual';
+
     data['properties'] = nextProps;
     // TODO: Remove when bug in Background Geolocation is resolved
     data.remove('provider');
-    return super.update(
-      uuid,
-      data,
-    );
+    return data;
   }
 
   @override

@@ -1,3 +1,4 @@
+import 'package:event_source/event_source.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
@@ -21,24 +22,45 @@ class DevicePositionBatchController extends DevicePositionControllerBase {
     if (!await exists(uuid)) {
       return Response.notFound(body: "$aggregateType $uuid not found");
     }
-    final codes = <int>{};
-    final failures = <Response>[];
-    for (var position in data) {
-      final response = await update(uuid, position);
-      if (response.statusCode >= 400) {
-        codes.add(response.statusCode);
-        failures.add(response);
+    try {
+      final trx = repository.getTransaction(uuid);
+      for (var position in data) {
+        await trx.execute(
+          onUpdate(uuid, valueType, {
+            'uuid': uuid,
+            aggregateField: validate(
+              valueType,
+              process(uuid, position),
+              isPatch: true,
+            ),
+          }),
+        );
       }
+      await trx.push();
+      return Response.noContent();
+    } on ConflictNotReconcilable catch (e) {
+      return conflict(
+        ConflictType.merge,
+        e.message,
+        base: e.base,
+        mine: e.mine,
+        yours: e.yours,
+      );
+    } on SchemaException catch (e) {
+      return Response.badRequest(body: e.message);
+    } on RepositoryMaxPressureExceeded catch (e) {
+      return tooManyRequests(body: e.message);
+    } on StreamRequestTimeout catch (e) {
+      return serviceUnavailable(
+        body: "Repository $aggregateType was unable to process request ${e.request.tag}",
+      );
+    } on SocketException catch (e) {
+      return serviceUnavailable(body: "Eventstore unavailable: $e");
+    } on InvalidOperation catch (e) {
+      return Response.badRequest(body: e.message);
+    } catch (e, stackTrace) {
+      return toServerError(e, stackTrace);
     }
-    return failures.isEmpty
-        ? Response.noContent()
-        : Response(codes.length == 1 ? codes.first : HttpStatus.partialContent, {}, {
-            'errors': failures
-                .map(
-                  (response) => '${response.statusCode}: ${response.body}',
-                )
-                .toList()
-          });
   }
 
   //////////////////////////////////
