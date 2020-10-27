@@ -56,6 +56,8 @@ class DevicePositionControllerBase extends ValueController<DeviceCommand, Device
     }
     nextProps['source'] ??= 'manual';
     data['properties'] = nextProps;
+    // TODO: Remove when bug in Background Geolocation is resolved
+    data.remove('provider');
     return super.update(
       uuid,
       data,
