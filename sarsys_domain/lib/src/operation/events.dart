@@ -1,4 +1,3 @@
-import 'package:meta/meta.dart';
 import 'package:event_source/event_source.dart';
 
 //////////////////////////////////////
@@ -6,92 +5,68 @@ import 'package:event_source/event_source.dart';
 //////////////////////////////////////
 
 class OperationRegistered extends DomainEvent {
-  OperationRegistered({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  OperationRegistered(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$OperationRegistered',
-          created: created,
-          data: data,
         );
 }
 
 class OperationInformationUpdated extends DomainEvent {
-  OperationInformationUpdated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  OperationInformationUpdated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$OperationInformationUpdated',
-          created: created,
-          data: data,
         );
 }
 
 class OperationStarted extends DomainEvent {
-  OperationStarted({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  OperationStarted(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$OperationStarted',
-          created: created,
-          data: data,
         );
 }
 
 class OperationCancelled extends DomainEvent {
-  OperationCancelled({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  OperationCancelled(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$OperationCancelled',
-          created: created,
-          data: data,
         );
 }
 
 class OperationFinished extends DomainEvent {
-  OperationFinished({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  OperationFinished(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$OperationFinished',
-          created: created,
-          data: data,
         );
 }
 
 class OperationDeleted extends DomainEvent {
-  OperationDeleted({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  OperationDeleted(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$OperationDeleted',
-          created: created,
-          data: data,
         );
 }
 
@@ -100,32 +75,24 @@ class OperationDeleted extends DomainEvent {
 //////////////////////////////////////
 
 class PersonnelAddedToOperation extends DomainEvent {
-  PersonnelAddedToOperation({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  PersonnelAddedToOperation(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$PersonnelAddedToOperation',
-          created: created,
-          data: data,
         );
 }
 
 class PersonnelRemovedFromOperation extends DomainEvent {
-  PersonnelRemovedFromOperation({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  PersonnelRemovedFromOperation(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$PersonnelRemovedFromOperation',
-          created: created,
-          data: data,
         );
 }
 
@@ -134,32 +101,24 @@ class PersonnelRemovedFromOperation extends DomainEvent {
 //////////////////////////////////////
 
 class MissionAddedToOperation extends DomainEvent {
-  MissionAddedToOperation({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  MissionAddedToOperation(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$MissionAddedToOperation',
-          created: created,
-          data: data,
         );
 }
 
 class MissionRemovedFromOperation extends DomainEvent {
-  MissionRemovedFromOperation({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  MissionRemovedFromOperation(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$MissionRemovedFromOperation',
-          created: created,
-          data: data,
         );
 }
 
@@ -168,32 +127,24 @@ class MissionRemovedFromOperation extends DomainEvent {
 //////////////////////////////////////
 
 class UnitAddedToOperation extends DomainEvent {
-  UnitAddedToOperation({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  UnitAddedToOperation(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$UnitAddedToOperation',
-          created: created,
-          data: data,
         );
 }
 
 class UnitRemovedFromOperation extends DomainEvent {
-  UnitRemovedFromOperation({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  UnitRemovedFromOperation(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$UnitRemovedFromOperation',
-          created: created,
-          data: data,
         );
 }
 
@@ -202,47 +153,35 @@ class UnitRemovedFromOperation extends DomainEvent {
 //////////////////////////////////////
 
 class ObjectiveAdded extends DomainEvent {
-  ObjectiveAdded({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  ObjectiveAdded(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$ObjectiveAdded',
-          created: created,
-          data: data,
         );
 }
 
 class ObjectiveUpdated extends DomainEvent {
-  ObjectiveUpdated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  ObjectiveUpdated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$ObjectiveUpdated',
-          created: created,
-          data: data,
         );
 }
 
 class ObjectiveRemoved extends DomainEvent {
-  ObjectiveRemoved({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  ObjectiveRemoved(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$ObjectiveRemoved',
-          created: created,
-          data: data,
         );
 }
 
@@ -251,47 +190,35 @@ class ObjectiveRemoved extends DomainEvent {
 //////////////////////////////////////
 
 class TalkGroupAdded extends DomainEvent {
-  TalkGroupAdded({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  TalkGroupAdded(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$TalkGroupAdded',
-          created: created,
-          data: data,
         );
 }
 
 class TalkGroupUpdated extends DomainEvent {
-  TalkGroupUpdated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  TalkGroupUpdated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$TalkGroupUpdated',
-          created: created,
-          data: data,
         );
 }
 
 class TalkGroupRemoved extends DomainEvent {
-  TalkGroupRemoved({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  TalkGroupRemoved(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$TalkGroupRemoved',
-          created: created,
-          data: data,
         );
 }
 
@@ -300,46 +227,34 @@ class TalkGroupRemoved extends DomainEvent {
 //////////////////////////////////
 
 class OperationMessageAdded extends DomainEvent {
-  OperationMessageAdded({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  OperationMessageAdded(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$OperationMessageAdded',
-          created: created,
-          data: data,
         );
 }
 
 class OperationMessageUpdated extends DomainEvent {
-  OperationMessageUpdated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  OperationMessageUpdated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$OperationMessageUpdated',
-          created: created,
-          data: data,
         );
 }
 
 class OperationMessageRemoved extends DomainEvent {
-  OperationMessageRemoved({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  OperationMessageRemoved(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$OperationMessageRemoved',
-          created: created,
-          data: data,
         );
 }

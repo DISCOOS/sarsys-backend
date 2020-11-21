@@ -14,54 +14,14 @@ class DivisionRepository extends Repository<DivisionCommand, Division> {
     @required this.organisations,
     @required this.affiliations,
   }) : super(store: store, processors: {
-          DivisionRegistered: (event) => DivisionRegistered(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          DivisionInformationUpdated: (event) => DivisionInformationUpdated(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          DepartmentAddedToDivision: (event) => DepartmentAddedToDivision(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          DepartmentRemovedFromDivision: (event) => DepartmentRemovedFromDivision(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          DivisionStarted: (event) => DivisionStarted(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          DivisionCancelled: (event) => DivisionCancelled(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          DivisionFinished: (event) => DivisionFinished(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          DivisionDeleted: (event) => DivisionDeleted(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
+          DivisionRegistered: (event) => DivisionRegistered(event),
+          DivisionInformationUpdated: (event) => DivisionInformationUpdated(event),
+          DepartmentAddedToDivision: (event) => DepartmentAddedToDivision(event),
+          DepartmentRemovedFromDivision: (event) => DepartmentRemovedFromDivision(event),
+          DivisionStarted: (event) => DivisionStarted(event),
+          DivisionCancelled: (event) => DivisionCancelled(event),
+          DivisionFinished: (event) => DivisionFinished(event),
+          DivisionDeleted: (event) => DivisionDeleted(event),
         });
 
   final OrganisationRepository organisations;

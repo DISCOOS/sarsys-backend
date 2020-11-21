@@ -7,72 +7,17 @@ import 'events.dart';
 class TrackingRepository extends Repository<TrackingCommand, Tracking> {
   TrackingRepository(EventStore store)
       : super(store: store, processors: {
-          TrackingCreated: (event) => TrackingCreated(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          TrackingStatusChanged: (event) => TrackingStatusChanged(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          TrackingInformationUpdated: (event) => TrackingInformationUpdated(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          TrackingDeleted: (event) => TrackingDeleted(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          TrackingSourceAdded: (event) => TrackingSourceAdded(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          TrackingSourceChanged: (event) => TrackingSourceChanged(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          TrackingSourceRemoved: (event) => TrackingSourceRemoved(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          TrackingTrackAdded: (event) => TrackingTrackAdded(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          TrackingTrackChanged: (event) => TrackingTrackChanged(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          TrackingTrackRemoved: (event) => TrackingTrackRemoved(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          TrackingPositionChanged: (event) => TrackingPositionChanged(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
+          TrackingCreated: (event) => TrackingCreated(event),
+          TrackingStatusChanged: (event) => TrackingStatusChanged(event),
+          TrackingInformationUpdated: (event) => TrackingInformationUpdated(event),
+          TrackingDeleted: (event) => TrackingDeleted(event),
+          TrackingSourceAdded: (event) => TrackingSourceAdded(event),
+          TrackingSourceChanged: (event) => TrackingSourceChanged(event),
+          TrackingSourceRemoved: (event) => TrackingSourceRemoved(event),
+          TrackingTrackAdded: (event) => TrackingTrackAdded(event),
+          TrackingTrackChanged: (event) => TrackingTrackChanged(event),
+          TrackingTrackRemoved: (event) => TrackingTrackRemoved(event),
+          TrackingPositionChanged: (event) => TrackingPositionChanged(event),
         });
 
   AssociationRule newCreateRule(_) => AssociationRule(

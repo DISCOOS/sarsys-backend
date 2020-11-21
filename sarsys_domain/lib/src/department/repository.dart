@@ -14,24 +14,9 @@ class DepartmentRepository extends Repository<DepartmentCommand, Department> {
     @required this.divisions,
     @required this.affiliations,
   }) : super(store: store, processors: {
-          DepartmentCreated: (event) => DepartmentCreated(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          DepartmentInformationUpdated: (event) => DepartmentInformationUpdated(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          DepartmentDeleted: (event) => DepartmentDeleted(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
+          DepartmentCreated: (event) => DepartmentCreated(event),
+          DepartmentInformationUpdated: (event) => DepartmentInformationUpdated(event),
+          DepartmentDeleted: (event) => DepartmentDeleted(event),
         });
 
   final DivisionRepository divisions;

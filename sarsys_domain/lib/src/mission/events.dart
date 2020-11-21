@@ -1,4 +1,3 @@
-import 'package:meta/meta.dart';
 import 'package:event_source/event_source.dart';
 
 //////////////////////////////////////
@@ -6,92 +5,68 @@ import 'package:event_source/event_source.dart';
 //////////////////////////////////////
 
 class MissionCreated extends DomainEvent {
-  MissionCreated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  MissionCreated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$MissionCreated',
-          created: created,
-          data: data,
         );
 }
 
 class MissionInformationUpdated extends DomainEvent {
-  MissionInformationUpdated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  MissionInformationUpdated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$MissionInformationUpdated',
-          created: created,
-          data: data,
         );
 }
 
 class MissionPlanned extends DomainEvent {
-  MissionPlanned({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  MissionPlanned(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$MissionPlanned',
-          created: created,
-          data: data,
         );
 }
 
 class MissionAssigned extends DomainEvent {
-  MissionAssigned({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  MissionAssigned(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$MissionAssigned',
-          created: created,
-          data: data,
         );
 }
 
 class MissionExecuted extends DomainEvent {
-  MissionExecuted({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  MissionExecuted(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$MissionExecuted',
-          created: created,
-          data: data,
         );
 }
 
 class MissionDeleted extends DomainEvent {
-  MissionDeleted({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  MissionDeleted(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$MissionDeleted',
-          created: created,
-          data: data,
         );
 }
 
@@ -100,47 +75,35 @@ class MissionDeleted extends DomainEvent {
 //////////////////////////////////
 
 class MissionPartAdded extends DomainEvent {
-  MissionPartAdded({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  MissionPartAdded(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$MissionPartAdded',
-          created: created,
-          data: data,
         );
 }
 
 class MissionPartUpdated extends DomainEvent {
-  MissionPartUpdated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  MissionPartUpdated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$MissionPartUpdated',
-          created: created,
-          data: data,
         );
 }
 
 class MissionPartRemoved extends DomainEvent {
-  MissionPartRemoved({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  MissionPartRemoved(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$MissionPartRemoved',
-          created: created,
-          data: data,
         );
 }
 
@@ -149,47 +112,35 @@ class MissionPartRemoved extends DomainEvent {
 //////////////////////////////////
 
 class MissionResultAdded extends DomainEvent {
-  MissionResultAdded({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  MissionResultAdded(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$MissionResultAdded',
-          created: created,
-          data: data,
         );
 }
 
 class MissionResultUpdated extends DomainEvent {
-  MissionResultUpdated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  MissionResultUpdated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$MissionResultUpdated',
-          created: created,
-          data: data,
         );
 }
 
 class MissionResultRemoved extends DomainEvent {
-  MissionResultRemoved({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  MissionResultRemoved(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$MissionResultRemoved',
-          created: created,
-          data: data,
         );
 }
 
@@ -198,46 +149,34 @@ class MissionResultRemoved extends DomainEvent {
 //////////////////////////////////
 
 class MissionMessageAdded extends DomainEvent {
-  MissionMessageAdded({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  MissionMessageAdded(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$MissionMessageAdded',
-          created: created,
-          data: data,
         );
 }
 
 class MissionMessageUpdated extends DomainEvent {
-  MissionMessageUpdated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  MissionMessageUpdated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$MissionMessageUpdated',
-          created: created,
-          data: data,
         );
 }
 
 class MissionMessageRemoved extends DomainEvent {
-  MissionMessageRemoved({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  MissionMessageRemoved(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$MissionMessageRemoved',
-          created: created,
-          data: data,
         );
 }

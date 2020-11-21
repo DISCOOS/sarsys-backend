@@ -770,10 +770,12 @@ class TrackingService extends MessageHandler<DomainEvent> {
   TrackingCreated _fromJson(String data) {
     final json = jsonDecode(data);
     return TrackingCreated(
-      local: true,
-      uuid: json['uuid'],
-      data: json['data'],
-      created: DateTime.parse(json['created'] as String),
+      Message(
+        local: true,
+        uuid: json['uuid'],
+        data: json['data'],
+        created: DateTime.parse(json['created'] as String),
+      ),
     );
   }
 }

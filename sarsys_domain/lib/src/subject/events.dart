@@ -1,4 +1,3 @@
-import 'package:meta/meta.dart';
 import 'package:event_source/event_source.dart';
 
 //////////////////////////////////
@@ -6,46 +5,34 @@ import 'package:event_source/event_source.dart';
 //////////////////////////////////
 
 class SubjectRegistered extends DomainEvent {
-  SubjectRegistered({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  SubjectRegistered(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$SubjectRegistered',
-          created: created,
-          data: data,
         );
 }
 
 class SubjectUpdated extends DomainEvent {
-  SubjectUpdated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  SubjectUpdated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$SubjectUpdated',
-          created: created,
-          data: data,
         );
 }
 
 class SubjectDeleted extends DomainEvent {
-  SubjectDeleted({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  SubjectDeleted(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$SubjectDeleted',
-          created: created,
-          data: data,
         );
 }

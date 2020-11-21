@@ -1,4 +1,3 @@
-import 'package:meta/meta.dart';
 import 'package:event_source/event_source.dart';
 
 //////////////////////////////////////
@@ -6,46 +5,34 @@ import 'package:event_source/event_source.dart';
 //////////////////////////////////////
 
 class DepartmentCreated extends DomainEvent {
-  DepartmentCreated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  DepartmentCreated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$DepartmentCreated',
-          created: created,
-          data: data,
         );
 }
 
 class DepartmentInformationUpdated extends DomainEvent {
-  DepartmentInformationUpdated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  DepartmentInformationUpdated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$DepartmentInformationUpdated',
-          created: created,
-          data: data,
         );
 }
 
 class DepartmentDeleted extends DomainEvent {
-  DepartmentDeleted({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  DepartmentDeleted(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$DepartmentDeleted',
-          created: created,
-          data: data,
         );
 }

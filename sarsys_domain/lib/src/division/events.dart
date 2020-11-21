@@ -1,4 +1,3 @@
-import 'package:meta/meta.dart';
 import 'package:event_source/event_source.dart';
 
 //////////////////////////////////////
@@ -6,121 +5,89 @@ import 'package:event_source/event_source.dart';
 //////////////////////////////////////
 
 class DivisionRegistered extends DomainEvent {
-  DivisionRegistered({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  DivisionRegistered(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$DivisionRegistered',
-          created: created,
-          data: data,
         );
 }
 
 class DivisionInformationUpdated extends DomainEvent {
-  DivisionInformationUpdated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  DivisionInformationUpdated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$DivisionInformationUpdated',
-          created: created,
-          data: data,
         );
 }
 
 class DepartmentAddedToDivision extends DomainEvent {
-  DepartmentAddedToDivision({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  DepartmentAddedToDivision(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$DepartmentAddedToDivision',
-          created: created,
-          data: data,
         );
 }
 
 class DepartmentRemovedFromDivision extends DomainEvent {
-  DepartmentRemovedFromDivision({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  DepartmentRemovedFromDivision(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$DepartmentRemovedFromDivision',
-          created: created,
-          data: data,
         );
 }
 
 class DivisionStarted extends DomainEvent {
-  DivisionStarted({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  DivisionStarted(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$DivisionStarted',
-          created: created,
-          data: data,
         );
 }
 
 class DivisionCancelled extends DomainEvent {
-  DivisionCancelled({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  DivisionCancelled(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$DivisionCancelled',
-          created: created,
-          data: data,
         );
 }
 
 class DivisionFinished extends DomainEvent {
-  DivisionFinished({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  DivisionFinished(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$DivisionFinished',
-          created: created,
-          data: data,
         );
 }
 
 class DivisionDeleted extends DomainEvent {
-  DivisionDeleted({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  DivisionDeleted(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$DivisionDeleted',
-          created: created,
-          data: data,
         );
 }

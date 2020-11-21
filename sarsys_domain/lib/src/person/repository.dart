@@ -12,24 +12,9 @@ class PersonRepository extends Repository<PersonCommand, Person> {
     EventStore store, {
     @required this.affiliations,
   }) : super(store: store, processors: {
-          PersonCreated: (event) => PersonCreated(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          PersonInformationUpdated: (event) => PersonInformationUpdated(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          PersonDeleted: (event) => PersonDeleted(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
+          PersonCreated: (event) => PersonCreated(event),
+          PersonInformationUpdated: (event) => PersonInformationUpdated(event),
+          PersonDeleted: (event) => PersonDeleted(event),
         });
 
   final AffiliationRepository affiliations;

@@ -1,4 +1,3 @@
-import 'package:meta/meta.dart';
 import 'package:event_source/event_source.dart';
 
 //////////////////////////////////////
@@ -6,152 +5,112 @@ import 'package:event_source/event_source.dart';
 //////////////////////////////////////
 
 class IncidentRegistered extends DomainEvent {
-  IncidentRegistered({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  IncidentRegistered(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$IncidentRegistered',
-          created: created,
-          data: data,
         );
 }
 
 class IncidentInformationUpdated extends DomainEvent {
-  IncidentInformationUpdated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  IncidentInformationUpdated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$IncidentInformationUpdated',
-          created: created,
-          data: data,
         );
 }
 
 class OperationAddedToIncident extends DomainEvent {
-  OperationAddedToIncident({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  OperationAddedToIncident(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$OperationAddedToIncident',
-          created: created,
-          data: data,
         );
 }
 
 class OperationRemovedFromIncident extends DomainEvent {
-  OperationRemovedFromIncident({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  OperationRemovedFromIncident(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$OperationRemovedFromIncident',
-          created: created,
-          data: data,
         );
 }
 
 class SubjectAddedToIncident extends DomainEvent {
-  SubjectAddedToIncident({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  SubjectAddedToIncident(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$SubjectAddedToIncident',
-          created: created,
-          data: data,
         );
 }
 
 class SubjectRemovedFromIncident extends DomainEvent {
-  SubjectRemovedFromIncident({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  SubjectRemovedFromIncident(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$SubjectRemovedFromIncident',
-          created: created,
-          data: data,
         );
 }
 
 class IncidentRespondedTo extends DomainEvent {
-  IncidentRespondedTo({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  IncidentRespondedTo(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$IncidentRespondedTo',
-          created: created,
-          data: data,
         );
 }
 
 class IncidentCancelled extends DomainEvent {
-  IncidentCancelled({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  IncidentCancelled(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$IncidentCancelled',
-          created: created,
-          data: data,
         );
 }
 
 class IncidentResolved extends DomainEvent {
-  IncidentResolved({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  IncidentResolved(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$IncidentResolved',
-          created: created,
-          data: data,
         );
 }
 
 class IncidentDeleted extends DomainEvent {
-  IncidentDeleted({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  IncidentDeleted(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$IncidentDeleted',
-          created: created,
-          data: data,
         );
 }
 
@@ -160,47 +119,35 @@ class IncidentDeleted extends DomainEvent {
 //////////////////////////////////
 
 class ClueAdded extends DomainEvent {
-  ClueAdded({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  ClueAdded(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$ClueAdded',
-          created: created,
-          data: data,
         );
 }
 
 class ClueUpdated extends DomainEvent {
-  ClueUpdated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  ClueUpdated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$ClueUpdated',
-          created: created,
-          data: data,
         );
 }
 
 class ClueRemoved extends DomainEvent {
-  ClueRemoved({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  ClueRemoved(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$ClueRemoved',
-          created: created,
-          data: data,
         );
 }
 
@@ -209,46 +156,34 @@ class ClueRemoved extends DomainEvent {
 //////////////////////////////////
 
 class IncidentMessageAdded extends DomainEvent {
-  IncidentMessageAdded({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  IncidentMessageAdded(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$IncidentMessageAdded',
-          created: created,
-          data: data,
         );
 }
 
 class IncidentMessageUpdated extends DomainEvent {
-  IncidentMessageUpdated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  IncidentMessageUpdated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$IncidentMessageUpdated',
-          created: created,
-          data: data,
         );
 }
 
 class IncidentMessageRemoved extends DomainEvent {
-  IncidentMessageRemoved({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  IncidentMessageRemoved(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$IncidentMessageRemoved',
-          created: created,
-          data: data,
         );
 }

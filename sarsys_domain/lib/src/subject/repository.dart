@@ -12,24 +12,9 @@ class SubjectRepository extends Repository<SubjectCommand, Subject> {
     EventStore store, {
     @required this.incidents,
   }) : super(store: store, processors: {
-          SubjectRegistered: (event) => SubjectRegistered(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          SubjectUpdated: (event) => SubjectUpdated(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          SubjectDeleted: (event) => SubjectDeleted(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              )
+          SubjectRegistered: (event) => SubjectRegistered(event),
+          SubjectUpdated: (event) => SubjectUpdated(event),
+          SubjectDeleted: (event) => SubjectDeleted(event)
         });
 
   final IncidentRepository incidents;

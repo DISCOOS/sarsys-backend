@@ -1,4 +1,3 @@
-import 'package:meta/meta.dart';
 import 'package:event_source/event_source.dart';
 
 //////////////////////////////////////
@@ -6,77 +5,57 @@ import 'package:event_source/event_source.dart';
 //////////////////////////////////////
 
 class PersonnelMobilized extends DomainEvent {
-  PersonnelMobilized({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  PersonnelMobilized(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$PersonnelMobilized',
-          created: created,
-          data: data,
         );
 }
 
 class PersonnelInformationUpdated extends DomainEvent {
-  PersonnelInformationUpdated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  PersonnelInformationUpdated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$PersonnelInformationUpdated',
-          created: created,
-          data: data,
         );
 }
 
 class PersonnelDeployed extends DomainEvent {
-  PersonnelDeployed({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  PersonnelDeployed(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$PersonnelDeployed',
-          created: created,
-          data: data,
         );
 }
 
 class PersonnelRetired extends DomainEvent {
-  PersonnelRetired({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  PersonnelRetired(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$PersonnelRetired',
-          created: created,
-          data: data,
         );
 }
 
 class PersonnelDeleted extends DomainEvent {
-  PersonnelDeleted({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  PersonnelDeleted(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$PersonnelDeleted',
-          created: created,
-          data: data,
         );
 }
 
@@ -85,46 +64,34 @@ class PersonnelDeleted extends DomainEvent {
 //////////////////////////////////
 
 class PersonnelMessageAdded extends DomainEvent {
-  PersonnelMessageAdded({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  PersonnelMessageAdded(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$PersonnelMessageAdded',
-          created: created,
-          data: data,
         );
 }
 
 class PersonnelMessageUpdated extends DomainEvent {
-  PersonnelMessageUpdated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  PersonnelMessageUpdated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$PersonnelMessageUpdated',
-          created: created,
-          data: data,
         );
 }
 
 class PersonnelMessageRemoved extends DomainEvent {
-  PersonnelMessageRemoved({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  PersonnelMessageRemoved(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$PersonnelMessageRemoved',
-          created: created,
-          data: data,
         );
 }

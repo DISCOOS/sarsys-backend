@@ -12,36 +12,11 @@ class OrganisationRepository extends Repository<OrganisationCommand, Organisatio
     EventStore store, {
     @required this.affiliations,
   }) : super(store: store, processors: {
-          OrganisationCreated: (event) => OrganisationCreated(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          OrganisationInformationUpdated: (event) => OrganisationInformationUpdated(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          DivisionAddedToOrganisation: (event) => DivisionAddedToOrganisation(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          DivisionRemovedFromOrganisation: (event) => DivisionRemovedFromOrganisation(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          OrganisationDeleted: (event) => OrganisationDeleted(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
+          OrganisationCreated: (event) => OrganisationCreated(event),
+          OrganisationInformationUpdated: (event) => OrganisationInformationUpdated(event),
+          DivisionAddedToOrganisation: (event) => DivisionAddedToOrganisation(event),
+          DivisionRemovedFromOrganisation: (event) => DivisionRemovedFromOrganisation(event),
+          OrganisationDeleted: (event) => OrganisationDeleted(event),
         });
 
   final AffiliationRepository affiliations;
