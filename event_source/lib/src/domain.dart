@@ -3,21 +3,23 @@ import 'dart:collection';
 import 'dart:math';
 
 import 'package:collection/collection.dart';
-import 'package:event_source/src/models/snapshot_model.dart';
-import 'package:event_source/src/storage.dart';
-import 'package:event_source/src/stream.dart';
-import 'package:event_source/src/util.dart';
 import 'package:http/http.dart';
 import 'package:json_patch/json_patch.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
+import 'package:stack_trace/stack_trace.dart';
 import 'package:uuid/uuid.dart';
+
+import 'package:event_source/src/storage.dart';
+import 'package:event_source/src/stream.dart';
+import 'package:event_source/src/util.dart';
 
 import 'bus.dart';
 import 'core.dart';
 import 'error.dart';
 import 'extension.dart';
 import 'models/aggregate_root_model.dart';
+import 'models/snapshot_model.dart';
 import 'rule.dart';
 import 'source.dart';
 
@@ -159,6 +161,8 @@ class RepositoryManager {
   ) async {
     final backlog = projections.toSet();
     try {
+      // Will not on each command
+      // before executing the next
       await Future.wait(
         backlog.map((command) => _prepare(command)),
         cleanUp: (prepared) => backlog.removeAll(prepared),
@@ -178,7 +182,9 @@ class RepositoryManager {
       } else {
         completer.completeError(
           ProjectionNotAvailable(
-            'Failed to prepare projections $backlog with error: $e: $stackTrace',
+            'Failed to prepare projections $backlog '
+            'with error: $e\n,'
+            'stackTrace: ${Trace.format(stackTrace)}',
           ),
           StackTrace.current,
         );
@@ -262,6 +268,8 @@ class RepositoryManager {
   ) async {
     final backlog = repositories.toSet();
     try {
+      // Will not on each command
+      // before executing the next
       final counts = await Future.wait<int>(
         repositories.map(
           (repository) => repository.build(),
@@ -286,7 +294,9 @@ class RepositoryManager {
       } else {
         completer.completeError(
           ProjectionNotAvailable(
-            'Failed to build repositories ${backlog.map((repo) => repo.aggregateType)} with error: $e: $stackTrace',
+            'Failed to build repositories ${backlog.map((repo) => repo.aggregateType)} '
+            'with error: $e, '
+            'stackTrace: ${Trace.format(stackTrace)}',
           ),
           StackTrace.current,
         );
@@ -303,6 +313,7 @@ class RepositoryManager {
   }
 
   bool _isPaused = false;
+
   bool get isPaused => _isPaused;
 
   /// Pause all subscriptions
@@ -330,15 +341,20 @@ class RepositoryManager {
   /// Dispose all [RepositoryManager] instances
   Future dispose() async {
     try {
+      // Will not on each command
+      // before executing the next
       await Future.wait(
         _stores.values.map((store) => store.dispose()),
       );
+      // Will not on each command
+      // before executing the next
       await Future.wait(
         _stores.keys.map((repo) => repo.dispose()),
       );
     } on ClientException catch (e, stackTrace) {
       logger.warning(
-        'Failed to dispose one or more stores: error: $e, stacktrace: $stackTrace',
+        'Failed to dispose one or more stores with error: $e,\n'
+        'stacktrace: ${Trace.format(stackTrace)}',
       );
     }
     _stores.clear();
@@ -347,10 +363,39 @@ class RepositoryManager {
 
 /// Class for transactional change handling
 class Transaction<S extends Command, T extends AggregateRoot> {
-  Transaction(this.uuid, this.repository);
+  Transaction(
+    this.uuid,
+    this.repository,
+  ) : seqnum = _seqnum.update(
+          typeOf<T>(),
+          (seqnum) => ++seqnum,
+          ifAbsent: () => 1,
+        );
+
+  /// Sequence number since first creation of this class
+  final int seqnum;
+  static final Map<Type, int> _seqnum = {};
 
   /// Get [AggregateRoot.uuid] this [Transaction] applies to
   final String uuid;
+
+  /// Maximum number of retries
+  int get maxAttempts => _maxAttempts;
+  int _maxAttempts = 10;
+
+  /// Called when transactions is completed
+  final _completer = Completer<Iterable<DomainEvent>>();
+
+  /// Get caller [Object] when this [Transaction] was started by
+  Object get startedBy => _startedBy;
+  Object _startedBy;
+
+  /// Get [StackTrace] where this [Transaction] was started at
+  StackTrace get startedAt => _startedAt;
+  StackTrace _startedAt;
+
+  /// Get [Future] of push result
+  Future<Iterable<DomainEvent>> get onPush => _completer.future;
 
   /// Get [Repository] which this [Transaction] applies to
   final Repository<S, T> repository;
@@ -362,11 +407,58 @@ class Transaction<S extends Command, T extends AggregateRoot> {
   /// Returns null if not exist
   T get aggregate => repository.get(uuid, createNew: false);
 
+  /// Check if transaction allows modification of [aggregate]
+  bool get isModifiable => !isStarted;
+
+  /// Check if transaction is currently being committed
+  bool get isStarted => _changes.isNotEmpty;
+
+  /// Check if conflicts exists
+  bool get hasConflicts => conflicting.isNotEmpty;
+
+  /// Changes currently being pushed.
+  Iterable<DomainEvent> get changes {
+    return isStarted ? _changes.toList() : aggregate.getLocalEvents();
+  }
+
+  /// Changes in this transaction
+  Iterable<DomainEvent> _changes = <DomainEvent>[];
+
+  /// Changes that will result in a merge conflict
+  Iterable<DomainEvent> get conflicting => (aggregate?._remoteEvents ?? <DomainEvent>[]);
+
+  /// Changes not pushed yet
+  Iterable<DomainEvent> get remaining {
+    final local = (aggregate?._localEvents ?? <DomainEvent>[]).skipWhile(
+      (e) => _changes.contains(e),
+    );
+    final remaining = exists
+        ? local.skipWhile(
+            (e) => aggregate._applied.containsKey(e),
+          )
+        : local;
+    return remaining.toList();
+  }
+
+  /// Get concurrent modifications
+  Iterable<DomainEvent> get concurrent => (exists && isStarted
+          ? (aggregate?._localEvents?.where((e) => !_changes.contains(e)) ?? <DomainEvent>[])
+          : <DomainEvent>[])
+      .toList();
+
+  /// Check if concurrent modifications has occurred
+  bool get hasConcurrentModifications => concurrent.isNotEmpty;
+
+  /// Get [StreamRequest.tag]
+  String get tag => '${aggregate.runtimeType} ${uuid} in transaction ${seqnum} with ${_changes.length} changes';
+
   /// Execute command on given [aggregate]
   /// root. Changes are not pushed to
   /// [Repository.store] until [push] is
   /// called. See also [Repository.push].
+  ///
   FutureOr<Iterable<DomainEvent>> execute(S command) async {
+    _assertTrx();
     return repository.execute(command);
   }
 
@@ -383,20 +475,192 @@ class Transaction<S extends Command, T extends AggregateRoot> {
     int maxAttempts = 10,
     Duration timeout = const Duration(seconds: 60),
   }) {
-    if (!exists) {
-      throw AggregateNotFound('Aggregate ${typeOf<T>()} not found');
-    }
+    _assertTrx();
+    _assertExists();
     return repository.push(aggregate);
   }
 
-  /// Rollback all pending changes
-  /// in aggregate.
+  /// Start push operation
+  Iterable<DomainEvent> _start(Object caller, int maxAttempts) {
+    _assertStart();
+    _maxAttempts = maxAttempts;
+    return _restart(caller);
+  }
+
+  /// Restart transaction for push operation
+  Iterable<DomainEvent> _restart(Object caller) {
+    _assertRestart();
+    final restart = _startedBy != null;
+    _startedBy = caller;
+    _startedAt = StackTrace.current;
+    _changes = List.unmodifiable(
+      aggregate._localEvents,
+    );
+    repository.logger.fine(
+      'Transaction on ${repository.aggregateType} $uuid is ${restart ? 'restarted' : 'started'}',
+    );
+    return _changes;
+  }
+
+  /// Rollback all pending changes in [aggregate]
+  /// and complete this [Transaction].
+  ///
+  /// If transaction is [isStarted] an
+  /// [InvalidOperation] is thrown.
+  ///
   Iterable<DomainEvent> rollback() {
+    _assertStart();
+    return _rollback(complete: true);
+  }
+
+  /// Rollback all pending changes
+  /// in [aggregate].
+  ///
+  /// if [complete] is true, this
+  /// [Transaction] will be completed.
+  ///
+  /// if [complete] is false, this
+  /// [Transaction] will not be
+  /// completed. Useful when
+  ///
+  Iterable<DomainEvent> _rollback({@required complete}) {
+    return exists
+        ? repository._rollback(
+            aggregate,
+            complete: complete,
+          )
+        : <DomainEvent>[];
+  }
+
+  bool get isCompleted => _isCompleted;
+  bool _isCompleted = false;
+
+  void _complete({
+    Object error,
+    StackTrace stackTrace,
+    Iterable<DomainEvent> changes = const [],
+  }) {
     try {
-      return exists ? repository.rollback(repository.get(uuid)) : <DomainEvent>[];
+      _assertComplete();
+      // Prevent infinite reentry loop
+      // from calling rollback on errors
+      if (exists) {
+        if (error == null) {
+          if (aggregate.isChanged) {
+            final completed = aggregate.commit(
+              changes: changes,
+            );
+            _assertCommitted(completed);
+          }
+          // This will throw ConcurrentWriteModifications
+          // triggering a partial rollback to remote state
+          // applied above
+          _assertNoConcurrentModifications();
+          _completer.complete(changes);
+        } else {
+          _rollback(
+            complete: false,
+          );
+          _completer.completeError(
+            error,
+            stackTrace,
+          );
+        }
+      }
+    } catch (e, stackTrace) {
+      _rollback(
+        complete: !hasConcurrentModifications,
+      );
+      if (!hasConcurrentModifications) {
+        _completer.completeError(e, stackTrace);
+      }
     } finally {
-      repository._transactions.remove(uuid);
+      // Transactions can not be completed until
+      // local concurrent modifications are
+      // rolled back
+      _isCompleted = !hasConcurrentModifications;
+      if (_isCompleted) {
+        repository.logger.fine(
+          'Transaction on ${repository.aggregateType} $uuid is completed',
+        );
+      }
     }
+  }
+
+  void _assertCommitted(Iterable<DomainEvent> completed) {
+    final uncommitted = _changes.where((e) => !completed.contains(e));
+    if (uncommitted.isNotEmpty) {
+      throw StateError(
+        'Failed to commit ${uncommitted.length} events to aggregate ${aggregate.runtimeType} $uuid',
+      );
+    }
+  }
+
+  void _assertExists() {
+    if (!exists) {
+      throw AggregateNotFound('Aggregate ${typeOf<T>()} not found');
+    }
+  }
+
+  void _assertStart() {
+    _assertRestart();
+    if (isStarted) {
+      throw InvalidOperation(
+        'Transaction on ${aggregate.runtimeType} $uuid is started',
+      );
+    }
+  }
+
+  void _assertRestart() {
+    _assertTrx();
+    _assertExists();
+    _assertComplete();
+  }
+
+  void _assertTrx() {
+    if (!repository.inTransaction(uuid)) {
+      throw InvalidOperation(
+        'Transaction on ${aggregate.runtimeType} $uuid is not open',
+      );
+    }
+  }
+
+  void _assertComplete() {
+    if (_isCompleted) {
+      throw InvalidOperation(
+        'Transaction on ${aggregate.runtimeType} $uuid was completed',
+      );
+    }
+  }
+
+  void _assertNoConcurrentModifications() {
+    if (hasConcurrentModifications) {
+      throw ConcurrentWriteOperation(
+        '${concurrent.length} concurrent modifications after '
+        'transaction on ${aggregate.runtimeType} $uuid was started',
+        this,
+      );
+    }
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is Transaction && runtimeType == other.runtimeType && uuid == other.uuid;
+
+  @override
+  int get hashCode => uuid.hashCode;
+
+  @override
+  String toString() {
+    return '$runtimeType: {\n'
+        '  seqnum: $seqnum,\n'
+        '  changes: ${_changes.map((e) => '{${e.type}: ${e.uuid}')}},\n'
+        '  aggregate: {\n'
+        '    uuid: ${aggregate.uuid},\n'
+        '    modifications: ${aggregate.modifications},\n'
+        '    changes: ${aggregate._localEvents.map((e) => '{${e.type}: ${e.uuid}}')},\n'
+        '  },\n'
+        '}';
   }
 }
 
@@ -427,10 +691,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   })  : _processors = Map.unmodifiable(processors.map(
           (type, process) => MapEntry('$type', process),
         )),
-        logger = Logger('Repository[${typeOf<T>()}]'),
         maxBackoffTime = Duration(seconds: maxBackoffTimeSeconds);
 
-  final Logger logger;
   final EventStore store;
   final int maxPushPressure;
   final String uuidFieldName;
@@ -443,6 +705,14 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   void _printDebug(Object message) {
     logger.info(message);
   }
+
+  /// Get logger instance
+  Logger get logger {
+    _logger ??= Logger('Repository[${typeOf<T>()}:$hashCode]');
+    return _logger;
+  }
+
+  Logger _logger;
 
   /// Get [AggregateRoot] type
   Type get aggregateType => typeOf<T>();
@@ -479,10 +749,12 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// [Message] type name to [DomainEvent] processors
   final Map<String, ProcessCallback> _processors;
+
   Map<String, ProcessCallback> get processors => Map.unmodifiable(_processors);
 
   /// Map of aggregate roots
   final Map<String, T> _aggregates = {};
+
   Iterable<T> get aggregates => List.unmodifiable(_aggregates.values);
 
   /// Get number of aggregates
@@ -504,37 +776,16 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   bool contains(String uuid) => _aggregates.containsKey(uuid);
 
   /// Used in [dispose] to close open subscriptions
-  final List<StreamSubscription> _subscriptions = [];
+  StreamSubscription _subscription;
 
   /// Build repository from [store].
   /// Returns number of events processed.
   Future<int> build() async {
     // Listen for push-queue to finish processing
-    _subscriptions
-      ..add(_pushQueue.onIdle().listen((event) {
-        logger.info('Push queue idle: ${event?.tag}');
-      }))
-      ..add(_pushQueue.onTimeout().listen((event) {
-        logger.info(
-          'Push command timeout: ${event.tag} (queue pressure: $pending)',
-        );
-        store.resume();
-      }))
-      ..add(_pushQueue.onFailure().listen((event) {
-        logger.info(
-          'Push command failed: ${event.tag} (queue pressure: $pending)',
-        );
-        store.resume();
-      }))
-      ..add(_pushQueue.onComplete().listen((event) {
-        logger.info(
-          'Push command complete: ${event.tag} (queue pressure: $pending)',
-        );
-        store.resume();
-      }));
+    _subscription = _pushQueue.onEvent().listen(_onQueueEvent);
     _pushQueue.catchError((e, stackTrace) {
-      logger.severe(
-        'Processing push requests failed with: $e',
+      logger.network(
+        'Push requests failed',
         e,
         stackTrace,
       );
@@ -551,11 +802,45 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     return count;
   }
 
+  void _onQueueEvent(event) {
+    switch (event.runtimeType) {
+      case StreamRequestAdded:
+        final request = (event as StreamRequestAdded).request;
+        logger.fine(
+          'Push command added: ${request.tag} (${_toPressureString()})',
+        );
+        break;
+      case StreamRequestCompleted:
+        final request = (event as StreamRequestCompleted).request;
+        logger.fine(
+          'Push command complete: ${request.tag} (${_toPressureString()})',
+        );
+        break;
+      case StreamQueueIdle:
+        logger.fine('Push queue idle');
+        break;
+      case StreamRequestTimeout:
+        final request = (event as StreamRequestTimeout).request;
+        logger.fine(
+          'Push command timeout: ${request.tag} (${_toPressureString()})',
+        );
+        break;
+      case StreamRequestFailed:
+        final request = (event as StreamRequestFailed).request;
+        logger.fine(
+          'Push command failed: ${request.tag} (${_toPressureString()})',
+        );
+        break;
+    }
+  }
+
+  String _toPressureString() => 'queue pressure: ${_pushQueue.length}, command pressure: ${_commands.length}';
+
   /// Check if repository has a active snapshot
-  bool get hasSnapshot => _suuid != null;
+  bool get hasSnapshot => store.snapshots?.contains(_suuid) == true;
 
   /// Get current [SnapshotModel]
-  SnapshotModel get snapshot => store.snapshots != null ? store.snapshots[_suuid] : null;
+  SnapshotModel get snapshot => hasSnapshot ? store.snapshots[_suuid] : null;
 
   /// Current [SnapshotModel.uuid]
   String _suuid;
@@ -605,8 +890,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Called after [build()] is completed.
   void willStartProcessingEvents() => {};
 
-  /// Get domain event from given event
-  DomainEvent toDomainEvent(Event event) {
+  /// Get domain event from given [event]
+  DomainEvent toDomainEvent(SourceEvent event) {
     if (event == null) {
       return null;
     }
@@ -616,11 +901,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
       // Check if event is already applied
       final aggregate = _aggregates[uuid];
-      if (aggregate?.isApplied(event) == true) {
-        final applied = aggregate.getApplied(event.uuid);
-        if (applied?.created == event.created) {
-          return aggregate.getApplied(event.uuid);
-        }
+      final applied = aggregate.getApplied(event.uuid);
+
+      // Only return if creation date is equal
+      if (applied?.created == event.created) {
+        return applied;
       }
 
       // Get base if exists
@@ -629,7 +914,12 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       // Prepare REQUIRED fields
       final patches = event.listAt<Map<String, dynamic>>('patches');
       assert(patches != null, 'Patches can not be null');
-      final changed = event.mapAt<String, dynamic>('changed') ??
+
+      // Use applied changes if exists,
+      // otherwise use sourced if exists
+      // otherwise apply patches to base
+      final changed = applied?.changed ??
+          event.mapAt<String, dynamic>('changed') ??
           JsonUtils.apply(
             base,
             patches,
@@ -645,9 +935,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           data: DomainEvent.toData(
             uuid,
             uuidFieldName,
-            previous: base,
             patches: patches,
             changed: changed,
+            previous: applied?.previous ?? base,
             index: event.elementAt<int>('index'),
             deleted: event.elementAt<bool>('deleted') ?? aggregate?.isDeleted,
           ),
@@ -685,20 +975,25 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   }
 
   @override
-  void handle(DomainEvent message) async {
-    if (message.local && _rules.isNotEmpty) {
+  void handle(Object source, DomainEvent event) async {
+    if (event.local && _rules.isNotEmpty) {
       try {
-        final builders = _rules[message.runtimeType];
+        final builders = _rules[event.runtimeType];
         if (builders?.isNotEmpty == true) {
           builders.forEach((builder) async {
-            final handler = builder(this);
-            final events = await handler(message);
+            final rule = builder(this);
+            final events = await rule(source, event);
+            logger.fine(
+              'Evaluated rule $rule on event $event => $events',
+            );
             events?.forEach(_ruleController.add);
           });
         }
       } catch (e, stackTrace) {
         logger.severe(
-          'Failed to enforce invariant for $message in $runtimeType, failed with: $e, stackTrace: $stackTrace',
+          'Execution of rule for $event on $runtimeType failed '
+          'with error: $e,\n'
+          'stackTrace: ${Trace.format(stackTrace)}',
         );
       }
     }
@@ -773,43 +1068,63 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     int maxAttempts = 10,
     Duration timeout = timeout,
   }) async {
-    T aggregate;
     final changes = <DomainEvent>[];
 
-    if (command.uuid == null) {
-      throw UUIDIsNull('Field [${command.uuidFieldName}] is null in $command');
-    } else if (isMaximumPushPressure) {
-      throw RepositoryMaxPressureExceeded(
-        '$runtimeType: Push exceeded maximum: $maxPushPressure',
-        maxPushPressure,
-      );
-    }
+    // Await transaction if exists
+    // and push has started
+    await _onNextCommand(
+      command,
+      timeout,
+    );
 
     // Execute command on given aggregate
-    aggregate = _execute(aggregate, command, changes);
+    final aggregate = _execute(
+      command,
+      changes,
+    );
     if (aggregate.isChanged) {
       // If in transaction return
       // changes without pushing them
       if (_transactions.containsKey(command.uuid)) {
         return changes;
       }
-      try {
-        return await _schedulePush(
-          aggregate.uuid,
-          changes,
-          timeout,
-          maxAttempts,
-        );
-      } catch (e) {
-        rollback(aggregate);
-        rethrow;
-      }
+      return push(
+        aggregate,
+        timeout: timeout,
+        maxAttempts: maxAttempts,
+      );
     }
     return <DomainEvent>[];
   }
 
-  T _execute(aggregate, command, List<DomainEvent> changes) {
-    aggregate = command is EntityCommand
+  Future<String> _onNextCommand(S command, Duration timeout) async {
+    final uuid = _assertExecute(
+      command,
+    );
+    if (inTransaction(uuid)) {
+      final trx = getTransaction(uuid);
+      if (trx.isStarted) {
+        try {
+          _commands.add(command);
+          await trx.onPush.timeout(timeout);
+        } on TimeoutException {
+          throw CommandTimeout(
+            'Command ${command.runtimeType} ${command.uuid} timed out',
+            command,
+          );
+        } finally {
+          _commands.remove(command);
+        }
+      }
+    }
+    return uuid;
+  }
+
+  T _execute(S command, List<DomainEvent> changes) {
+    _assertCanModify(
+      command.uuid,
+    );
+    final aggregate = command is EntityCommand
         ? _applyEntityData(
             command,
             changes,
@@ -828,7 +1143,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     switch (command.action) {
       case Action.create:
         aggregate = get(command.uuid, data: list.first);
-        changes.addAll(aggregate.getUncommittedChanges());
+        changes.addAll(aggregate.getLocalEvents());
         remaining.addAll(list.skip(1));
         break;
       case Action.update:
@@ -856,7 +1171,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     final next = _asEntityData(command);
     final aggregate = get(command.uuid);
     if (!contains(command.uuid)) {
-      changes.addAll(aggregate.getUncommittedChanges());
+      changes.addAll(aggregate.getLocalEvents());
     }
     changes.add(aggregate.patch(
       Map<String, dynamic>.from(next['data']),
@@ -907,35 +1222,42 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     T aggregate, {
     int maxAttempts = 10,
     Duration timeout = timeout,
-  }) async {
-    try {
-      var result = <DomainEvent>[];
-      if (isMaximumPushPressure) {
-        throw RepositoryMaxPressureExceeded(
-          '$runtimeType: Push exceeded maximum: $maxPushPressure',
-          maxPushPressure,
-        );
-      } else if (aggregate.isChanged) {
-        result = await _schedulePush(
-          aggregate.uuid,
-          aggregate.getUncommittedChanges(),
-          timeout,
-          maxAttempts,
-        );
-      }
-      return result;
-    } catch (e) {
-      if (_transactions.containsKey(aggregate.uuid)) {
-        rollback(aggregate);
-      }
-      rethrow;
-    } finally {
-      _transactions.remove(aggregate.uuid);
+  }) {
+    var result = <DomainEvent>[];
+    final uuid = aggregate.uuid;
+    // After this point the transaction
+    // is started. A exception will be
+    // thrown if a second push is attempted
+    // before the transaction is completed.
+    final transaction = _assertPush(
+      uuid,
+      maxAttempts,
+    );
+    if (aggregate.isChanged) {
+      // Ensure transaction exists is not concurrent
+      _pushQueue.add(StreamRequest<Iterable<DomainEvent>>(
+        key: uuid,
+        fail: true,
+        timeout: timeout,
+        tag: transaction.tag,
+        execute: () => _push(transaction),
+      ));
+      logger.fine(
+        'Scheduled push of: ${transaction.tag} (queue pressure: $pressure)',
+      );
+      return transaction.onPush;
+    } else {
+      _completeTrx(uuid);
     }
+    return Future.value(
+      result,
+    );
   }
 
-  /// Get number of pending [push]
-  int get pending => _pushQueue.length;
+  /// Get number of commands waiting to [execute] and pending [push] requests
+  int get pressure {
+    return _commands.length + _pushQueue.length;
+  }
 
   /// Queue of push operations performed in FIFO manner.
   ///
@@ -955,46 +1277,87 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   ///
   final _pushQueue = StreamRequestQueue<Iterable<DomainEvent>>();
 
-  /// Schedule [_PushOperation] for execution
-  Future<Iterable<DomainEvent>> _schedulePush(
-    String uuid,
-    Iterable<DomainEvent> changes,
-    Duration timeout,
-    int maxAttempts,
-  ) {
-    // Increment
-    store.pause();
-    final aggregate = _assertExists(uuid);
-    final message = _toTag(uuid, changes);
-    final operation = _PushOperation(aggregate, changes, maxAttempts);
-    _pushQueue.add(StreamRequest<Iterable<DomainEvent>>(
-      fail: true,
-      tag: message,
-      timeout: timeout,
-      execute: () => _push(operation),
-    ));
-    logger.info(
-      'Scheduled push of ${aggregate.runtimeType} ${aggregate.uuid} (queue pressure: $pending)',
-    );
-    return operation.completer.future;
+  /// Check if [push] or [execute] is possible
+  bool get isMaximumPushPressure => maxPushPressure != null && pressure >= maxPushPressure;
+
+  /// Get commands waiting to execute
+  final _commands = <S>{};
+
+  String _assertExecute(S command) {
+    final uuid = command.uuid;
+    if (isMaximumPushPressure) {
+      throw RepositoryMaxPressureExceeded(
+        'Execution of ${command.runtimeType} $uuid failed',
+        uuid,
+        this,
+      );
+    }
+    if (uuid == null) {
+      throw UUIDIsNull('Field [${command.uuidFieldName}] is null in $command');
+    }
+    return uuid;
   }
 
-  String _toTag(String uuid, Iterable<DomainEvent> changes) => '${typeOf<T>()} ${uuid} with ${changes.length} changes';
+  Transaction _assertCanModify(String uuid, {bool open = false}) {
+    var transaction;
+    if (inTransaction(uuid) || open) {
+      transaction = getTransaction(uuid);
+      if (transaction.isStarted) {
+        final idx = _pushQueue.indexOf(uuid);
+        throw ConcurrentWriteOperation(
+          'Push request $idx already in progress for $aggregateType $uuid',
+          transaction,
+        );
+      }
+    }
+    return transaction;
+  }
 
-  /// Check if [push] or [execute] is possible
-  bool get isMaximumPushPressure => maxPushPressure != null && pending >= maxPushPressure;
+  Transaction _assertPush(String uuid, int maxAttempts) {
+    if (isMaximumPushPressure) {
+      final aggregate = _aggregates[uuid];
+      final changes = (inTransaction(uuid) ? getTransaction(uuid).changes : aggregate?.getLocalEvents()?.length) ?? 0;
+      throw RepositoryMaxPressureExceeded(
+        'Push of $changes changes in ${aggregateType} $uuid failed',
+        uuid,
+        this,
+      );
+    }
+    if (!_aggregates.containsKey(uuid)) {
+      throw AggregateNotFound(
+        'Aggregate $aggregateType $uuid not found',
+      );
+    }
+    final transaction = _assertCanModify(
+      uuid,
+      open: true,
+    );
+    transaction._start(this, maxAttempts);
+    return transaction;
+  }
 
-  T _assertExists(String uuid) {
-    final aggregate = _aggregates[uuid];
-    if (aggregate == null) {
-      throw AggregateNotFound('Aggregate $aggregateType $uuid not found');
+  /// Assert that this [operation] has an [Transaction]
+  T _assertTrx(Transaction transaction) {
+    final aggregate = transaction.aggregate;
+    if (!inTransaction(aggregate.uuid)) {
+      throw StateError(
+        'No transaction found for aggregate ${aggregateType} ${aggregate.uuid}',
+      );
+    }
+    if (transaction.hasConflicts) {
+      throw ConflictNotReconcilable(
+        'Conflicts must be resolved for $aggregateType ${aggregate.uuid}',
+        base: aggregate.base,
+        mine: aggregate.mine,
+        yours: aggregate.yours,
+        conflicts: aggregate.conflicts,
+      );
     }
     return aggregate;
   }
 
-  Future<StreamResult<Iterable<DomainEvent>>> _push(_PushOperation operation) async {
-    final aggregate = operation.aggregate;
-    final tag = _toTag(aggregate.uuid, operation.changes);
+  Future<StreamResult<Iterable<DomainEvent>>> _push(Transaction transaction) async {
+    final aggregate = _assertTrx(transaction);
     try {
       if (debugConflicts) {
         _printDebug('---PUSH---');
@@ -1005,14 +1368,26 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         _printDebug('store.events.count: ${store.events.values.fold(0, (count, events) => count + events.length)}');
         _printDebug('store.number.instance: ${store.current(uuid: aggregate.uuid)}');
         _printDebug('expectedEventNumber: ${store.toExpectedVersion(store.toInstanceStream(aggregate.uuid)).value}');
-        _printDebug('store.number.canonical: ${store.current(stream: store.canonicalStream)}');
-        _printDebug('aggregate.pending.count: ${aggregate.getUncommittedChanges().length}');
-        _printDebug('aggregate.pending.items: ${aggregate.getUncommittedChanges().length}');
+        _printDebug('store.number.canonical: ${store.current()}');
+        _printDebug('aggregate.pending.count: ${aggregate.getLocalEvents().length}');
+        _printDebug('aggregate.pending.items: ${aggregate.getLocalEvents().length}');
       }
-      await store.push(aggregate);
 
-      // Only return changes applied by this operation
-      operation.completer.complete(operation.changes);
+      // This will attempt to push all changes
+      // in one operation, regardless of the
+      // number of events that it contains.
+      final changes = await store.push(
+        aggregate.uuid,
+        // Will throw ConcurrentWriteOperation
+        // if changed after transaction was started
+        transaction.changes,
+        uuidFieldName: uuidFieldName,
+      );
+
+      _completeTrx(
+        aggregate.uuid,
+        changes: changes,
+      );
 
       if (debugConflicts) {
         _printDebug('---DONE---');
@@ -1021,25 +1396,30 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         _printDebug('connection: ${store.connection.host}:${store.connection.port}');
         _printDebug('store.events.count: ${store.events.values.fold(0, (count, events) => count + events.length)}');
         _printDebug('store.number.instance: ${store.current(uuid: aggregate.uuid)}');
-        _printDebug('store.number.canonical: ${store.current(stream: store.canonicalStream)}');
-        _printDebug('aggregate.pending.count: ${aggregate.getUncommittedChanges().length}');
-        _printDebug('aggregate.pending.items: ${aggregate.getUncommittedChanges()}');
+        _printDebug('store.number.canonical: ${store.current()}');
+        _printDebug('aggregate.pending.count: ${aggregate.getLocalEvents().length}');
+        _printDebug('aggregate.pending.items: ${aggregate.getLocalEvents()}');
       }
+
       return StreamResult(
-        tag: tag,
-        value: operation.changes,
+        tag: transaction.tag,
+        value: changes,
       );
     } on WrongExpectedEventVersion {
-      return _reconcile(operation);
-    } catch (e, stackTrace) {
+      return await _reconcile(transaction);
+    } catch (error, stackTrace) {
       logger.severe(
-        'Failed to push ${aggregate.runtimeType}{uuid: ${aggregate.uuid}},\n'
-        'error: $e, stacktrace: $stackTrace, debug: ${toDebugString(aggregate?.uuid)}',
+        'Failed to push ${aggregate.runtimeType}{uuid: ${aggregate.uuid}} with error: $error,\n'
+        'stacktrace: ${Trace.format(stackTrace)}\n'
+        'debug: ${toDebugString(aggregate?.uuid)}',
       );
-      operation.completer.completeError(e, stackTrace);
-      return StreamResult(
-        tag: tag,
-        value: operation.changes,
+      _completeTrx(
+        aggregate.uuid,
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return StreamResult.none(
+        tag: transaction.tag,
       );
     } finally {
       store.snapshotWhen(this);
@@ -1047,9 +1427,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   }
 
   /// Attempts to reconcile conflicts between concurrent modifications
-  Future<StreamResult<Iterable<DomainEvent>>> _reconcile(_PushOperation operation) async {
-    final aggregate = operation.aggregate;
-    final tag = _toTag(aggregate.uuid, operation.changes);
+  Future<StreamResult<Iterable<DomainEvent>>> _reconcile(Transaction transaction) async {
+    final aggregate = _assertTrx(transaction);
     if (debugConflicts) {
       _printDebug('---CONFLICT---');
       _printDebug('timestamp: ${DateTime.now().toIso8601String()}');
@@ -1060,32 +1439,37 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       _printDebug('aggregate.uuid: ${aggregate.uuid}');
       _printDebug('aggregate.applied.count: ${aggregate.applied.length}');
       _printDebug('aggregate.applied.items: ${aggregate.applied}');
-      _printDebug('aggregate.pending.count: ${aggregate.getUncommittedChanges().length}');
-      _printDebug('aggregate.pending.items: ${aggregate.getUncommittedChanges()}');
+      _printDebug('aggregate.pending.count: ${aggregate.getLocalEvents().length}');
+      _printDebug('aggregate.pending.items: ${aggregate.getLocalEvents()}');
     } // Attempt to automatic merge until maximum attempts
     try {
       final events = await ThreeWayMerge(this, maxBackoffTime).reconcile(
-        aggregate,
-        operation.maxAttempts,
+        transaction,
       );
-      operation.completer.complete(events);
+      _completeTrx(
+        aggregate.uuid,
+        changes: events,
+      );
       return StreamResult(
-        tag: tag,
+        tag: transaction.tag,
         value: events,
       );
-    } on ConflictNotReconcilable catch (e, stackTrace) {
-      operation.completer.completeError(e, stackTrace);
-    } catch (e, stackTrace) {
+    } catch (error, stackTrace) {
       logger.severe(
-        'Failed to reconcile before push of ${aggregate.runtimeType}{uuid: ${aggregate.uuid}},\n'
-        'error: $e, stacktrace: $stackTrace, debug: ${toDebugString(aggregate?.uuid)}',
+        'Failed to reconcile before push of ${aggregate.runtimeType}{uuid: ${aggregate.uuid}} '
+        'with error: $error,\n'
+        'stacktrace: ${Trace.format(stackTrace)},\n'
+        'debug: ${toDebugString(aggregate?.uuid)}',
       );
-      operation.completer.completeError(e, stackTrace);
+      _completeTrx(
+        aggregate.uuid,
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return StreamResult.none(
+        tag: transaction.tag,
+      );
     }
-    return StreamResult(
-      tag: tag,
-      value: operation.changes,
-    );
   }
 
   /// Rollback all changes
@@ -1097,17 +1481,65 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// in [aggregate]. Any [Transaction]
   /// on given [aggregate] will end.
   Iterable<DomainEvent> rollback(T aggregate) {
-    final events = aggregate.getUncommittedChanges();
-    if (aggregate.isNew) {
-      _aggregates.remove(aggregate.uuid);
-    } else if (aggregate.isChanged) {
-      aggregate.loadFromHistory(
-        this,
-        store.get(aggregate.uuid),
+    return _rollback(
+      aggregate,
+      complete: true,
+    );
+  }
+
+  /// Rollback local changes. If
+  Iterable<DomainEvent> _rollback(
+    T aggregate, {
+    @required complete,
+  }) {
+    final uuid = aggregate.uuid;
+    final trx = _transactions[uuid];
+    final exists = store.contains(uuid);
+    final local = aggregate.getLocalEvents();
+    final remaining = trx?.remaining ?? local;
+
+    if (exists) {
+      if (aggregate.isChanged) {
+        // Replay remote events
+        aggregate._replay(this);
+      }
+    } else {
+      // Aggregate only exists
+      // locally, remove it
+      _aggregates.remove(uuid);
+      // Reset aggregate
+      aggregate._reset(this);
+    }
+
+    if (complete) {
+      _completeTrx(
+        uuid,
       );
     }
-    _transactions.remove(aggregate.uuid);
-    return events;
+
+    return remaining;
+  }
+
+  /// Complete transaction for given [aggregate]
+  Transaction _completeTrx(
+    String uuid, {
+    Object error,
+    StackTrace stackTrace,
+    Iterable<DomainEvent> changes = const [],
+  }) {
+    final trx = _transactions[uuid];
+    try {
+      trx?._complete(
+        error: error,
+        changes: changes,
+        stackTrace: stackTrace,
+      );
+    } finally {
+      if (trx?.isCompleted == true) {
+        _transactions.remove(uuid);
+      }
+    }
+    return trx;
   }
 
   /// Get aggregate with given id.
@@ -1133,7 +1565,13 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           JsonPatch.apply(data ?? {}, patches) as Map<String, dynamic>,
         ),
       );
-      aggregate.loadFromHistory(this, store.get(uuid));
+      // Only replay if history or
+      // snapshot exist for given uuid,
+      // otherwise keep the event from
+      // construction of this aggregate
+      if (store.contains(uuid) || hasSnapshot && snapshot.contains(uuid)) {
+        aggregate._replay(this);
+      }
     }
     return aggregate;
   }
@@ -1232,8 +1670,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         'aggregate.data: ${aggregate?.data},\n'
         'aggregate.modifications: ${aggregate?.modifications},\n'
         'aggregate.applied.count: ${aggregate?.applied?.length},\n'
-        'aggregate.pending.count: ${aggregate?.getUncommittedChanges()?.length},\n'
-        'aggregate.pending.items: ${aggregate?.getUncommittedChanges()},\n'
+        'aggregate.pending.count: ${aggregate?.getLocalEvents()?.length},\n'
+        'aggregate.pending.items: ${aggregate?.getLocalEvents()},\n'
         '}';
   }
 
@@ -1263,7 +1701,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           return aggregate;
         });
       });
-      logger.info('Reset to snapshot $_suuid@${snapshot.number}');
+      logger.info('Reset to snapshot $_suuid@${snapshot.number.value}');
     }
   }
 
@@ -1273,45 +1711,23 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   Future<void> dispose() async {
     _pushQueue.cancel();
     _aggregates.clear();
-    await Future.wait(
-      _subscriptions.map((s) => s.cancel()),
-    );
+    await _subscription?.cancel();
     if (_ruleController.hasListener) {
       await _ruleController.close();
     }
     return _pushQueue.dispose();
   }
-}
-
-class _PushOperation {
-  _PushOperation(
-    this.aggregate,
-    this.changes,
-    this.maxAttempts,
-  ) : offset = aggregate.modifications;
-  final int offset;
-  final int maxAttempts;
-  final AggregateRoot aggregate;
-  final Iterable<DomainEvent> changes;
-  final completer = Completer<Iterable<DomainEvent>>();
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is _PushOperation && runtimeType == other.runtimeType && aggregate.uuid == other.aggregate.uuid;
-
-  @override
-  int get hashCode => aggregate.uuid.hashCode;
 
   @override
   String toString() {
-    return '{'
-        'changes: ${changes.map((e) => '${e.type}: ${e.uuid}')}, '
-        'aggregate: {'
-        'uuid: ${aggregate.uuid}, '
-        'modifications: ${aggregate.modifications}, '
-        'pending: ${aggregate._pending.map((e) => '${e.type}: ${e.uuid}')}}'
-        '}';
+    return '$runtimeType{'
+        'hashCode: $hashCode, '
+        'type: $aggregateType, '
+        'number: $number, '
+        'count: ${count()}, '
+        'pressure: $pressure, '
+        'pending.requests: ${_pushQueue.length}, '
+        'pending.commands: ${_commands.length}}';
   }
 }
 
@@ -1336,7 +1752,6 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     _createdBy = _change(
       // Ensure data and uuid is given
       (data ?? {})..addAll({uuidFieldName: uuid}),
-      ops,
       typeOf<C>(),
       created ?? DateTime.now(),
       true,
@@ -1356,19 +1771,58 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   final String entityIdFieldName;
 
   /// Get event number of [DomainEvent] applied last
-  EventNumber get number =>
-      applied.isNotEmpty ? applied.last.number : EventNumber(_snapshot?.number?.value ?? EventNumber.none.value);
+  EventNumber get number {
+    if (applied.isNotEmpty) {
+      return EventNumber(applied.last.number.value);
+    }
+    if (_snapshot == null) {
+      return EventNumber.none;
+    }
+    return EventNumber(_snapshot.number.value);
+  }
 
-  /// Get [EventNumber] of next [DomainEvent]
-  /// from next modification. Since [EventNumber]
-  /// is 0-based, next [EventNumber] is equal to
-  /// current number of [modifications].
+  /// Get [EventNumber] of next [DomainEvent].
+  ///
+  /// Since [EventNumber] is 0-based, next
+  /// [EventNumber] is equal [modifications].
+  ///
   EventNumber get nextNumber => EventNumber(modifications);
 
   /// [Message] to [DomainEvent] processors
   final Map<String, ProcessCallback> _processors;
 
-  /// Aggregate root data (weak schema)
+  /// Aggregate root data without any local
+  /// changes applied. This equals to [data]
+  /// with all known remote events [applied].
+  Map<String, dynamic> get base {
+    // Get current base
+    var base = Map<String, dynamic>.from(
+      _base.isEmpty ? _snapshot?.data ?? {} : _base,
+    );
+    // Apply events added since last call that have patches
+    final added = _applied.values.skip(_baseIndex).where((e) => e.patches.isNotEmpty);
+    if (added.isNotEmpty) {
+      base = added.fold(
+        base,
+        (previous, event) => JsonUtils.apply(
+          previous,
+          event.patches,
+        ),
+      );
+      _setBase(base);
+    }
+    // This ensures that base is not
+    // recalculated on each call
+    _baseIndex = _applied.length;
+    return Map.from(base);
+  }
+
+  int _baseIndex = 0;
+  final Map<String, dynamic> _base = {};
+
+  /// Aggregate root [data] (weak schema).
+  /// This includes any changes applied locally.
+  /// Last known remote state is given by [base].
   Map<String, dynamic> get data => Map.from(_data);
   final Map<String, dynamic> _data = {};
 
@@ -1383,29 +1837,21 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
 
   /// Get number of modifications since creation
   ///
-  /// Since [EventNumber] is 0-based, the number
-  /// of modifications is equal to [EventNumber]
-  /// of [lastEvent] + 1.
-  ///
   int get modifications {
-    final base = lastEvent;
-    return base == null ? 0 : base.number.value + 1;
+    return number.value + _localEvents.length + 1;
   }
 
   /// Get last event patched with [data]
   ///
   /// Is either
-  /// 1. last event in pending
+  /// 1. last event in local
   /// 2. last event in applied
   /// 3. [SnapshotModel.changedBy]
-  /// 4. [changedBy]
+  /// 4. [changedBy] (new aggregate)
   ///
-  DomainEvent get lastEvent => _pending.isNotEmpty
-      ? _pending.last
-      : (_applied.isNotEmpty ? _applied.values.last : toDomainEvent(_snapshot?.changedBy) ?? _changedBy);
-
-  /// Local uncommitted changes
-  final _pending = <DomainEvent>[];
+  DomainEvent get lastEvent => _localEvents.isNotEmpty
+      ? _localEvents.last
+      : (_applied.isNotEmpty ? _applied.values.last : _toDomainEvent(_snapshot?.changedBy) ?? _changedBy);
 
   /// [Message.uuid]s of applied events
   final LinkedHashMap<String, DomainEvent> _applied = LinkedHashMap<String, DomainEvent>();
@@ -1428,14 +1874,17 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// Check if event is applied
   DomainEvent getApplied(String uuid) => _applied[uuid];
 
-  /// Get changed not committed to store
-  Iterable<DomainEvent> getUncommittedChanges() => List.unmodifiable(_pending);
+  /// Get local changes (mine) not committed to store
+  Iterable<DomainEvent> getLocalEvents() => List.unmodifiable(_localEvents);
+
+  /// Local changes pending commit
+  final _localEvents = <DomainEvent>[];
 
   /// Check if uncommitted changes exists
   bool get isNew => number.isNone && _applied.isEmpty;
 
-  /// Check if uncommitted changes exists
-  bool get isChanged => _pending.isNotEmpty;
+  /// Check if local uncommitted changes exists
+  bool get isChanged => _localEvents.isNotEmpty;
 
   /// Get [DomainEvent] that created this aggregate
   DomainEvent get createdBy => _createdBy;
@@ -1462,32 +1911,97 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   bool get isDeleted => _isDeleted;
   bool _isDeleted = false;
 
+  /// Get [mine] patches.
+  List<Map<String, dynamic>> get mine {
+    if (_mineIndex < _localEvents.length) {
+      final mine = JsonPatch.diff(base, data);
+      _setMine(mine);
+      // This ensures that mine is not
+      // recalculated on each call
+      _mineIndex = _localEvents.length;
+    }
+    return List.from(_mine);
+  }
+
+  int _mineIndex = 0;
+  final List<Map<String, dynamic>> _mine = [];
+
+  /// Get [yours] patches if [hasConflicts].
+  List<Map<String, dynamic>> get yours {
+    if (_yourIndex < _remoteEvents.length) {
+      final added = _remoteEvents.skip(_yourIndex).where((e) => e.patches.isNotEmpty);
+      if (added.isNotEmpty) {
+        final yours = added.fold(
+          _yours.toList(),
+          (previous, event) => previous..addAll(event.patches),
+        );
+        _setYours(yours);
+      }
+      // This ensures that yours is not
+      // recalculated on each call
+      _yourIndex = _remoteEvents.length;
+    }
+    return List.from(_yours);
+  }
+
+  int _yourIndex = 0;
+  final List<Map<String, dynamic>> _yours = [];
+
+  /// Check if conflicts with remote changes exists
+  bool get hasConflicts => _conflicts.isNotEmpty;
+
+  /// List of paths with conflicts that must be resolved manually
+  List<String> get conflicts => List.unmodifiable(_conflicts);
+  final LinkedHashSet<String> _conflicts = LinkedHashSet<String>();
+
+  /// Remote [DomainEvent]s pending apply because of unresolvable conflicts
+  final _remoteEvents = <DomainEvent>[];
+
+  /// Get remote conflicts (yours) not applied to aggregate
+  Iterable<DomainEvent> getRemoteEvents() => List.unmodifiable(_remoteEvents);
+
   /// Get aggregate uuid from event
   String toAggregateUuid(Event event) => event.data[uuidFieldName] as String;
 
   /// Load events from history.
   @protected
-  AggregateRoot loadFromHistory(Repository repo, Iterable<Event> events) {
-    // Only clear if history exist,
-    // otherwise keep the event
-    // from construction
-    if (events.isNotEmpty || repo.store.snapshots?.contains(uuid) == true) {
-      _reset(repo);
-    }
+  AggregateRoot _replay(Repository repo) {
+    final events = repo.store.get(uuid);
+    _reset(repo);
     final offset = number;
     events?.where((event) => event.number > offset)?.forEach((event) => _apply(
+          // Must use this method to ensure previous
           repo.toDomainEvent(event),
-          isChanged: false,
+          isLocal: false,
         ));
 
+    return this;
+  }
+
+  /// Catchup to head of remote event stream.
+  @protected
+  AggregateRoot _catchUp(Repository repo) {
+    // Get events applied since last _apply or _catchup
+    final added = repo.store.get(uuid).skip(_applied.length);
+    final offset = number;
+    // Only catchup from current event number
+    added?.where((event) => event.number >= offset)?.forEach((event) => _apply(
+          // Must use this method to ensure previous
+          repo.toDomainEvent(event),
+          isLocal: false,
+        ));
     return this;
   }
 
   /// Reset to initial state
   void _reset(Repository repo) {
     _data.clear();
-    _pending.clear();
+    _mine.clear();
+    _yours.clear();
     _applied.clear();
+    _conflicts.clear();
+    _localEvents.clear();
+    _remoteEvents.clear();
     _createdBy = null;
     _changedBy = null;
     _deletedBy = null;
@@ -1495,21 +2009,27 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
       _snapshot = repo.snapshot.aggregates[uuid];
       if (_snapshot != null) {
         _data.addAll(snapshot.data);
-        _createdBy = toDomainEvent(snapshot.createdBy);
-        _changedBy = toDomainEvent(snapshot.changedBy);
-        _deletedBy = toDomainEvent(snapshot.deletedBy);
+        _createdBy = _toDomainEvent(snapshot.createdBy);
+        _changedBy = _toDomainEvent(snapshot.changedBy);
+        _deletedBy = _toDomainEvent(snapshot.deletedBy);
       }
     }
   }
 
-  DomainEvent toDomainEvent(Event event) => event != null
-      ? _process(
-          event.type,
-          event.data,
-          event.created,
-          event.number,
-        )
-      : null;
+  /// Convert events found in [snapshot] to [DomainEvent].
+  /// Should only called from within this [AggregateRoot].
+  @protected
+  DomainEvent _toDomainEvent(Event event) {
+    if (event != null) {
+      return _process(
+        event.type,
+        event.data,
+        event.created,
+        event.number,
+      );
+    }
+    return null;
+  }
 
   /// Patch [AggregateRoot.data] with given [data].
   ///
@@ -1520,17 +2040,22 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// * [JSON Patch move method](https://tools.ietf.org/html/rfc6902#section-4.4)
   ///
   /// Returns a [DomainEvent] if data was changed, null otherwise.
+  ///
+  /// An aggregate that [hasConflicts]
+  /// can not be modified locally before
+  /// the conflict is resolved. Calling this
+  /// method when the aggregate has [hasConflicts]
+  /// will throw an [InvalidOperation].
+  ///
   DomainEvent patch(
     Map<String, dynamic> data, {
     @required Type emits,
     int index,
     DateTime timestamp,
-    List<String> ops = ops,
     Map<String, dynamic> previous,
   }) =>
       _change(
         data,
-        ops,
         emits,
         timestamp,
         isNew,
@@ -1538,12 +2063,8 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         previous: previous ?? this.data,
       );
 
-  /// Append-only operations allowed
-  static const ops = ['add', 'replace', 'move'];
-
   DomainEvent _change(
-    Map<String, dynamic> data,
-    List<String> ops,
+    Map<String, dynamic> next,
     Type emits,
     DateTime timestamp,
     bool isNew, {
@@ -1551,62 +2072,87 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     Map<String, dynamic> previous,
   }) {
     // Remove all unsupported operations
-    final patches = JsonPatch.diff(_data, data)
-      ..removeWhere(
-        (diff) => !ops.contains(diff['op']),
-      );
+    final patches = JsonUtils.diff(
+      _data,
+      next,
+    );
     return isNew || patches.isNotEmpty
         ? _apply(
             _changed(
-              data,
               emits: emits,
               index: index,
               patches: patches,
               timestamp: timestamp,
               previous: isNew ? {} : previous,
             ),
-            isChanged: true,
+            isLocal: true,
           )
         : null;
   }
 
   // TODO: Add support for detecting tombstone (delete) events
   /// Delete aggregate root
+  ///
+  /// An aggregate that [hasConflicts]
+  /// can not be modified locally before
+  /// the conflict is resolved. Calling this
+  /// method when the aggregate has [hasConflicts]
+  /// will throw an [InvalidOperation].
+  ///
   DomainEvent delete({DateTime timestamp}) => _apply(
         _deleted(timestamp ?? DateTime.now()),
-        isChanged: true,
+        isLocal: true,
       );
 
   /// Apply changes and clear internal cache
+  ///
+  /// An aggregate that [hasConflicts]
+  /// can not be modified locally before
+  /// the conflict is resolved. Calling this
+  /// method when the aggregate has [hasConflicts]
+  /// will throw an [InvalidOperation].
+  ///
   Iterable<DomainEvent> commit({Iterable<DomainEvent> changes}) {
+    _assertNoConflicts();
     // Partial commit?
     if (changes?.isNotEmpty == true) {
       // Already applied?
       final duplicates = changes.where((e) => _applied.containsKey(e.uuid));
       if (duplicates.isNotEmpty) {
         throw InvalidOperation(
-          'Failed to commit $changes to $this: events $duplicates already committed',
+          'Failed to commit $changes to $runtimeType $uuid: events $duplicates already committed',
         );
       }
       // Not starting successively from head of changes?
-      if (_pending.take(changes.length).map((e) => e.uuid) == changes.map((e) => e.uuid)) {
+      if (_localEvents.take(changes.length).map((e) => e.uuid) == changes.map((e) => e.uuid)) {
         throw WriteFailed(
-          'Failed to commit $changes to $this: did not match head of uncommitted changes $_pending',
+          'Failed to commit $changes to $runtimeType $uuid: did not match head of uncommitted changes $_localEvents',
         );
       }
     }
-    final committed = changes ?? _pending;
-    _pending.removeWhere((e) => committed.contains(e));
+    final committed = changes ?? _localEvents;
+    _localEvents.removeWhere((e) => committed.contains(e));
     _applied.addEntries(committed.map((e) => MapEntry(e.uuid, e)));
     return committed;
+
+    // _applied.addEntries(
+    //   _localEvents.map((e) => MapEntry(e.uuid, e)),
+    // );
+    // if (_applied.length == 4) {
+    //   print('hm');
+    // }
+    // final committed = [
+    //   ..._localEvents,
+    // ];
+    // _localEvents.clear();
+    // return committed;
   }
 
   /// Get aggregate updated event.
   ///
   /// Invoked from [Repository], SHOULD NOT be overridden
   @protected
-  DomainEvent _changed(
-    Map<String, dynamic> data, {
+  DomainEvent _changed({
     int index,
     Type emits,
     DateTime timestamp,
@@ -1619,9 +2165,9 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
           uuid,
           uuidFieldName,
           index: index,
-          changed: data,
           patches: patches,
           previous: previous,
+          changed: JsonPatch.apply(_data, patches),
         ),
         timestamp,
         nextNumber,
@@ -1662,63 +2208,248 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     throw InvalidOperation('Message ${emits} not recognized');
   }
 
-  /// Apply change to [data].
+  /// Apply remote change to [data].
   ///
-  /// This will be applied directly.
-  void apply(DomainEvent event) => _apply(
+  /// Ff [isChanged] is false the [event]
+  /// will be patched directly to [data]
+  /// and added to list of [applied] events.
+  ///
+  /// If [isChanged] is true, a
+  /// three-way-merge will be
+  /// attempted. If the [event] could not
+  /// be patched without an conflict, it
+  /// is added to list of [_remoteEvents]
+  /// instead and [data] is not changed.
+  ///
+  /// An aggregate that [hasConflicts]
+  /// can not be modified locally before
+  /// the conflict is resolved. Calling this
+  /// method when the aggregate has [hasConflicts]
+  /// will throw an [InvalidOperation].
+  ///
+  DomainEvent apply(DomainEvent event) => _apply(
         event,
-        isChanged: false,
+        isLocal: false,
       );
 
-  // Apply implementation for internal use
+  /// Resolve conflicts.
+  ///
+  /// If [remote] is false (default),
+  /// remote changes are overwritten
+  /// with local changes.
+  ///
+  /// If [remote] is false, local
+  /// changes are overwritten with
+  /// remote changes.
+  ///
+  Iterable<DomainEvent> resolve({bool remote = false}) {
+    if (hasConflicts) {
+      if (remote) {
+        _setData(
+          JsonPatch.apply(base, _yours),
+        );
+        _setModifier(
+          _remoteEvents.last,
+        );
+        _localEvents.clear();
+        _localEvents.addAll(_remoteEvents);
+      }
+      // Reset conflicts
+      _mine.clear();
+      _yours.clear();
+      _conflicts.clear();
+      _localEvents.clear();
+      _remoteEvents.clear();
+    }
+    return [];
+  }
+
+  /// Apply change to [data].
+  ///
+  /// For internal use only.
+  ///
+  /// An aggregate that [hasConflicts]
+  /// can not be modified locally before
+  /// the conflict is resolved. Calling this
+  /// method when the aggregate has [hasConflicts]
+  /// will throw an [InvalidOperation].
+  ///
+  /// If [isLocal] is true and [hasConflicts] is false
+  /// (local change only) the event is
+  /// patched to [data] and added to
+  /// list of [_localEvents] changes.
+  ///
+  /// If [isLocal] and [isChanged] is false
+  /// (remote change only) the event is
+  /// patched to [data] and added to
+  /// list of [_applied] changes.
+  ///
+  /// If [isLocal] is false, and [isChanged] is true
+  /// (concurrent remote and local changes),
+  /// a three-way-merge will be attempted.
+  ///
+  /// If the [event] can be patched without any
+  /// conflict it is patched to [data] and added to
+  /// the list of [_applied] changes.
+  ///
+  /// If the [event] could not be patched without
+  /// an conflict, it is added to list of [_remoteEvents]
+  /// and [data] is not changed.
+  ///
+  @protected
   DomainEvent _apply(
     DomainEvent event, {
-    bool isChanged,
+    @required bool isLocal,
   }) {
     _assertUuid(event);
 
     // Already applied?
     if (_applied.containsKey(event.uuid)) {
-      if (_applied[event.uuid].created != event.created) {
-        _applied[event.uuid] = event;
+      _assertEqualNumber(event, _applied[event.uuid].number);
+      _applied[event.uuid] = event;
+      if (event == createdBy || event == changedBy) {
         _setModifier(event);
       }
       return _applied[event.uuid];
     }
 
-    // Set timestamps
-    _setModifier(event);
-
-    // Applying events in order is REQUIRED for this to work!
-    if (!event.isDeleted) {
-      final patches = event.patches;
-      if (patches.isNotEmpty) {
-        final next = JsonPatch.apply(
-          _data,
-          patches,
-          strict: false,
-        ) as Map<String, dynamic>;
-        _data.clear();
-        _data.addAll(next);
+    // Subscription caught up before writeEvents returned?
+    final idx = _localEvents.indexOf(event);
+    if (idx > -1) {
+      _localEvents.replaceRange(idx, idx, [event]);
+      if (event == createdBy || event == changedBy) {
+        _setModifier(event);
       }
+      return event;
     }
-    if (isChanged) {
-      _pending.add(event);
+
+    // Apply change to data
+    if (isLocal) {
+      // local change only
+      _assertNoConflicts();
+      _patch(
+        event,
+        isLocal: true,
+      );
+    } else if (isChanged) {
+      // merge concurrent remote and local changes
+      _merge(event);
     } else {
-      _applied.update(
-        event.uuid,
-        (_) => event,
-        ifAbsent: () => event,
+      // remote change only
+      _patch(
+        event,
+        isLocal: false,
       );
     }
 
     return event;
   }
 
+  @protected
+  void _patch(
+    DomainEvent event, {
+    @required bool isLocal,
+  }) {
+    // Applying events in order is REQUIRED for this to work!
+    _assertStrictMonotone(event, isLocal: isLocal);
+
+    // Set timestamps
+    _setModifier(event);
+
+    // Deletion does not update data
+    if (!event.isDeleted) {
+      _setData(
+        _assertData(event),
+      );
+    }
+
+    if (isLocal) {
+      _localEvents.add(event);
+    } else {
+      _applied.update(
+        event.uuid,
+        (_) => event,
+        ifAbsent: () => event,
+      );
+      _localEvents.forEach(
+        (e) => e.number++,
+      );
+    }
+  }
+
+  /// Perform three-way merge
+  ///
+  ///  1. Get patches for base -> data (mine) and base -> remote (yours) changes
+  ///  2. Check if any of mine and yours patches collide
+  /// 3a. If patches collide, add event to conflicts.
+  /// 3b. Else, rebase local events and reapply
+  ///
+  void _merge(DomainEvent event) {
+    assert(!isNew, 'Only possible if same uuid is generated concurrently!');
+
+    // 1. Get local (mine) and remote (yours) patches
+    final head = event.patches;
+    final yours = head.map((op) => op['path']);
+    final concurrent = mine.where((op) => yours.contains(op['path']));
+
+    // 2. Check if any of mine and yours patches collide
+    final eq = const MapEquality().equals;
+    final conflicts = concurrent.where(
+      (op1) => head.where((op2) => op2['path'] == op1['path'] && !eq(op1, op2)).isNotEmpty,
+    );
+
+    if (hasConflicts || conflicts.isNotEmpty) {
+      // 3a. Automatic merge not possible
+      _conflict(
+        event,
+        conflicts.map((p) => p['path']),
+      );
+    } else {
+      // 3b. Patch
+      _patch(
+        event,
+        isLocal: false,
+      );
+    }
+  }
+
+  /// Handle conflict
+  void _conflict(
+    DomainEvent event,
+    Iterable<String> conflicts,
+  ) {
+    _remoteEvents.add(event);
+    _yours.addAll(event.patches);
+    _conflicts.addAll(conflicts);
+  }
+
+  void _setBase(Map<String, dynamic> base) {
+    _base.clear();
+    _base.addAll(base);
+  }
+
+  void _setData(Map<String, dynamic> data) {
+    _data.clear();
+    _data.addAll(data);
+  }
+
+  void _setMine(Iterable<Map<String, dynamic>> mine) {
+    _mine.clear();
+    _mine.addAll(mine);
+  }
+
+  void _setYours(Iterable<Map<String, dynamic>> yours) {
+    _yours.clear();
+    _yours.addAll(yours);
+  }
+
   void _setModifier(DomainEvent event) {
-    if (_createdBy == null || _createdBy?.uuid == event.uuid) {
+    if (_createdBy == null || _createdBy == event) {
       _createdBy = event;
-      _changedBy = event;
+      _changedBy ??= event;
+      if (_changedBy == event) {
+        _changedBy = event;
+      }
     } else {
       _changedBy = event;
     }
@@ -1731,10 +2462,79 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   void _assertUuid(DomainEvent event) {
     if (toAggregateUuid(event) != uuid) {
       throw InvalidOperation(
-        'Aggregate has $uuid, '
-        'event $event contains ${toAggregateUuid(event)}',
+        'Current aggregate has $uuid, '
+        'event $event contains uuid ${toAggregateUuid(event)}',
       );
     }
+  }
+
+  void _assertNoConflicts() {
+    if (hasConflicts) {
+      throw ConflictNotReconcilable(
+        'Aggregate $runtimeType $uuid has ${_remoteEvents.length} unresolved conflicts',
+        base: base,
+        mine: mine,
+        yours: yours,
+        conflicts: conflicts,
+      );
+    }
+  }
+
+  void _assertEqualNumber(DomainEvent event, EventNumber number) {
+    final delta = number.value - event.number.value;
+    if (delta != 0) {
+      final message = 'Event number not equal to current: {\n'
+          '  aggregate.uuid: $uuid\n'
+          '  aggregate.type: $runtimeType\n'
+          '  event.type: ${event.type}\n'
+          '  event.number.expected: $number\n'
+          '  event.number.actual: ${event.number.value}\n'
+          '}';
+      throw InvalidOperation(message);
+    }
+  }
+
+  void _assertStrictMonotone(
+    DomainEvent event, {
+    @required bool isLocal,
+  }) {
+    var delta;
+    if (isLocal) {
+      // Local events should increase with 1
+      delta = modifications - event.number.value;
+    } else if (isApplied(event)) {
+      // Should have same number
+      delta = getApplied(event.uuid).number.value - event.number.value;
+    } else {
+      // Next number should only increase with
+      delta = number.value + 1 - event.number.value;
+    }
+    if (delta != 0) {
+      final message = 'Event number not strict monotone increasing: {\n'
+          '  aggregate.uuid: $uuid\n'
+          '  aggregate.type: $runtimeType\n'
+          '  event.type: ${event.type}\n'
+          '  event.applied: ${isApplied(event)}\n'
+          '  event.number.expected: $nextNumber\n'
+          '  event.number.actual: ${event.number.value}\n'
+          '}';
+      throw InvalidOperation(message);
+    }
+  }
+
+  Map<String, dynamic> _assertData(DomainEvent event) {
+    final data = event.changed;
+    if (data == null) {
+      // At this point it is assumed that
+      // patches are applied to 'previous' state
+      // and stored in event 'changed' state by
+      // EventStore using Repository.toDomainEvent
+      // or by this repository in _changed.
+      throw StateError(
+        "Event data 'changed' is missing: ${event.type} ${event.uuid}",
+      );
+    }
+    return data;
   }
 
   /// Get array of value objects
@@ -1766,9 +2566,10 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   @override
   String toString() {
     return '$runtimeType{$uuidFieldName: $uuid, '
+        'number: $number, '
         'modifications: $modifications, '
-        'applied.count: ${_applied.length},'
-        'pending.count: ${_pending.length}'
+        'applied: ${_applied.length},'
+        'pending: ${_localEvents.length}'
         '}';
   }
 }
@@ -1797,7 +2598,9 @@ class EntityArray {
   final Map<String, dynamic> data;
 
   int get length => _asArray().length;
+
   bool get isEmpty => _asArray().isEmpty;
+
   bool get isNotEmpty => _asArray().isNotEmpty;
 
   /// Check if id exists
@@ -1950,64 +2753,75 @@ class EntityObject {
 /// Class for implementing a strategy for merging concurrent modifications
 abstract class MergeStrategy {
   MergeStrategy(this.repository, this.maxBackoffTime);
+
   Repository repository;
 
   final Duration maxBackoffTime;
 
-  Future<Iterable<DomainEvent>> merge(AggregateRoot aggregate);
-  Future<Iterable<DomainEvent>> reconcile(AggregateRoot aggregate, int max) => _reconcileWithRetry(aggregate, max, 1);
-  Future<Iterable<DomainEvent>> _reconcileWithRetry(AggregateRoot aggregate, int max, int attempt) async {
+  Future<AggregateRoot> merge(Transaction transaction);
+
+  Future<Iterable<DomainEvent>> reconcile(Transaction transaction) {
+    return _reconcileWithRetry(transaction, 1);
+  }
+
+  Future<Iterable<DomainEvent>> _reconcileWithRetry(Transaction transaction, int attempt) async {
+    // Get aggregate
+    var aggregate = transaction.aggregate;
+
     try {
       // Wait with exponential backoff
       // until default waitFor is reached
-      await Future.delayed(
-        Duration(
-          milliseconds: toNextTimeout(attempt, maxBackoffTime),
-        ),
+      await onBackoff(attempt);
+
+      // Catchup to head of event stream
+      await repository.store.catchUp(
+        repository,
+        master: false,
       );
 
-      final isNew = aggregate.isNew;
-      // Keep local state and rollback
-      final events = await merge(aggregate);
-      // Was removed by merge?
-      if (isNew) {
-        // Add again and remove initial event
-        aggregate = repository.get(aggregate.uuid).._reset(repository);
+      // Only merge if
+      if (!aggregate.isNew) {
+        aggregate = await merge(transaction);
       }
 
-      // Rebase 'previous' and 'changed' by
-      // applying patches to them again before
-      // reapplying events as local changes
-      final base = aggregate.data;
-      var previous = base;
-      events.forEach((event) {
-        final next = repository.toDomainEvent(event.rebase(previous));
-        aggregate._apply(
-          next,
-          isChanged: true,
-        );
-        previous = next.changed;
-      });
+      // Check if any conflicts has occurred
+      aggregate._assertNoConflicts();
+
+      // Restart transaction
+      var next = transaction._restart(this);
 
       // IMPORTANT: Do not call Repository.push here
       // as this will add the operation to the queue
       // resulting in a live-lock situation where two
       // async operations are waiting on each other to
       // complete
-      return await repository.store.push(aggregate);
-    } on WrongExpectedEventVersion catch (e, stacktrace) {
+      next = await repository.store.push(
+        aggregate.uuid,
+        next,
+        uuidFieldName: aggregate.uuidFieldName,
+      );
+
+      return next;
+    } on WrongExpectedEventVersion catch (e, stackTrace) {
       // Try again?
-      if (attempt < max) {
-        return await _reconcileWithRetry(aggregate, max, attempt + 1);
+      if (attempt < transaction._maxAttempts) {
+        return await _reconcileWithRetry(transaction, attempt + 1);
       }
       repository.logger.severe(
-        'Aborted automatic merge after $max retries on ${aggregate.runtimeType} ${aggregate.uuid}, '
-        'error $e with stacktrace: $stacktrace, '
+        'Aborted automatic merge after $max retries on ${aggregate.runtimeType} ${aggregate.uuid} '
+        'with error $e, \n'
+        'stacktrace: ${Trace.format(stackTrace)},\n'
         'debug: ${repository.toDebugString(aggregate?.uuid)}',
       );
       throw EventVersionReconciliationFailed(e, attempt);
     }
   }
+
+  Future onBackoff(int attempt) => Future.delayed(
+        Duration(
+          milliseconds: toNextTimeout(attempt, maxBackoffTime),
+        ),
+      );
 }
 
 /// Implements a three-way merge algorithm of concurrent modifications
@@ -2018,65 +2832,20 @@ class ThreeWayMerge extends MergeStrategy {
   ) : super(repository, maxBackoffTime);
 
   @override
-  Future<Iterable<DomainEvent>> merge(AggregateRoot aggregate) async {
-    final local = aggregate.data;
-    final isNew = aggregate.isNew;
-    final previous = aggregate.number;
-    final events = repository.rollback(aggregate);
-    if (isNew) {
-      // This implies that an instance stream with
-      // same id was concurrently created. Since the
-      // aggregate was removed from store with rollback
-      // above any retry must get a new aggregate
-      // instance before another push is attempted
-      await _catchup();
-      final next = aggregate.number;
-      final delta = next.value - previous.value;
-      // Append base count
-      return events.map((e) => e..number += delta);
+  Future<AggregateRoot> merge(Transaction transaction) async {
+    final aggregate = transaction.aggregate;
+
+    // Only merge if
+    if (!aggregate.isNew) {
+      // Catchup to head of remote event stream
+      // for given aggregate without completing
+      // the transaction. Aggregate will merge
+      // remote concurrent modification and
+      // register any conflicts with remote
+      // events that it caught up to
+      aggregate._catchUp(repository);
     }
 
-    // Keep base state and catchup to remote state
-    final base = aggregate.data;
-    await _catchup();
-
-    // Get local and remote patches
-    final remote = aggregate.data;
-    final head = JsonPatch.diff(base, remote);
-    final mine = JsonPatch.diff(base, local);
-    final yours = head.map((op) => op['path']);
-    final concurrent = mine.where((op) => yours.contains(op['path']));
-
-    // Automatic merge not possible?
-    if (concurrent.isNotEmpty) {
-      // Check if operations are the same on both sides
-      final eq = const MapEquality().equals;
-      final conflicts = concurrent.where(
-        (op1) => head.where((op2) => op2['path'] == op1['path'] && !eq(op1, op2)).isNotEmpty,
-      );
-      // Conflicting operations found?
-      if (conflicts.isNotEmpty) {
-        throw ConflictNotReconcilable(
-          'Unable to reconcile ${conflicts.length} conflicts',
-          base: base,
-          mine: conflicts
-              .map((op) => op['path'])
-              .map((path) => head.firstWhere(
-                    (op) => op['path'] == path,
-                  ))
-              .toList(),
-          yours: conflicts.toList(),
-        );
-      }
-    }
-    // Append base count from catchup
-    final next = aggregate.number;
-    final delta = next.value - previous.value;
-    return events.map((e) => e..number += delta);
+    return aggregate;
   }
-
-  Future _catchup() async => await repository.store.catchUp(
-        repository,
-        master: true,
-      );
 }

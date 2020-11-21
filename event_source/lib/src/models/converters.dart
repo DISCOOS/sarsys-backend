@@ -16,9 +16,9 @@ Event fromEventModelJson(Map json) {
     local: false,
     type: model.type,
     uuid: model.uuid,
-    number: EventNumber(model.number.value),
     data: model.data,
     created: model.created,
+    number: EventNumber(model.number.value),
   );
 }
 

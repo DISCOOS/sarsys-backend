@@ -1,4 +1,3 @@
-import 'package:meta/meta.dart';
 import 'package:event_source/event_source.dart';
 
 class Foo extends AggregateRoot<FooCreated, FooDeleted> {
@@ -12,24 +11,9 @@ class Foo extends AggregateRoot<FooCreated, FooDeleted> {
 class FooRepository extends Repository<FooCommand, Foo> {
   FooRepository(EventStore store, this.instance)
       : super(store: store, processors: {
-          FooCreated: (event) => FooCreated(
-                uuid: event.uuid,
-                data: event.data,
-                created: event.created,
-                local: event.local,
-              ),
-          FooUpdated: (event) => FooUpdated(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          FooDeleted: (event) => FooDeleted(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
+          FooCreated: (event) => FooCreated(event),
+          FooUpdated: (event) => FooUpdated(event),
+          FooDeleted: (event) => FooDeleted(event),
         });
 
   final int instance;
@@ -74,48 +58,36 @@ class DeleteFoo extends FooCommand<FooDeleted> {
 }
 
 class FooCreated extends DomainEvent {
-  FooCreated({
-    @required bool local,
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  FooCreated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$FooCreated',
-          created: created,
-          data: data,
         );
 
   int get index => changed.elementAt('index');
 }
 
 class FooUpdated extends DomainEvent {
-  FooUpdated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  FooUpdated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$FooUpdated',
-          created: created,
-          data: data,
         );
 }
 
 class FooDeleted extends DomainEvent {
-  FooDeleted({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  FooDeleted(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$FooDeleted',
-          created: created,
-          data: data,
         );
 }

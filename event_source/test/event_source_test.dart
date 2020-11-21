@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import 'package:async/async.dart';
 import 'package:pedantic/pedantic.dart';
 
+import 'event_domain_test.dart';
 import 'foo.dart';
 import 'harness.dart';
 
@@ -14,7 +15,7 @@ Future main() async {
   final harness = EventSourceHarness()
     ..withTenant()
     ..withPrefix()
-    ..withLogger()
+    ..withLogger(debug: false)
     ..withRepository<Foo>(
       (_, store, instance) => FooRepository(store, instance),
       instances: 2,
@@ -34,8 +35,8 @@ Future main() async {
     final foo2 = repo.get(Uuid().v4());
 
     // Act - preform two concurrent pushes without awaiting the result
-    final events1 = repo.store.push(foo1);
-    final events2 = repo.store.push(foo2);
+    final events1 = repo.store.push(foo1.uuid, foo2.getLocalEvents());
+    final events2 = repo.store.push(foo2.uuid, foo2.getLocalEvents());
 
     // Assert - store write fails
     expect(await events1.asStream().first, equals([isA<FooCreated>()]));
@@ -49,44 +50,34 @@ Future main() async {
     final foo = repo.get(Uuid().v4());
 
     // Act
-    final events = await repo.store.push(foo);
+    final events = await repo.store.push(foo.uuid, foo.getLocalEvents());
 
     // Assert - store write fails
     expect(events, equals([isA<FooCreated>()]));
-  }, timeout: Timeout.factor(100));
+  });
 
   test('EventStore should catchup after replay', () async {
     // Arrange
-    final repo1 = await _createStreamsAndReplay(harness, 4000, 3);
-    final repo2 = await _createStreamsAndReplay(harness, 4001, 3);
-    final repo3 = await _createStreamsAndReplay(harness, 4002, 3);
+    final repo1 = await _createStreamsAndReplay(harness, 4000, 0, 3);
+    final repo2 = await _createStreamsAndReplay(harness, 4001, 3, 3);
+    final repo3 = await _createStreamsAndReplay(harness, 4002, 6, 3);
 
-    // Act - create new instance stream
-    final uuid = Uuid().v4();
-    final foo = repo1.get(uuid, data: {'property1': 'value1'});
-
-    // Wait for catchup from eventstore
-    final pending = StreamGroup.merge([
-      repo2.store.asStream().where((event) => event.data.elementAt('uuid') == uuid),
-      repo3.store.asStream().where((event) => event.data.elementAt('uuid') == uuid),
-    ]);
-    await repo1.push(foo);
-    await pending.take(2).toList();
+    // Act - replay
+    await repo1.replay();
+    await repo2.replay();
+    await repo3.replay();
 
     // Assert instances
-    expect(repo1.count(), equals(4));
-    expect(repo2.count(), equals(4), reason: '${repo2.aggregates}');
-    expect(repo3.count(), equals(4));
+    expect(repo1.count(), equals(9), reason: '${repo1.aggregates}');
+    expect(repo2.count(), equals(9), reason: '${repo2.aggregates}');
+    expect(repo3.count(), equals(9), reason: '${repo3.aggregates}');
   });
 
   test('EventStore should catchup after push', () async {
     // Arrange
-    final repo1 = await harness.get<FooRepository>(port: 4000);
-    final repo2 = await harness.get<FooRepository>(port: 4001);
-    final repo3 = await harness.get<FooRepository>(port: 4002);
-    await repo1.readyAsync();
-    await repo2.readyAsync();
-    await repo3.readyAsync();
+    final repo1 = await _createStreamsAndReplay(harness, 4000, 0, 3);
+    final repo2 = await _createStreamsAndReplay(harness, 4001, 3, 3);
+    final repo3 = await _createStreamsAndReplay(harness, 4002, 6, 3);
 
     // Act - create new instance stream
     final uuid = Uuid().v4();
@@ -101,60 +92,42 @@ Future main() async {
     await pending.take(2).toList();
 
     // Assert instances
-    expect(repo1.count(), equals(1), reason: '${repo1.aggregates}');
-    expect(repo2.count(), equals(1), reason: '${repo2.aggregates}');
-    expect(repo3.count(), equals(1), reason: '${repo2.aggregates}');
-  });
-
-  test('EventStore should catchup after replay', () async {
-    // Arrange
-    final repo1 = await _createStreamsAndReplay(harness, 4000, 3);
-    final repo2 = await _createStreamsAndReplay(harness, 4001, 3);
-    final repo3 = await _createStreamsAndReplay(harness, 4002, 3);
-
-    // Act - create new instance stream
-    final uuid = Uuid().v4();
-    final foo = repo1.get(uuid, data: {'property1': 'value1'});
-
-    // Wait for catchup from eventstore
-    final pending = StreamGroup.merge([
-      repo2.store.asStream().where((event) => event.data.elementAt('uuid') == uuid),
-      repo3.store.asStream().where((event) => event.data.elementAt('uuid') == uuid),
-    ]);
-    await repo1.push(foo);
-    await pending.take(2).toList();
-
-    // Assert instances
-    expect(repo1.count(), equals(4));
-    expect(repo2.count(), equals(4), reason: '${repo2.aggregates}');
-    expect(repo3.count(), equals(4));
+    expect(repo1.count(), equals(10), reason: '${repo1.aggregates}');
+    expect(repo2.count(), equals(10), reason: '${repo2.aggregates}');
+    expect(repo3.count(), equals(10), reason: '${repo3.aggregates}');
   });
 
   test('EventStore should enforce strict order of event numbers', () async {
     // Arrange
     final uuid = Uuid().v4();
-    final repo1 = harness.get<FooRepository>();
-    final repo2 = harness.get<FooRepository>();
+    final repo1 = harness.get<FooRepository>(instance: 1);
+    final repo2 = harness.get<FooRepository>(instance: 2);
     await repo1.readyAsync();
     await repo2.readyAsync();
 
     // Act - execute
     unawaited(_createMultipleEvents(repo1, uuid));
-    expect(await repo2.store.asStream().take(10).length, equals(10));
+
+    // Wait for repo2 to catch up
+    await takeRemote(repo2.store.asStream(), 10, distinct: true);
 
     // Assert - repo 1
     final events1 = _assertEventNumberStrictOrder(repo1, uuid);
     _assertUniqueEvents(repo1, events1);
     expect(repo1.number.value, 9);
+    expect(repo1.count(), equals(1), reason: 'Should contain one aggregate');
+    expect(repo1.get(uuid).applied.length, equals(10), reason: 'Should contain 10 events');
 
     // Assert - repo 2
     final events2 = _assertEventNumberStrictOrder(repo2, uuid);
     _assertUniqueEvents(repo2, events2);
     expect(repo2.number.value, 9);
+    expect(repo2.count(), equals(1), reason: 'Should contain one aggregate');
+    expect(repo2.get(uuid).applied.length, equals(10), reason: 'Should contain 10 events');
   });
 }
 
-Future<FooRepository> _createStreamsAndReplay(EventSourceHarness harness, int port, int count) async {
+Future<FooRepository> _createStreamsAndReplay(EventSourceHarness harness, int port, int existing, int count) async {
   final repo = harness.get<FooRepository>(port: port);
   await repo.readyAsync();
   final stream = harness.server(port: port).getStream(repo.store.aggregate);
@@ -162,7 +135,7 @@ Future<FooRepository> _createStreamsAndReplay(EventSourceHarness harness, int po
     _createStream(i, stream);
   }
   await repo.replay();
-  expect(repo.count(), equals(3));
+  expect(repo.count(), equals(existing + count));
   return repo;
 }
 
@@ -172,7 +145,7 @@ Map<String, Map<String, dynamic>> _createStream(
 ) {
   return stream.append('${stream.instanceStream}-${stream.instances.length}', [
     TestStream.asSourceEvent<FooCreated>(
-      '$index',
+      '$index:${Uuid().v4()}',
       {'property1': 'value1'},
       {
         'property1': 'value1',

@@ -1,10 +1,12 @@
 import 'dart:math';
 
-import 'package:event_source/event_source.dart';
-import 'package:event_source/src/models/converters.dart';
 import 'package:meta/meta.dart';
 import 'package:hive/hive.dart';
 import 'package:logging/logging.dart';
+import 'package:stack_trace/stack_trace.dart';
+
+import 'package:event_source/event_source.dart';
+import 'package:event_source/src/models/converters.dart';
 
 import 'models/snapshot_model.dart';
 
@@ -300,7 +302,7 @@ class StorageException implements Exception {
   StorageException(this.message, {this.state, this.stackTrace});
   @override
   String toString() {
-    return '$runtimeType: {message: $message, state: $state, stackTrace: $stackTrace}';
+    return '$runtimeType: {message: $message, state: $state, stackTrace: ${Trace.format(stackTrace)}}';
   }
 }
 

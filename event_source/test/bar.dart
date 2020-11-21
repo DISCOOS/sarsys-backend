@@ -1,4 +1,3 @@
-import 'package:meta/meta.dart';
 import 'package:event_source/event_source.dart';
 
 import 'foo.dart';
@@ -14,24 +13,9 @@ class Bar extends AggregateRoot<BarCreated, BarDeleted> {
 class BarRepository extends Repository<BarCommand, Bar> {
   BarRepository(EventStore store, this.instance, this.foos)
       : super(store: store, processors: {
-          BarCreated: (event) => BarCreated(
-                uuid: event.uuid,
-                data: event.data,
-                created: event.created,
-                local: event.local,
-              ),
-          BarUpdated: (event) => BarUpdated(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          BarDeleted: (event) => BarDeleted(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
+          BarCreated: (event) => BarCreated(event),
+          BarUpdated: (event) => BarUpdated(event),
+          BarDeleted: (event) => BarDeleted(event),
         });
 
   final int instance;
@@ -96,48 +80,36 @@ class DeleteBar extends BarCommand<BarDeleted> {
 }
 
 class BarCreated extends DomainEvent {
-  BarCreated({
-    @required bool local,
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  BarCreated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$BarCreated',
-          created: created,
-          data: data,
         );
 
   int get index => changed.elementAt('index');
 }
 
 class BarUpdated extends DomainEvent {
-  BarUpdated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  BarUpdated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$BarUpdated',
-          created: created,
-          data: data,
         );
 }
 
 class BarDeleted extends DomainEvent {
-  BarDeleted({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  BarDeleted(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$BarDeleted',
-          created: created,
-          data: data,
         );
 }

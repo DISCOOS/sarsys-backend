@@ -15,6 +15,18 @@ typedef _Creator<T extends AggregateRoot> = Repository<Command, T> Function(
 );
 
 class EventSourceHarness {
+  EventSourceHarness._();
+  factory EventSourceHarness() {
+    if (!exists) {
+      _singleton = EventSourceHarness._();
+    }
+    return _singleton;
+  }
+
+  static EventSourceHarness _singleton;
+  static EventSourceHarness get instance => _singleton;
+  static bool get exists => _singleton != null;
+
   final Map<int, EventStoreMockServer> _servers = {};
   EventStoreMockServer server({int port = 4000}) => _servers[port];
 
@@ -277,16 +289,28 @@ class EventSourceHarness {
     await server.close();
   }
 
-  void replicate(int port, String stream, String path, List<Map<String, dynamic>> data) {
+  void replicate(
+    int port, {
+    @required String path,
+    @required String stream,
+    @required List<Map<String, dynamic>> events,
+    int offset,
+  }) {
     _logger.fine('---replicate---');
     _logger.fine('port: $port');
     _logger.fine('path: $path');
-    _logger.fine('data:$data');
+    _logger.fine('offset: $offset');
+    _logger.fine('events: $events');
     _logger.fine('stream: $stream');
     _servers.values.where((server) => server.isOpen).forEach((server) {
       if (server.port != port) {
         _logger.fine('append to $stream in server:${server.port}');
-        server.getStream(stream).append(path, data);
+        server.getStream(stream).append(
+              path,
+              events,
+              notify: false,
+              offset: offset,
+            );
       }
     });
     _logger.fine('---replicate--->ok');

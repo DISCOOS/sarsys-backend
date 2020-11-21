@@ -15,6 +15,7 @@ dependencies:
   validators: ^2.0.0+1
   json_annotation: ^2.0.0
   hive: ^1.4.1+1
+  stack_trace: ^1.9.6
 
 dev_dependencies:
   pedantic: ^1.8.0

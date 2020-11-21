@@ -26,8 +26,8 @@ void main() async {
     expect(await request.onResult.future, isNull, reason: 'should execute');
     expect(queue.length, 0, reason: 'should be empty');
     expect(queue.isEmpty, isTrue, reason: 'should be empty');
-    expect(queue.isIdle, isFalse, reason: 'should be not idle');
-    expect(queue.isProcessing, isTrue, reason: 'should not processing');
+    expect(queue.isIdle, isTrue, reason: 'should be idle');
+    expect(queue.isProcessing, isFalse, reason: 'should not be processing');
 
     // Cleanup
     await queue.cancel();
@@ -208,8 +208,8 @@ void main() async {
     }
 
     // Assert
-    expect(started, isTrue, reason: 'should be processing');
-    expect(queue.isEmpty, isTrue, reason: 'should not be empty');
+    expect(started, isTrue, reason: 'should have resumed processing');
+    expect(queue.isEmpty, isTrue, reason: 'should be empty');
 
     // Cleanup
     await queue.cancel();
@@ -242,12 +242,15 @@ void main() async {
     for (var request in requests) {
       await expectLater(
         request.onResult.future,
-        throwsA(isA<StreamRequestTimeout>()),
+        throwsA(isA<StreamRequestTimeoutException>()),
         reason: 'should throw',
       );
     }
     expect(errors, 10, reason: 'should fail 10 times');
-    expect(await queue.onIdle().first, isNull);
+    expect(
+      await queue.onEvent().where((e) => e is StreamQueueIdle).first,
+      isNotNull,
+    );
     expect(queue.isIdle, isTrue, reason: 'should be idle');
     expect(queue.isEmpty, isTrue, reason: 'should be empty');
     expect(queue.current, isNull, reason: 'should not have current');

@@ -10,6 +10,7 @@ import 'package:json_patch/json_patch.dart';
 import 'package:meta/meta.dart';
 import 'package:logging/logging.dart';
 import 'package:collection/collection.dart';
+import 'package:stack_trace/stack_trace.dart';
 
 import 'bus.dart';
 import 'core.dart';
@@ -18,6 +19,7 @@ import 'extension.dart';
 import 'domain.dart';
 import 'models/AtomFeed.dart';
 import 'models/AtomItem.dart';
+import 'models/snapshot_model.dart';
 import 'results.dart';
 import 'storage.dart';
 import 'stream.dart' hide StreamResult;
@@ -81,9 +83,7 @@ class EventStore {
     @required this.connection,
     this.prefix,
     this.useInstanceStreams = true,
-  }) : logger = Logger('EventStore[${toCanonical([prefix, aggregate])}][${connection.port}]') {
-    _current[canonicalStream] = EventNumber.none;
-  }
+  }) : logger = Logger('EventStore[${toCanonical([prefix, aggregate])}][${connection.port}]');
 
   /// Get canonical stream name
   static String toCanonical(List<String> segments) => segments
@@ -148,9 +148,6 @@ class EventStore {
   /// Check if store is not empty
   bool get isNotEmpty => _store.isNotEmpty;
 
-  /// Current event numbers mapped to associated stream
-  final Map<String, EventNumber> _current = {};
-
   /// Get all events
   Map<String, Set<SourceEvent>> get events => Map.from(_store);
 
@@ -166,12 +163,24 @@ class EventStore {
   /// can be fetched using [Iterable.last] operation.
   final LinkedHashMap<String, LinkedHashSet<SourceEvent>> _store = LinkedHashMap<String, LinkedHashSet<SourceEvent>>();
 
+  /// Map from [Event.uuid] to [AggregateRoot.uuid].
+  ///
+  /// [LinkedHashMap] remembers the insertion order of keys, and
+  /// keys are iterated in the order they were inserted into the map.
+  /// This is important for stream id inference from key order.
+  ///
+  /// This map is used to count number of events
+  final LinkedHashMap<String, String> _events = LinkedHashMap();
+
   /// Get [Storage] instance
   final Storage snapshots;
 
+  /// Current snapshot
+  SnapshotModel _snapshot;
+
   /// Current event number for [canonicalStream]
   ///
-  /// If [AggregateRoot.uuid] is given, the aggregate
+  /// If AggregateRoot [uuid] is given, the aggregate
   /// instance stream number is returned. This numbers
   /// is the same as for the [canonicalStream] if
   /// [useInstanceStreams] is false.
@@ -181,11 +190,27 @@ class EventStore {
   ///
   /// If stream does not exist, [EventNumber.none] is returned.
   ///
-  EventNumber current({String stream, String uuid}) =>
-      (useInstanceStreams && (stream != null || uuid != null)
-          ? _current[stream ?? toInstanceStream(uuid)]
-          : _current[canonicalStream]) ??
-      EventNumber.none;
+  EventNumber current({String stream, String uuid}) {
+    if (useInstanceStreams && (uuid != null || stream != null)) {
+      if (stream != null) {
+        uuid = toAggregateUuid(stream);
+      }
+      if (_store.containsKey(uuid)) {
+        if (_store[uuid].isNotEmpty) {
+          return _store[uuid].last.number;
+        } else if (_snapshot != null) {
+          // Store is reset to snapshot
+          // with no events applied yet
+          return EventNumber(_snapshot.aggregates[uuid].number.value);
+        }
+      }
+      return EventNumber.none;
+    }
+    if (_snapshot == null) {
+      return EventNumber.none + _events.keys.length;
+    }
+    return EventNumber(_snapshot.number.value ?? -1) + _events.keys.length;
+  }
 
   /// Replay events from stream to given repository.
   ///
@@ -214,7 +239,7 @@ class EventStore {
         master: master,
         number: offset,
       );
-      final snapshot = repository.hasSnapshot ? ' (snapshot)' : '';
+      final snapshot = repository.hasSnapshot ? '(snapshot)' : '';
       logger.info(
         "Replayed $count events from stream '${canonicalStream}' with offset ${offset.value} $snapshot",
       );
@@ -227,17 +252,12 @@ class EventStore {
 
   EventNumber _reset(Repository repository) {
     _store.clear();
-    _current.clear();
-    final snapshot = repository.snapshot;
-    if (snapshot == null) {
-      _current[canonicalStream] = EventNumber.none;
-    } else {
-      _current[canonicalStream] = EventNumber(snapshot.number.value);
+    _events.clear();
+    _snapshot = repository.snapshot;
+    if (_snapshot != null) {
       if (useInstanceStreams) {
-        snapshot.aggregates.values.forEach((a) {
+        _snapshot.aggregates.values.forEach((a) {
           _updateAll(a.uuid, <SourceEvent>[]);
-          final stream = toInstanceStream(a.uuid);
-          _current[stream] = EventNumber(a.number.value);
         });
       }
     }
@@ -248,7 +268,7 @@ class EventStore {
   }
 
   EventNumber _assertCanonicalStreamOffset(Repository repository) {
-    final offset = _current[canonicalStream].isNone ? EventNumber.first : _current[canonicalStream];
+    final offset = current().isNone ? EventNumber.first : current();
     if (offset.value < 0) {
       throw StateError(
         'Canonical stream $canonicalStream for '
@@ -264,8 +284,8 @@ class EventStore {
     Repository repository, {
     bool master = false,
   }) async {
-    final previous = _assertCanonicalStreamOffset(repository);
-    final next = previous + 1;
+    final previous = isEmpty ? EventNumber.none : _assertCanonicalStreamOffset(repository);
+    final next = isEmpty ? EventNumber.first : previous + 1;
     final count = await _catchUp(
       repository,
       number: next,
@@ -301,12 +321,10 @@ class EventStore {
       final head = EventNumber(
         max(number.value, current().value),
       );
-      if (head > number) {
-        logger.fine(
-          "_catchUp: 'number': $number < current number "
-          "for $canonicalStream: ${current()}: 'number' changed to $head",
-        );
-      }
+
+      logger.fine(
+        '_catchUp(stream: $canonicalStream, from: $head, requested: $number, current: ${current()})',
+      );
 
       final stream = await connection.readEventsAsStream(
         stream: canonicalStream,
@@ -315,7 +333,7 @@ class EventStore {
       );
 
       // Process results as they arrive
-      stream.listen((result) {
+      final subscription = stream.listen((result) {
         if (result.isOK) {
           // Group events by aggregate uuid
           final eventsPerAggregate = groupBy<SourceEvent, String>(
@@ -323,7 +341,7 @@ class EventStore {
             (event) => repo.toAggregateUuid(event),
           );
 
-          // Hydrate store with events
+          // Apply events to aggregates
           eventsPerAggregate.forEach(
             (uuid, events) {
               final domainEvents = _applyAll(
@@ -342,8 +360,8 @@ class EventStore {
           count += result.events.length;
         }
       });
-
       await stream.length;
+      await subscription.cancel();
       return count;
     } finally {
       snapshotWhen(repo);
@@ -364,30 +382,47 @@ class EventStore {
   }
 
   Iterable<SourceEvent> _updateAll(String uuid, Iterable<SourceEvent> events) {
-    final stream = toInstanceStream(uuid);
-    final offset = current(stream: stream);
-    final unseen = events.where((e) => e.number > offset).toList();
-    if (useInstanceStreams) {
-      var idx = 0;
-      // Event numbers in instance streams SHOULD ALWAYS
-      // be sorted in an ordered monotone incrementing
-      // manner. This check ensures that if and only if
-      // the assumption is violated, an InvalidOperation
-      // exception is thrown. This ensures that previous
-      // next states can be calculated safely without any
-      // risk of applying patches out-of-order, removing the
-      // need to store these states in each event.
-      unseen.fold(
-        offset,
-        (previous, next) => _assertMonotone(stream, idx++, previous, next),
-      );
+    if (events.isNotEmpty) {
+      if (useInstanceStreams) {
+        var idx = 0;
+        final stream = toInstanceStream(uuid);
+        final offset = current(stream: stream);
+        // Event numbers in instance streams SHOULD ALWAYS
+        // be sorted in an ordered monotone incrementing
+        // manner. This check ensures that if and only if
+        // the assumption is violated, an InvalidOperation
+        // exception is thrown. This ensures that previous
+        // next states can be calculated safely without any
+        // risk of applying patches out-of-order, removing the
+        // need to store these states in each event. Do not
+        // evaluate events that exist locally only by skipping
+        // to first event with number bigger then offset.
+        events.skipWhile((e) => e.number <= offset).fold(
+              offset,
+              (previous, next) => _assertStrictMonotone(
+                stream,
+                idx++,
+                previous,
+                next,
+              ),
+            );
+      }
     }
+    // Snapshots will add aggregates with
+    // zero events. This is needed for
+    // correct calculation of event number
+    // in canonical stream (position if
+    // projection when instance streams are
+    // used).
     _store.update(
       uuid,
-      (current) => current..addAll(unseen),
-      ifAbsent: () => LinkedHashSet.of(unseen),
+      (current) => current..addAll(events),
+      ifAbsent: () => LinkedHashSet.of(events),
     );
-    return unseen;
+    events.forEach(
+      (e) => _events[e.uuid] = uuid,
+    );
+    return events;
   }
 
   Iterable<DomainEvent> _applyAll(
@@ -402,81 +437,60 @@ class EventStore {
     final domainEvents = unseen.map(
       repository.toDomainEvent,
     );
+
+    // Commit remote changes to existing aggregate?
     if (exists) {
       domainEvents.forEach(aggregate.apply);
+      if (!aggregate.hasConflicts) {
+        aggregate.commit();
+      }
     }
-    // Commit remote changes
-    aggregate.commit();
-
-    // Catch up with last event in stream
-    _setEventNumber(aggregate, unseen);
 
     return domainEvents;
   }
 
+  /// Check if events for [AggregateRoot] with given [uuid] exists
+  bool contains(String uuid) => _store.containsKey(uuid);
+
   /// Get events for given [AggregateRoot.uuid]
-  Iterable<Event> get(String uuid) => List.from(_store[uuid] ?? []);
+  Iterable<SourceEvent> get(String uuid) => List.from(_store[uuid] ?? []);
 
   /// Commit applied events to aggregate.
   Iterable<DomainEvent> _commit(
-    AggregateRoot aggregate,
+    String uuid,
+    String uuidFieldName,
     Iterable<DomainEvent> changes,
   ) {
     _assertState();
-    final events = aggregate.commit(
-      changes: changes,
-    );
 
-    // Do not save events during replay
-    if (bus.isReplaying == false && events.isNotEmpty) {
-      final unseen = _updateAll(
-        aggregate.uuid,
+    // Do not save events during replay,
+    // is applied in _catchup instead.
+    if (bus.isReplaying == false && changes.isNotEmpty) {
+      _updateAll(
+        uuid,
         _toSourceEvents(
-          events: events,
-          uuidFieldName: aggregate.uuidFieldName,
-          stream: toInstanceStream(aggregate.uuid),
+          events: changes,
+          uuidFieldName: uuidFieldName,
+          stream: toInstanceStream(uuid),
         ),
       );
-
-      _setEventNumber(aggregate, unseen);
 
       // Publish locally created events.
       // Handlers can determine events with
       // local origin using the local field
       // in each Event
-      _publishAll(events);
+      _publishAll(changes);
     }
-    return events;
-  }
-
-  /// Set event number for
-  /// given [aggregate]
-  ///
-  void _setEventNumber(
-    AggregateRoot aggregate,
-    Iterable<Event> events,
-  ) {
-    if (events.isNotEmpty) {
-      // Always equal to last in events
-      _current[toInstanceStream(aggregate.uuid)] = events.last.number;
-
-      // Update canonical stream?
-      if (useInstanceStreams) {
-        if (_current.containsKey(canonicalStream)) {
-          _current[canonicalStream] += events.length;
-        } else {
-          _current[canonicalStream] = EventNumber.none + events.length;
-        }
-      }
-    }
+    return changes;
   }
 
   /// Publish events to [bus] and [asStream]
   void _publishAll(Iterable<DomainEvent> events) {
     // Notify later but before next Future
-    events.forEach(bus.publish);
-    _streamController ??= StreamController.broadcast();
-    events.forEach(_streamController.add);
+    events.forEach((e) => bus.publish(this, e));
+    if (_streamController != null) {
+      events.forEach(_streamController.add);
+    }
   }
 
   /// Get name of aggregate instance stream for [AggregateRoot.uuid].
@@ -488,10 +502,36 @@ class EventStore {
     return canonicalStream;
   }
 
-  /// Push given [changes] in [aggregate] to appropriate instance stream.
+  /// Get [AggregateRoot.uuid] from instance stream.
+  /// If not found, [null] is returned.
+  String toAggregateUuid(String stream) {
+    assert(useInstanceStreams, 'only allowed when instance streams are used');
+    final index = int.parse(stream.split('-').last);
+    if (index >= _store.length) {
+      return null;
+    }
+    return _store.keys.toList().elementAt(index);
+  }
+
+  /// Push all changes to AggregateRoot with given [uuid] to [connection].
   ///
-  /// If [snapshot] is given, this state is pushed and result
-  /// applied to [aggregate] if push succeeded.
+  /// This method is typically not called directly by clients. Instead
+  /// use a [Repository]. If called from outside a [Repository] with
+  /// an open [Transaction] for given [aggregate], it will remain
+  /// open, leading to unexpected results.
+  ///
+  /// If [allowUpdates] is true (default) and this method is called
+  /// without any [Transaction] for given [AggregateRoot], remote
+  /// changes are merged with local changes in [AggregateRoot]
+  /// concurrently with this async call. If an [Transaction] exists,
+  /// remote changes are not applied.
+  ///
+  /// If [allowUpdates] is false (default), all subscriptions are
+  /// [pause]d until this method had completed. This prevents any
+  /// modifications to occur concurrently with this async call.
+  /// Pausing all subscriptions impacts all aggregates, increasing
+  /// the time it takes to catchup to any changes made to these
+  /// in write-heavy situations (writes will block read).
   ///
   /// Throws an [WrongExpectedEventVersion] if current event number
   /// aggregate instance stream for [aggregate] stored locally is not
@@ -501,45 +541,75 @@ class EventStore {
   ///
   /// Throws an [WriteFailed] for all other failures. This failure
   /// is not recoverable.
-  Future<Iterable<DomainEvent>> push(AggregateRoot aggregate) async {
+  Future<Iterable<DomainEvent>> push(
+    String uuid,
+    Iterable<DomainEvent> changes, {
+    bool allowUpdates = true,
+    String uuidFieldName = 'uuid',
+  }) async {
     _assertState();
-    if (aggregate.isChanged == false) {
+    if (changes.isEmpty) {
       return [];
     }
-    final stream = toInstanceStream(aggregate.uuid);
-    final changes = aggregate.getUncommittedChanges();
+    final stream = toInstanceStream(uuid);
+    final offset = current(stream: stream);
     final version = toExpectedVersion(stream);
-    final result = await connection.writeEvents(
-      stream: stream,
-      version: version,
-      events: changes.map((e) => e.toEvent(aggregate.uuidFieldName)),
+
+    var idx = 0;
+    changes.fold(
+      offset,
+      (previous, next) => _assertStrictMonotone(stream, idx++, previous, next),
     );
-    if (result.isCreated) {
-      // Commit all changes
-      // after successful write
-      _commit(aggregate, changes);
-      // Check if commits caught up
-      // with last known event in
-      // aggregate instance stream
-      _assertCurrentVersion(
-        stream,
-        result.actual,
-        reason: 'Push with expected version ${version.value} failed',
-      );
-      return changes;
-    } else if (result.isWrongESNumber) {
-      throw WrongExpectedEventVersion(
-        result.reasonPhrase,
+
+    try {
+      if (!allowUpdates) {
+        pause();
+      }
+      final result = await connection.writeEvents(
         stream: stream,
-        actual: result.actual,
-        expected: result.expected,
+        version: version,
+        events: changes.map((e) => e.toEvent(uuidFieldName)),
       );
+      logger.fine('writeEvents(\n'
+          '   uuid: $uuid, \n'
+          '   version: $version, \n'
+          '   first: ${changes.first.type}@${changes.first.number},\n'
+          '   last: ${changes.last.type}@${changes.last.number},\n'
+          '   result: ${result.reasonPhrase},\n'
+          ') ');
+
+      if (result.isCreated) {
+        // Commit all changes
+        // after successful write
+        _commit(uuid, uuidFieldName, changes);
+        // Check if commits caught up
+        // with last known event in
+        // aggregate instance stream
+        _assertCurrentVersion(
+          stream,
+          result.actual,
+          reason: 'Push with expected version ${version.value} failed',
+        );
+
+        return changes;
+      } else if (result.isWrongESNumber) {
+        throw WrongExpectedEventVersion(
+          result.reasonPhrase,
+          stream: stream,
+          actual: result.actual,
+          expected: result.expected,
+        );
+      }
+      throw WriteFailed(
+        'Failed to push changes to $stream: '
+        '${changes.map((event) => event.runtimeType)}: '
+        '${result.statusCode} ${result.reasonPhrase}',
+      );
+    } finally {
+      if (!allowUpdates) {
+        resume();
+      }
     }
-    throw WriteFailed(
-      'Failed to push changes to $stream: '
-      '${changes.map((event) => event.runtimeType)}: '
-      '${result.statusCode} ${result.reasonPhrase}',
-    );
   }
 
   /// Get expected version number for given stream.
@@ -557,11 +627,10 @@ class EventStore {
   /// are guaranteed to receive events in same
   /// order).
   ///
-  ExpectedVersion toExpectedVersion(String stream) => (_current[stream] ?? EventNumber.none).isNone
-      ? ExpectedVersion.none
-      : ExpectedVersion.from(
-          _current[stream],
-        );
+  ExpectedVersion toExpectedVersion(String stream) {
+    final number = current(stream: stream) ?? EventNumber.none;
+    return number.isNone ? ExpectedVersion.none : ExpectedVersion.from(number);
+  }
 
   /// Subscription controller for each repository
   /// subscribing to events from [canonicalStream]
@@ -663,110 +732,95 @@ class EventStore {
           );
   }
 
-  final seen = <SourceEvent>[];
-
   /// Handle event from subscriptions
   void _onSubscriptionEvent(Repository repo, SourceEvent event) {
     final uuid = repo.toAggregateUuid(event);
-    final stream = toInstanceStream(uuid);
     final actual = current(uuid: uuid);
+    final stream = toInstanceStream(uuid);
+    try {
+      _controllers[repo.runtimeType]?.alive(repo, connection);
 
-    seen.add(event);
+      // IMPORTANT: append to store before applying to repository
+      // This ensures that the event added to an aggregate during
+      // construction is overwritten with the remote actual
+      // received here.
+      _updateAll(uuid, [event]);
 
-    // Allow update of existing event
-    if (event.number >= actual) {
-      try {
-        // Only catchup if repository have no
-        // pending changes. If updated before
-        // write-op is completed, a concurrent
-        // write will happened and information
-        // will be lost. Repository should therefore
-        // call pause before processing is started
-        // and only call resume when ALL changes
-        // have been processed.
-        if (repo.isProcessing) {
-          throw StateError(
-            'Subscription events not allowed when processing changes',
-          );
-        } else if (repo.isChanged) {
-          throw StateError(
-            'Subscription events not allowed when repository contains changes',
-          );
-        }
+      // Event is applied to aggregate?
+      final isApplied = _isApplied(uuid, event, repo);
 
-        _controllers[repo.runtimeType]?.connected(repo, connection);
+      if (isApplied) {
+        _onReplace(uuid, stream, event, actual, repo);
+      } else {
+        // This method is only
+        _onApply(uuid, stream, event, actual, repo);
+      }
 
-        // Event is applied to aggregate?
-        final isApplied = _isApplied(uuid, event, repo);
-
-        if (isApplied) {
-          _onUpdate(uuid, stream, event, repo);
-        } else {
-          _onApply(uuid, stream, event, repo);
-        }
-
-        // micro-optimization to
-        // minimize string interpolations
-        if (logger.level <= Level.FINE) {
-          final aggregate = repo.get(uuid);
-          final applied = aggregate.applied.where((e) => e.uuid == event.uuid).firstOrNull;
-          logger.fine(
-            '_onSubscriptionEvent(${repo.runtimeType}, ${event.runtimeType}){\n'
-            '  event.type: ${event.type}, \n'
-            '  event.uuid: ${event.uuid}, \n'
-            '  event.number: ${event.number}, \n'
-            '  event.sourced: ${_isSourced(uuid, event)}, \n'
-            '  event.applied: $isApplied, \n'
-            '  aggregate.uuid: ${aggregate.uuid}, \n'
-            '  aggregate.stream: $stream, \n'
-            '  aggregate.applied.patches: ${applied?.patches}, \n'
-            '  aggregate.applied.changed: ${applied?.changed}, \n'
-            '  aggregate.applied.previous: ${applied?.previous}, \n'
-            '  repository: ${repo.runtimeType}, \n'
-            '  repository.isEmpty: $isEmpty, \n'
-            '  repository.numbers: $_current\n'
-            '  repository.numbers.instance: $actual\n'
-            '  isInstanceStream: $useInstanceStreams, \n'
-            '}',
-          );
-        }
-      } on JsonPatchError catch (e, stackTrace) {
-        logger.network(
-          'Failed to apply patches from aggregate stream ${canonicalStream}{\n'
-          '  error: $e, \n'
-          '  connection: ${repo.store.connection.host}:${repo.store.connection.port}, \n'
+      // micro-optimization to
+      // minimize string interpolations
+      if (logger.level <= Level.FINE) {
+        final aggregate = repo.get(uuid);
+        final applied = aggregate.applied.where((e) => e.uuid == event.uuid).firstOrNull;
+        logger.fine(
+          '_onSubscriptionEvent(${repo.runtimeType}, ${event.runtimeType}){\n'
           '  event.type: ${event.type}, \n'
           '  event.uuid: ${event.uuid}, \n'
           '  event.number: ${event.number}, \n'
+          '  event.sourced: ${_isSourced(uuid, event)}, \n'
+          '  event.applied: $isApplied, \n'
+          '  aggregate.uuid: ${aggregate.uuid}, \n'
+          '  aggregate.stream: $stream, \n'
+          '  aggregate.applied.previous: ${applied?.previous}, \n'
+          '  aggregate.applied.patches: ${applied?.patches}, \n'
+          '  aggregate.applied.changed: ${applied?.changed}, \n'
           '  repository: ${repo.runtimeType}, \n'
           '  repository.isEmpty: $isEmpty, \n'
-          '  repository.numbers: $_current\n'
+          '  repository.number.instance: $actual\n'
           '  isInstanceStream: $useInstanceStreams, \n'
-          '  subscription.seen: ${repo.store.seen}, \n'
-          '  store.events.count: ${repo.store.events.values.fold(0, (count, events) => count + events.length)}, \n'
-          '  store.events.items: ${repo.store.events.values}, \n'
-          '}\n'
-          'stacktrace: $stackTrace',
-          e,
-          stackTrace,
+          '}',
         );
-      } catch (e, stackTrace) {
-        _onFatal(event, stream, e, stackTrace);
-      } finally {
-        snapshotWhen(repo);
       }
+    } on JsonPatchError catch (e, stackTrace) {
+      _onFatal(
+        event,
+        stream,
+        error: e,
+        stackTrace: stackTrace,
+        message: 'Failed to apply patches from aggregate stream ${canonicalStream}{\n'
+            '  error: $e, \n'
+            '  connection: ${repo.store.connection.host}:${repo.store.connection.port}, \n'
+            '  event.type: ${event.type}, \n'
+            '  event.uuid: ${event.uuid}, \n'
+            '  event.number: ${event.number}, \n'
+            '  repository: ${repo.runtimeType}, \n'
+            '  repository.isEmpty: $isEmpty, \n'
+            '  isInstanceStream: $useInstanceStreams, \n'
+            '  store.events.count: ${repo.store.events.values.fold(0, (count, events) => count + events.length)}, \n'
+            '  store.events.items: ${repo.store.events.values}, \n'
+            '}',
+      );
+    } catch (e, stackTrace) {
+      _onFatal(
+        event,
+        stream,
+        error: e,
+        message: '$e',
+        stackTrace: stackTrace,
+      );
+    } finally {
+      snapshotWhen(repo);
     }
   }
 
-  void _onFatal(SourceEvent event, String stream, Object error, StackTrace stackTrace) {
-    logger.network(
-      'Failed to process $event for $stream, \n'
-      'error: $error with stacktrace: $stackTrace',
-      error,
-      stackTrace,
-    );
+  void _onFatal(SourceEvent event, String stream, {String message, Object error, StackTrace stackTrace}) {
+    final msg = 'Failed to process $event for $stream: \n'
+        'message: $message: \n'
+        'error: $error: \n'
+        'stacktrace: ${Trace.format(stackTrace)}';
+    logger.network(msg, error, stackTrace);
     _streamController.addError(
-      RepositoryError('Failed to process $event for $stream with error: $error'),
+      RepositoryError(msg),
+      stackTrace,
     );
   }
 
@@ -774,31 +828,28 @@ class EventStore {
   bool _isApplied(String uuid, SourceEvent event, Repository repo) =>
       repo.contains(uuid) && repo.get(uuid).isApplied(event);
 
-  void _onUpdate(
+  /// Replace event with local 'created' value
+  ///
+  /// Field 'created' is not stable until it is
+  /// written to EventStore. This method  will
+  /// apply event to aggregate which in turn
+  /// calls method _setModifiers in AggregateRoot,
+  /// overwriting fields _createdBy and _changedBy
+  /// ensuring that the local 'created' value is
+  /// replaced with the stable value.
+  void _onReplace(
     String uuid,
     String stream,
     SourceEvent event,
+    EventNumber actual,
     Repository repository,
   ) {
-    logger.fine('_onUpdate(${event.type}(uuid: ${event.uuid}, number:${event.number}, remote:${event.remote}))');
+    logger.fine(
+      '_onReplace(${event.type}(uuid: ${event.uuid}, number:${event.number}, remote:${event.remote}))',
+    );
 
     // Catch up with stream
     final aggregate = repository.get(uuid);
-
-    // Sanity check
-    if (aggregate.isChanged) {
-      throw InvalidOperation(
-        'Remote event $event modified ${aggregate.runtimeType} ${aggregate.uuid}',
-      );
-    }
-
-    // Apply event with stable created date?
-    final applied = aggregate.getApplied(event.uuid);
-    if (applied == null) {
-      throw InvalidOperation(
-        'Remote event $event not seen by ${aggregate.runtimeType} ${aggregate.uuid}',
-      );
-    }
     final domainEvent = repository.toDomainEvent(event);
     aggregate.apply(domainEvent);
 
@@ -809,40 +860,56 @@ class EventStore {
     _publishAll([domainEvent]);
   }
 
+  /// Apply unseen event to [AggregateRoot] with given [uuid]
+  ///
+  /// If [Aggregate] is currently in a [Transaction] that
+  /// does not allow remote updates, or subscriptions
+  /// is [pause]ed, the event is added to [store] only to
+  /// be applied later. Events will be applied when
+  /// the [Transaction] completes or when subscriptions
+  /// are [resume]ed (if not transaction is open for
+  /// given [AggregateRoot]).
+  ///
   void _onApply(
     String uuid,
     String stream,
     SourceEvent event,
+    EventNumber actual,
     Repository repository,
   ) {
-    logger.fine('_onApply(${event.type}(uuid: ${event.uuid}, number:${event.number}, remote:${event.remote}))');
-
-    // IMPORTANT: append to store before applying to repository
-    // This ensures that the event added to an aggregate during
-    // construction is overwritten with the remote actual
-    // received here.
-    final unseen = _updateAll(uuid, [event]);
-
-    // Catch up with stream
-    final aggregate = repository.get(uuid);
-    final domainEvent = repository.toDomainEvent(event);
-    if (!aggregate.isApplied(event)) {
-      aggregate.apply(domainEvent);
-    }
-    // Sanity check
-    if (aggregate.isChanged) {
-      throw InvalidOperation(
-        'Remote event $event modified ${aggregate.runtimeType} ${aggregate.uuid}',
+    // Only apply events with numbers bigger then current
+    if (event.number > actual) {
+      logger.fine(
+        '_onApply(${event.type}(uuid: ${event.uuid}, number:${event.number}, remote:${event.remote}))',
       );
+
+      // Do not apply is subscriptions are suspended
+      final allowAnyUpdates = !isPaused;
+
+      // Do not apply if a transaction exists
+      final allowTrxUpdates = !repository.inTransaction(uuid);
+
+      if (allowAnyUpdates && allowTrxUpdates) {
+        // Catch up with stream
+        final exists = repository.contains(uuid);
+        final aggregate = repository.get(uuid);
+        final domainEvent = repository.toDomainEvent(event);
+        if (!aggregate.isApplied(event)) {
+          if (exists) {
+            aggregate.apply(domainEvent);
+          }
+          // Only commit if new
+          if (aggregate.isNew) {
+            aggregate.commit();
+          }
+        }
+        // Publish remotely created events.
+        // Handlers can determine events with
+        // local origin using the local field
+        // in each Event
+        _publishAll([domainEvent]);
+      }
     }
-
-    _setEventNumber(aggregate, unseen);
-
-    // Publish remotely created events.
-    // Handlers can determine events with
-    // local origin using the local field
-    // in each Event
-    _publishAll([domainEvent]);
   }
 
   /// Handle subscription completed
@@ -871,7 +938,9 @@ class EventStore {
 
   void _fatal(Repository repository, Object error, StackTrace stackTrace) {
     logger.network(
-      '${repository.runtimeType}: subscription failed with: $error. stacktrace: $stackTrace',
+      '${repository.runtimeType}: subscription failed '
+      'with error: $error, \n'
+      'stacktrace: ${Trace.format(stackTrace)}',
       error,
       stackTrace,
     );
@@ -897,25 +966,31 @@ class EventStore {
 
   /// Assert that current event number for [stream] is caught up with last known event
   void _assertCurrentVersion(String stream, EventNumber actual, {String reason = 'Catch up failed'}) {
-    if (_current[stream] != actual) {
+    final number = current(stream: stream);
+    if (number != actual) {
       final e = EventNumberMismatch(
         stream: stream,
         actual: actual,
         message: reason,
-        numbers: _current,
-        current: _current[stream],
+        current: current(stream: stream),
       );
-      logger.severe('${e.message}, debug: ${toDebugString(stream)}');
+      logger.severe('${e.message},\ndebug: ${toDebugString(stream)}', e, StackTrace.current);
       throw e;
     }
   }
 
-  EventNumber _assertMonotone(String stream, int index, EventNumber previous, SourceEvent next) {
-    if (previous.value > next.number.value) {
-      final message = 'EventNumber of event $index not monotone increasing, current: $previous, '
-          'next: ${next.number} in event ${next.type} with uuid: ${next.uuid}';
-      final error = InvalidOperation('$message, debug: ${toDebugString(stream)}');
-      logger.severe(error.message, error, StackTrace.current);
+  EventNumber _assertStrictMonotone(String stream, int index, EventNumber previous, Event next) {
+    final delta = next.number.value - previous.value;
+    if (delta != 1) {
+      final message = 'Event number not strict monotone increasing: {\n'
+          '  index: $index\n'
+          '  uuid: ${next.uuid}\n'
+          '  type: ${next.type}\n'
+          '  number.prev: $previous\n'
+          '  number.next: ${next.number}\n'
+          '}';
+      final error = InvalidOperation(message);
+      logger.severe('$message,\ndebug: ${toDebugString(stream)}', error, StackTrace.current);
       throw error;
     }
     return next.number;
@@ -964,11 +1039,19 @@ class EventStore {
     _store.clear();
 
     try {
+      // Will not on each command
+      // before executing the next
       await Future.wait(
         _controllers.values.map((c) => c.cancel()),
       );
     } on ClientException catch (e, stackTrace) {
-      logger.network('Failed to dispose one or more subscriptions: error: $e, stacktrace: $stackTrace', e, stackTrace);
+      logger.network(
+        'Failed to dispose one or more subscriptions '
+        'with error: $e,\n'
+        'stacktrace: ${Trace.format(stackTrace)}',
+        e,
+        stackTrace,
+      );
     }
 
     _controllers.clear();
@@ -1165,7 +1248,7 @@ class SubscriptionController<T extends Repository> {
     }
   }
 
-  void connected(T repository, EventStoreConnection connection) {
+  void alive(T repository, EventStoreConnection connection) {
     if (reconnects > 0) {
       logger.info(
         '${repository.runtimeType} reconnected to '
@@ -1567,6 +1650,7 @@ class EventStoreConnection {
     return item.getUri(AtomItem.alternate);
   }
 
+  /// Write given [events] to given [stream]
   Future<WriteResult> writeEvents({
     @required String stream,
     @required Iterable<Event> events,
@@ -1582,7 +1666,7 @@ class EventStoreConnection {
           event,
           stream: stream,
           events: sourced,
-          number: version.toNumber(),
+          number: event.number,
         ),
       },
     );
@@ -1647,13 +1731,13 @@ class EventStoreConnection {
     @required List<SourceEvent> events,
   }) {
     events.add(SourceEvent(
+      number: number,
       streamId: stream,
-      number: number + events.length + 1,
-      created: event.created,
       type: event.type,
       data: event.data,
       uuid: event.uuid,
       local: event.local,
+      created: event.created,
     ));
     return event.uuid;
   }
@@ -1667,7 +1751,7 @@ class EventStoreConnection {
   }) {
     _assertState();
 
-    var controller = _SubscriptionController(
+    final controller = _SubscriptionController(
       this,
     );
 
@@ -1691,7 +1775,7 @@ class EventStoreConnection {
   }) {
     _assertState();
 
-    var controller = _SubscriptionController(
+    final controller = _SubscriptionController(
       this,
     );
 
@@ -2409,7 +2493,7 @@ class _SubscriptionController {
     if (number < _current) {
       // This should sum up for pull-subscriptions!
       // Ff it doesn't something is wrong!
-      if (_strategy == null && number + fetched != _current) {
+      if (_strategy == null && number + fetched + (number.isNone ? 1 : 0) != _current) {
         throw StateError(
           '$fetched events fetched does not match number change $number > $_current',
         );

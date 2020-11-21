@@ -35,6 +35,10 @@ class SnapshotModel extends Equatable {
   )
   final LinkedHashMap<String, AggregateRootModel> aggregates;
 
+  /// Check if snapshot contains an
+  /// [AggregateRootModel] with given [uuid]
+  bool contains(String uuid) => aggregates.containsKey(uuid);
+
   /// Get updated snapshot model
   SnapshotModel copyWith(Repository repo, {String uuid, AggregateRoot root}) => SnapshotModel(
         uuid: uuid ?? this.uuid,

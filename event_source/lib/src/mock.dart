@@ -5,18 +5,18 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:meta/meta.dart';
-import 'package:json_patch/json_patch.dart';
 import 'package:logging/logging.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:event_source/event_source.dart';
 
 typedef Replicate = void Function(
-  int port,
-  String stream,
-  String path,
-  List<Map<String, dynamic>> events,
-);
+  int port, {
+  @required String path,
+  @required String stream,
+  @required List<Map<String, dynamic>> events,
+  int offset,
+});
 
 class EventStoreMockServer {
   EventStoreMockServer(
@@ -307,7 +307,6 @@ class TestStream {
     DateTime updated,
     bool deleted = false,
     EventNumber number = EventNumber.first,
-    List<String> operations = AggregateRoot.ops,
   }) =>
       {
         'eventId': Uuid().v4(),
@@ -316,12 +315,10 @@ class TestStream {
         'updated': (updated ?? DateTime.now()).toIso8601String(),
         'data': {
           'uuid': uuid,
-          'patches': JsonPatch.diff(
+          'patches': JsonUtils.diff(
             oldData,
             newData,
-          )..removeWhere(
-              (diff) => !operations.contains(diff['op']),
-            ),
+          ),
           'deleted': deleted,
         },
       };
@@ -444,15 +441,16 @@ class TestStream {
   }
 
   Future _createStream(HttpRequest request, String path) async {
-    final content = await utf8.decoder.bind(request).join();
-    final data = json.decode(content);
-    final list = _toEvents(data);
     if (_checkEventNumber(request, path)) {
-      final events = append(path, list);
+      final content = await utf8.decoder.bind(request).join();
+      final data = json.decode(content);
+      final list = _toEvents(data);
+      final current = _toEventsFromPath(path);
+      final offset = current.isEmpty ? -1 : (current.values.last.elementAt<int>('eventNumber') ?? 0);
+      final events = append(path, list, offset: offset);
       request.response
         ..headers.add('location', '$path/${events.length - 1}')
         ..statusCode = HttpStatus.created;
-      _notify(path, list);
     }
   }
 
@@ -495,7 +493,12 @@ class TestStream {
   /// Replicate any POSTS cached locally to all streams
   void join() {
     if (replicate != null) {
-      _cached.forEach((path, events) => replicate(port, aggregate, path, events));
+      _cached.forEach((path, events) => replicate(
+            port,
+            path: path,
+            events: events,
+            stream: aggregate,
+          ));
     }
     _cached.clear();
     _partitioned = false;
@@ -509,16 +512,17 @@ class TestStream {
     _instances.clear();
   }
 
-  void _notify(String path, List<Map<String, dynamic>> events) {
+  void _notify(String path, int offset, List<Map<String, dynamic>> events) {
     if (_partitioned == false) {
-      Future.delayed(
-        const Duration(milliseconds: 1),
-        () {
-          if (!(_disposed || replicate == null)) {
-            replicate(port, aggregate, path, events);
-          }
-        },
-      );
+      if (!(_disposed || replicate == null)) {
+        replicate(
+          port,
+          path: path,
+          offset: offset,
+          events: events,
+          stream: aggregate,
+        );
+      }
     }
   }
 
@@ -527,30 +531,55 @@ class TestStream {
     ..reasonPhrase = message ?? 'Request ${request.method} ${request.uri.path} not supported';
 
   /// Append [list] of data objects to [path]
-  Map<String, Map<String, dynamic>> append(String path, List<Map<String, dynamic>> list) {
+  Map<String, Map<String, dynamic>> append(
+    String path,
+    List<Map<String, dynamic>> list, {
+    int offset,
+    bool notify = true,
+  }) {
+    // Prepare
     final events = _toEventsFromPath(path);
+    final last = (events.isEmpty ? -1 : events.values.last.elementAt<int>('eventNumber'));
+    var i = offset ?? last;
+    if (offset != null) {
+      assert(i == last, '$port:$path@$last not equal to offset $offset');
+    }
+
     // Only apply unseen events
     final unseen = List<Map<String, dynamic>>.from(list)
       ..removeWhere(
         (e) => events.containsKey(e.elementAt<String>('eventId')),
       );
-    var i = 0;
-    events.addEntries(unseen.map((event) => MapEntry(
-          event.elementAt<String>('eventId'),
-          event
-            ..addAll({
-              'eventNumber': events.length + (i++),
-            }),
-        )));
+    events.addEntries(unseen.map((event) {
+      // i = event.hasPath('eventNumber') ? event.elementAt<int>('eventNumber') : ++i;
+      return MapEntry(
+        event.elementAt<String>('eventId'),
+        event
+          ..addAll({
+            'eventNumber': ++i,
+          }),
+      );
+    }));
+
     if (_partitioned) {
       _cached.update(path, (events) => events..addAll(unseen), ifAbsent: () => unseen);
     }
     _canonical.addAll(events);
+
+    if (notify) {
+      _notify(
+        path,
+        offset,
+        list.map((e) => Map<String, dynamic>.from(e)..addAll({'replicatedBy': port})).toList(),
+      );
+    }
+
     logger.fine('[:$port:$aggregate] append(String,List){\n'
         'list: ${list.map((data) => data.elementAt('eventType')).toList()},\n'
         'unseen: ${unseen.map((data) => data.elementAt('eventType')).toList()},\n'
         'events: ${events.values.map((data) => data.elementAt('eventType')).toList()},\n'
         '}');
+
     return events;
   }
 

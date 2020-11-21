@@ -24,34 +24,38 @@ class MessageBus implements MessageNotifier, CommandSender, EventPublisher {
   /// Invoked before first event is replayed
   ///
   /// Throws [InvalidOperation] on illegal [isReplaying] state.
-  void replayStarted<T extends AggregateRoot>() => notify(ReplayStarted<T>());
+  void replayStarted<T extends AggregateRoot>() => notify(this, ReplayStarted<T>());
 
   /// Invoked after last event is replayed
   ///
   /// Throws [InvalidOperation] on illegal [isReplaying] state.
-  void replayEnded<T extends AggregateRoot>() => notify(ReplayEnded<T>());
+  void replayEnded<T extends AggregateRoot>() => notify(this, ReplayEnded<T>());
 
   @override
-  void notify(Message message) {
+  void notify(Object source, Message message) {
     if (message is Event) {
-      publish(message);
+      publish(source, message);
     } else if (message is Command) {
-      send(message);
+      send(source, message);
     } else {
       // message is not an event or command, thus inspection of message is only needed here.
-      toHandlers(_inspect(message)).forEach((handler) => handler.handle(message));
+      toHandlers(_inspect(message)).forEach(
+        (handler) => handler.handle(source, message),
+      );
     }
   }
 
   @override
-  void publish(Event event) => toHandlers(event).forEach((handler) => handler.handle(event));
+  void publish(Object source, Event event) => toHandlers(event).forEach(
+        (handler) => handler.handle(source, event),
+      );
 
   @override
-  void send(Command command) {
+  void send(Object source, Command command) {
     // Do not send any commands during replay! This will lead to unexpected results.
     // Replay should only reproduce state, no side effects should occur during replay.
     if (isReplaying == false) {
-      toHandler(command).handle(command);
+      toHandler(command).handle(source, command);
     }
   }
 

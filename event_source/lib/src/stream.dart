@@ -14,17 +14,10 @@ class StreamRequestQueue<T> {
   /// Used to track and dequeue requests.
   final _requests = <StreamRequest<T>>[];
 
-  /// Stream of last [StreamResult] processed before stopping
-  final StreamController<StreamResult<T>> _idleController = StreamController.broadcast();
+  // TODO: Replace controllers with one controller of StreamEvents
 
-  /// Stream of [StreamRequest] timeouts
-  final StreamController<StreamRequest<T>> _timeoutController = StreamController.broadcast();
-
-  /// Stream of [StreamRequest] errors
-  final StreamController<StreamRequest<T>> _failureController = StreamController.broadcast();
-
-  /// Stream of completed [StreamResult]
-  final StreamController<StreamResult<T>> _completeController = StreamController.broadcast();
+  /// Stream of [StreamEvent]s
+  final StreamController<StreamEvent> _onEventController = StreamController.broadcast();
 
   /// Get number of processed [StreamRequest]s from creation
   int get processed => _timeouts + _failed + _cancelled + _completed;
@@ -78,18 +71,8 @@ class StreamRequestQueue<T> {
   bool get isIdle => _isIdle || !isReady;
   bool _isIdle = true;
 
-  /// Get stream of last [StreamResult]
-  /// processed before stopping.
-  Stream<StreamResult<T>> onIdle() => _idleController.stream;
-
-  /// Get stream of [StreamRequest] timeouts.
-  Stream<StreamRequest<T>> onTimeout() => _timeoutController.stream;
-
-  /// Get stream of failed [StreamRequest] .
-  Stream<StreamRequest<T>> onFailure() => _failureController.stream;
-
-  /// Get stream of completed [StreamResult] .
-  Stream<StreamResult<T>> onComplete() => _completeController.stream;
+  /// Get stream of [StreamEvent]s.
+  Stream<StreamEvent> onEvent() => _onEventController.stream;
 
   /// Flag indicating that queue is [process]ing requests
   bool get isProcessing => isReady && !isIdle;
@@ -104,6 +87,12 @@ class StreamRequestQueue<T> {
   int indexOf(String key) {
     _checkState();
     return _requests.indexWhere((element) => element.key == key);
+  }
+
+  /// Get [StreamRequest] from given [key].
+  ///Returns [null] if not found.
+  StreamRequest<T> elementAt(String key) {
+    return contains(key) ? _requests[indexOf(key)] : null;
   }
 
   /// Check if [StreamRequest] with given [key] is at head of queue
@@ -135,6 +124,9 @@ class StreamRequestQueue<T> {
     if (!contains(request.key)) {
       _requests.add(request);
       _dispatcher.add(request);
+      _onEventController.add(StreamRequestAdded(
+        request,
+      ));
     }
 
     // Start processing events
@@ -205,12 +197,14 @@ class StreamRequestQueue<T> {
     var next = await _queue.peek;
     while (next.isTimedOut || !contains(next.key)) {
       if (contains(next.key)) {
-        _timeoutController.add(next);
+        _onEventController.add(StreamRequestTimeout(
+          next,
+        ));
         _requests.remove(next);
         _timeouts++;
         if (next.fail) {
           _handleError(
-            StreamRequestTimeout(this, next),
+            StreamRequestTimeoutException(this, next),
             StackTrace.current,
             request: next,
           );
@@ -252,29 +246,11 @@ class StreamRequestQueue<T> {
   /// Execute given [request]
   Future<StreamResult<T>> _execute(StreamRequest<T> request) async {
     try {
-      final result = await request.execute();
-      if (result.isStop) {
-        await stop();
-      } else {
-        _requests.remove(request);
-        if (_queue != null) {
-          await _queue.next;
-        }
-        _completeController.add(result);
-        if (result.isError) {
-          _failed++;
-          _handleError(
-            result.error,
-            result.stackTrace,
-            request: request,
-          );
-        } else {
-          request.onResult?.complete(
-            result.value,
-          );
-        }
-      }
-      return result;
+      _last = await request.execute();
+      return _onComplete(
+        request,
+        _last,
+      );
     } catch (error, stackTrace) {
       _failed++;
       _handleError(
@@ -282,10 +258,43 @@ class StreamRequestQueue<T> {
         stackTrace,
         request: request,
       );
-      return StreamResult(
+      final result = StreamResult(
         value: await _onFallback(request),
       );
+      _onEventController.add(StreamRequestCompleted(
+        request,
+        result,
+      ));
+      return result;
     }
+  }
+
+  Future<StreamResult<T>> _onComplete(
+    StreamRequest<T> request,
+    StreamResult<T> result,
+  ) async {
+    if (_requests.remove(request)) {
+      await _queue.next;
+    }
+    _onEventController.add(StreamRequestCompleted(
+      request,
+      result,
+    ));
+    if (result.isStop) {
+      await stop();
+    } else if (result.isError) {
+      _failed++;
+      _handleError(
+        result.error,
+        result.stackTrace,
+        request: request,
+      );
+    } else if (request.onResult?.isCompleted == false) {
+      request.onResult?.complete(
+        result.value,
+      );
+    }
+    return result;
   }
 
   /// Should only process next
@@ -337,7 +346,11 @@ class StreamRequestQueue<T> {
           stackTrace,
         );
       }
-      _failureController.add(request);
+      _onEventController.add(StreamRequestFailed(
+        request,
+        error,
+        stackTrace,
+      ));
     }
   }
 
@@ -356,7 +369,7 @@ class StreamRequestQueue<T> {
     if (isProcessing) {
       _isIdle = true;
       // Notify listeners
-      _idleController?.add(_last);
+      _onEventController.add(StreamQueueIdle());
     }
   }
 
@@ -387,17 +400,8 @@ class StreamRequestQueue<T> {
       _queue = null;
       _current = null;
       _dispatcher = null;
-      if (_idleController.hasListener) {
-        await _idleController.close();
-      }
-      if (_timeoutController.hasListener) {
-        await _timeoutController.close();
-      }
-      if (_failureController.hasListener) {
-        await _failureController.close();
-      }
-      if (_completeController.hasListener) {
-        await _completeController.close();
+      if (_onEventController.hasListener) {
+        await _onEventController.close();
       }
     }
   }
@@ -415,6 +419,40 @@ class StreamRequestQueue<T> {
       '  cancelled: $_cancelled,\n'
       '  completed: $_completed,\n'
       '  isDisposed: $_isDisposed\n}';
+}
+
+abstract class StreamEvent {}
+
+@Immutable()
+class StreamRequestAdded extends StreamEvent {
+  StreamRequestAdded(this.request);
+  final StreamRequest request;
+}
+
+@Immutable()
+class StreamRequestTimeout extends StreamEvent {
+  StreamRequestTimeout(this.request);
+  final StreamRequest request;
+}
+
+@Immutable()
+class StreamRequestFailed extends StreamEvent {
+  StreamRequestFailed(this.request, this.error, this.stackTrace);
+  final Object error;
+  final StackTrace stackTrace;
+  final StreamRequest request;
+}
+
+@Immutable()
+class StreamRequestCompleted extends StreamEvent {
+  StreamRequestCompleted(this.request, this.result);
+  final StreamRequest request;
+  final StreamResult result;
+}
+
+@Immutable()
+class StreamQueueIdle extends StreamEvent {
+  StreamQueueIdle();
 }
 
 @Immutable()
@@ -463,8 +501,8 @@ class StreamResult<T> {
     this.stackTrace,
   }) : _stop = stop ?? false;
 
-  static StreamResult<T> none<T>() => StreamResult<T>();
-  static StreamResult<T> stop<T>() => StreamResult<T>(stop: true);
+  static StreamResult<T> none<T>({String tag}) => StreamResult<T>(tag: tag);
+  static StreamResult<T> stop<T>({String tag}) => StreamResult<T>(tag: tag, stop: true);
 
   final T value;
   final Object tag;
@@ -477,8 +515,8 @@ class StreamResult<T> {
   bool get isError => error != null;
 }
 
-class StreamRequestTimeout implements Exception {
-  StreamRequestTimeout(this.queue, this.request);
+class StreamRequestTimeoutException implements Exception {
+  StreamRequestTimeoutException(this.queue, this.request);
   final StreamRequest request;
   final StreamRequestQueue queue;
 

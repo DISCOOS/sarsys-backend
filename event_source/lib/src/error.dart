@@ -1,5 +1,7 @@
-import 'package:event_source/event_source.dart';
 import 'package:meta/meta.dart';
+import 'package:stack_trace/stack_trace.dart';
+
+import 'package:event_source/event_source.dart';
 
 import 'core.dart';
 
@@ -19,6 +21,12 @@ class InvalidOperation extends EventSourceException {
   const InvalidOperation(String message) : super(message);
 }
 
+/// Thrown when an invalid operation is attempted
+class CommandTimeout extends EventSourceException {
+  const CommandTimeout(String message, this.command) : super(message);
+  final Command command;
+}
+
 /// Thrown when an required projection is not available
 class ProjectionNotAvailable extends InvalidOperation {
   const ProjectionNotAvailable(String message) : super(message);
@@ -26,19 +34,33 @@ class ProjectionNotAvailable extends InvalidOperation {
 
 /// Thrown when an error has occurred
 class RepositoryError extends Error {
-  RepositoryError(this.message) : super();
-  final String message;
+  RepositoryError(this.error, [this.stackTrace]) : super();
+  final Object error;
+
+  @override
+  final StackTrace stackTrace;
 
   @override
   String toString() {
-    return '$runtimeType{message: $message}';
+    return '$runtimeType{error: $error, stackTrace: ${Trace.format(stackTrace)}}';
   }
 }
 
 /// Thrown when an maximum pressure in repository is exceeded
 class RepositoryMaxPressureExceeded extends InvalidOperation {
-  const RepositoryMaxPressureExceeded(String message, this.threshold) : super(message);
-  final int threshold;
+  const RepositoryMaxPressureExceeded(
+    String message,
+    this.uuid,
+    this.repository,
+  ) : super(message);
+  final String uuid;
+  final Repository repository;
+
+  @override
+  String get message {
+    return '${repository.runtimeType}: '
+        '${super.message}: Pressure exceeded maximum: ${repository.maxPushPressure}';
+  }
 }
 
 /// Thrown when an required repository is not available
@@ -73,6 +95,24 @@ class EntityExists extends InvalidOperation {
   final EntityObject entity;
 }
 
+/// Thrown when multiple push operations are invoked without waiting for
+/// the result of each push. This prevents partial writes and commits
+/// which will result in inconsistent local data or an [EventNumberMismatch]
+/// being thrown by [EventStoreConnection.writeEvents]. Use a [Transaction]
+/// if you want to execute multiple commands before pushing data.
+class ConcurrentWriteOperation extends InvalidOperation {
+  const ConcurrentWriteOperation(String message, this.transaction) : super(message);
+  final Transaction transaction;
+
+  @override
+  String toString() {
+    return '$runtimeType{message: $message,\n'
+        'seqnum: ${transaction.seqnum},\n'
+        'startedBy: ${transaction.startedBy},\n'
+        'startedAt: ${Trace.format(transaction.startedAt)}}';
+  }
+}
+
 /// Thrown when writing events and 'ES-ExpectedVersion' differs from 'ES-CurrentVersion'
 class WrongExpectedEventVersion extends InvalidOperation {
   const WrongExpectedEventVersion(
@@ -98,7 +138,9 @@ class ConflictNotReconcilable extends InvalidOperation {
     @required this.base,
     @required this.mine,
     @required this.yours,
+    @required this.conflicts,
   }) : super(message);
+  final List<String> conflicts;
   final Map<String, dynamic> base;
   final List<Map<String, dynamic>> mine;
   final List<Map<String, dynamic>> yours;
@@ -108,6 +150,7 @@ class ConflictNotReconcilable extends InvalidOperation {
         base: const {},
         mine: const [],
         yours: const [],
+        conflicts: const [],
       );
 
   @override
@@ -128,9 +171,8 @@ class EventNumberMismatch extends WriteFailed implements Exception {
     String message,
     EventNumber actual,
     EventNumber current,
-    Map<String, EventNumber> numbers,
   }) : super(
-          '$message: stream $stream current event number ($current) not equal to actual ($actual), numbers: $numbers',
+          '$message: stream $stream current event number ($current) not equal to actual ($actual)',
         );
 }
 

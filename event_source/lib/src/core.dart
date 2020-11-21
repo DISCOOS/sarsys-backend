@@ -139,7 +139,7 @@ class Event extends Message {
 
   @override
   String toString() {
-    return '$runtimeType{uuid: $uuid, type: $type, number: $number, created: $created}';
+    return '$runtimeType{uuid: $uuid, type: $type, number: $number, local: $local, created: $created}';
   }
 }
 
@@ -161,14 +161,14 @@ class DomainEvent extends Event {
           created: created ?? DateTime.now(),
         );
 
-  Event rebase(Map<String, dynamic> base) {
+  Event rebase(Map<String, dynamic> base, {int delta = 0}) {
     final changed = JsonPatch.apply(base, patches, strict: false);
     return Event(
       uuid: uuid,
       type: type,
       local: local,
-      number: number,
       created: created,
+      number: number + delta,
       data: data
         ..addAll({
           'previous': base,
@@ -190,7 +190,7 @@ class DomainEvent extends Event {
 
   @override
   String toString() {
-    return '$runtimeType{uuid: $uuid, type: $type, number: $number, created: $created}';
+    return '$runtimeType{uuid: $uuid, type: $type, number: $number, local: $local, created: $created}';
   }
 
   Event toEvent(uuidFieldName) => Event(
@@ -269,7 +269,7 @@ class EntityObjectEvent extends DomainEvent {
   final String aggregateField;
 
   int get index => data['index'];
-  String get id => entity.elementAt('id');
+  String get id => entity.elementAt(idFieldName);
   Map<String, dynamic> get entity => elementAt('$aggregateField/$index');
   EntityObject get entityObject => EntityObject(id, entity, idFieldName);
 }
@@ -292,7 +292,7 @@ class ValueObjectEvent<T> extends DomainEvent {
 
   final String valueField;
 
-  T get value => elementAt('$valueField') as T;
+  T get value => elementAt(valueField) as T;
 }
 
 /// Base class for events sourced from an event stream.
@@ -319,7 +319,7 @@ class SourceEvent extends Event {
 
   @override
   String toString() {
-    return '$runtimeType{uuid: $uuid, type: $type, number: $number, created: $created}';
+    return '$runtimeType{uuid: $uuid, type: $type, number: $number, local: $local, created: $created}';
   }
 
   static Map<String, dynamic> toData(
@@ -451,22 +451,22 @@ abstract class CommandHandler<T extends Command> {
 
 /// Message notifier interface
 abstract class MessageNotifier {
-  void notify(Message message);
+  void notify(Object source, Message message);
 }
 
 /// Event publisher interface
 abstract class EventPublisher<T extends Event> {
-  void publish(T event);
+  void publish(Object source, T event);
 }
 
 /// Command sender interface
 abstract class CommandSender {
-  void send(Command command);
+  void send(Object source, Command command);
 }
 
 /// Message handler interface
 abstract class MessageHandler<T extends Message> {
-  void handle(T message);
+  void handle(Object source, T message);
 }
 
 /// Event number in stream

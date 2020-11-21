@@ -13,11 +13,11 @@ import 'domain.dart';
 /// Should always return an [AggregateRule]
 typedef RuleBuilder = AggregateRule Function(Repository repository);
 
-/// [Command] builder function for given [DomainEvent] and [AggregateRoot.uuid]
+/// [Command] builder function for given [source] and [uuid] of target [AggregateRoot]
 ///
 /// If function returns a [Command] it must be executed. Return null if
 /// nothing should be execution.
-typedef CommandBuilder = Command Function(DomainEvent source, String target);
+typedef CommandBuilder = Command Function(DomainEvent source, String uuid);
 
 /// [AggregateRoot] target resolver function
 typedef TargetResolver = Repository Function();
@@ -132,7 +132,7 @@ class Cardinality {
     return CardinalityType.none;
   }
 
-  String toUML() => '${left.toUML()} <-> ${right.toUML()}';
+  String toUML() => isAny ? 'any' : '${left.toUML()} <-> ${right.toUML()}';
 
   @override
   bool operator ==(Object other) =>
@@ -164,7 +164,7 @@ abstract class AggregateRule {
     this.local = true,
   });
 
-  /// Process local events only
+  /// Process events with state local (not committed)
   final bool local;
 
   /// Target [Repository] for executing commands
@@ -178,29 +178,48 @@ abstract class AggregateRule {
   Future<Iterable<String>> appliesTo(DomainEvent event);
 
   /// Framework calls this method
-  Future<Iterable<DomainEvent>> call(DomainEvent event) async {
-    if (event.local == local) {
+  Future<Iterable<DomainEvent>> call(Object source, DomainEvent event) async {
+    if (_shouldProcess(event)) {
       final values = await appliesTo(event);
-      final result = await Future.wait(values.map(
-        (uuid) => execute(event, uuid),
-      ));
-      return result.fold<List<DomainEvent>>(
-        <DomainEvent>[],
-        (events, list) => events..addAll(list),
-      );
+      final events = <DomainEvent>[];
+      for (var uuid in values) {
+        final result = await execute(event, uuid);
+        events.addAll(result);
+      }
+      return events;
     }
     return null;
+  }
+
+  bool _shouldProcess(DomainEvent event) {
+    return event.local == local;
   }
 
   /// Execute rule for given aggregate
   Future<Iterable<DomainEvent>> execute(DomainEvent event, String uuid) async {
     final command = builder(event, uuid);
     if (command != null) {
-      return await target.execute(
-        command,
-      );
+      // Try to catch up before executing
+      if (await _shouldExecute(command, uuid)) {
+        final result = await target.execute(
+          command,
+        );
+        return result;
+      }
     }
     return [];
+  }
+
+  /// Check if exist if command action is update.
+  /// Preform catchup if not found before checking again.
+  Future<bool> _shouldExecute(Command command, String uuid) async {
+    if (command.action != Action.create) {
+      if (!target.exists(uuid)) {
+        await target.catchUp(master: true);
+      }
+      return target.exists(uuid);
+    }
+    return true;
   }
 }
 
@@ -351,5 +370,17 @@ class AssociationRule extends AggregateRule {
         // Only delete if relation exists
         return targets.isNotEmpty;
     }
+  }
+
+  @override
+  String toString() {
+    return 'AssociationRule{\n'
+        '  intent: $intent,\n'
+        '  source: ${source.runtimeType},\n'
+        '  sourceField: $sourceField,\n'
+        '  target: ${target.runtimeType},\n'
+        '  targetField: $targetField,\n'
+        '  cardinality: ${cardinality.toUML()}\n'
+        '}';
   }
 }
