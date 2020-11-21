@@ -43,9 +43,11 @@ class OrganisationImportController
       }
       final list = _validate(uuid, data);
       final responses = <Response>[];
+      final trx = primary.getTransaction(uuid);
       for (var div in list) {
         responses.addAll(await _importDivision(uuid, div));
       }
+      await trx.push();
       final failures = responses.where(isError);
       return failures.isEmpty
           ? okAggregate(primary.get(uuid))
@@ -206,6 +208,7 @@ class OrganisationImportController
     final responses = <Response>[];
     final deps = div.elementAt('departments') ?? [];
     final duuid = div.elementAt('uuid') as String ?? Uuid().v4();
+    final trx = foreign.getTransaction(duuid);
     if (!foreign.contains(duuid)) {
       responses.add(await super.create(
         uuid,
@@ -227,6 +230,7 @@ class OrganisationImportController
     responses.addAll(
       await _importDeps(duuid, deps),
     );
+    await trx.push();
     return responses;
   }
 
