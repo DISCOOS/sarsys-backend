@@ -73,9 +73,11 @@ class OperationUnitController extends AggregateListController<UnitCommand, Unit,
     // Add personnels to unit just created
     if (_personnels.isNotEmpty) {
       final unit = foreign.get(uuuid);
-      await Future.wait(_personnels.map((String puuid) async {
-        return foreign.execute(AssignPersonnelToUnit(unit, puuid));
-      }));
+      for (var puuid in _personnels) {
+        await foreign.execute(
+          AssignPersonnelToUnit(unit, puuid),
+        );
+      }
     }
     return events;
   }

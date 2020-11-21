@@ -7,24 +7,9 @@ class AppConfigRepository extends Repository<AppConfigCommand, AppConfig> {
     EventStore store, {
     @required this.devices,
   }) : super(store: store, processors: {
-          AppConfigCreated: (event) => AppConfigCreated(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          AppConfigUpdated: (event) => AppConfigUpdated(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          AppConfigDeleted: (event) => AppConfigDeleted(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
+          AppConfigCreated: (event) => AppConfigCreated(event),
+          AppConfigUpdated: (event) => AppConfigUpdated(event),
+          AppConfigDeleted: (event) => AppConfigDeleted(event),
         });
 
   final DeviceRepository devices;
@@ -140,46 +125,34 @@ class DeleteAppConfig extends AppConfigCommand<AppConfigDeleted> {
 //////////////////////////////////////
 
 class AppConfigCreated extends DomainEvent {
-  AppConfigCreated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  AppConfigCreated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: "$AppConfigCreated",
-          created: created,
-          data: data,
         );
 }
 
 class AppConfigUpdated extends DomainEvent {
-  AppConfigUpdated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  AppConfigUpdated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: "$AppConfigUpdated",
-          created: created,
-          data: data,
         );
 }
 
 class AppConfigDeleted extends DomainEvent {
-  AppConfigDeleted({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  AppConfigDeleted(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: "$AppConfigDeleted",
-          created: created,
-          data: data,
         );
 }

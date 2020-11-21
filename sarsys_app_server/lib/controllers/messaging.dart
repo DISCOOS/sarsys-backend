@@ -13,7 +13,7 @@ import 'package:sarsys_app_server/sarsys_app_server.dart';
 class WebSocketMessageProcessor extends MessageHandler<WebSocketMessage> {
   Logger logger = Logger("WebSocketMessageProcessor");
   @override
-  void handle(WebSocketMessage message) {
+  void handle(Object source, WebSocketMessage message) {
     logger.fine("Received $message");
   }
 }
@@ -176,14 +176,13 @@ class MessageChannel extends MessageHandler<Event> {
 
   /// Dispose all WebSocket connection
   Future dispose() async {
-    await Future.forEach(
-      _states.entries,
-      (MapEntry<String, _SocketState> entry) => _close(
+    for (var entry in _states.entries) {
+      await _close(
         entry.value,
         WebSocketStatus.normalClosure,
         'Server closed connection to ${entry.key}',
-      ),
-    );
+      );
+    }
     _states.clear();
     _heartbeat?.cancel();
   }
@@ -194,7 +193,7 @@ class MessageChannel extends MessageHandler<Event> {
       );
 
   @override
-  void handle(Message message) {
+  void handle(Object source, Message message) {
     if (_types.contains(message.runtimeType)) {
       final data = _toData(message);
       _states.forEach(
@@ -257,7 +256,7 @@ class MessageChannel extends MessageHandler<Event> {
       if (message is WebSocketError) {
         _send(appId, state: state, data: _toData(message));
       } else {
-        _handler?.handle(message);
+        _handler?.handle(this, message);
       }
     }
   }
@@ -305,14 +304,13 @@ class MessageChannel extends MessageHandler<Event> {
 
       logger.fine('Checked liveliness, found ${idle.length} of ${_states.length} idle ');
 
-      await Future.forEach<MapEntry<String, _SocketState>>(
-        idle,
-        (entry) => _close(
-          entry.value,
+      for (var app in idle) {
+        await _close(
+          app.value,
           WebSocketStatus.goingAway,
-          'Closed connection to ${entry.key} because idle timeout',
-        ),
-      );
+          'Closed connection to ${app.key} because idle timeout',
+        );
+      }
       await _removeAll(idle, reason: 'Idle too long');
     } catch (e, stacktrace) {
       logger.severe('Failed to check liveliness with: $e with stacktrace: $stacktrace');
@@ -334,11 +332,12 @@ class MessageChannel extends MessageHandler<Event> {
   Future _removeAll(
     Iterable<MapEntry<String, _SocketState>> entries, {
     @required String reason,
-  }) =>
-      Future.forEach<MapEntry<String, _SocketState>>(
-        entries,
-        (entry) => _remove(entry.key, reason: reason),
-      );
+  }) async {
+    for (var app in entries) {
+      await _remove(app.key, reason: reason);
+    }
+    return Future.value();
+  }
 
   String _info(String message) {
     logger.info(message);

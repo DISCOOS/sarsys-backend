@@ -20,6 +20,13 @@ Response serviceUnavailable({int retryAfter = 30, Map<String, dynamic> headers, 
       body,
     );
 
+/// Represents a 504 response.
+Response gatewayTimeout({int retryAfter = 30, Map<String, dynamic> headers, dynamic body}) => Response(
+      HttpStatus.gatewayTimeout,
+      (headers ?? <String, dynamic>{})..addAll({'retry-after': retryAfter}),
+      body,
+    );
+
 /// Represents a 429 response.
 Response tooManyRequests({int retryAfter = 30, Map<String, dynamic> headers, dynamic body}) => Response(
       HttpStatus.tooManyRequests,

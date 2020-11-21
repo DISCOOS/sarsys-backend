@@ -7,24 +7,9 @@ import 'events.dart';
 class AffiliationRepository extends Repository<AffiliationCommand, Affiliation> {
   AffiliationRepository(EventStore store)
       : super(store: store, processors: {
-          AffiliationCreated: (event) => AffiliationCreated(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          AffiliationInformationUpdated: (event) => AffiliationInformationUpdated(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          AffiliationDeleted: (event) => AffiliationDeleted(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
+          AffiliationCreated: (event) => AffiliationCreated(event),
+          AffiliationInformationUpdated: (event) => AffiliationInformationUpdated(event),
+          AffiliationDeleted: (event) => AffiliationDeleted(event),
         });
 
   AggregateRule newDeletePersonRule(_) => AssociationRule(

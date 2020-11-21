@@ -78,8 +78,12 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       return Response.badRequest(body: e.message);
     } on RepositoryMaxPressureExceeded catch (e) {
       return tooManyRequests(body: e.message);
+    } on CommandTimeout catch (e) {
+      return gatewayTimeout(
+        body: e.message,
+      );
     } on StreamRequestTimeout catch (e) {
-      return serviceUnavailable(
+      return gatewayTimeout(
         body: "Repository $aggregateType was unable to process request ${e.request.tag}",
       );
     } on SocketException catch (e) {
@@ -116,16 +120,22 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       if (!await exists(primary, uuid)) {
         return Response.notFound(body: "$primaryType $uuid not found");
       }
-      final list = toFieldList(data);
-      final notFound = list.where((fuuid) => !foreign.contains(fuuid));
+      final fuuids = toFieldList(data);
+      final notFound = fuuids.where(
+        (fuuid) => !foreign.contains(fuuid),
+      );
       if (notFound.isNotEmpty) {
-        return Response.notFound(body: "${foreignType}s not found: $notFound");
+        return Response.notFound(
+          body: "${foreignType}s not found: $notFound",
+        );
       }
-      await Future.wait(list.map((String fuuid) async {
+      final trx = primary.getTransaction(uuid);
+      for (var fuuid in fuuids) {
         // Get updated parent aggregate
         await doAdd(primary.get(uuid), fuuid);
         await doAdded(primary.get(uuid), fuuid);
-      }));
+      }
+      await trx.push();
       return Response.noContent();
     } on AggregateExists catch (e) {
       return conflict(
@@ -151,8 +161,12 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       return Response.badRequest(body: e.message);
     } on RepositoryMaxPressureExceeded catch (e) {
       return tooManyRequests(body: e.message);
+    } on CommandTimeout catch (e) {
+      return gatewayTimeout(
+        body: e.message,
+      );
     } on StreamRequestTimeout catch (e) {
-      return serviceUnavailable(
+      return gatewayTimeout(
         body: "Repository $aggregateType was unable to process request ${e.request.tag}",
       );
     } on SocketException catch (e) {
@@ -185,17 +199,18 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       if (!await exists(primary, uuid)) {
         return Response.notFound(body: "$primaryType $uuid not found");
       }
-      final list = toFieldList(data);
-      final notFound = list.where((fuuid) => !foreign.contains(fuuid));
+      final fuuids = toFieldList(data);
+      final notFound = fuuids.where((fuuid) => !foreign.contains(fuuid));
       if (notFound.isNotEmpty) {
         return Response.notFound(body: "${foreignType}s not found: $notFound");
       }
-      // Wait for each command to complete
-      await Future.wait(list.map((String fuuid) async {
+      final trx = primary.getTransaction(uuid);
+      for (var fuuid in fuuids) {
         // Get updated parent aggregate
         await doReplace(primary.get(uuid), fuuid);
         await doReplaced(primary.get(uuid), fuuid);
-      }));
+      }
+      await trx.push();
       return Response.noContent();
     } on AggregateExists catch (e) {
       return conflict(
@@ -221,8 +236,12 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       return Response.badRequest(body: e.message);
     } on RepositoryMaxPressureExceeded catch (e) {
       return tooManyRequests(body: e.message);
+    } on CommandTimeout catch (e) {
+      return gatewayTimeout(
+        body: e.message,
+      );
     } on StreamRequestTimeout catch (e) {
-      return serviceUnavailable(
+      return gatewayTimeout(
         body: "Repository $aggregateType was unable to process request ${e.request.tag}",
       );
     } on SocketException catch (e) {
@@ -255,17 +274,18 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       if (!await exists(primary, uuid)) {
         return Response.notFound(body: "$primaryType $uuid not found");
       }
-      final list = toFieldList(data);
-      final notFound = list.where((fuuid) => !foreign.contains(fuuid));
+      final fuuids = toFieldList(data);
+      final notFound = fuuids.where((fuuid) => !foreign.contains(fuuid));
       if (notFound.isNotEmpty) {
         return Response.notFound(body: "${foreignType}s not found: $notFound");
       }
-      // Wait for each command to complete
-      await Future.wait(list.map((String fuuid) async {
+      final trx = primary.getTransaction(uuid);
+      for (var fuuid in fuuids) {
         // Get updated parent aggregate
         await doRemove(primary.get(uuid), fuuid);
         await doRemoved(primary.get(uuid), fuuid);
-      }));
+      }
+      await trx.push();
       return Response.noContent();
     } on AggregateExists catch (e) {
       return conflict(
@@ -291,8 +311,12 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       return Response.badRequest(body: e.message);
     } on RepositoryMaxPressureExceeded catch (e) {
       return tooManyRequests(body: e.message);
+    } on CommandTimeout catch (e) {
+      return gatewayTimeout(
+        body: e.message,
+      );
     } on StreamRequestTimeout catch (e) {
-      return serviceUnavailable(
+      return gatewayTimeout(
         body: "Repository $aggregateType was unable to process request ${e.request.tag}",
       );
     } on SocketException catch (e) {

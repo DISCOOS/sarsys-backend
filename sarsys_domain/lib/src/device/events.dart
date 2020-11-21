@@ -1,4 +1,3 @@
-import 'package:meta/meta.dart';
 import 'package:event_source/event_source.dart';
 import 'package:sarsys_domain/sarsys_domain.dart';
 
@@ -7,47 +6,35 @@ import 'package:sarsys_domain/sarsys_domain.dart';
 //////////////////////////////////////
 
 class DeviceCreated extends DomainEvent {
-  DeviceCreated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  DeviceCreated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$DeviceCreated',
-          created: created,
-          data: data,
         );
 }
 
 class DeviceInformationUpdated extends DomainEvent {
-  DeviceInformationUpdated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  DeviceInformationUpdated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$DeviceInformationUpdated',
-          created: created,
-          data: data,
         );
 }
 
 class DeviceDeleted extends DomainEvent {
-  DeviceDeleted({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  DeviceDeleted(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$DeviceDeleted',
-          created: created,
-          data: data,
         );
 }
 
@@ -56,16 +43,12 @@ class DeviceDeleted extends DomainEvent {
 //////////////////////////////////
 
 class DevicePositionChanged extends PositionEvent {
-  DevicePositionChanged({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
-          data: data,
-          created: created,
+  DevicePositionChanged(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: 'DevicePositionChanged',
         );
 }
@@ -75,46 +58,34 @@ class DevicePositionChanged extends PositionEvent {
 //////////////////////////////////
 
 class DeviceMessageAdded extends DomainEvent {
-  DeviceMessageAdded({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  DeviceMessageAdded(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$DeviceMessageAdded',
-          created: created,
-          data: data,
         );
 }
 
 class DeviceMessageUpdated extends DomainEvent {
-  DeviceMessageUpdated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  DeviceMessageUpdated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$DeviceMessageUpdated',
-          created: created,
-          data: data,
         );
 }
 
 class DeviceMessageRemoved extends DomainEvent {
-  DeviceMessageRemoved({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  DeviceMessageRemoved(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$DeviceMessageRemoved',
-          created: created,
-          data: data,
         );
 }

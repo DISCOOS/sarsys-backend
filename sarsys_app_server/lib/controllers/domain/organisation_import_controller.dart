@@ -78,8 +78,12 @@ class OrganisationImportController
       return Response.badRequest(body: e.message);
     } on RepositoryMaxPressureExceeded catch (e) {
       return tooManyRequests(body: e.message);
+    } on CommandTimeout catch (e) {
+      return gatewayTimeout(
+        body: e.message,
+      );
     } on StreamRequestTimeout catch (e) {
-      return serviceUnavailable(
+      return gatewayTimeout(
         body: "Repository command queue was unable to process ${e.request.tag}",
       );
     } on SocketException catch (e) {

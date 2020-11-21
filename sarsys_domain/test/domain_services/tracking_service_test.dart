@@ -15,7 +15,7 @@ Future main() async {
   final harness = EventSourceHarness()
     ..withTenant()
     ..withPrefix()
-    ..withLogger()
+    ..withLogger(debug: false)
     ..withStream(subscription, useInstanceStreams: false, useCanonicalName: false)
     ..withSubscription(subscription, group: group)
     ..withProjections(projections: ['\$by_category', '\$by_event_type'])
@@ -137,7 +137,7 @@ Future main() async {
 
     // Act - create device and add source after service has consumed TrackingCreated
     final duuid = await _createDevice(devices);
-    _addTrackingSource(
+    await _addTrackingSource(
       repo,
       tuuid,
       duuid,
@@ -147,8 +147,8 @@ Future main() async {
     await expectLater(
       service.asStream(),
       emitsInOrder([
-        isA<TrackingSourceAdded>(),
-        isA<TrackingTrackAdded>(),
+        isA<TrackingSourceAdded>() /* source -> added */,
+        isA<TrackingTrackAdded>() /* track -> added */,
         isA<TrackingStatusChanged>() /* tracking -> paused */,
       ]),
     );
@@ -165,7 +165,7 @@ Future main() async {
 
     // Cleanup
     await service.dispose();
-  });
+  }, timeout: Timeout.factor(100));
 
   test('Tracking service aggregates position on DevicePositionChanged when device is trackable', () async {
     // Arrange
@@ -190,10 +190,13 @@ Future main() async {
     await expectLater(
       service.asStream(),
       emitsInOrder([
-        isA<TrackingTrackAdded>() /* device 1 -> added   */,
-        isA<TrackingStatusChanged>() /*  status -> tracking   */,
+        isA<TrackingSourceAdded>() /* device 1 source -> added */,
+        isA<TrackingTrackAdded>() /* device 1 track -> added */,
+        isA<TrackingStatusChanged>() /* status -> tracking   */,
       ]),
     );
+    final events = <DomainEvent>[];
+    service.asStream().listen((e) => events.add(e));
     await _updateDevicePosition(
       devices,
       duuid1,
@@ -203,7 +206,7 @@ Future main() async {
       service.asStream(),
       emitsInOrder([
         isA<DevicePositionChanged>() /* position 1 -> changed */,
-        isA<TrackingTrackChanged>() /*  position 1 -> added   */,
+        isA<TrackingTrackChanged>() /* position 1 -> added   */,
         isA<TrackingPositionChanged>() /* positions aggregated */,
       ]),
     );
@@ -218,6 +221,7 @@ Future main() async {
     await expectLater(
       service.asStream(),
       emitsInOrder([
+        isA<TrackingSourceAdded>() /* device 1 source -> added */,
         isA<TrackingTrackAdded>() /* device 2 -> added   */,
       ]),
     );
@@ -346,7 +350,7 @@ Future main() async {
     );
 
     // Act - remove source after service has consumed TrackingSourceAdded
-    _removeTrackingSource(
+    await _removeTrackingSource(
       repo,
       tuuid,
       duuid,
@@ -371,7 +375,7 @@ Future main() async {
     );
 
     await service.dispose();
-  });
+  }, timeout: Timeout.factor(100));
 
   test('Tracking services should remove tracking on TrackingDeleted', () async {
     // Arrange

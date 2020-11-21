@@ -7,48 +7,13 @@ import 'events.dart';
 class DeviceRepository extends Repository<DeviceCommand, Device> {
   DeviceRepository(EventStore store)
       : super(store: store, processors: {
-          DeviceCreated: (event) => DeviceCreated(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          DeviceInformationUpdated: (event) => DeviceInformationUpdated(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          DevicePositionChanged: (event) => DevicePositionChanged(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          DeviceDeleted: (event) => DeviceDeleted(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          DeviceMessageAdded: (event) => DeviceMessageAdded(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          DeviceMessageUpdated: (event) => DeviceMessageUpdated(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          DeviceMessageRemoved: (event) => DeviceMessageRemoved(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
+          DeviceCreated: (event) => DeviceCreated(event),
+          DeviceInformationUpdated: (event) => DeviceInformationUpdated(event),
+          DevicePositionChanged: (event) => DevicePositionChanged(event),
+          DeviceDeleted: (event) => DeviceDeleted(event),
+          DeviceMessageAdded: (event) => DeviceMessageAdded(event),
+          DeviceMessageUpdated: (event) => DeviceMessageUpdated(event),
+          DeviceMessageRemoved: (event) => DeviceMessageRemoved(event),
         });
 
   @override

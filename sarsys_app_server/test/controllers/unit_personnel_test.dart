@@ -61,15 +61,16 @@ Future main() async {
     final puuid3 = await _createPersonnel(harness, ouuid, await _createAffiliation(harness, Uuid().v4()));
     final puuid4 = await _createPersonnel(harness, ouuid, await _createAffiliation(harness, Uuid().v4()));
     expectResponse(
-        await harness.agent.execute("PATCH", "/api/units/$uuuid/personnels", body: {
-          "personnels": [
-            puuid1,
-            puuid2,
-            puuid3,
-            puuid4,
-          ]
-        }),
-        204);
+      await harness.agent.execute("PATCH", "/api/units/$uuuid/personnels", body: {
+        "personnels": [
+          puuid1,
+          puuid2,
+          puuid3,
+          puuid4,
+        ]
+      }),
+      204,
+    );
     final response = expectResponse(
       await harness.agent.get("/api/units/$uuuid/personnels?offset=1&limit=2"),
       200,
@@ -79,7 +80,7 @@ Future main() async {
     expect(actual['offset'], equals(1));
     expect(actual['limit'], equals(2));
     expect(actual['entries'].length, equals(2));
-  });
+  }, timeout: const Timeout.factor(100));
 
   test("DELETE /api/units/{uuid}/personnels should remove from personnels from list in unit", () async {
     final auuid = Uuid().v4();

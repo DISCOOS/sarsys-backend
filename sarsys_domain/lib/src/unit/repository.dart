@@ -14,72 +14,17 @@ class UnitRepository extends Repository<UnitCommand, Unit> {
     @required this.trackings,
     @required this.operations,
   }) : super(store: store, processors: {
-          UnitCreated: (event) => UnitCreated(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          UnitInformationUpdated: (event) => UnitInformationUpdated(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          UnitMobilized: (event) => UnitMobilized(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          UnitDeployed: (event) => UnitDeployed(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          UnitRetired: (event) => UnitRetired(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          UnitDeleted: (event) => UnitDeleted(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          PersonnelAddedToUnit: (event) => PersonnelAddedToUnit(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          PersonnelRemovedFromUnit: (event) => PersonnelRemovedFromUnit(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          UnitMessageAdded: (event) => UnitMessageAdded(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          UnitMessageUpdated: (event) => UnitMessageUpdated(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
-          UnitMessageRemoved: (event) => UnitMessageRemoved(
-                uuid: event.uuid,
-                data: event.data,
-                local: event.local,
-                created: event.created,
-              ),
+          UnitCreated: (event) => UnitCreated(event),
+          UnitInformationUpdated: (event) => UnitInformationUpdated(event),
+          UnitMobilized: (event) => UnitMobilized(event),
+          UnitDeployed: (event) => UnitDeployed(event),
+          UnitRetired: (event) => UnitRetired(event),
+          UnitDeleted: (event) => UnitDeleted(event),
+          PersonnelAddedToUnit: (event) => PersonnelAddedToUnit(event),
+          PersonnelRemovedFromUnit: (event) => PersonnelRemovedFromUnit(event),
+          UnitMessageAdded: (event) => UnitMessageAdded(event),
+          UnitMessageUpdated: (event) => UnitMessageUpdated(event),
+          UnitMessageRemoved: (event) => UnitMessageRemoved(event),
         });
 
   final TrackingRepository trackings;

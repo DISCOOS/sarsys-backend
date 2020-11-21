@@ -1,6 +1,5 @@
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
-import 'package:pedantic/pedantic.dart';
 
 import 'harness.dart';
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:event_source/event_source.dart';
@@ -51,6 +52,7 @@ class EventSourceHarness {
     return this;
   }
 
+  StreamSubscription _printer;
   final Map<String, Set<String>> _subscriptions = {};
   Map<String, String> get subscriptions => Map.unmodifiable(_subscriptions);
   EventSourceHarness withSubscription(String stream, {String group}) {
@@ -78,16 +80,22 @@ class EventSourceHarness {
   }
 
   Logger _logger;
-  EventSourceHarness withLogger() {
+  EventSourceHarness withLogger({bool debug = false}) {
     _logger = Logger('$runtimeType');
-    _logger.onRecord.listen((rec) {
-      print(
-        '${rec.time}: ${rec.level.name}: ${rec.loggerName}: '
-        '${rec.message} ${rec.error ?? ''} ${rec.stackTrace ?? ''}',
-      );
-    });
+    if (debug) {
+      Logger.root.level = Level.FINE;
+    }
     return this;
   }
+
+  void _print(LogRecord rec) {
+    return print(
+      '${rec.time}: ${rec.level.name}: ${rec.loggerName}: '
+      '${rec.message} ${rec.error ?? ''} ${rec.stackTrace ?? ''}',
+    );
+  }
+
+  Stream<LogRecord> get onRecord => _logger?.onRecord;
 
   final Map<Type, _RepositoryBuilder> _builders = {};
   T get<T extends Repository>({int port = 4000, int instance = 1}) => _managers[port][instance - 1].get<T>();
@@ -124,33 +132,33 @@ class EventSourceHarness {
       // Initialize
       await Storage.init();
 
-      return await Future.forEach<MapEntry<int, EventStoreMockServer>>(
-        _servers.entries,
-        (entry) => _open(entry.key, entry.value),
-      );
+      for (var server in _servers.entries) {
+        await _open(server.key, server.value);
+      }
+      return Future.value();
     });
 
     setUp(() async {
       _initHiveDir(hiveDir);
-      return await Future.forEach<MapEntry<int, EventStoreMockServer>>(
-        _servers.entries,
-        (entry) => _build(entry.key, entry.value),
-      );
+      _printer = onRecord.listen(_print);
+      for (var server in _servers.entries) {
+        await _build(server.key, server.value);
+      }
+      return Future.value();
     });
 
     tearDown(() async {
-      await Future.forEach(
-        _servers.entries,
-        (server) => _clear(server.key, server.value),
-      );
-      return await Hive.deleteFromDisk();
+      for (var server in _servers.entries) {
+        await _clear(server.key, server.value);
+      }
+      await Hive.deleteFromDisk();
+      return _printer.cancel();
     });
 
     tearDownAll(() async {
-      await Future.forEach<MapEntry<int, EventStoreMockServer>>(
-        _servers.entries,
-        (entry) => _close(entry.key, entry.value),
-      );
+      for (var server in _servers.entries) {
+        await _close(server.key, server.value);
+      }
       return await Hive.deleteFromDisk();
     });
   }
@@ -234,16 +242,22 @@ class EventSourceHarness {
     await server.close();
   }
 
-  void replicate(int port, String stream, String path, List<Map<String, dynamic>> data) {
-    _servers.values
-        .where(
-          (server) => server.isOpen,
-        )
-        .where(
-          (server) => server.port != port,
-        )
-        .forEach((server) {
-      server.getStream(stream).append(path, data);
+  void replicate(
+    int port, {
+    @required String path,
+    @required String stream,
+    @required List<Map<String, dynamic>> events,
+    int offset,
+  }) {
+    _servers.values.where((server) => server.isOpen).forEach((server) {
+      if (server.port != port) {
+        server.getStream(stream).append(
+              path,
+              events,
+              notify: false,
+              offset: offset,
+            );
+      }
     });
   }
 }

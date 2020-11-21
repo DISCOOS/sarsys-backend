@@ -50,8 +50,12 @@ class DevicePositionBatchController extends DevicePositionControllerBase {
       return Response.badRequest(body: e.message);
     } on RepositoryMaxPressureExceeded catch (e) {
       return tooManyRequests(body: e.message);
+    } on CommandTimeout catch (e) {
+      return gatewayTimeout(
+        body: e.message,
+      );
     } on StreamRequestTimeout catch (e) {
-      return serviceUnavailable(
+      return gatewayTimeout(
         body: "Repository $aggregateType was unable to process request ${e.request.tag}",
       );
     } on SocketException catch (e) {

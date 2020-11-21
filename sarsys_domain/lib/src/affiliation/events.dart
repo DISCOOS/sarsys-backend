@@ -1,4 +1,3 @@
-import 'package:meta/meta.dart';
 import 'package:event_source/event_source.dart';
 
 //////////////////////////////////////
@@ -6,76 +5,56 @@ import 'package:event_source/event_source.dart';
 //////////////////////////////////////
 
 class AffiliationCreated extends DomainEvent {
-  AffiliationCreated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  AffiliationCreated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$AffiliationCreated',
-          created: created,
-          data: data,
         );
 }
 
 class AffiliationInformationUpdated extends DomainEvent {
-  AffiliationInformationUpdated({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  AffiliationInformationUpdated(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$AffiliationInformationUpdated',
-          created: created,
-          data: data,
         );
 }
 
 class DivisionAddedToAffiliation extends DomainEvent {
-  DivisionAddedToAffiliation({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  DivisionAddedToAffiliation(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$DivisionAddedToAffiliation',
-          created: created,
-          data: data,
         );
 }
 
 class DivisionRemovedFromAffiliation extends DomainEvent {
-  DivisionRemovedFromAffiliation({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  DivisionRemovedFromAffiliation(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$DivisionRemovedFromAffiliation',
-          created: created,
-          data: data,
         );
 }
 
 class AffiliationDeleted extends DomainEvent {
-  AffiliationDeleted({
-    @required String uuid,
-    @required DateTime created,
-    @required Map<String, dynamic> data,
-    @required bool local,
-  }) : super(
-          uuid: uuid,
-          local: local,
+  AffiliationDeleted(Message message)
+      : super(
+          uuid: message.uuid,
+          local: message.local,
+          data: message.data,
+          created: message.created,
           type: '$AffiliationDeleted',
-          created: created,
-          data: data,
         );
 }
