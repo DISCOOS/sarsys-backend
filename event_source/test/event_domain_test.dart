@@ -777,6 +777,7 @@ Future main() async {
     expect(foo.data, containsPair('property2', 'value2'));
     expect(foo.data, containsPair('property3', 'value3'));
     expect(foo.hasConflicts, isFalse);
+
     expect(repo.number.value, equals(2));
   });
 
