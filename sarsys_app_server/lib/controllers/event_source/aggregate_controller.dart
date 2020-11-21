@@ -271,16 +271,16 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   }) async {
     if (statusCodes.contains(response.statusCode) && (test == null || test(response))) {
       try {
-        await PolicyUtils.waitForRuleResult(
+        await PolicyUtils.waitForRuleResult<T>(
           repository,
           count: count,
           fail: fail,
           timeout: timeout,
         );
-      } catch (e) {
+      } catch (e, stackTrace) {
         return toServerError(
           {'error': e},
-          StackTrace.current,
+          stackTrace,
         );
       }
     }
@@ -311,10 +311,10 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
           timeout: timeout,
           expected: expected,
         );
-      } catch (e) {
+      } catch (e, stackTrace) {
         return toServerError(
           {'error': e},
-          StackTrace.current,
+          stackTrace,
         );
       }
     }

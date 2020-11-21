@@ -43,7 +43,7 @@ Response serverError(
   Logger logger,
 }) {
   final String message = "${request.method} ${request.raw.uri} failed";
-  logger?.network(message, error, stackTrace);
+  logger?.network(message, '$error', stackTrace);
   final body = error is Map || error is Iterable ? error : "$error";
   return Response.serverError(body: body);
 }
