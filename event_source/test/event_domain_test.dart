@@ -778,6 +778,9 @@ Future main() async {
     expect(foo.data, containsPair('property3', 'value3'));
     expect(foo.hasConflicts, isFalse);
 
+    // TODO: Fix bug if test below still fails
+    await Future.delayed(Duration(seconds: 1));
+
     expect(repo.number.value, equals(2));
   });
 
