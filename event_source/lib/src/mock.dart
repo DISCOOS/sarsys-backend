@@ -449,7 +449,7 @@ class TestStream {
       final offset = current.isEmpty ? -1 : (current.values.last.elementAt<int>('eventNumber') ?? 0);
       final events = append(path, list, offset: offset);
       request.response
-        ..headers.add('location', '$path/${events.length - 1}')
+        ..headers.add('location', '$path/${events.length - list.length}')
         ..statusCode = HttpStatus.created;
     }
   }

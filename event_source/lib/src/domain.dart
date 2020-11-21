@@ -2808,7 +2808,7 @@ abstract class MergeStrategy {
         return await _reconcileWithRetry(transaction, attempt + 1);
       }
       repository.logger.severe(
-        'Aborted automatic merge after $max retries on ${aggregate.runtimeType} ${aggregate.uuid} '
+        'Aborted automatic merge after ${transaction._maxAttempts} retries on ${aggregate.runtimeType} ${aggregate.uuid} '
         'with error $e, \n'
         'stacktrace: ${Trace.format(stackTrace)},\n'
         'debug: ${repository.toDebugString(aggregate?.uuid)}',

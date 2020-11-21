@@ -280,7 +280,9 @@ class WriteResult extends StreamResult {
           expected: version,
           statusCode: response.statusCode,
           reasonPhrase: response.reasonPhrase,
-          actual: EventNumber(_toNumber(response)),
+          actual: EventNumber(
+            _toNumber(response, events),
+          ),
           location: response.headers['location'],
         );
       case HttpStatus.badRequest:
@@ -325,7 +327,13 @@ class WriteResult extends StreamResult {
   bool get isWrongESNumber =>
       statusCode == HttpStatus.badRequest && 'wrong expected eventnumber' == reasonPhrase.toLowerCase();
 
-  static int _toNumber(Response response) => int.parse(response.headers['location'].split('/')?.last);
+  /// Calculate event number from response
+  static int _toNumber(Response response, Iterable<SourceEvent> events) =>
+      EventNumber.none.value +
+      int.parse(
+        response.headers['location'].split('/')?.last,
+      ) +
+      events.length;
 
   @override
   String toString() {
