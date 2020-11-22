@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:meta/meta.dart';
 import 'package:uuid/uuid.dart';
+import 'package:logging/logging.dart';
 
 import 'core.dart';
 import 'error.dart';
@@ -162,7 +163,8 @@ abstract class AggregateRule {
     this.builder,
     this.target, {
     this.local = true,
-  });
+  }) : logger = Logger('AggregateRule[${target.runtimeType}]');
+  final Logger logger;
 
   /// Process events with state local (not committed)
   final bool local;
@@ -181,9 +183,15 @@ abstract class AggregateRule {
   Future<Iterable<DomainEvent>> call(Object source, DomainEvent event) async {
     if (_shouldProcess(event)) {
       final values = await appliesTo(event);
+      logger.fine(
+        '$runtimeType applies to: $values',
+      );
       final events = <DomainEvent>[];
       for (var uuid in values) {
-        final result = await execute(event, uuid);
+        final result = await execute(
+          event,
+          uuid,
+        );
         events.addAll(result);
       }
       return events;
@@ -198,11 +206,21 @@ abstract class AggregateRule {
   /// Execute rule for given aggregate
   Future<Iterable<DomainEvent>> execute(DomainEvent event, String uuid) async {
     final command = builder(event, uuid);
+    logger.fine(
+      '$runtimeType executes command: ${command?.runtimeType ?? 'none'}',
+    );
     if (command != null) {
+      final shouldExecute = await _shouldExecute(command, uuid);
+      logger.fine(
+        '$runtimeType should execute command ${command} on ${target.runtimeType}: $shouldExecute',
+      );
       // Try to catch up before executing
-      if (await _shouldExecute(command, uuid)) {
+      if (shouldExecute) {
         final result = await target.execute(
           command,
+        );
+        logger.fine(
+          '$runtimeType executed command on ${target.runtimeType}: $result',
         );
         return result;
       }

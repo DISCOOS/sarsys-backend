@@ -46,7 +46,9 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
     );
   }
 
-  bool shouldWaitForDeviceCreated(Map<String, dynamic> data) => !devices.contains(data.elementAt('udid'));
+  bool shouldWaitForDeviceCreated(Map<String, dynamic> data) {
+    return devices.contains(data.elementAt('udid'));
+  }
 
   @override
   @Operation('PATCH', 'uuid')

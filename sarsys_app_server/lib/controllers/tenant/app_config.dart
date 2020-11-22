@@ -18,6 +18,7 @@ class AppConfigRepository extends Repository<AppConfigCommand, AppConfig> {
   void willStartProcessingEvents() {
     // Co-create Device with AppConfig
     rule<AppConfigCreated>(newCreateRule);
+    rule<AppConfigUpdated>(newCreateRule);
 
     // Co-delete Device with AppConfig
     rule<AppConfigDeleted>(newDeleteRule);

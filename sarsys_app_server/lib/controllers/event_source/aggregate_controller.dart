@@ -269,7 +269,8 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       milliseconds: PolicyUtils.defaultTimeout,
     ),
   }) async {
-    if (statusCodes.contains(response.statusCode) && (test == null || test(response))) {
+    final isOK = statusCodes.contains(response.statusCode);
+    if (isOK && (test == null || test(response))) {
       try {
         await PolicyUtils.waitForRuleResult<T>(
           repository,

@@ -986,7 +986,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
             logger.fine(
               'Evaluated rule $rule on event $event => $events',
             );
-            events?.forEach(_ruleController.add);
+            events?.forEach(
+              _ruleController.add,
+            );
           });
         }
       } catch (e, stackTrace) {
