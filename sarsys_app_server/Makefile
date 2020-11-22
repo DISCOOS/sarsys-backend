@@ -133,6 +133,10 @@ delete:
 	kubectl delete -f ../k8s/server/rbac.yaml; \
 	kubectl delete -f ../k8s/server/config.yaml; \
 	kubectl delete -f ../k8s/server/sarsys.yaml; \
+	echo "1) Manually delete PersistentVolumeClaims"; \
+	kubectl -n sarsys get pvc | grep data-sarsys-app-server-; \
+	echo "2) Manually delete PersistentVolumes"; \
+	kubectl -n sarsys get pv | grep sarsys/data-sarsys-app-server-
 	echo "[✓] SARSys server deleted"
 
 restart:
