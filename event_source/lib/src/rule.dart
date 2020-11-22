@@ -182,12 +182,12 @@ abstract class AggregateRule {
   /// Framework calls this method
   Future<Iterable<DomainEvent>> call(Object source, DomainEvent event) async {
     if (_shouldProcess(event)) {
-      final values = await appliesTo(event);
+      final uuids = await appliesTo(event);
       logger.fine(
-        '$runtimeType applies to: $values',
+        '$runtimeType matched $event to ${target.aggregateType} uuids: $uuids',
       );
       final events = <DomainEvent>[];
-      for (var uuid in values) {
+      for (var uuid in uuids) {
         final result = await execute(
           event,
           uuid,
@@ -196,6 +196,9 @@ abstract class AggregateRule {
       }
       return events;
     }
+    logger.fine(
+      '$runtimeType did not process: $event',
+    );
     return null;
   }
 
