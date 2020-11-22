@@ -107,7 +107,7 @@ Future main() async {
       },
       reason: 'Expected Device with given uuid was co-created',
     );
-  });
+  }, timeout: Timeout.factor(100));
 
   test("Multiple DELETE /api/app-configs/ with same udid does not delete device until last", () async {
     final udid = Uuid().v4();

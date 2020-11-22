@@ -46,17 +46,28 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
     );
   }
 
-  bool shouldWaitForDeviceCreated(Map<String, dynamic> data) {
-    return devices.contains(data.elementAt('udid'));
-  }
-
   @override
   @Operation('PATCH', 'uuid')
   Future<Response> update(
     @Bind.path('uuid') String uuid,
     @Bind.body() Map<String, dynamic> data,
-  ) {
-    return super.update(uuid, data);
+  ) async {
+    return withResponseWaitForRuleResult<DeviceCreated>(
+      await super.update(uuid, data),
+      fail: true,
+      timeout: const Duration(milliseconds: 1000),
+      test: (_) => shouldWaitForDeviceCreated(
+        repository.get(uuid).data,
+      ),
+    );
+  }
+
+  Future<bool> shouldWaitForDeviceCreated(Map<String, dynamic> data) async {
+    final duuid = data.elementAt<String>('udid');
+    if (!devices.exists(duuid)) {
+      await devices.catchUp(master: true);
+    }
+    return !devices.exists(duuid);
   }
 
   @override
@@ -69,14 +80,23 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
     return withResponseWaitForRuleResult<DeviceDeleted>(
       await super.delete(uuid, data: data),
       fail: true,
-      test: (_) => last,
+      test: (_) => Future.value(last),
       timeout: const Duration(milliseconds: 1000),
     );
   }
 
   bool shouldWaitForDeviceDeleted(String uuid) {
-    final config = repository.get(uuid, createNew: false);
-    return repository.aggregates.where((test) => !test.isDeleted).where((test) => test.udid == config.udid).length == 1;
+    final aggregate = repository.get(
+      uuid,
+      createNew: false,
+    );
+    final udid = aggregate?.data?.elementAt<String>('udid');
+    final refs = repository.aggregates
+        // Only check app-configs not deleted
+        .where((test) => !test.isDeleted)
+        // Check for other app-configs referencing  same device
+        .where((test) => test.udid == udid);
+    return refs.length == 1;
   }
 
   @override

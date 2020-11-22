@@ -63,8 +63,8 @@ class AppConfigRepository extends Repository<AppConfigCommand, AppConfig> {
       );
 
   AggregateRule newDeleteRule(_) => AssociationRule(
-        (source, target) => DeleteDevice(
-          {uuidFieldName: target},
+        (source, udid) => DeleteDevice(
+          {uuidFieldName: udid},
         ),
         source: this,
         target: devices,

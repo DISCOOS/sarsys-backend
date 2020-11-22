@@ -258,7 +258,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   Future<Response> withResponseWaitForRuleResult<T extends Event>(
     Response response, {
     bool fail = true,
-    bool test(Response response),
+    Future<bool> test(Response response),
     int count = 1,
     List<int> statusCodes = const [
       HttpStatus.ok,
@@ -270,7 +270,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     ),
   }) async {
     final isOK = statusCodes.contains(response.statusCode);
-    if (isOK && (test == null || test(response))) {
+    if (isOK && (test == null || await test(response))) {
       try {
         await PolicyUtils.waitForRuleResult<T>(
           repository,
