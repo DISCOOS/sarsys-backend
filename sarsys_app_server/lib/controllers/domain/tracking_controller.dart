@@ -12,8 +12,8 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
           repository,
           readOnly: const [
             'speed',
-            'status',
             'effort',
+            'status',
             'tracks',
             'history',
             'sources',
@@ -74,9 +74,7 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
   @override
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object({
         "uuid": context.schema['UUID']..description = "Unique tracking id",
-        "status": documentTrackingStatus()
-          ..description = "Tracking status"
-          ..isReadOnly = true,
+        "status": documentTrackingStatus()..description = "Tracking status",
         "position": documentPosition(context)
           ..description = "Current position"
           ..isReadOnly = true,
