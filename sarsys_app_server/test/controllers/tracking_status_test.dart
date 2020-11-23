@@ -17,7 +17,9 @@ Future main() async {
     expectResponse(
         await harness.agent.post(
           "/api/trackings",
-          headers: createAuthn(createAuthnAdmin()),
+          headers: createAuthn(
+            createAuthnAdmin(),
+          ),
           body: body,
         ),
         201,
@@ -26,7 +28,9 @@ Future main() async {
       await harness.agent.execute(
         'PATCH',
         "/api/trackings/$uuid/status",
-        headers: createAuthn(createAuthnCommander()),
+        headers: createAuthn(
+          createAuthnCommander(),
+        ),
         body: {
           'status': 'tracking',
         },
@@ -44,7 +48,9 @@ Future main() async {
       await harness.agent.execute(
         'PATCH',
         "/api/trackings/$uuid/status",
-        headers: createAuthn(createAuthnCommander()),
+        headers: createAuthn(
+          createAuthnCommander(),
+        ),
         body: {
           'status': 'tracking',
         },
@@ -62,7 +68,9 @@ Future main() async {
       await harness.agent.execute(
         'PATCH',
         "/api/trackings/$uuid/status",
-        headers: createAuthn(createAuthnCommander()),
+        headers: createAuthn(
+          createAuthnCommander(),
+        ),
         body: {
           'status': 'tracking',
         },
@@ -80,7 +88,9 @@ Future main() async {
       await harness.agent.execute(
         'PATCH',
         "/api/trackings/$uuid/status",
-        headers: createAuthn(createAuthnCommander()),
+        headers: createAuthn(
+          createAuthnCommander(),
+        ),
         body: {
           'status': 'tracking',
         },
@@ -96,6 +106,8 @@ FutureOr<Map<String, dynamic>> _createWithStatus(
   String status,
 ) async {
   final data = createTracking(uuid, status: status);
-  await repo.execute(CreateTracking(data));
+  await repo.execute(
+    CreateTracking(data),
+  );
   return data;
 }

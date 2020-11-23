@@ -1828,6 +1828,9 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   Map<String, dynamic> get data => Map.from(_data);
   final Map<String, dynamic> _data = {};
 
+  /// Check if element with given [path] exists
+  bool hasPath<T>(String path) => _data.hasPath(path);
+
   /// Get element at given path
   T elementAt<T>(String path) => _data.elementAt(path) as T;
 

@@ -5,8 +5,8 @@ import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
 
 /// A ResourceController that handles Track requests
-class TrackController extends EntityController<TrackingCommand, Tracking> {
-  TrackController(TrackingRepository repository, JsonValidation validation)
+class TrackingTrackController extends EntityController<TrackingCommand, Tracking> {
+  TrackingTrackController(TrackingRepository repository, JsonValidation validation)
       : super(
           repository,
           "Track",

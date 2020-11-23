@@ -1,4 +1,5 @@
 import 'package:aqueduct/aqueduct.dart';
+import 'package:sarsys_app_server/controllers/domain/schemas.dart';
 
 import 'package:sarsys_app_server/controllers/event_source/controllers.dart';
 import 'package:sarsys_app_server/validation/validation.dart';
@@ -8,13 +9,15 @@ class TrackingStatusController extends ValueController<TrackingCommand, Tracking
   TrackingStatusController(TrackingRepository repository, JsonValidation validation)
       : super(
           repository,
-          "Tracking",
+          "TrackingStatusRequest",
           "status",
           tag: "Trackings > Status",
           validation: validation.copyWith([
-            ValueValidator(path: 'status', allowed: ['tracking', 'paused']),
+            ValueValidator(path: 'status', allowed: allowed),
           ]),
         );
+
+  static const allowed = ['tracking', 'paused'];
 
   @Scope(['roles:commander'])
   @Operation('PATCH', 'uuid')
@@ -49,4 +52,16 @@ class TrackingStatusController extends ValueController<TrackingCommand, Tracking
 
   @override
   TrackingCommand onUpdate(String uuid, String type, Map<String, dynamic> data) => UpdateTrackingStatus(data);
+
+  //////////////////////////////////
+  // Documentation
+  //////////////////////////////////
+
+  /// PositionList - Value object
+  @override
+  APISchemaObject documentValueObject(APIDocumentContext context) =>
+      APISchemaObject.object({'status': documentTrackingStatus(values: allowed)})
+        ..description = "Tracking transition request"
+        ..isReadOnly = true
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
 }

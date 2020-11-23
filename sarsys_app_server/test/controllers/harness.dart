@@ -441,12 +441,19 @@ Map<String, dynamic> createSource({String uuid = 'string', String type = 'device
       'type': '$type',
     };
 
-Map<String, dynamic> createTrack({String id, String uuid = 'string', String type = 'device'}) => {
+Map<String, dynamic> createTrack({
+  String id,
+  String uuid = 'string',
+  String type = 'device',
+  Iterable<Map<String, dynamic>> positions,
+}) =>
+    {
       if (id != null) 'id': '$id',
       'source': createSource(
         uuid: uuid,
         type: type,
       ),
+      if (positions != null) 'positions': positions,
     };
 
 Map<String, Object> createPosition({

@@ -74,7 +74,9 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
   @override
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object({
         "uuid": context.schema['UUID']..description = "Unique tracking id",
-        "status": documentTrackingStatus()..description = "Tracking status",
+        "status": documentTrackingStatus()
+          ..description = "Tracking status"
+          ..isReadOnly = true,
         "position": documentPosition(context)
           ..description = "Current position"
           ..isReadOnly = true,
@@ -95,7 +97,7 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
           ..isReadOnly = true,
         "tracks": APISchemaObject.array(ofSchema: context.schema['Track'])
           ..description = "Array of Track objects"
-          ..isReadOnly = true
+          ..isReadOnly = true,
       })
         ..description = "Tracking Schema (aggregate root)"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
@@ -107,16 +109,4 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
   Map<String, APISchemaObject> documentValues(APIDocumentContext context) => {
         'TrackingStatus': documentTrackingStatus(),
       };
-
-  /// TrackingStatus - Value Object
-  APISchemaObject documentTrackingStatus() => APISchemaObject.string()
-    ..defaultValue = "created"
-    ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
-    ..enumerated = [
-      'none',
-      'ready',
-      'tracking',
-      'paused',
-      'closed',
-    ];
 }

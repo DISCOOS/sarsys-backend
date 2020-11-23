@@ -118,7 +118,7 @@ Response okValueObject<T extends AggregateRoot>(
   String uuid,
   String type,
   EventNumber number,
-  Map<String, dynamic> data,
+  dynamic data,
 ) =>
     Response.ok(toValueData<T>(uuid, type, number, data));
 
@@ -126,7 +126,7 @@ Map<String, dynamic> toValueData<T extends AggregateRoot>(
   String uuid,
   String type,
   EventNumber number,
-  Map<String, dynamic> data,
+  dynamic data,
 ) =>
     {
       "aggregate": {

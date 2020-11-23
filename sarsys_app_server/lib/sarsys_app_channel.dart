@@ -348,13 +348,19 @@ class SarSysAppServerChannel extends ApplicationChannel {
               ))
       ..secure(
           '/api/trackings/:tuuid/sources[/:suuid]',
-          () => SourceController(
+          () => TrackingSourceController(
                 manager.get<TrackingRepository>(),
                 requestValidator,
               ))
       ..secure(
           '/api/trackings/:uuid/tracks[/:id]',
-          () => TrackController(
+          () => TrackingTrackController(
+                manager.get<TrackingRepository>(),
+                requestValidator,
+              ))
+      ..secure(
+          '/api/trackings/:uuid/tracks/:id/positions',
+          () => TrackingTrackPositionsController(
                 manager.get<TrackingRepository>(),
                 requestValidator,
               ))

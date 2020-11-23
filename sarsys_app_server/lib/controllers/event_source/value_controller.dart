@@ -59,27 +59,28 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
   Future<Response> get(
     @Bind.path('uuid') String uuid,
   ) async {
+    return await getValue(uuid, aggregateField);
+  }
+
+  /// Get value in [AggregateRoot] with given [uuid]
+  Future<Response> getValue(String uuid, String aggregateField) async {
     try {
       if (!await exists(uuid)) {
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
       final aggregate = repository.get(uuid);
       final value = aggregate.data.elementAt(aggregateField);
-      if (value is Map<String, dynamic>) {
-        return okValueObject<T>(
-          uuid,
-          valueType,
-          aggregate.number,
-          value,
-        );
-      } else if (value == null) {
-        return Response.notFound(body: "Value $aggregateField not found");
-      } else {
-        return toServerError(
-          "Value $aggregateField is an object",
-          StackTrace.current,
+      if (value == null) {
+        return Response.notFound(
+          body: "Value $aggregateField not found",
         );
       }
+      return okValueObject<T>(
+        uuid,
+        valueType,
+        aggregate.number,
+        value,
+      );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } catch (e, stackTrace) {
@@ -92,6 +93,19 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
     @Bind.path('uuid') String uuid,
     @Bind.body() Map<String, dynamic> data,
   ) async {
+    return await setValue(
+      uuid,
+      aggregateField,
+      data,
+    );
+  }
+
+  /// Set value in [AggregateRoot] with given [uuid]
+  Future<Response> setValue(
+    String uuid,
+    String aggregateField,
+    dynamic data,
+  ) async {
     try {
       if (!await exists(uuid)) {
         return Response.notFound(body: "$aggregateType $uuid not found");
@@ -99,7 +113,11 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
       final events = await repository.execute(
         onUpdate(uuid, valueType, {
           'uuid': uuid,
-          aggregateField: validate(valueType, data, isPatch: true),
+          aggregateField: validate(
+            valueType,
+            data,
+            isPatch: true,
+          ),
         }),
       );
       return events.isEmpty ? Response.noContent() : Response.noContent();
@@ -156,10 +174,10 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
     String summary;
     switch (operation.method) {
       case "GET":
-        summary = "Get $valueType";
+        summary = "Get $aggregateField";
         break;
       case "PATCH":
-        summary = "Update $valueType";
+        summary = "Update $aggregateField";
         break;
     }
     return summary;
@@ -182,7 +200,7 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
       case "PATCH":
         return APIRequestBody.schema(
           context.schema[valueType],
-          description: "Update $valueType. Only field $aggregateField is updated.",
+          description: "Update $aggregateType. Only field $aggregateField is updated.",
           required: true,
         );
         break;

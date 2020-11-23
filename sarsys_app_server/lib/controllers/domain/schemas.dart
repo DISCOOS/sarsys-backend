@@ -482,3 +482,17 @@ APISchemaObject documentMessageType() => APISchemaObject.string()
     'subject',
     'unit',
   ];
+
+/// TrackingStatus - Value Object
+APISchemaObject documentTrackingStatus(
+        {List<String> values = const [
+          'none',
+          'ready',
+          'tracking',
+          'paused',
+          'closed',
+        ]}) =>
+    APISchemaObject.string()
+      ..defaultValue = "created"
+      ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+      ..enumerated = values;
