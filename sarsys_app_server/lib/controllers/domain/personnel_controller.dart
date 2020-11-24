@@ -32,7 +32,7 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
     @Bind.query('limit') int limit = 20,
     @Bind.query('offset') int offset = 0,
     @Bind.query('deleted') bool deleted = false,
-    @Bind.query('expand') List<String> expand = const [],
+    @Bind.query('expand') String expand,
   }) async {
     try {
       final aggregates = repository.getAll(
@@ -46,7 +46,9 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
           repository.count(deleted: deleted),
           offset,
           limit,
-          aggregates.map(_shouldExpand(expand) ? merge : toAggregateData),
+          aggregates.map(
+            _shouldExpand(expand) ? merge : toAggregateData,
+          ),
         ),
       );
     } on InvalidOperation catch (e) {
@@ -60,7 +62,7 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
   @Operation.get('uuid')
   Future<Response> getByUuid(
     @Bind.path('uuid') String uuid, {
-    @Bind.query('expand') List<String> expand = const [],
+    @Bind.query('expand') String expand,
   }) async {
     try {
       if (!await exists(uuid)) {
@@ -102,11 +104,12 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
     });
   }
 
-  bool _shouldExpand(List<String> expand) {
-    if (expand.any((element) => element.toLowerCase() == 'person')) {
+  bool _shouldExpand(String expand) {
+    final elements = expand?.split(',') ?? <String>[];
+    if (elements.any((element) => element.toLowerCase() == 'person')) {
       return true;
     }
-    if (expand.isNotEmpty) {
+    if (elements.isNotEmpty) {
       throw "Invalid query parameter 'expand' values: $expand";
     }
     return false;

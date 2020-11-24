@@ -63,7 +63,11 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
   }
 
   /// Get value in [AggregateRoot] with given [uuid]
-  Future<Response> getValue(String uuid, String aggregateField) async {
+  Future<Response> getValue<V>(
+    String uuid,
+    String aggregateField, {
+    dynamic map(V value),
+  }) async {
     try {
       if (!await exists(uuid)) {
         return Response.notFound(body: "$aggregateType $uuid not found");
@@ -79,7 +83,7 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
         uuid,
         valueType,
         aggregate.number,
-        value,
+        map == null ? value : map(value as V),
       );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
