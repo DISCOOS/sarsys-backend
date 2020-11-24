@@ -555,6 +555,19 @@ class EventStore {
     final offset = current(stream: stream);
     final version = toExpectedVersion(stream);
 
+    // Has a remote concurrent write occurred?
+    if (offset >= changes.first.number) {
+      // No need to try to write, just fail directly
+      throw WrongExpectedEventVersion(
+        'Wrong expected EventNumber',
+        stream: stream,
+        actual: offset,
+        expected: ExpectedVersion.from(
+          changes.first.number,
+        ),
+      );
+    }
+
     var idx = 0;
     changes.fold(
       offset,
