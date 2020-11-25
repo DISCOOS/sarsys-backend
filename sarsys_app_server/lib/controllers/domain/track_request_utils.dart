@@ -123,10 +123,10 @@ class TrackRequestUtils {
           final truncated = positions.where((p) {
             final ts = p.elementAt<String>("properties/timestamp");
             return ts?.isNotEmpty == true && DateTime.parse(ts).difference(from).abs() <= diff;
-          });
+          }).toList();
           return Map<String, dynamic>.from(track)
             ..addAll(
-              {'positions': value < 0 ? truncated.toList().reversed : truncated},
+              {'positions': value < 0 ? truncated.reversed.toList() : truncated},
             );
         }
       }
