@@ -48,7 +48,26 @@ Response serverError(
   return Response.serverError(body: body);
 }
 
-Response okAggregate(AggregateRoot aggregate) => Response.ok(toAggregateData(aggregate));
+Response okAggregate(AggregateRoot aggregate) => Response.ok(
+      toAggregateData(
+        aggregate,
+      ),
+    );
+
+Response okAggregatePaged(
+  int count,
+  int offset,
+  int limit,
+  Iterable<AggregateRoot> aggregates,
+) =>
+    Response.ok(
+      toDataPaged(
+        count,
+        offset,
+        limit,
+        aggregates.map(toAggregateData),
+      ),
+    );
 
 Map<String, dynamic> toAggregateData(AggregateRoot aggregate) => {
       "type": "${aggregate.runtimeType}",
@@ -59,83 +78,133 @@ Map<String, dynamic> toAggregateData(AggregateRoot aggregate) => {
       "data": aggregate.data,
     };
 
-Response okAggregatePaged(int count, int offset, int limit, Iterable<AggregateRoot> aggregates) => Response.ok(
-      toDataPaged(
-        count,
-        offset,
-        limit,
-        aggregates.map(toAggregateData),
-      ),
-    );
-
-Map<String, dynamic> toDataPaged(int count, int offset, int limit, Iterable<Map<String, dynamic>> entries) => {
-      "total": count,
-      "offset": offset,
-      "limit": limit,
-      if (offset + entries.length < count) "next": offset + entries.length,
-      "entries": entries.toList(),
-    };
-
-Response okEntityPaged<T extends AggregateRoot>(
-  String uuid,
-  String entity,
-  EventNumber number,
-  List<Map<String, dynamic>> entities,
-) {
-  return Response.ok({
-    "total": entities.length,
-    "entries": entities.map((data) => toEntityData<T>(uuid, entity, number, data)).toList() ?? [],
-  });
-}
-
 Response okEntityObject<T extends AggregateRoot>(
   String uuid,
-  String entity,
+  String type,
   EventNumber number,
+  String path,
   Map<String, dynamic> data,
 ) =>
     Response.ok(
-      toEntityData<T>(uuid, entity, number, data),
+      toEntityData(
+        uuid,
+        type,
+        number,
+        path,
+        data: data,
+      ),
+    );
+
+Response okEntityPaged<T extends AggregateRoot>(
+  String uuid,
+  String type,
+  EventNumber number,
+  String path,
+  Iterable<Map<String, dynamic>> entities, {
+  int count,
+  int offset,
+  int limit,
+}) =>
+    Response.ok(
+      toEntityData<T>(uuid, type, number, path)
+        ..addAll(
+          toDataPaged(
+            count ?? entities.length,
+            offset ?? entities.length,
+            limit ?? entities.length,
+            entities,
+          ),
+        ),
     );
 
 Map<String, dynamic> toEntityData<T extends AggregateRoot>(
   String uuid,
   String type,
   EventNumber number,
+  String path, {
   Map<String, dynamic> data,
-) =>
-    {
-      "aggregate": {
-        "type": "${typeOf<T>()}",
-        "uuid": uuid,
-      },
-      "type": type,
-      "data": data,
-      if (!number.isNone) "number": number.value,
-    };
+}) {
+  return {
+    "aggregate": {
+      "type": "${typeOf<T>()}",
+      "uuid": uuid,
+    },
+    "type": type,
+    "path": path,
+    if (!number.isNone) "number": number.value,
+    if (data != null) "data": data,
+  };
+}
 
 Response okValueObject<T extends AggregateRoot>(
   String uuid,
   String type,
   EventNumber number,
+  String path, {
   dynamic data,
-) =>
-    Response.ok(toValueData<T>(uuid, type, number, data));
+}) =>
+    Response.ok(
+      toValueData(
+        uuid,
+        type,
+        number,
+        path,
+        data: data,
+      ),
+    );
+
+Response okValuePaged<T extends AggregateRoot>(
+  String uuid,
+  String type,
+  EventNumber number,
+  String path,
+  Iterable<dynamic> entities, {
+  int count,
+  int offset,
+  int limit,
+}) =>
+    Response.ok(
+      toValueData<T>(uuid, type, number, path)
+        ..addAll(
+          toDataPaged(
+            count ?? entities.length,
+            offset ?? entities.length,
+            limit ?? entities.length,
+            entities ?? [],
+          ),
+        ),
+    );
 
 Map<String, dynamic> toValueData<T extends AggregateRoot>(
   String uuid,
   String type,
   EventNumber number,
+  String path, {
   dynamic data,
-) =>
+}) =>
     {
       "aggregate": {
         "type": "${typeOf<T>()}",
         "uuid": uuid,
       },
       "type": type,
-      "data": data,
+      'path': path,
       if (!number.isNone) "number": number.value,
+      if (data != null) "data": data,
+    };
+
+Map<String, dynamic> toDataPaged(
+  int count,
+  int offset,
+  int limit,
+  Iterable<dynamic> entries,
+) =>
+    {
+      "total": count,
+      "offset": offset,
+      "limit": limit,
+      if (offset + entries.length < count) "next": offset + entries.length,
+      "entries": entries.toList(),
     };
 
 enum ConflictType {

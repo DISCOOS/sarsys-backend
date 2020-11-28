@@ -72,6 +72,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
         uuid,
         entityType,
         aggregate.number,
+        aggregateField,
         array.toList(),
       );
     } on InvalidOperation catch (e) {
@@ -102,6 +103,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
         uuid,
         entityType,
         aggregate.number,
+        aggregateField,
         array[id].data,
       );
     } on EntityNotFound catch (e) {

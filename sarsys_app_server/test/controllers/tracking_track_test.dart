@@ -29,8 +29,8 @@ Future main() async {
     final actual = await _prepareGetAll(harness, positions: positions, extend: 'positions');
     expect(actual['total'], equals(2));
     expect(actual['entries'].length, equals(2));
-    expect(actual.listAt('entries/0/data/positions'), hasLength(positions.length));
-    expect(actual.listAt('entries/1/data/positions'), hasLength(positions.length));
+    expect(actual.listAt('entries/0/positions'), hasLength(positions.length));
+    expect(actual.listAt('entries/1/positions'), hasLength(positions.length));
   });
 
   test("GET /api/trackings/{uuid}/tracks?expand=positions&option=truncate:1:p returns status code 200", () async {
@@ -45,8 +45,8 @@ Future main() async {
     );
     expect(actual['total'], equals(2));
     expect(actual['entries'].length, equals(2));
-    expect(actual.listAt('entries/0/data/positions'), hasLength(1));
-    expect(actual.listAt('entries/1/data/positions'), hasLength(1));
+    expect(actual.listAt('entries/0/positions'), hasLength(1));
+    expect(actual.listAt('entries/1/positions'), hasLength(1));
   });
 
   test("GET /api/trackings/{uuid}/tracks?expand=positions&option=truncate:1:m returns status code 200", () async {
@@ -61,8 +61,8 @@ Future main() async {
     );
     expect(actual['total'], equals(2));
     expect(actual['entries'].length, equals(2));
-    expect(actual.listAt('entries/0/data/positions'), hasLength(2));
-    expect(actual.listAt('entries/1/data/positions'), hasLength(2));
+    expect(actual.listAt('entries/0/positions'), hasLength(2));
+    expect(actual.listAt('entries/1/positions'), hasLength(2));
   });
 
   test("GET /api/trackings/{uuid}/tracks?expand=positions&option=truncate:1:h returns status code 200", () async {
@@ -77,8 +77,8 @@ Future main() async {
     );
     expect(actual['total'], equals(2));
     expect(actual['entries'].length, equals(2));
-    expect(actual.listAt('entries/0/data/positions'), hasLength(2));
-    expect(actual.listAt('entries/1/data/positions'), hasLength(2));
+    expect(actual.listAt('entries/0/positions'), hasLength(2));
+    expect(actual.listAt('entries/1/positions'), hasLength(2));
   });
 
   test("GET /api/trackings/{uuid}/tracks/{id} returns status code 200", () async {

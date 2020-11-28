@@ -844,8 +844,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
     ..register('Circle', documentCircle(context))
     ..register('Rectangle', documentRectangle(context))
     ..register('Position', documentPosition(context))
-    ..register('PositionList', documentPositionList(context))
-    ..register('PositionListResponse', documentValuePageResponse(context, type: 'PositionList'))
+    ..register('PositionListResponse', documentPositionListResponse(context))
     ..register('Message', documentMessage(context));
 }
 

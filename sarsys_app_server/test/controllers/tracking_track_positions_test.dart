@@ -29,7 +29,7 @@ Future main() async {
     );
     final actual = await response.body.decode();
     expect(
-      actual['data'],
+      actual['entries'],
       positions,
     );
   });
@@ -54,7 +54,7 @@ Future main() async {
     );
     final actual = await response.body.decode();
     expect(
-      actual['data'],
+      actual['entries'],
       positions.skip(1).take(1),
     );
   });
@@ -95,7 +95,7 @@ Future _testTruncate(SarSysHarness harness, String truncate, int skip, int take)
   );
   final actual = await response.body.decode();
   expect(
-    actual['data'],
+    actual['entries'],
     positions.skip(skip).take(take),
   );
 }

@@ -41,6 +41,7 @@ class TrackingTrackController extends EntityController<TrackingCommand, Tracking
         uuid,
         entityType,
         aggregate.number,
+        aggregateField,
         TrackRequestUtils.toTracks(
           array,
           expand,
@@ -85,6 +86,7 @@ class TrackingTrackController extends EntityController<TrackingCommand, Tracking
         uuid,
         entityType,
         aggregate.number,
+        aggregateField,
         track,
       );
     } on EntityNotFound catch (e) {

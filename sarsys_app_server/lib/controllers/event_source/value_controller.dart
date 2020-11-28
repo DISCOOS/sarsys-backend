@@ -62,6 +62,20 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
     return await getValue(uuid, aggregateField);
   }
 
+  /// Add @Operation.get('uuid') to activate
+  Future<Response> getPaged(
+    @Bind.path('uuid') String uuid, {
+    @Bind.query('offset') int offset = 0,
+    @Bind.query('limit') int limit = 20,
+  }) async {
+    return await getValuePaged(
+      uuid,
+      aggregateField,
+      offset: offset,
+      limit: limit,
+    );
+  }
+
   /// Get value in [AggregateRoot] with given [uuid]
   Future<Response> getValue<V>(
     String uuid,
@@ -83,7 +97,48 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
         uuid,
         valueType,
         aggregate.number,
-        map == null ? value : map(value as V),
+        aggregateField,
+        data: map == null ? value : map(value as V),
+      );
+    } on InvalidOperation catch (e) {
+      return Response.badRequest(body: e.message);
+    } catch (e, stackTrace) {
+      return toServerError(e, stackTrace);
+    }
+  }
+
+  /// Get value in [AggregateRoot] with given [uuid]
+  Future<Response> getValuePaged<V>(
+    String uuid,
+    String aggregateField, {
+    int offset,
+    int limit,
+    Iterable map(V value),
+  }) async {
+    try {
+      if (!await exists(uuid)) {
+        return Response.notFound(body: "$aggregateType $uuid not found");
+      }
+      final aggregate = repository.get(uuid);
+      final list = aggregate.data.elementAt<V>(aggregateField);
+      if (list == null) {
+        return Response.notFound(
+          body: "Value $aggregateField not found",
+        );
+      }
+      final entities = map == null ? list as Iterable : map(list).toList();
+      return okValuePaged<T>(
+        uuid,
+        valueType,
+        aggregate.number,
+        aggregateField,
+        entities.toPage(
+          offset: offset,
+          limit: limit,
+        ),
+        limit: limit,
+        offset: offset,
+        count: entities.length,
       );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);

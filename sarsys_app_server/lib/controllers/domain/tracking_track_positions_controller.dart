@@ -10,16 +10,17 @@ class TrackingTrackPositionsController extends ValueController<TrackingCommand, 
   TrackingTrackPositionsController(TrackingRepository repository, JsonValidation validation)
       : super(
           repository,
-          "PositionList",
+          "Position",
           "tracks/positions",
           validation: validation,
           tag: "Trackings > Tracks",
         );
 
+  @override
   @Operation('GET', 'uuid', 'id')
-  Future<Response> getPositions(
-    @Bind.path('uuid') String uuid,
-    @Bind.path('id') String id, {
+  Future<Response> getPaged(
+    @Bind.path('uuid') String uuid, {
+    @Bind.path('id') String id,
     @Bind.query('offset') int offset = 0,
     @Bind.query('limit') int limit = 20,
     @Bind.query('option') List<String> options = const ['truncate:-20:m'],
@@ -38,15 +39,15 @@ class TrackingTrackPositionsController extends ValueController<TrackingCommand, 
           body: "tracks/$id not found",
         );
       }
-      return super.getValue<Map<String, dynamic>>(
+      return super.getValuePaged<Map<String, dynamic>>(
         uuid,
         "tracks/$id",
         map: (track) => _toPositions(
           track,
-          offset,
-          limit,
           TrackRequestUtils.toOptions(options),
-        ).toList(),
+        ),
+        offset: offset,
+        limit: limit,
       );
     } catch (e, stackTrace) {
       return toServerError(e, stackTrace);
@@ -55,8 +56,6 @@ class TrackingTrackPositionsController extends ValueController<TrackingCommand, 
 
   Iterable<Map<String, dynamic>> _toPositions(
     Map<String, dynamic> track,
-    int offset,
-    int limit,
     Map<String, String> options,
   ) {
     var positions = track.listAt<Map<String, dynamic>>('positions') ?? <Map<String, dynamic>>[];
@@ -76,12 +75,7 @@ class TrackingTrackPositionsController extends ValueController<TrackingCommand, 
         unit,
       ).listAt<Map<String, dynamic>>('positions');
     }
-    return positions
-        .toPage(
-          offset: offset,
-          limit: limit,
-        )
-        .toList();
+    return positions;
   }
 
   // @Scope(['roles:commander'])

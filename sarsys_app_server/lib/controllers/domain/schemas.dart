@@ -119,12 +119,20 @@ APISchemaObject documentEntityPageResponse(
       "total": APISchemaObject.integer()
         ..description = "Number of entities"
         ..isReadOnly = true,
+      "offset": APISchemaObject.integer()
+        ..description = "${type} Page offset"
+        ..isReadOnly = true,
+      "limit": APISchemaObject.integer()
+        ..description = "${type} Page size"
+        ..isReadOnly = true,
+      "next": APISchemaObject.integer()
+        ..description = "Next ${type} Page offset"
+        ..isReadOnly = true,
+      "path": APISchemaObject.string()
+        ..description = "Path to Entity Object List"
+        ..isReadOnly = true,
       "entries": APISchemaObject.array(
-        ofSchema: documentEntityResponse(
-          context,
-          type: type,
-          schema: schema,
-        ),
+        ofSchema: schema ?? (type != null ? context.schema[type] : APISchemaObject.freeForm()),
       )
         ..description = "Array of ${type ?? "Entity Object"}s"
         ..isReadOnly = true,
@@ -138,6 +146,11 @@ APISchemaObject documentValuePageResponse(
   APISchemaObject schema,
 }) =>
     APISchemaObject.object({
+      "aggregate": context.schema["AggregateRef"],
+      "type": APISchemaObject.string()
+        ..description = "Value Object Type"
+        ..defaultValue = type
+        ..isReadOnly = true,
       "total": APISchemaObject.integer()
         ..description = "Number of ${type}s"
         ..isReadOnly = true,
@@ -150,12 +163,11 @@ APISchemaObject documentValuePageResponse(
       "next": APISchemaObject.integer()
         ..description = "Next ${type} Page offset"
         ..isReadOnly = true,
+      "path": APISchemaObject.string()
+        ..description = "Path to Value Object List"
+        ..isReadOnly = true,
       "entries": APISchemaObject.array(
-        ofSchema: documentValueResponse(
-          context,
-          type: type,
-          schema: schema,
-        ),
+        ofSchema: schema ?? (type != null ? context.schema[type] : APISchemaObject.freeForm()),
       )
         ..description = "Array of ${type ?? 'Value Object'}s"
         ..isReadOnly = true,
@@ -463,23 +475,11 @@ APISchemaObject documentPosition(
       ..isReadOnly = isReadyOnly
       ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
 
-/// PositionList - Value object
-APISchemaObject documentPositionList(
-  APIDocumentContext context, {
-  bool isReadyOnly = true,
-  String description = "Collection og Position features",
-}) =>
-    documentFeatureCollection(
+/// PositionListResponse - Response object
+APISchemaObject documentPositionListResponse(APIDocumentContext context) => documentValuePageResponse(
       context,
-      description: description,
-      feature: context.schema['Position'],
-      properties: {
-        'id': APISchemaObject.string()..description = "PositionList id",
-      },
-    )
-      ..description = description
-      ..isReadOnly = isReadyOnly
-      ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
+      type: 'Position',
+    );
 
 APISchemaObject documentPositionSource() => APISchemaObject.string()
   ..description = "Position source"
