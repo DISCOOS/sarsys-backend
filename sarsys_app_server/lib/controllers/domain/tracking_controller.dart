@@ -91,7 +91,8 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
           ..isReadOnly = true,
         "history": APISchemaObject.array(ofSchema: context.schema['Position'])
           ..description = "List of historical positions"
-          ..isReadOnly = true,
+          ..isReadOnly = true
+          ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
         "sources": APISchemaObject.array(ofSchema: context.schema['Source'])
           ..description = "Array of Source objects"
           ..isReadOnly = true,

@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:sarsys_app_server/controllers/domain/track_request_utils.dart';
-import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 
@@ -58,47 +57,4 @@ Future _testTruncate(String truncate, int skip, int take, Duration duration) asy
     actual['positions'],
     positions.skip(skip).take(take),
   );
-}
-
-Future<Map<String, dynamic>> _prepareGet(
-  SarSysHarness harness,
-  String uuid,
-  List<Map<String, Object>> positions,
-) async {
-  final body = createTracking(uuid);
-
-  expectResponse(
-    await harness.agent.post(
-      "/api/trackings",
-      headers: createAuthn(
-        createAuthnAdmin(),
-      ),
-      body: body,
-    ),
-    201,
-    body: null,
-  );
-
-  // Act
-  final repo = harness.channel.manager.get<TrackingRepository>();
-  final track = await _addTrackingTrack(
-    repo,
-    uuid,
-    createTrack(
-      uuid: uuid,
-      id: '0',
-      type: 'device',
-      positions: positions,
-    ),
-  );
-  return track;
-}
-
-FutureOr<Map<String, dynamic>> _addTrackingTrack(
-  TrackingRepository repo,
-  String uuid,
-  Map<String, dynamic> track,
-) async {
-  await repo.execute(AddTrackToTracking(uuid, track));
-  return track;
 }

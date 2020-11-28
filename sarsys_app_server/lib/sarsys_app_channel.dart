@@ -818,9 +818,11 @@ class SarSysAppServerChannel extends ApplicationChannel {
 
   void documentSchemas(APIDocumentContext context) => context.schema
     ..register('AggregateResponse', documentAggregateResponse(context))
+    ..register('AggregatePageResponse', documentAggregatePageResponse(context))
     ..register('EntityResponse', documentEntityResponse(context))
     ..register('EntityPageResponse', documentEntityPageResponse(context))
     ..register('ValueResponse', documentValueResponse(context))
+    ..register('ValuePageResponse', documentValuePageResponse(context))
     ..register('AggregateRef', documentAggregateRef(context))
     ..register('AggregateList', documentAggregateList(context))
     ..register('ID', documentID())
@@ -842,6 +844,8 @@ class SarSysAppServerChannel extends ApplicationChannel {
     ..register('Circle', documentCircle(context))
     ..register('Rectangle', documentRectangle(context))
     ..register('Position', documentPosition(context))
+    ..register('PositionList', documentPositionList(context))
+    ..register('PositionListResponse', documentValuePageResponse(context, type: 'PositionList'))
     ..register('Message', documentMessage(context));
 }
 

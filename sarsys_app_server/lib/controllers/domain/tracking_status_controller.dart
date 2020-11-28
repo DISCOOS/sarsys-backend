@@ -57,7 +57,7 @@ class TrackingStatusController extends ValueController<TrackingCommand, Tracking
   // Documentation
   //////////////////////////////////
 
-  /// PositionList - Value object
+  /// TrackingStatusRequest - Value object
   @override
   APISchemaObject documentValueObject(APIDocumentContext context) =>
       APISchemaObject.object({'status': documentTrackingStatus(values: allowed)})

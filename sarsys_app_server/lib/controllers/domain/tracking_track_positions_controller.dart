@@ -122,13 +122,19 @@ class TrackingTrackPositionsController extends ValueController<TrackingCommand, 
   // Documentation
   //////////////////////////////////
 
-  /// PositionList - Value object
   @override
-  APISchemaObject documentValueObject(APIDocumentContext context) =>
-      APISchemaObject.array(ofSchema: context.schema['Position'])
-        ..description = "List of Position features"
-        ..isReadOnly = false
-        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
+  Map<String, APIResponse> documentOperationResponses(APIDocumentContext context, Operation operation) {
+    final responses = super.documentOperationResponses(context, operation);
+    switch (operation.method) {
+      case "GET":
+        responses["200"] = APIResponse.schema(
+          "Successful response",
+          context.schema['PositionListResponse'],
+        );
+        break;
+    }
+    return responses;
+  }
 
   @override
   List<APIParameter> documentOperationParameters(APIDocumentContext context, Operation operation) {

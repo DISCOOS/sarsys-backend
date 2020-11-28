@@ -1,4 +1,3 @@
-import 'package:meta/meta.dart';
 import 'package:aqueduct/aqueduct.dart';
 
 APISchemaObject documentID() => APISchemaObject.string()..description = "An id unique in current collection";
@@ -77,7 +76,8 @@ APISchemaObject documentAggregateList(
 
 APISchemaObject documentAggregatePageResponse(
   APIDocumentContext context, {
-  @required String type,
+  String type,
+  APISchemaObject schema,
 }) =>
     APISchemaObject.object({
       "total": APISchemaObject.integer()
@@ -93,9 +93,40 @@ APISchemaObject documentAggregatePageResponse(
         ..description = "Next Aggregate Page offset"
         ..isReadOnly = true,
       "entries": APISchemaObject.array(
-        ofSchema: documentAggregateResponse(context, type: type),
+        ofSchema: documentAggregateResponse(
+          context,
+          type: type,
+          schema: schema,
+        ),
       )
-        ..description = "Array of ${type == null ? "Entity Object" : type}s"
+        ..description = "Array of ${type ?? "Aggregate Object"}s"
+        ..isReadOnly = true,
+    })
+      ..description = "Entities Response"
+      ..isReadOnly = true;
+
+APISchemaObject documentEntityPageResponse(
+  APIDocumentContext context, {
+  String type,
+  APISchemaObject schema,
+}) =>
+    APISchemaObject.object({
+      "aggregate": context.schema["AggregateRef"],
+      "type": APISchemaObject.string()
+        ..description = "Entity Object Type"
+        ..defaultValue = type
+        ..isReadOnly = true,
+      "total": APISchemaObject.integer()
+        ..description = "Number of entities"
+        ..isReadOnly = true,
+      "entries": APISchemaObject.array(
+        ofSchema: documentEntityResponse(
+          context,
+          type: type,
+          schema: schema,
+        ),
+      )
+        ..description = "Array of ${type ?? "Entity Object"}s"
         ..isReadOnly = true,
     })
       ..description = "Entities Response"
@@ -103,8 +134,8 @@ APISchemaObject documentAggregatePageResponse(
 
 APISchemaObject documentValuePageResponse(
   APIDocumentContext context, {
-  @required String type,
-  @required APISchemaObject schema,
+  String type,
+  APISchemaObject schema,
 }) =>
     APISchemaObject.object({
       "total": APISchemaObject.integer()
@@ -120,9 +151,13 @@ APISchemaObject documentValuePageResponse(
         ..description = "Next ${type} Page offset"
         ..isReadOnly = true,
       "entries": APISchemaObject.array(
-        ofSchema: schema,
+        ofSchema: documentValueResponse(
+          context,
+          type: type,
+          schema: schema,
+        ),
       )
-        ..description = "Array of ${type}s"
+        ..description = "Array of ${type ?? 'Value Object'}s"
         ..isReadOnly = true,
     })
       ..description = "Array Value Response"
@@ -131,6 +166,7 @@ APISchemaObject documentValuePageResponse(
 APISchemaObject documentAggregateResponse(
   APIDocumentContext context, {
   String type,
+  APISchemaObject schema,
 }) =>
     APISchemaObject.object({
       "type": APISchemaObject.string()
@@ -152,70 +188,50 @@ APISchemaObject documentAggregateResponse(
       "number": APISchemaObject.integer()
         ..description = "Last event applied to aggregate (can be used as version)"
         ..isReadOnly = true,
-      "data": type != null ? context.schema[type] : APISchemaObject.freeForm()
-        ..description = "${type == null ? "Aggregate Root" : type}  Data"
+      "data": (schema ?? (type != null ? context.schema[type] : APISchemaObject.freeForm()))
+        ..description = "${type ?? "Aggregate Root"} Data"
         ..isReadOnly = true,
     })
-      ..description = "${type == null ? "Aggregate Root" : type} Response"
-      ..isReadOnly = true;
-
-APISchemaObject documentEntityPageResponse(
-  APIDocumentContext context, {
-  String type,
-}) =>
-    APISchemaObject.object({
-      "aggregate": context.schema["AggregateRef"],
-      "type": APISchemaObject.string()
-        ..description = "Entity Object Type"
-        ..defaultValue = type
-        ..isReadOnly = true,
-      "total": APISchemaObject.integer()
-        ..description = "Number of entities"
-        ..isReadOnly = true,
-      "entries": APISchemaObject.array(
-        ofSchema: type == null ? APISchemaObject.freeForm() : context.schema[type],
-      )
-        ..description = "Array of ${type == null ? "Entity Object" : type}s"
-        ..isReadOnly = true,
-    })
-      ..description = "Entities Response"
+      ..description = "${type ?? "Aggregate Root"} Response"
       ..isReadOnly = true;
 
 APISchemaObject documentEntityResponse(
   APIDocumentContext context, {
   String type,
+  APISchemaObject schema,
 }) =>
     APISchemaObject.object({
       "aggregate": context.schema["AggregateRef"],
       "type": APISchemaObject.string()
-        ..description = "${type == null ? "Entity Object" : type} Type"
+        ..description = "${type ?? "Entity Object"} Type"
         ..defaultValue = type
         ..isReadOnly = true,
       "number": APISchemaObject.integer()
         ..description = "Last event applied to aggregate (can be used as version)"
         ..isReadOnly = true,
-      "data": type != null ? context.schema[type] : APISchemaObject.freeForm()
-        ..description = "${type == null ? "Entity Object" : type}  Data"
+      "data": schema ?? (type != null ? context.schema[type] : APISchemaObject.freeForm())
+        ..description = "${type ?? "Entity Object"}  Data"
         ..isReadOnly = true,
     })
-      ..description = "${type == null ? "Entity Object" : type} Response"
+      ..description = "${type ?? "Entity Object"} Response"
       ..isReadOnly = true;
 
 APISchemaObject documentValueResponse(
   APIDocumentContext context, {
   String type,
+  APISchemaObject schema,
 }) =>
     APISchemaObject.object({
       "aggregate": context.schema["AggregateRef"],
       "type": APISchemaObject.string()
-        ..description = "${type == null ? "Value Object" : type} Type"
+        ..description = "${type ?? "Value Object"} Type"
         ..defaultValue = type
         ..isReadOnly = true,
       "number": APISchemaObject.integer()
         ..description = "Last event applied to aggregate (can be used as version)"
         ..isReadOnly = true,
-      "data": type != null ? context.schema[type] : APISchemaObject.freeForm()
-        ..description = "${type == null ? "Value Object" : type}  Data"
+      "data": schema ?? (type != null ? context.schema[type] : APISchemaObject.freeForm())
+        ..description = "${type ?? "Value Object"}  Data"
         ..isReadOnly = true,
     })
       ..description = "Value Object Response"
@@ -344,16 +360,23 @@ APISchemaObject documentMultiPolygon(APIDocumentContext context) => documentGeom
     )..description = "GeoJSON MultiPolygon";
 
 /// GeometryCollection - Value Object
-APISchemaObject documentGeometryCollection(APIDocumentContext context) => APISchemaObject.object({
+APISchemaObject documentGeometryCollection(
+  APIDocumentContext context, {
+  String description = "GeoJSON GeometryCollection",
+  APISchemaObject geometry,
+}) =>
+    APISchemaObject.object({
       "type": APISchemaObject.string()
         ..description = "GeoJSON Geometry type"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..enumerated = [
           'GeometryCollection',
         ],
-      "geometries": APISchemaObject.array(ofSchema: documentGeometry(context))
+      "geometries": APISchemaObject.array(
+        ofSchema: geometry ?? documentGeometry(context),
+      )
     })
-      ..description = "GeoJSON GeometryCollection";
+      ..description = description;
 
 /// Feature - Value Object
 APISchemaObject documentFeature(
@@ -378,16 +401,25 @@ APISchemaObject documentFeature(
       ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
 
 /// FeatureCollection - Value Object
-APISchemaObject documentFeatureCollection(APIDocumentContext context) => APISchemaObject.object({
-      "type": APISchemaObject.string()
-        ..description = "GeoJSON Feature type"
-        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
-        ..enumerated = [
-          'FeatureCollection',
-        ],
-      "features": APISchemaObject.array(ofSchema: context.schema['Feature']),
-    })
-      ..description = "GeoJSON FeatureCollection";
+APISchemaObject documentFeatureCollection(
+  APIDocumentContext context, {
+  String description = "GeoJSON FeatureCollection",
+  APISchemaObject feature,
+  Map<String, APISchemaObject> properties,
+}) =>
+    APISchemaObject.object((properties ?? {})
+      ..addAll({
+        "type": APISchemaObject.string()
+          ..description = "GeoJSON Feature type"
+          ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+          ..enumerated = [
+            'FeatureCollection',
+          ],
+        "features": APISchemaObject.array(
+          ofSchema: feature ?? documentFeature(context),
+        ),
+      }))
+      ..description = description;
 
 //////////////////////////////////
 // GeoJSON features documentation
@@ -428,6 +460,25 @@ APISchemaObject documentPosition(
       "speed": APISchemaObject.number()..description = "Speed at given position in meter/seconds",
     })
       ..description = description
+      ..isReadOnly = isReadyOnly
+      ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
+
+/// PositionList - Value object
+APISchemaObject documentPositionList(
+  APIDocumentContext context, {
+  bool isReadyOnly = true,
+  String description = "Collection og Position features",
+}) =>
+    documentFeatureCollection(
+      context,
+      description: description,
+      feature: context.schema['Position'],
+      properties: {
+        'id': APISchemaObject.string()..description = "PositionList id",
+      },
+    )
+      ..description = description
+      ..isReadOnly = isReadyOnly
       ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
 
 APISchemaObject documentPositionSource() => APISchemaObject.string()

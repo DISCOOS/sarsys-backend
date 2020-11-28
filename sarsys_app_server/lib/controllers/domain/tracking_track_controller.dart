@@ -108,10 +108,11 @@ class TrackingTrackController extends EntityController<TrackingCommand, Tracking
         "source": context.schema['Source'],
         "status": documentTrackStatus()..isReadOnly = true,
         "positions": APISchemaObject.array(ofSchema: context.schema['Position'])
-          ..description = "Sourced positions"
-          ..isReadOnly = true,
+          ..description = "List of sourced positions"
+          ..isReadOnly = true
+          ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
       })
-        ..description = "Tracking Schema (aggregate root)"
+        ..description = "Track Schema (entity object)"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..required = [
           'source',
