@@ -25,6 +25,10 @@ metadata:
     traefik.frontend.rule.type: PathPrefix
     traefik.ingress.kubernetes.io/frontend-entry-points: http,https
     traefik.ingress.kubernetes.io/redirect-entry-point: https
+    # Enable transaction scope from apps that want
+    # to ensure all requests going to the same app instance
+    traefik.ingress.kubernetes.io/affinity: "true"
+    traefik.ingress.kubernetes.io/session-cookie-name: x-transaction-id
 spec:
   rules:
     - host: sarsys.app
