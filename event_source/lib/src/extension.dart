@@ -49,7 +49,7 @@ extension MapX on Map {
   /// equivalent to map['name1']['name2']['name3'].
   ///
   /// Returns [null] if not found
-  T elementAt<T>(String path, {String delimiter = '/'}) {
+  T elementAt<T>(String path, {String delimiter = '/', T defaultValue}) {
     final parts = path.split(delimiter);
     dynamic found = parts.skip(parts.first.isEmpty ? 1 : 0).fold(this, (parent, name) {
       if (parent is Map<String, dynamic>) {
@@ -58,21 +58,25 @@ extension MapX on Map {
         }
       }
       final element = (parent ?? {});
-      return element is Map ? element[name] : element is List && element.isNotEmpty ? element[int.parse(name)] : null;
+      return element is Map
+          ? element[name]
+          : element is List && element.isNotEmpty
+              ? element[int.parse(name)]
+              : null;
     });
-    return found as T;
+    return (found ?? defaultValue) as T;
   }
 
   /// Get [List] of type [T] at given path
-  List<T> listAt<T>(String path) {
+  List<T> listAt<T>(String path, {List<T> defaultList}) {
     final list = elementAt(path);
-    return list == null ? null : List<T>.from(list);
+    return list == null ? defaultList : List<T>.from(list);
   }
 
   /// Get [Map] with keys of type [S] and values of type [T] at given path
-  Map<S, T> mapAt<S, T>(String path) {
+  Map<S, T> mapAt<S, T>(String path, {Map<S, T> defaultMap}) {
     final map = elementAt(path);
-    return map == null ? null : Map<S, T>.from(map);
+    return map == null ? defaultMap : Map<S, T>.from(map);
   }
 }
 

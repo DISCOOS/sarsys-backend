@@ -65,7 +65,9 @@ class DeviceController extends AggregateController<DeviceCommand, Device> {
   DeviceCommand onCreate(Map<String, dynamic> data) => CreateDevice(data);
 
   @override
-  DeviceCommand onUpdate(Map<String, dynamic> data) => UpdateDevice(data);
+  Iterable<DeviceCommand> onUpdate(Map<String, dynamic> data) => [
+        UpdateDevice(data),
+      ];
 
   @override
   DeviceCommand onDelete(Map<String, dynamic> data) => DeleteDevice(data);

@@ -64,7 +64,9 @@ class IncidentController extends AggregateController<IncidentCommand, Incident> 
   IncidentCommand onCreate(Map<String, dynamic> data) => RegisterIncident(data);
 
   @override
-  IncidentCommand onUpdate(Map<String, dynamic> data) => UpdateIncidentInformation(data);
+  Iterable<IncidentCommand> onUpdate(Map<String, dynamic> data) => [
+        UpdateIncidentInformation(data),
+      ];
 
   @override
   IncidentCommand onDelete(Map<String, dynamic> data) => DeleteIncident(data);

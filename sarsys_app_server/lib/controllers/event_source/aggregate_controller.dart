@@ -97,7 +97,9 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   }
 
   /// Add @Operation.post() to activate
-  Future<Response> create(@Bind.body() Map<String, dynamic> data) async {
+  Future<Response> create(
+    @Bind.body() Map<String, dynamic> data,
+  ) async {
     try {
       await repository.execute(
         onCreate(validate("$aggregateType", data)),
@@ -148,17 +150,30 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   S onCreate(Map<String, dynamic> data) => throw UnimplementedError("Create not implemented");
 
   /// Add @Operation('PATCH', 'uuid') to activate
-  Future<Response> update(@Bind.path('uuid') String uuid, @Bind.body() Map<String, dynamic> data) async {
+  Future<Response> update(
+    @Bind.path('uuid') String uuid,
+    @Bind.body() Map<String, dynamic> data,
+  ) async {
     try {
       if (!await exists(uuid)) {
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
       data[repository.uuidFieldName] = uuid;
-      final events = await repository.execute(
-        onUpdate(
-          validate("$aggregateType", data, isPatch: true),
-        ),
+      final events = <Event>[];
+      final trx = repository.inTransaction(uuid) ? null : repository.getTransaction(uuid);
+      final commands = onUpdate(
+        validate("$aggregateType", data, isPatch: true),
       );
+      for (var command in commands) {
+        events.addAll(
+          await repository.execute(command),
+        );
+      }
+      if (trx != null) {
+        events.addAll(
+          await trx.push(),
+        );
+      }
       return events.isEmpty ? Response.noContent() : okAggregate(repository.get(uuid));
     } on AggregateNotFound catch (e) {
       return Response.notFound(body: e.message);
@@ -197,7 +212,11 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     }
   }
 
-  S onUpdate(Map<String, dynamic> data) => throw UnimplementedError("Update not implemented");
+  String toAggregateUuid(Map<String, dynamic> data) {
+    return data.elementAt<String>(repository.uuidFieldName);
+  }
+
+  Iterable<S> onUpdate(Map<String, dynamic> data) => throw UnimplementedError("Update not implemented");
 
   /// Add @Operation('DELETE', 'uuid') to activate
   Future<Response> delete(

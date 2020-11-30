@@ -53,7 +53,9 @@ class SubjectController extends AggregateController<SubjectCommand, Subject> {
   SubjectCommand onCreate(Map<String, dynamic> data) => RegisterSubject(data);
 
   @override
-  SubjectCommand onUpdate(Map<String, dynamic> data) => UpdateSubject(data);
+  Iterable<SubjectCommand> onUpdate(Map<String, dynamic> data) => [
+        UpdateSubject(data),
+      ];
 
   @override
   SubjectCommand onDelete(Map<String, dynamic> data) => DeleteSubject(data);

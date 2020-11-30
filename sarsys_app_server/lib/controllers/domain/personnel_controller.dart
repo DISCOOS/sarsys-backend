@@ -141,7 +141,9 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
   PersonnelCommand onCreate(Map<String, dynamic> data) => MobilizePersonnel(data);
 
   @override
-  PersonnelCommand onUpdate(Map<String, dynamic> data) => UpdatePersonnelInformation(data);
+  Iterable<PersonnelCommand> onUpdate(Map<String, dynamic> data) => [
+        UpdatePersonnelInformation(data),
+      ];
 
   @override
   PersonnelCommand onDelete(Map<String, dynamic> data) => DeletePersonnel(data);

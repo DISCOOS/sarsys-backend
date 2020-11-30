@@ -172,7 +172,9 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
   AffiliationCommand onCreate(Map<String, dynamic> data) => CreateAffiliation(data);
 
   @override
-  AffiliationCommand onUpdate(Map<String, dynamic> data) => UpdateAffiliation(data);
+  Iterable<AffiliationCommand> onUpdate(Map<String, dynamic> data) => [
+        UpdateAffiliation(data),
+      ];
 
   @override
   AffiliationCommand onDelete(Map<String, dynamic> data) => DeleteAffiliation(data);

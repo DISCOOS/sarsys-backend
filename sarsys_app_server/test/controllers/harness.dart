@@ -431,9 +431,10 @@ Map<String, dynamic> createDepartment(String uuid) => {
       "active": true,
     };
 
-Map<String, dynamic> createTracking(String uuid, {String status}) => {
+Map<String, dynamic> createTracking(String uuid, {String status, List<Map<String, dynamic>> sources}) => {
       "uuid": uuid,
       if (status != null) 'status': status,
+      if (sources != null) 'sources': sources,
     };
 
 Map<String, dynamic> createSource({String uuid = 'string', String type = 'device'}) => {

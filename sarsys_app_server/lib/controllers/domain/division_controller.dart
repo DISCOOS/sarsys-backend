@@ -68,7 +68,9 @@ class DivisionController extends AggregateController<DivisionCommand, Division> 
   DivisionCommand onCreate(Map<String, dynamic> data) => CreateDivision(data);
 
   @override
-  DivisionCommand onUpdate(Map<String, dynamic> data) => UpdateDivisionInformation(data);
+  Iterable<DivisionCommand> onUpdate(Map<String, dynamic> data) => [
+        UpdateDivisionInformation(data),
+      ];
 
   @override
   DivisionCommand onDelete(Map<String, dynamic> data) => DeleteDivision(data);

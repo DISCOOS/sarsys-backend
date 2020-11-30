@@ -84,7 +84,9 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
   UnitCommand onCreate(Map<String, dynamic> data) => CreateUnit(data);
 
   @override
-  UnitCommand onUpdate(Map<String, dynamic> data) => UpdateUnitInformation(data);
+  Iterable<UnitCommand> onUpdate(Map<String, dynamic> data) => [
+        UpdateUnitInformation(data),
+      ];
 
   @override
   UnitCommand onDelete(Map<String, dynamic> data) => DeleteUnit(data);

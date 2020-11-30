@@ -75,7 +75,9 @@ class OrganisationController extends AggregateController<OrganisationCommand, Or
   OrganisationCommand onCreate(Map<String, dynamic> data) => CreateOrganisation(data);
 
   @override
-  OrganisationCommand onUpdate(Map<String, dynamic> data) => UpdateOrganisation(data);
+  Iterable<OrganisationCommand> onUpdate(Map<String, dynamic> data) => [
+        UpdateOrganisation(data),
+      ];
 
   @override
   OrganisationCommand onDelete(Map<String, dynamic> data) => DeleteOrganisation(data);

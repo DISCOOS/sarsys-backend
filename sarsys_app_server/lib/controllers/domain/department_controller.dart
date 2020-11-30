@@ -67,7 +67,9 @@ class DepartmentController extends AggregateController<DepartmentCommand, Depart
   DepartmentCommand onCreate(Map<String, dynamic> data) => CreateDepartment(data);
 
   @override
-  DepartmentCommand onUpdate(Map<String, dynamic> data) => UpdateDepartmentInformation(data);
+  Iterable<DepartmentCommand> onUpdate(Map<String, dynamic> data) => [
+        UpdateDepartmentInformation(data),
+      ];
 
   @override
   DepartmentCommand onDelete(Map<String, dynamic> data) => DeleteDepartment(data);

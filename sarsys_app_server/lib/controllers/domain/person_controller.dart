@@ -85,7 +85,9 @@ class PersonController extends AggregateController<PersonCommand, Person> {
   PersonCommand onCreate(Map<String, dynamic> data) => CreatePerson(data);
 
   @override
-  PersonCommand onUpdate(Map<String, dynamic> data) => UpdatePersonInformation(data);
+  Iterable<PersonCommand> onUpdate(Map<String, dynamic> data) => [
+        UpdatePersonInformation(data),
+      ];
 
   @override
   PersonCommand onDelete(Map<String, dynamic> data) => DeletePerson(data);

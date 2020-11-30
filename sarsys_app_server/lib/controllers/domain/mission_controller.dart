@@ -66,7 +66,9 @@ class MissionController extends AggregateController<MissionCommand, Mission> {
   MissionCommand onCreate(Map<String, dynamic> data) => CreateMission(data);
 
   @override
-  MissionCommand onUpdate(Map<String, dynamic> data) => UpdateMissionInformation(data);
+  Iterable<MissionCommand> onUpdate(Map<String, dynamic> data) => [
+        UpdateMissionInformation(data),
+      ];
 
   @override
   MissionCommand onDelete(Map<String, dynamic> data) => DeleteMission(data);

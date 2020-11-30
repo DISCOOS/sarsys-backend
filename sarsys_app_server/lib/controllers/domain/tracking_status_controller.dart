@@ -11,7 +11,7 @@ class TrackingStatusController extends ValueController<TrackingCommand, Tracking
           repository,
           "TrackingStatusRequest",
           "status",
-          tag: "Trackings > Status",
+          tag: "Trackings",
           validation: validation.copyWith([
             ValueValidator(path: 'status', allowed: allowed),
           ]),

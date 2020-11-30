@@ -11,7 +11,7 @@ Future main() async {
 
   test("POST /api/trackings/ returns status code 201 with empty body", () async {
     final uuid = Uuid().v4();
-    final body = _createData(uuid);
+    final body = createTracking(uuid);
     expectResponse(
       await harness.agent.post(
         "/api/trackings",
@@ -25,7 +25,7 @@ Future main() async {
 
   test("GET /api/trackings/{uuid} returns status code 200", () async {
     final uuid = Uuid().v4();
-    final body = _createData(uuid);
+    final body = createTracking(uuid);
     expectResponse(
         await harness.agent.post(
           "/api/trackings",
@@ -45,9 +45,56 @@ Future main() async {
     expect(actual['data'], equals(body));
   });
 
+  test("PATCH /api/trackings/{uuid} returns status code 200", () async {
+    // Arrange
+    final uuid = Uuid().v4();
+    final sources1 = [
+      createSource(uuid: 's1'),
+      createSource(uuid: 's2'),
+    ];
+    final body = createTracking(
+      uuid,
+      sources: sources1,
+    );
+    expectResponse(
+      await harness.agent.post(
+        "/api/trackings",
+        headers: createAuthn(
+          createAuthnAdmin(),
+        ),
+        body: body,
+      ),
+      201,
+      body: null,
+    );
+
+    // Act
+    final sources2 = [
+      createSource(uuid: 's2'),
+      createSource(uuid: 's3'),
+    ];
+    body['status'] = enumName(TrackingStatus.tracking);
+    body['sources'] = sources2;
+
+    // Assert
+    final response = expectResponse(
+      await harness.agent.execute(
+        'PATCH',
+        "/api/trackings/$uuid",
+        headers: createAuthn(
+          createAuthnPersonnel(),
+        ),
+        body: body,
+      ),
+      200,
+    );
+    final actual = await response.body.decode();
+    expect(actual['data'], equals(body));
+  });
+
   test("DELETE /api/trackings/{uuid} returns status code 204", () async {
     final uuid = Uuid().v4();
-    final body = _createData(uuid);
+    final body = createTracking(uuid);
     expectResponse(
       await harness.agent.post(
         "/api/trackings",
@@ -71,22 +118,22 @@ Future main() async {
     await harness.agent.post(
       "/api/trackings",
       headers: createAuthn(createAuthnAdmin()),
-      body: _createData(Uuid().v4()),
+      body: createTracking(Uuid().v4()),
     );
     await harness.agent.post(
       "/api/trackings",
       headers: createAuthn(createAuthnAdmin()),
-      body: _createData(Uuid().v4()),
+      body: createTracking(Uuid().v4()),
     );
     await harness.agent.post(
       "/api/trackings",
       headers: createAuthn(createAuthnAdmin()),
-      body: _createData(Uuid().v4()),
+      body: createTracking(Uuid().v4()),
     );
     await harness.agent.post(
       "/api/trackings",
       headers: createAuthn(createAuthnAdmin()),
-      body: _createData(Uuid().v4()),
+      body: createTracking(Uuid().v4()),
     );
     final response = expectResponse(
         await harness.agent.get(
@@ -101,5 +148,3 @@ Future main() async {
     expect(actual['entries'].length, equals(2));
   });
 }
-
-Map<String, Object> _createData(String uuid) => createTracking(uuid);

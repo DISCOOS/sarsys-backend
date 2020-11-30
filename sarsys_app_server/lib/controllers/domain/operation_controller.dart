@@ -69,7 +69,9 @@ class OperationController extends AggregateController<OperationCommand, sar.Oper
   OperationCommand onCreate(Map<String, dynamic> data) => RegisterOperation(data);
 
   @override
-  OperationCommand onUpdate(Map<String, dynamic> data) => UpdateOperationInformation(data);
+  Iterable<OperationCommand> onUpdate(Map<String, dynamic> data) => [
+        UpdateOperationInformation(data),
+      ];
 
   @override
   OperationCommand onDelete(Map<String, dynamic> data) => DeleteOperation(data);
