@@ -1237,7 +1237,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     );
     if (aggregate.isChanged) {
       // Ensure transaction exists is not concurrent
-      _pushQueue.add(StreamRequest<Iterable<DomainEvent>>(
+      final added = _pushQueue.add(StreamRequest<Iterable<DomainEvent>>(
         key: uuid,
         fail: true,
         timeout: timeout,
@@ -1247,6 +1247,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       logger.fine(
         'Scheduled push of: ${transaction.tag} (queue pressure: $pressure)',
       );
+      _assertAdd(added, uuid, transaction);
       return transaction.onPush;
     } else {
       _completeTrx(uuid);
@@ -1336,6 +1337,18 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     );
     transaction._start(this, maxAttempts);
     return transaction;
+  }
+
+  void _assertAdd(
+    bool added,
+    String uuid,
+    Transaction transaction,
+  ) {
+    if (!added) {
+      throw StateError(
+        'Push of ${aggregateType} $uuid already scheduled > ${transaction.tag}',
+      );
+    }
   }
 
   /// Assert that this [operation] has an [Transaction]
@@ -1731,6 +1744,33 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         'pending.requests: ${_pushQueue.length}, '
         'pending.commands: ${_commands.length}}';
   }
+
+  Map<String, dynamic> getMeta([String uuid]) => {
+        'type': '$aggregateType',
+        'count': count(),
+        'queue': {
+          'pressure': {
+            'push': _pushQueue.length,
+            'command': _commands.length,
+            'total': _pushQueue.length + _commands.length,
+            'maximum': maxPushPressure,
+            'exceeded': isMaximumPushPressure
+          },
+          'status': {
+            'idle': _pushQueue.isIdle,
+            'ready': _pushQueue.isReady,
+            'disposed': _pushQueue.isDisposed,
+          },
+          'counts': {
+            'failed': _pushQueue.failed,
+            'timeouts': _pushQueue.timeouts,
+            'processed': _pushQueue.processed,
+            'cancelled': _pushQueue.cancelled,
+            'completed': _pushQueue.completed,
+          },
+        },
+        'debug': toDebugString(uuid),
+      };
 }
 
 /// Base class for [aggregate roots](https://martinfowler.com/bliki/DDD_Aggregate.html).
@@ -2139,18 +2179,6 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     _localEvents.removeWhere((e) => committed.contains(e));
     _applied.addEntries(committed.map((e) => MapEntry(e.uuid, e)));
     return committed;
-
-    // _applied.addEntries(
-    //   _localEvents.map((e) => MapEntry(e.uuid, e)),
-    // );
-    // if (_applied.length == 4) {
-    //   print('hm');
-    // }
-    // final committed = [
-    //   ..._localEvents,
-    // ];
-    // _localEvents.clear();
-    // return committed;
   }
 
   /// Get aggregate updated event.

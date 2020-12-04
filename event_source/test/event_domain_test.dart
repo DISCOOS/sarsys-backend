@@ -429,7 +429,7 @@ Future main() async {
     expect(foo.data, containsPair('property3', 'value3'));
     expect(foo.data, containsPair('property4', 'value4'));
     expect(foo.data, containsPair('property5', 'value5'));
-  });
+  }, timeout: Timeout.factor(100));
 
   test('Repository should fail on push when manual merge is needed', () async {
     // Arrange

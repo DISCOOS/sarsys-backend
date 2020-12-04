@@ -155,7 +155,7 @@ class ConflictNotReconcilable extends InvalidOperation {
 
   @override
   String toString() {
-    return '$runtimeType{local: $mine, remote: $yours}';
+    return '$runtimeType{message: $message, local: $mine, remote: $yours}';
   }
 }
 

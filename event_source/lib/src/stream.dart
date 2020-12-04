@@ -9,12 +9,15 @@ class StreamRequestQueue<T> {
 
   Type get type => typeOf<T>();
 
-  /// List of [StreamRequest.key]s.
+  /// List of scheduled [StreamRequest]s.
   ///
   /// Used to track and dequeue requests.
   final _requests = <StreamRequest<T>>[];
 
-  // TODO: Replace controllers with one controller of StreamEvents
+  /// List of peeked [StreamRequest]s.
+  ///
+  /// Used to track and dequeue requests.
+  final _scheduled = <StreamRequest<T>>{};
 
   /// Stream of [StreamEvent]s
   final StreamController<StreamEvent> _onEventController = StreamController.broadcast();
@@ -121,7 +124,7 @@ class StreamRequestQueue<T> {
 
     // Duplicates not allowed
     final exists = contains(request.key);
-    if (!contains(request.key)) {
+    if (!exists) {
       _requests.add(request);
       _dispatcher.add(request);
       _onEventController.add(StreamRequestAdded(
@@ -147,6 +150,7 @@ class StreamRequestQueue<T> {
     }
     final found = _requests.where((element) => element.key == key).toList();
     found.forEach(_requests.remove);
+    found.forEach(_scheduled.remove);
     _cancelled += found.length;
     return found.isNotEmpty;
   }
@@ -179,28 +183,36 @@ class StreamRequestQueue<T> {
                   }
                 }
                 _current = null;
-              } else {
-                await _queue.next;
               }
             }
+            // If skipped
+            await _pop(request);
           }
         }
       } catch (e, stackTrace) {
         _handleError(e, stackTrace);
-      } finally {
-        await stop();
       }
+      stop();
     }
   }
 
+  Future _pop(StreamRequest request) {
+    if (_scheduled.remove(request) && !_isDisposed) {
+      _requests.remove(request);
+      return _queue.next;
+    }
+    return Future.value();
+  }
+
   Future<StreamRequest> _next() async {
-    var next = await _queue.peek;
-    while (next.isTimedOut || !contains(next.key)) {
+    var next = await _peek();
+    // Loop until valid request is found
+    while (next != null && (next.isTimedOut || !contains(next.key))) {
       if (contains(next.key)) {
         _onEventController.add(StreamRequestTimeout(
           next,
         ));
-        _requests.remove(next);
+        await _pop(next);
         _timeouts++;
         if (next.fail) {
           _handleError(
@@ -214,13 +226,16 @@ class StreamRequestQueue<T> {
           );
         }
       }
-      // Consume and peek next
-      if (_hasNext) {
-        await _queue.next;
-        next = await _queue.peek;
-      } else {
-        break;
-      }
+      // Peek for next request if exists
+      next = await _peek();
+    }
+    return next;
+  }
+
+  Future<StreamRequest> _peek() async {
+    final next = _hasNext ? await _queue.peek : null;
+    if (next != null) {
+      _scheduled.add(next);
     }
     return next;
   }
@@ -273,15 +288,13 @@ class StreamRequestQueue<T> {
     StreamRequest<T> request,
     StreamResult<T> result,
   ) async {
-    if (_requests.remove(request)) {
-      await _queue.next;
-    }
+    await _pop(request);
     _onEventController.add(StreamRequestCompleted(
       request,
       result,
     ));
     if (result.isStop) {
-      await stop();
+      stop();
     } else if (result.isError) {
       _failed++;
       _handleError(
@@ -330,6 +343,7 @@ class StreamRequestQueue<T> {
     StackTrace stackTrace, {
     StreamRequest<T> request,
   }) {
+    _pop(request);
     if (_onError != null) {
       final shouldStop = _onError(
         error,
