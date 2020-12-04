@@ -1435,6 +1435,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
       return StreamResult(
         tag: transaction.tag,
+        key: transaction.uuid,
         value: changes,
       );
     } on WrongExpectedEventVersion {
@@ -1483,8 +1484,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         changes: events,
       );
       return StreamResult(
-        tag: transaction.tag,
         value: events,
+        tag: transaction.tag,
+        key: transaction.uuid,
       );
     } catch (error, stackTrace) {
       logger.severe(
@@ -1781,14 +1783,16 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           'requests': {
             if (_pushQueue.last != null)
               'last': {
-                'type': '${_pushQueue.last.runtimeType}',
+                'key': '${_pushQueue.last.key}',
+                'tag': '${_pushQueue.last.tag}',
                 'timestamp': '${_pushQueue.lastAt.toIso8601String()}',
               },
             if (_pushQueue.current != null)
               'current': {
-                'type': '${_pushQueue.current.runtimeType}',
+                'key': '${_pushQueue.current.key}',
+                'tag': '${_pushQueue.current.tag}',
                 'timestamp': '${_pushQueue.currentAt.toIso8601String()}',
-              }
+              },
           },
           'stats': {
             'queued': _pushQueue.length,
@@ -1800,7 +1804,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
             'completed': _pushQueue.completed,
           },
         },
-        'debug': toDebugString(uuid),
       };
 }
 

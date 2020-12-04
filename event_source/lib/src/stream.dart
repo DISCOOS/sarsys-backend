@@ -4,20 +4,20 @@ import 'dart:collection';
 import 'package:event_source/event_source.dart';
 import 'package:meta/meta.dart';
 
-class StreamRequestQueue<T> {
+class StreamRequestQueue<V> {
   StreamRequestQueue();
 
-  Type get type => typeOf<T>();
+  Type get type => typeOf<V>();
 
   /// List of scheduled [StreamRequest]s.
   ///
   /// Used to track and dequeue requests.
-  final ListQueue<StreamRequest<T>> _requests = ListQueue();
+  final ListQueue<StreamRequest<V>> _requests = ListQueue();
 
   /// List of started [StreamRequest]s.
   ///
   /// Used to track and dequeue requests.
-  final _started = <StreamRequest<T>>{};
+  final _started = <StreamRequest<V>>{};
 
   /// Stream of [StreamEvent]s
   final StreamController<StreamEvent> _onEventController = StreamController.broadcast();
@@ -94,7 +94,7 @@ class StreamRequestQueue<T> {
 
   /// Get [StreamRequest] from given [key].
   ///Returns [null] if not found.
-  StreamRequest<T> elementAt(String key) {
+  StreamRequest<V> elementAt(String key) {
     return contains(key) ? _requests.elementAt(indexOf(key)) : null;
   }
 
@@ -112,13 +112,13 @@ class StreamRequestQueue<T> {
 
   /// Schedule singleton [request] for execution.
   /// This will cancel current requests.
-  bool only(StreamRequest<T> request) {
+  bool only(StreamRequest<V> request) {
     cancel();
     return add(request);
   }
 
   /// Schedule [request] for execution
-  bool add(StreamRequest<T> request) {
+  bool add(StreamRequest<V> request) {
     _checkState();
 
     // Duplicates not allowed
@@ -156,7 +156,7 @@ class StreamRequestQueue<T> {
   /// Remove all pending [StreamRequest]s from queue.
   ///
   /// Returns a list of [StreamRequest]s.
-  List<StreamRequest<T>> clear() {
+  List<StreamRequest<V>> clear() {
     _checkState();
     final removed = _requests.toList();
     _cancelled += removed.length;
@@ -223,7 +223,7 @@ class StreamRequestQueue<T> {
     return next;
   }
 
-  StreamRequest<T> _peek() {
+  StreamRequest<V> _peek() {
     final next = _hasNext ? _requests.first : null;
     if (next != null) {
       _started.add(next);
@@ -231,26 +231,26 @@ class StreamRequestQueue<T> {
     return next;
   }
 
-  Future<T> _onFallback(StreamRequest<T> request) => request.fallback == null ? Future<T>.value() : request.fallback();
+  Future<V> _onFallback(StreamRequest<V> request) => request.fallback == null ? Future<V>.value() : request.fallback();
 
   /// Get request currently processing
-  StreamRequest<T> get current => _current;
-  StreamRequest<T> _current;
+  StreamRequest<V> get current => _current;
+  StreamRequest<V> _current;
 
   /// [DateTime] when execution of current request was started
   DateTime get currentAt => _currentAt;
   DateTime _currentAt;
 
   /// Get last result
-  StreamResult<T> get last => _last;
-  StreamResult<T> _last;
+  StreamResult<V> get last => _last;
+  StreamResult<V> _last;
 
   /// [DateTime] when execution of current request was started
   DateTime get lastAt => _lastAt;
   DateTime _lastAt;
 
   /// Execute given [request]
-  Future<StreamResult<T>> _execute(StreamRequest<T> request) async {
+  Future<StreamResult<V>> _execute(StreamRequest<V> request) async {
     try {
       _currentAt = DateTime.now();
       _current = request;
@@ -287,9 +287,9 @@ class StreamRequestQueue<T> {
     }
   }
 
-  Future<StreamResult<T>> _onComplete(
-    StreamRequest<T> request,
-    StreamResult<T> result,
+  Future<StreamResult<V>> _onComplete(
+    StreamRequest<V> request,
+    StreamResult<V> result,
   ) async {
     _completed++;
     _pop(request);
@@ -330,7 +330,7 @@ class StreamRequestQueue<T> {
   void _handleError(
     Object error,
     StackTrace stackTrace, {
-    StreamRequest<T> request,
+    StreamRequest<V> request,
   }) {
     _pop(request);
     if (_onError != null) {
@@ -379,7 +379,7 @@ class StreamRequestQueue<T> {
   /// Clear all pending requests
   /// and stop processing events.
   ///
-  void cancel() async {
+  void cancel() {
     _checkState();
     _cancelled += clear().length;
     stop();
@@ -456,7 +456,7 @@ class StreamQueueIdle extends StreamEvent {
 }
 
 @Immutable()
-class StreamRequest<T> {
+class StreamRequest<V> {
   static const Duration timeLimit = Duration(seconds: 30);
 
   StreamRequest({
@@ -472,10 +472,10 @@ class StreamRequest<T> {
   final bool fail;
   final Object tag;
   final Duration timeout;
-  final Completer<T> onResult;
-  final Future<T> Function() fallback;
+  final Completer<V> onResult;
+  final Future<V> Function() fallback;
   final DateTime created = DateTime.now();
-  final Future<StreamResult<T>> Function() execute;
+  final Future<StreamResult<V>> Function() execute;
 
   Duration get reminder => timeout - DateTime.now().difference(created);
   bool get isTimedOut => timeout != null && DateTime.now().difference(created) > timeout;
@@ -495,19 +495,21 @@ class StreamRequest<T> {
 }
 
 @Immutable()
-class StreamResult<T> {
+class StreamResult<V> {
   StreamResult({
     this.tag,
+    this.key,
     bool stop,
     this.value,
     this.error,
     this.stackTrace,
   }) : _stop = stop ?? false;
 
-  static StreamResult<T> none<T>({String tag}) => StreamResult<T>(tag: tag);
-  static StreamResult<T> stop<T>({String tag}) => StreamResult<T>(tag: tag, stop: true);
+  static StreamResult<V> none<V>({String tag}) => StreamResult<V>(tag: tag);
+  static StreamResult<V> stop<V>({String tag}) => StreamResult<V>(tag: tag, stop: true);
 
-  final T value;
+  final V value;
+  final String key;
   final Object tag;
   final bool _stop;
   final Object error;
