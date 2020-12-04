@@ -124,7 +124,7 @@ Future main() async {
     expect(repo2.number.value, 9);
     expect(repo2.count(), equals(1), reason: 'Should contain one aggregate');
     expect(repo2.get(uuid).applied.length, equals(10), reason: 'Should contain 10 events');
-  });
+  }, timeout: Timeout.factor(100));
 }
 
 Future<FooRepository> _createStreamsAndReplay(EventSourceHarness harness, int port, int existing, int count) async {

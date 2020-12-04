@@ -19,14 +19,17 @@ void main() async {
     // Act
     final added = queue.add(request);
 
-    // Assert
+    // Assert BEFORE execution
     expect(added, isTrue, reason: 'should add');
     expect(queue.isHead(request.key), isTrue, reason: 'should be head');
     expect(queue.contains(request.key), isTrue, reason: 'should contain');
-    expect(await request.onResult.future, isNull, reason: 'should execute');
+
+    // Assert AFTER execution
+    await queue.onEvent().where((event) => event is StreamQueueIdle).first;
+    expect(request.onResult.isCompleted, isTrue, reason: 'should execute');
+    expect(queue.isIdle, isTrue, reason: 'should be idle');
     expect(queue.length, 0, reason: 'should be empty');
     expect(queue.isEmpty, isTrue, reason: 'should be empty');
-    expect(queue.isIdle, isTrue, reason: 'should be idle');
     expect(queue.isProcessing, isFalse, reason: 'should not be processing');
 
     // Cleanup
@@ -257,7 +260,7 @@ void main() async {
     expect(queue.isProcessing, isFalse, reason: 'should not be processing');
     expect(queue.processed, 10, reason: 'should have processed 10 requests');
     expect(queue.timeouts, 10, reason: 'should have timed out 10 times');
-    expect(queue.failed, 0, reason: 'should have failed zero times');
+    expect(queue.failures, 0, reason: 'should have failed zero times');
 
     // Cleanup
     await queue.cancel();

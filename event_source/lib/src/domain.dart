@@ -719,8 +719,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Flag indicating that [build] succeeded
   /// and that events are not being replayed
-  bool get isReady => _ready && !isReplaying;
-  bool _ready = false;
+  bool get isReady => _isReady && !isReplaying;
+  bool _isReady = false;
 
   /// Check if events are being replayed for this repository
   bool get isReplaying => store.bus.isReplaying;
@@ -733,7 +733,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   }
 
   void _awaitReady(Completer<bool> completer) async {
-    if (_ready == false || isReplaying) {
+    if (_isReady == false || isReplaying) {
       Future.delayed(const Duration(milliseconds: 100), () => _awaitReady(completer));
     } else {
       completer.complete(true);
@@ -781,25 +781,42 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Build repository from [store].
   /// Returns number of events processed.
   Future<int> build() async {
+    final isRebuild = _subscription != null;
     // Listen for push-queue to finish processing
-    _subscription = _pushQueue.onEvent().listen(_onQueueEvent);
-    _pushQueue.catchError((e, stackTrace) {
-      logger.network(
-        'Push requests failed',
-        e,
-        stackTrace,
-      );
-      return true;
-    });
-    if (store.snapshots != null) {
-      await store.snapshots.load();
-      _suuid = store.snapshots.last?.uuid;
+    try {
+      if (isRebuild) {
+        _isReady = false;
+        store.pause();
+        await _subscription.cancel();
+        await _pushQueue.dispose();
+        _pushQueue = StreamRequestQueue<Iterable<DomainEvent>>();
+      }
+
+      _subscription = _pushQueue.onEvent().listen(_onQueueEvent);
+      _pushQueue.catchError((e, stackTrace) {
+        logger.network(
+          'Push requests failed',
+          e,
+          stackTrace,
+        );
+        return true;
+      });
+      if (store.snapshots != null) {
+        await store.snapshots.load();
+        _suuid = store.snapshots.last?.uuid;
+      }
+      final count = await replay();
+      if (!isRebuild) {
+        subscribe();
+        willStartProcessingEvents();
+      }
+      _isReady = true;
+      return count;
+    } finally {
+      if (isRebuild) {
+        store.resume();
+      }
     }
-    final count = await replay();
-    subscribe();
-    willStartProcessingEvents();
-    _ready = true;
-    return count;
   }
 
   void _onQueueEvent(event) {
@@ -1278,7 +1295,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// partial writes and commits which will result in an [EventNumberMismatch]
   /// being thrown by the [EventStoreConnection].
   ///
-  final _pushQueue = StreamRequestQueue<Iterable<DomainEvent>>();
+  var _pushQueue = StreamRequestQueue<Iterable<DomainEvent>>();
 
   /// Check if [push] or [execute] is possible
   bool get isMaximumPushPressure => maxPushPressure != null && pressure >= maxPushPressure;
@@ -1761,8 +1778,22 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
             'ready': _pushQueue.isReady,
             'disposed': _pushQueue.isDisposed,
           },
-          'counts': {
-            'failed': _pushQueue.failed,
+          'requests': {
+            if (_pushQueue.last != null)
+              'last': {
+                'type': '${_pushQueue.last.runtimeType}',
+                'timestamp': '${_pushQueue.lastAt.toIso8601String()}',
+              },
+            if (_pushQueue.current != null)
+              'current': {
+                'type': '${_pushQueue.current.runtimeType}',
+                'timestamp': '${_pushQueue.currentAt.toIso8601String()}',
+              }
+          },
+          'stats': {
+            'queued': _pushQueue.length,
+            'started': _pushQueue.started,
+            'failures': _pushQueue.failures,
             'timeouts': _pushQueue.timeouts,
             'processed': _pushQueue.processed,
             'cancelled': _pushQueue.cancelled,

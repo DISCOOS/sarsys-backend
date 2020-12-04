@@ -1,8 +1,8 @@
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:event_source/event_source.dart';
 import 'package:meta/meta.dart';
-import 'package:async/async.dart';
 
 class StreamRequestQueue<T> {
   StreamRequestQueue();
@@ -12,18 +12,21 @@ class StreamRequestQueue<T> {
   /// List of scheduled [StreamRequest]s.
   ///
   /// Used to track and dequeue requests.
-  final _requests = <StreamRequest<T>>[];
+  final ListQueue<StreamRequest<T>> _requests = ListQueue();
 
-  /// List of peeked [StreamRequest]s.
+  /// List of started [StreamRequest]s.
   ///
   /// Used to track and dequeue requests.
-  final _scheduled = <StreamRequest<T>>{};
+  final _started = <StreamRequest<T>>{};
 
   /// Stream of [StreamEvent]s
   final StreamController<StreamEvent> _onEventController = StreamController.broadcast();
 
+  /// Number of started requests
+  int get started => _started.length;
+
   /// Get number of processed [StreamRequest]s from creation
-  int get processed => _timeouts + _failed + _cancelled + _completed;
+  int get processed => _timeouts + _failures + _cancelled + _completed;
 
   /// Get number of timeouts from creation
   int get timeouts => _timeouts;
@@ -34,15 +37,12 @@ class StreamRequestQueue<T> {
   int _cancelled = 0;
 
   /// Get number of failed [StreamRequest] from creation
-  int get failed => _failed;
-  int _failed = 0;
+  int get failures => _failures;
+  int _failures = 0;
 
   /// Get number of completed [StreamRequest] from creation
   int get completed => _completed;
   int _completed = 0;
-
-  StreamQueue<StreamRequest<T>> _queue;
-  StreamController<StreamRequest<T>> _dispatcher;
 
   /// Set Error callback.
   ///
@@ -61,7 +61,7 @@ class StreamRequestQueue<T> {
   bool get isEmpty => _requests.isEmpty;
 
   /// Check if queue is ready for processing
-  bool get isReady => !(_isDisposed || _queue == null);
+  bool get isReady => !_isDisposed;
 
   /// Check if queue is disposed
   bool get isDisposed => _isDisposed;
@@ -89,13 +89,13 @@ class StreamRequestQueue<T> {
   /// Returns the index of [StreamRequest] with given [key].
   int indexOf(String key) {
     _checkState();
-    return _requests.indexWhere((element) => element.key == key);
+    return _requests.toList().indexWhere((element) => element.key == key);
   }
 
   /// Get [StreamRequest] from given [key].
   ///Returns [null] if not found.
   StreamRequest<T> elementAt(String key) {
-    return contains(key) ? _requests[indexOf(key)] : null;
+    return contains(key) ? _requests.elementAt(indexOf(key)) : null;
   }
 
   /// Check if [StreamRequest] with given [key] is at head of queue
@@ -120,13 +120,11 @@ class StreamRequestQueue<T> {
   /// Schedule [request] for execution
   bool add(StreamRequest<T> request) {
     _checkState();
-    _prepare();
 
     // Duplicates not allowed
     final exists = contains(request.key);
     if (!exists) {
       _requests.add(request);
-      _dispatcher.add(request);
       _onEventController.add(StreamRequestAdded(
         request,
       ));
@@ -150,7 +148,7 @@ class StreamRequestQueue<T> {
     }
     final found = _requests.where((element) => element.key == key).toList();
     found.forEach(_requests.remove);
-    found.forEach(_scheduled.remove);
+    found.forEach(_started.remove);
     _cancelled += found.length;
     return found.isNotEmpty;
   }
@@ -167,52 +165,45 @@ class StreamRequestQueue<T> {
   }
 
   /// Process scheduled requests
-  Future<void> _process() async {
+  void _process() async {
     if (isIdle) {
       try {
         _isIdle = false;
         while (_hasNext) {
-          if (isProcessing) {
-            final request = await _next();
-            if (isProcessing) {
-              if (contains(request.key)) {
-                _current = request;
-                if (await _shouldExecute(request)) {
-                  if (isProcessing && contains(request.key)) {
-                    _last = await _execute(request);
-                  }
-                }
-                _current = null;
-              }
+          final request = await _next();
+          if (contains(request?.key)) {
+            _last = await _execute(request);
+            _lastAt = DateTime.now();
+            if (_last.isStop) {
+              stop();
             }
-            // If skipped
-            await _pop(request);
           }
+          // If skipped
+          _pop(request);
         }
       } catch (e, stackTrace) {
+        _current = null;
         _handleError(e, stackTrace);
       }
       stop();
     }
   }
 
-  Future _pop(StreamRequest request) {
-    if (_scheduled.remove(request) && !_isDisposed) {
+  void _pop(StreamRequest request) {
+    if (_started.remove(request)) {
       _requests.remove(request);
-      return _queue.next;
     }
-    return Future.value();
   }
 
   Future<StreamRequest> _next() async {
-    var next = await _peek();
+    var next = _peek();
     // Loop until valid request is found
     while (next != null && (next.isTimedOut || !contains(next.key))) {
       if (contains(next.key)) {
         _onEventController.add(StreamRequestTimeout(
           next,
         ));
-        await _pop(next);
+        _pop(next);
         _timeouts++;
         if (next.fail) {
           _handleError(
@@ -227,49 +218,58 @@ class StreamRequestQueue<T> {
         }
       }
       // Peek for next request if exists
-      next = await _peek();
+      next = _peek();
     }
     return next;
   }
 
-  Future<StreamRequest> _peek() async {
-    final next = _hasNext ? await _queue.peek : null;
+  StreamRequest<T> _peek() {
+    final next = _hasNext ? _requests.first : null;
     if (next != null) {
-      _scheduled.add(next);
+      _started.add(next);
     }
     return next;
   }
 
   Future<T> _onFallback(StreamRequest<T> request) => request.fallback == null ? Future<T>.value() : request.fallback();
 
-  /// Prepare queue for requests
-  void _prepare() {
-    if (_dispatcher == null) {
-      _dispatcher = StreamController();
-      _queue = StreamQueue(
-        _dispatcher.stream,
-      );
-    }
-  }
-
   /// Get request currently processing
   StreamRequest<T> get current => _current;
   StreamRequest<T> _current;
 
+  /// [DateTime] when execution of current request was started
+  DateTime get currentAt => _currentAt;
+  DateTime _currentAt;
+
+  /// Get last result
+  StreamResult<T> get last => _last;
   StreamResult<T> _last;
+
+  /// [DateTime] when execution of current request was started
+  DateTime get lastAt => _lastAt;
+  DateTime _lastAt;
 
   /// Execute given [request]
   Future<StreamResult<T>> _execute(StreamRequest<T> request) async {
     try {
-      _last = await request.execute();
+      _currentAt = DateTime.now();
+      _current = request;
+      final result = await request.execute().timeout(
+            request.reminder,
+          );
       return _onComplete(
         request,
-        _last,
+        result,
       );
     } catch (error, stackTrace) {
-      _failed++;
+      final isTimeout = error is TimeoutException;
+      if (isTimeout) {
+        _timeouts++;
+      } else {
+        _failures++;
+      }
       _handleError(
-        error,
+        isTimeout ? StreamRequestTimeoutException(this, request) : error,
         stackTrace,
         request: request,
       );
@@ -281,6 +281,9 @@ class StreamRequestQueue<T> {
         result,
       ));
       return result;
+    } finally {
+      _current = null;
+      _currentAt = null;
     }
   }
 
@@ -288,15 +291,14 @@ class StreamRequestQueue<T> {
     StreamRequest<T> request,
     StreamResult<T> result,
   ) async {
-    await _pop(request);
+    _completed++;
+    _pop(request);
     _onEventController.add(StreamRequestCompleted(
       request,
       result,
     ));
-    if (result.isStop) {
-      stop();
-    } else if (result.isError) {
-      _failed++;
+    if (result.isError) {
+      _failures++;
       _handleError(
         result.error,
         result.stackTrace,
@@ -316,19 +318,6 @@ class StreamRequestQueue<T> {
   /// requests.
   ///
   bool get _hasNext => isProcessing && _requests.isNotEmpty;
-
-  Future<bool> _shouldExecute(StreamRequest<T> request) async {
-    if (isProcessing && _requests.contains(request)) {
-      return true;
-    }
-    if (request.onResult?.isCompleted == false) {
-      _completed++;
-      request.onResult?.complete(
-        await _onFallback(request),
-      );
-    }
-    return false;
-  }
 
   /// Error handler.
   /// Will complete [onResult]
@@ -402,18 +391,15 @@ class StreamRequestQueue<T> {
   /// `cancel` of the underlying stream.
   ///
   Future<void> dispose() async {
-    _checkState();
-    _cancelled += clear().length;
     if (!_isDisposed) {
-      clear();
-      stop();
+      cancel();
       _isDisposed = true;
-      if (_requests.isNotEmpty && _queue != null) {
-        await _queue.cancel(immediate: true);
-      }
-      _queue = null;
+      _requests.clear();
+      _started.clear();
+      _last = null;
+      _lastAt = null;
       _current = null;
-      _dispatcher = null;
+      _currentAt = null;
       if (_onEventController.hasListener) {
         await _onEventController.close();
       }
@@ -428,7 +414,7 @@ class StreamRequestQueue<T> {
   String toString() => '$runtimeType{\n'
       '  isIdle: $_isIdle,\n'
       '  pending: ${_requests.length},\n'
-      '  failed: $_failed,\n'
+      '  failed: $_failures,\n'
       '  timeouts: $_timeouts,\n'
       '  cancelled: $_cancelled,\n'
       '  completed: $_completed,\n'
@@ -471,14 +457,16 @@ class StreamQueueIdle extends StreamEvent {
 
 @Immutable()
 class StreamRequest<T> {
+  static const Duration timeLimit = Duration(seconds: 30);
+
   StreamRequest({
     @required this.execute,
     String key,
     this.tag,
-    this.timeout,
     this.fallback,
     this.onResult,
     this.fail = false,
+    this.timeout = timeLimit,
   }) : _key = key;
 
   final bool fail;
@@ -489,6 +477,7 @@ class StreamRequest<T> {
   final DateTime created = DateTime.now();
   final Future<StreamResult<T>> Function() execute;
 
+  Duration get reminder => timeout - DateTime.now().difference(created);
   bool get isTimedOut => timeout != null && DateTime.now().difference(created) > timeout;
 
   Object get key => _key ?? '${super.hashCode}';
