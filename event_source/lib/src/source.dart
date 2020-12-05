@@ -647,7 +647,7 @@ class EventStore {
 
   /// Subscription controller for each repository
   /// subscribing to events from [canonicalStream]
-  final _controllers = <Type, SubscriptionController>{};
+  final _controllers = <Type, EventStoreSubscriptionController>{};
 
   /// Subscribe given [repository] to compete for changes from [canonicalStream]
   ///
@@ -659,7 +659,7 @@ class EventStore {
   ///
   /// Throws an [InvalidOperation] if [Repository.store] is not this [EventStore]
   /// Throws an [InvalidOperation] if [Repository] is already subscribing to events
-  Future compete(
+  Future<EventStoreSubscriptionController> compete(
     Repository repository, {
     int consume = 20,
     ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
@@ -675,7 +675,7 @@ class EventStore {
     // Get existing or create new
     final controller = await _subscribe(
       _controllers[repository.runtimeType] ??
-          SubscriptionController(
+          EventStoreSubscriptionController(
             logger: logger,
             onDone: _onSubscriptionDone,
             onEvent: _onSubscriptionEvent,
@@ -688,13 +688,14 @@ class EventStore {
       strategy: strategy,
     );
     _controllers[repository.runtimeType] = controller;
+    return controller;
   }
 
   /// Subscribe given [repo] to receive changes from [canonicalStream]
   ///
   /// Throws an [InvalidOperation] if [Repository.store] is not this [EventStore]
   /// Throws an [InvalidOperation] if [Repository] is already subscribing to events
-  Future subscribe(
+  Future<EventStoreSubscriptionController> subscribe(
     Repository repo, {
     Duration maxBackoffTime = const Duration(seconds: 10),
   }) async {
@@ -708,7 +709,7 @@ class EventStore {
     // Get existing or create new
     final controller = await _subscribe(
       _controllers[repo.runtimeType] ??
-          SubscriptionController(
+          EventStoreSubscriptionController(
             logger: logger,
             onDone: _onSubscriptionDone,
             onEvent: _onSubscriptionEvent,
@@ -719,10 +720,11 @@ class EventStore {
       competing: false,
     );
     _controllers[repo.runtimeType] = controller;
+    return controller;
   }
 
-  Future<SubscriptionController> _subscribe(
-    SubscriptionController controller,
+  Future<EventStoreSubscriptionController> _subscribe(
+    EventStoreSubscriptionController controller,
     Repository repository, {
     int consume = 20,
     bool competing = false,
@@ -1105,8 +1107,8 @@ class EventStore {
 }
 
 /// Class for handling a subscription with automatic reconnection on failures
-class SubscriptionController<T extends Repository> {
-  SubscriptionController({
+class EventStoreSubscriptionController<T extends Repository> {
+  EventStoreSubscriptionController({
     @required this.onEvent,
     @required this.onDone,
     @required this.onError,
@@ -1152,7 +1154,7 @@ class SubscriptionController<T extends Repository> {
   /// Subscribe to events from given stream.
   ///
   /// Cancels previous subscriptions if exists
-  Future<SubscriptionController<T>> subscribe(
+  Future<EventStoreSubscriptionController<T>> subscribe(
     T repository, {
     @required String stream,
     EventNumber number = EventNumber.first,
@@ -1184,7 +1186,7 @@ class SubscriptionController<T extends Repository> {
   /// Compete for events from given stream.
   ///
   /// Cancels previous subscriptions if exists
-  Future<SubscriptionController<T>> compete(
+  Future<EventStoreSubscriptionController<T>> compete(
     T repository, {
     @required String stream,
     @required String group,
@@ -1244,17 +1246,19 @@ class SubscriptionController<T extends Repository> {
       );
       await _subscription?.cancel();
       if (_competing) {
-        _subscription = await repository.store.compete(
+        final controller = await repository.store.compete(
           repository,
           consume: _consume,
           strategy: _strategy,
           maxBackoffTime: maxBackoffTime,
         );
+        _subscription = controller._subscription;
       } else {
-        _subscription = await repository.store.subscribe(
+        final controller = await repository.store.subscribe(
           repository,
           maxBackoffTime: maxBackoffTime,
         );
+        _subscription = controller._subscription;
       }
     } catch (e, stackTrace) {
       logger.network('Failed to reconnect: $e: $stackTrace', e, stackTrace);
@@ -1764,7 +1768,7 @@ class EventStoreConnection {
   }) {
     _assertState();
 
-    final controller = _SubscriptionController(
+    final controller = _EventStoreSubscriptionControllerImpl(
       this,
     );
 
@@ -1788,7 +1792,7 @@ class EventStoreConnection {
   }) {
     _assertState();
 
-    final controller = _SubscriptionController(
+    final controller = _EventStoreSubscriptionControllerImpl(
       this,
     );
 
@@ -2295,8 +2299,8 @@ enum SubscriptionAction {
 }
 
 /// Implements periodic fetch of events from event-store
-class _SubscriptionController {
-  _SubscriptionController(this.connection) : logger = connection._logger {
+class _EventStoreSubscriptionControllerImpl {
+  _EventStoreSubscriptionControllerImpl(this.connection) : logger = connection._logger {
     _readQueue.catchError((e, stackTrace) {
       logger.severe(
         'Processing fetch requests failed with: $e',

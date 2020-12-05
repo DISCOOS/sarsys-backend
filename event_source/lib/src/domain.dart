@@ -776,47 +776,43 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   bool contains(String uuid) => _aggregates.containsKey(uuid);
 
   /// Used in [dispose] to close open subscriptions
-  StreamSubscription _subscription;
+  StreamSubscription _pushQueueSubscription;
+
+  /// Used in [dispose] to close open subscriptions
+  EventStoreSubscriptionController _storeSubscriptionController;
 
   /// Build repository from [store].
   /// Returns number of events processed.
   Future<int> build() async {
-    final isRebuild = _subscription != null;
-    // Listen for push-queue to finish processing
-    try {
-      if (isRebuild) {
-        _isReady = false;
-        store.pause();
-        await _subscription.cancel();
-        await _pushQueue.dispose();
-        _pushQueue = StreamRequestQueue<Iterable<DomainEvent>>();
-      }
-
-      _subscription = _pushQueue.onEvent().listen(_onQueueEvent);
-      _pushQueue.catchError((e, stackTrace) {
-        logger.network(
-          'Push requests failed',
-          e,
-          stackTrace,
-        );
-        return false;
-      });
-      if (store.snapshots != null) {
-        await store.snapshots.load();
-        _suuid = store.snapshots.last?.uuid;
-      }
-      final count = await replay();
-      if (!isRebuild) {
-        subscribe();
-        willStartProcessingEvents();
-      }
-      _isReady = true;
-      return count;
-    } finally {
-      if (isRebuild) {
-        store.resume();
-      }
+    final isRebuild = _isReady;
+    if (isRebuild) {
+      _isReady = false;
+      await _pushQueue.dispose();
+      await _pushQueueSubscription.cancel();
+      await _storeSubscriptionController.cancel();
+      _pushQueue = StreamRequestQueue<Iterable<DomainEvent>>();
     }
+
+    _pushQueueSubscription = _pushQueue.onEvent().listen(_onQueueEvent);
+    _pushQueue.catchError((e, stackTrace) {
+      logger.network(
+        'Push requests failed',
+        e,
+        stackTrace,
+      );
+      return false;
+    });
+    if (store.snapshots != null) {
+      await store.snapshots.load();
+      _suuid = store.snapshots.last?.uuid;
+    }
+    final count = await replay();
+    _storeSubscriptionController = await subscribe();
+    if (!isRebuild) {
+      willStartProcessingEvents();
+    }
+    _isReady = true;
+    return count;
   }
 
   void _onQueueEvent(event) {
@@ -896,7 +892,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       );
 
   /// Subscribe this [source] to receive all changes from [store]
-  void subscribe({
+  Future<EventStoreSubscriptionController> subscribe({
     Duration maxBackoffTime = const Duration(seconds: 10),
   }) =>
       store.subscribe(
@@ -1747,13 +1743,14 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   ///
   /// Can not be called after this.
   Future<void> dispose() async {
-    _pushQueue.cancel();
     _aggregates.clear();
-    await _subscription?.cancel();
+    await _pushQueue?.dispose();
+    await _pushQueueSubscription?.cancel();
+    await _storeSubscriptionController?.cancel();
     if (_ruleController.hasListener) {
       await _ruleController.close();
     }
-    return _pushQueue.dispose();
+    return Future.value();
   }
 
   @override

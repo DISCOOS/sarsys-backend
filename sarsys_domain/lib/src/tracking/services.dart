@@ -86,7 +86,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
   final Map<String, Set<String>> _sources = {};
   final Logger logger = Logger('$TrackingService');
 
-  SubscriptionController<TrackingRepository> _subscription;
+  EventStoreSubscriptionController<TrackingRepository> _subscription;
 
   /// Get [Tracking] instances managed by this [TrackingService]
   Set<String> get managed => UnmodifiableSetView(_managed);
@@ -131,7 +131,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
 
     // Start competition with other tracking service instances
     await _subscription?.cancel();
-    _subscription = SubscriptionController<TrackingRepository>(
+    _subscription = EventStoreSubscriptionController<TrackingRepository>(
       logger: logger,
       onDone: _onDone,
       onEvent: _onEvent,
