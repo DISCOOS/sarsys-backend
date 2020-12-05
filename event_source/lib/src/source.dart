@@ -2135,7 +2135,7 @@ class _EventStreamController {
       _stopRead();
     } catch (e, stackTrace) {
       _fatal(
-        'Failed to read stream $_stream@$_number in direction $_direction, error: $e',
+        'Failed to read stream $_stream@$_current in direction $_direction, error: $e',
         stackTrace,
       );
     }
@@ -2450,6 +2450,7 @@ class _SubscriptionController {
           // Timer will fire before previous read has completed
           if (_readQueue.isEmpty) {
             _readQueue.add(StreamRequest<FeedResult>(
+              tag: '$stream: $stream, number: $current',
               execute: () async {
                 final next = await _readNext();
                 return queue.StreamResult(
