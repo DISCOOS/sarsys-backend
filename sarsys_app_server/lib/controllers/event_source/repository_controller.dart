@@ -28,6 +28,7 @@ class RepositoryController extends ResourceController {
   @Operation.get('type')
   Future<Response> getMeta(
     @Bind.path('type') String type,
+    @Bind.query('expand') String expand,
   ) async {
     try {
       final repository = manager.getFromTypeName(type);
@@ -37,7 +38,12 @@ class RepositoryController extends ResourceController {
         );
       }
       return Response.ok(
-        repository.getMeta(),
+        repository.getMeta(
+          data: _shouldExpand(expand, 'data'),
+          queue: _shouldExpand(expand, 'queue'),
+          items: _shouldExpand(expand, 'items'),
+          snapshot: _shouldExpand(expand, 'snapshot'),
+        ),
       );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
@@ -51,6 +57,7 @@ class RepositoryController extends ResourceController {
   Future<Response> getMetaWithAggregate(
     @Bind.path('type') String type,
     @Bind.path('uuid') String uuid,
+    @Bind.query('expand') String expand,
   ) async {
     try {
       final repository = manager.getFromTypeName(type);
@@ -67,6 +74,10 @@ class RepositoryController extends ResourceController {
       return Response.ok(
         repository.getMeta(
           uuid: uuid,
+          data: _shouldExpand(expand, 'data'),
+          queue: _shouldExpand(expand, 'queue'),
+          items: _shouldExpand(expand, 'items'),
+          snapshot: _shouldExpand(expand, 'snapshot'),
         ),
       );
     } on InvalidOperation catch (e) {
@@ -103,6 +114,17 @@ class RepositoryController extends ResourceController {
     } catch (e, stackTrace) {
       return toServerError(e, stackTrace);
     }
+  }
+
+  bool _shouldExpand(String expand, String field) {
+    final elements = expand?.split(',') ?? <String>[];
+    if (elements.any((element) => element.toLowerCase() == field)) {
+      return true;
+    }
+    elements.removeWhere(
+      (e) => !const ['snapshot', 'queue', 'items', 'data'].contains(e),
+    );
+    return false;
   }
 
   String _assertCommand(Map<String, dynamic> body) {
@@ -149,6 +171,21 @@ class RepositoryController extends ResourceController {
   @override
   String documentOperationDescription(APIDocumentContext context, Operation operation) {
     return "${documentOperationSummary(context, operation)}.";
+  }
+
+  @override
+  List<APIParameter> documentOperationParameters(APIDocumentContext context, Operation operation) {
+    final parameters = super.documentOperationParameters(context, operation);
+    switch (operation.method) {
+      case "GET":
+        parameters.add(
+          APIParameter.query('expand')
+            ..description = "Expand response with metadata. Legal values are: "
+                "'snapshot', 'queue', 'items' and 'data'",
+        );
+        break;
+    }
+    return parameters;
   }
 
   @override
