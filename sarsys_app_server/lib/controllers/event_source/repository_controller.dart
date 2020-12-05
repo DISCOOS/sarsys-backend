@@ -28,7 +28,7 @@ class RepositoryController<T extends AggregateRoot> extends ResourceController {
 
   @Scope(['roles:admin'])
   @Operation.get()
-  Future<Response> get() async {
+  Future<Response> getMeta() async {
     try {
       return Response.ok(
         repository.getMeta(),
@@ -41,8 +41,24 @@ class RepositoryController<T extends AggregateRoot> extends ResourceController {
   }
 
   @Scope(['roles:admin'])
+  @Operation.get('uuid')
+  Future<Response> getMetaWithAggregate(
+    @Bind.path('uuid') String uuid,
+  ) async {
+    try {
+      return Response.ok(
+        repository.getMeta(uuid),
+      );
+    } on InvalidOperation catch (e) {
+      return Response.badRequest(body: e.message);
+    } catch (e, stackTrace) {
+      return toServerError(e, stackTrace);
+    }
+  }
+
+  @Scope(['roles:admin'])
   @Operation.post()
-  Future<Response> post(
+  Future<Response> command(
     @Bind.body() Map<String, dynamic> body,
   ) async {
     try {

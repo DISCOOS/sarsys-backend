@@ -366,7 +366,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
                 requestValidator,
               ))
       ..secure(
-          '/api/repositories/devices',
+          '/api/repositories/devices[/:uuid]',
           () => RepositoryController<Device>(
                 manager.get<DeviceRepository>(),
                 tag: 'System',

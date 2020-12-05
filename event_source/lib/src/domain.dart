@@ -1765,47 +1765,80 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         'pending.commands: ${_commands.length}}';
   }
 
-  Map<String, dynamic> getMeta([String uuid]) => {
-        'type': '$aggregateType',
+  Map<String, dynamic> getMeta([String uuid]) {
+    final aggregate = _aggregates[uuid];
+    return {
+      'type': '$aggregateType',
+      'aggregates': <String, dynamic>{
         'count': count(),
-        'queue': {
-          'pressure': {
-            'push': _pushQueue.length,
-            'command': _commands.length,
-            'total': _pushQueue.length + _commands.length,
-            'maximum': maxPushPressure,
-            'exceeded': isMaximumPushPressure
-          },
-          'status': {
-            'idle': _pushQueue.isIdle,
-            'ready': _pushQueue.isReady,
-            'disposed': _pushQueue.isDisposed,
-          },
-          'requests': {
-            if (_pushQueue.last != null)
-              'last': {
-                'key': '${_pushQueue.last.key}',
-                'tag': '${_pushQueue.last.tag}',
-                'timestamp': '${_pushQueue.lastAt.toIso8601String()}',
-              },
-            if (_pushQueue.current != null)
-              'current': {
-                'key': '${_pushQueue.current.key}',
-                'tag': '${_pushQueue.current.tag}',
-                'timestamp': '${_pushQueue.currentAt.toIso8601String()}',
-              },
-          },
-          'stats': {
-            'queued': _pushQueue.length,
-            'started': _pushQueue.started,
-            'failures': _pushQueue.failures,
-            'timeouts': _pushQueue.timeouts,
-            'processed': _pushQueue.processed,
-            'cancelled': _pushQueue.cancelled,
-            'completed': _pushQueue.completed,
-          },
+        'changed': _aggregates.values.where((aggregate) => aggregate.isChanged).length,
+        'transactions': _transactions.length,
+      },
+      'number': number.value,
+      'queue': {
+        'pressure': {
+          'push': _pushQueue.length,
+          'command': _commands.length,
+          'total': _pushQueue.length + _commands.length,
+          'maximum': maxPushPressure,
+          'exceeded': isMaximumPushPressure
         },
-      };
+        'status': {
+          'idle': _pushQueue.isIdle,
+          'ready': _pushQueue.isReady,
+          'disposed': _pushQueue.isDisposed,
+        },
+        'requests': {
+          if (_pushQueue.last != null)
+            'last': {
+              'key': '${_pushQueue.last.key}',
+              'tag': '${_pushQueue.last.tag}',
+              'timestamp': '${_pushQueue.lastAt.toIso8601String()}',
+            },
+          if (_pushQueue.current != null)
+            'current': {
+              'key': '${_pushQueue.current.key}',
+              'tag': '${_pushQueue.current.tag}',
+              'timestamp': '${_pushQueue.currentAt.toIso8601String()}',
+            },
+        },
+        'stats': {
+          'queued': _pushQueue.length,
+          'started': _pushQueue.started,
+          'failures': _pushQueue.failures,
+          'timeouts': _pushQueue.timeouts,
+          'processed': _pushQueue.processed,
+          'cancelled': _pushQueue.cancelled,
+          'completed': _pushQueue.completed,
+        },
+        if (aggregate != null)
+          'aggregate': <String, dynamic>{
+            'uuid': uuid,
+            'number': aggregate.number.value,
+            'created': <String, dynamic>{
+              'uuid': aggregate.createdBy?.uuid,
+              'type': aggregate.createdBy?.runtimeType,
+              'timestamp': aggregate.createdWhen.toIso8601String(),
+            },
+            'changed': <String, dynamic>{
+              'uuid': aggregate.changedBy?.uuid,
+              'type': aggregate.changedBy?.runtimeType,
+              'timestamp': aggregate.changedWhen.toIso8601String(),
+            },
+            'modifications': aggregate.modifications,
+            'applied': <String, dynamic>{
+              'count': aggregate.applied?.length,
+            },
+            'data': aggregate.data,
+            'transaction': inTransaction(uuid),
+            'pending': <String, dynamic>{
+              'count': aggregate.getLocalEvents()?.length,
+              'items': aggregate.getLocalEvents(),
+            },
+          },
+      },
+    };
+  }
 }
 
 /// Base class for [aggregate roots](https://martinfowler.com/bliki/DDD_Aggregate.html).
