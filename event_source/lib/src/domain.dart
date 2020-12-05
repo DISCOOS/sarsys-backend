@@ -799,7 +799,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           e,
           stackTrace,
         );
-        return true;
+        return false;
       });
       if (store.snapshots != null) {
         await store.snapshots.load();
@@ -1451,7 +1451,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         error: error,
         stackTrace: stackTrace,
       );
-      return StreamResult.none(
+      return StreamResult.fail(
+        error,
+        stackTrace,
         tag: transaction.tag,
       );
     } finally {
@@ -1500,7 +1502,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         error: error,
         stackTrace: stackTrace,
       );
-      return StreamResult.none(
+      return StreamResult.fail(
+        error,
+        stackTrace,
         tag: transaction.tag,
       );
     }
