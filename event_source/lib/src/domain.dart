@@ -315,7 +315,9 @@ class RepositoryManager {
   /// Get [Repository] from given [type] name
   Repository getFromTypeName(String type) {
     final match = type.toLowerCase();
-    final items = _stores.keys.where((type) => '$type'.toLowerCase() == match);
+    final items = _stores.keys.where(
+      (e) => '${e.aggregateType}'.toLowerCase() == match,
+    );
     return items.isEmpty ? null : items.first;
   }
 
@@ -1772,7 +1774,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         'pending.commands: ${_commands.length}}';
   }
 
-  Map<String, dynamic> getMeta([String uuid]) {
+  Map<String, dynamic> getMeta({
+    String uuid,
+    bool items = true,
+    bool data = true,
+  }) {
     final aggregate = _aggregates[uuid];
     return {
       'type': '$aggregateType',
@@ -1818,34 +1824,87 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           'cancelled': _pushQueue.cancelled,
           'completed': _pushQueue.completed,
         },
-        if (aggregate == null)
-          'aggregate': <String, dynamic>{
-            'uuid': uuid,
-            'number': aggregate.number.value,
-            'created': <String, dynamic>{
-              'uuid': aggregate.createdBy?.uuid,
-              'type': aggregate.createdBy?.runtimeType,
-              'timestamp': aggregate.createdWhen.toIso8601String(),
-            },
-            'changed': <String, dynamic>{
-              'uuid': aggregate.changedBy?.uuid,
-              'type': aggregate.changedBy?.runtimeType,
-              'timestamp': aggregate.changedWhen.toIso8601String(),
-            },
-            'modifications': aggregate.modifications,
-            'applied': <String, dynamic>{
-              'count': aggregate.applied?.length,
-            },
-            'data': aggregate.data,
-            'transaction': inTransaction(uuid),
-            'pending': <String, dynamic>{
-              'count': aggregate.getLocalEvents()?.length,
-              'items': aggregate.getLocalEvents(),
-            },
-          },
       },
+      if (hasSnapshot)
+        'snapshot': {
+          'uuid': snapshot.uuid,
+          'number': snapshot.number,
+          'aggregates': {
+            'count': snapshot.aggregates.length,
+            if (items)
+              'items': [
+                snapshot.aggregates.values.map((a) => {
+                      'uuid': a.uuid,
+                      'number': a.number,
+                      'created': <String, dynamic>{
+                        'uuid': a.createdBy?.uuid,
+                        'type': '${a.createdBy?.runtimeType}',
+                        'timestamp': a.createdWhen.toIso8601String(),
+                      },
+                      'changed': <String, dynamic>{
+                        'uuid': a.changedBy?.uuid,
+                        'type': '${a.changedBy?.runtimeType}',
+                        'timestamp': a.changedWhen.toIso8601String(),
+                      },
+                      if (data) 'data': a.data,
+                    }),
+              ]
+          },
+        },
+      if (aggregate != null)
+        'aggregate': _toAggregateMeta(
+          aggregate,
+          data: data,
+          items: items,
+        ),
     };
   }
+
+  Map<String, dynamic> _toAggregateMeta(
+    AggregateRoot aggregate, {
+    bool data = true,
+    bool items = true,
+  }) =>
+      <String, dynamic>{
+        'uuid': aggregate.uuid,
+        'number': aggregate.number.value,
+        'created': <String, dynamic>{
+          'uuid': aggregate.createdBy?.uuid,
+          'type': '${aggregate.createdBy?.runtimeType}',
+          'timestamp': aggregate.createdWhen.toIso8601String(),
+        },
+        'changed': <String, dynamic>{
+          'uuid': aggregate.changedBy?.uuid,
+          'type': '${aggregate.changedBy?.runtimeType}',
+          'timestamp': aggregate.changedWhen.toIso8601String(),
+        },
+        'modifications': aggregate.modifications,
+        'applied': <String, dynamic>{
+          'count': aggregate.applied?.length,
+        },
+        if (data) 'data': aggregate.data,
+        'transaction': inTransaction(aggregate.uuid),
+        'pending': <String, dynamic>{
+          'count': aggregate.getLocalEvents()?.length,
+          if (items)
+            'items': [
+              ...aggregate
+                  .getLocalEvents()
+                  .map((e) => {
+                        'type': e.type,
+                        'number': e.number,
+                        'created': e.created,
+                        if (data)
+                          'data': {
+                            'prev': e.previous,
+                            'next': e.changed,
+                            'patches': e.patches,
+                          },
+                      })
+                  .toList(),
+            ],
+        },
+      };
 }
 
 /// Base class for [aggregate roots](https://martinfowler.com/bliki/DDD_Aggregate.html).

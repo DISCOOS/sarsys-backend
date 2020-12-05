@@ -32,7 +32,7 @@ class RepositoryController extends ResourceController {
     try {
       final repository = manager.getFromTypeName(type);
       if (repository == null) {
-        Response.notFound(
+        return Response.notFound(
           body: 'Repository for type $type not found',
         );
       }
@@ -65,7 +65,9 @@ class RepositoryController extends ResourceController {
         );
       }
       return Response.ok(
-        repository.getMeta(uuid),
+        repository.getMeta(
+          uuid: uuid,
+        ),
       );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
