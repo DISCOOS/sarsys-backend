@@ -1838,7 +1838,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   Map<String, Object> _toSnapshotMeta(bool items, bool data) {
     return {
       'uuid': snapshot.uuid,
-      'number': snapshot.number,
+      'number': snapshot.number.value,
       'aggregates': {
         'count': snapshot.aggregates.length,
         if (items)
@@ -1846,7 +1846,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
             ...snapshot.aggregates.values
                 .map((a) => {
                       'uuid': a.uuid,
-                      'number': a.number,
+                      'number': a.number.value,
                       'created': <String, dynamic>{
                         'uuid': a.createdBy?.uuid,
                         'type': '${a.createdBy?.type}',
@@ -1897,8 +1897,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
                   .getLocalEvents()
                   .map((e) => {
                         'type': e.type,
-                        'number': e.number,
-                        'created': e.created,
+                        'number': e.number.value,
+                        'created': e.created.toIso8601String(),
                         if (data)
                           'data': {
                             'prev': e.previous,
