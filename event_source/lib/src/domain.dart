@@ -1849,12 +1849,12 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
                       'number': a.number,
                       'created': <String, dynamic>{
                         'uuid': a.createdBy?.uuid,
-                        'type': '${a.createdBy?.runtimeType}',
+                        'type': '${a.createdBy?.type}',
                         'timestamp': a.createdWhen.toIso8601String(),
                       },
                       'changed': <String, dynamic>{
                         'uuid': a.changedBy?.uuid,
-                        'type': '${a.changedBy?.runtimeType}',
+                        'type': '${a.changedBy?.type}',
                         'timestamp': a.changedWhen.toIso8601String(),
                       },
                       if (data) 'data': a.data,
@@ -1875,12 +1875,12 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         'number': aggregate.number.value,
         'created': <String, dynamic>{
           'uuid': aggregate.createdBy?.uuid,
-          'type': '${aggregate.createdBy?.runtimeType}',
+          'type': '${aggregate.createdBy?.type}',
           'timestamp': aggregate.createdWhen.toIso8601String(),
         },
         'changed': <String, dynamic>{
           'uuid': aggregate.changedBy?.uuid,
-          'type': '${aggregate.changedBy?.runtimeType}',
+          'type': '${aggregate.changedBy?.type}',
           'timestamp': aggregate.changedWhen.toIso8601String(),
         },
         'modifications': aggregate.modifications,
