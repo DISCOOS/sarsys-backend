@@ -3,23 +3,21 @@ import 'package:event_source/event_source.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 
 /// A basic CRUD ResourceController for [Repository] metadata requests
-class RepositoryController<T extends AggregateRoot> extends ResourceController {
+class RepositoryController extends ResourceController {
   RepositoryController(
-    this.repository, {
+    this.manager, {
     @required this.tag,
   });
 
   final String tag;
 
-  final Repository repository;
-
-  Type get aggregateType => typeOf<T>();
+  final RepositoryManager manager;
 
   @override
-  FutureOr<RequestOrResponse> willProcessRequest(Request req) => repository.isReady
+  FutureOr<RequestOrResponse> willProcessRequest(Request req) => manager.isReady
       ? req
       : serviceUnavailable(
-          body: "Repository ${repository.runtimeType} is unavailable: build pending",
+          body: "Repositories are unavailable: build pending",
         );
 
   //////////////////////////////////
@@ -27,9 +25,17 @@ class RepositoryController<T extends AggregateRoot> extends ResourceController {
   //////////////////////////////////
 
   @Scope(['roles:admin'])
-  @Operation.get()
-  Future<Response> getMeta() async {
+  @Operation.get('type')
+  Future<Response> getMeta(
+    @Bind.path('type') String type,
+  ) async {
     try {
+      final repository = manager.getFromTypeName(type);
+      if (repository == null) {
+        Response.notFound(
+          body: 'Repository for type $type not found',
+        );
+      }
       return Response.ok(
         repository.getMeta(),
       );
@@ -41,11 +47,23 @@ class RepositoryController<T extends AggregateRoot> extends ResourceController {
   }
 
   @Scope(['roles:admin'])
-  @Operation.get('uuid')
+  @Operation.get('type', 'uuid')
   Future<Response> getMetaWithAggregate(
+    @Bind.path('type') String type,
     @Bind.path('uuid') String uuid,
   ) async {
     try {
+      final repository = manager.getFromTypeName(type);
+      if (repository == null) {
+        return Response.notFound(
+          body: 'Repository for type $type not found',
+        );
+      }
+      if (!repository.contains(uuid)) {
+        Response.notFound(
+          body: 'Aggregate ${repository.aggregateType} $uuid not found',
+        );
+      }
       return Response.ok(
         repository.getMeta(uuid),
       );
@@ -57,11 +75,18 @@ class RepositoryController<T extends AggregateRoot> extends ResourceController {
   }
 
   @Scope(['roles:admin'])
-  @Operation.post()
+  @Operation.post('type')
   Future<Response> command(
+    @Bind.path('type') String type,
     @Bind.body() Map<String, dynamic> body,
   ) async {
     try {
+      final repository = manager.getFromTypeName(type);
+      if (repository == null) {
+        return Response.notFound(
+          body: 'Repository for type $type not found',
+        );
+      }
       final command = _assertCommand(body);
       switch (command) {
         case 'rebuild':
@@ -110,10 +135,10 @@ class RepositoryController<T extends AggregateRoot> extends ResourceController {
     String summary;
     switch (operation.method) {
       case "GET":
-        summary = "Get $aggregateType repository metadata";
+        summary = "Get repository metadata";
         break;
       case "POST":
-        summary = "Execute command on $aggregateType repository";
+        summary = "Execute command on repository";
         break;
     }
     return summary;
@@ -175,12 +200,6 @@ class RepositoryController<T extends AggregateRoot> extends ResourceController {
       }
       if (object.description?.isNotEmpty == false) {
         object.description = "$name schema";
-      }
-      if (object.title == "$aggregateType" && object.required?.contains(repository.uuidFieldName) == false) {
-        if (!object.properties.containsKey(repository.uuidFieldName)) {
-          throw UnimplementedError("Property '${repository.uuidFieldName}' is required for aggregates");
-        }
-        object.required = ["uuid", ...object.required];
       }
       context.schema.register(name, object);
     });

@@ -117,6 +117,12 @@ class SarSysAppServerChannel extends ApplicationChannel {
                 messages,
               ))
       ..secure(
+          '/api/repositories/:type[/:uuid]',
+          () => RepositoryController(
+                manager,
+                tag: 'System',
+              ))
+      ..secure(
           '/api/app-configs[/:uuid]',
           () => AppConfigController(
                 manager.get<AppConfigRepository>(),
@@ -364,12 +370,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
           () => TrackingTrackPositionsController(
                 manager.get<TrackingRepository>(),
                 requestValidator,
-              ))
-      ..secure(
-          '/api/repositories/devices[/:uuid]',
-          () => RepositoryController<Device>(
-                manager.get<DeviceRepository>(),
-                tag: 'System',
               ))
       ..secure(
           '/api/devices[/:uuid]',

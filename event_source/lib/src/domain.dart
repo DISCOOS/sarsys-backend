@@ -312,6 +312,13 @@ class RepositoryManager {
     return items.isEmpty ? null : items.first;
   }
 
+  /// Get [Repository] from given [type] name
+  Repository getFromTypeName(String type) {
+    final match = type.toLowerCase();
+    final items = _stores.keys.where((type) => '$type'.toLowerCase() == match);
+    return items.isEmpty ? null : items.first;
+  }
+
   bool _isPaused = false;
 
   bool get isPaused => _isPaused;
@@ -1811,7 +1818,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           'cancelled': _pushQueue.cancelled,
           'completed': _pushQueue.completed,
         },
-        if (aggregate != null)
+        if (aggregate == null)
           'aggregate': <String, dynamic>{
             'uuid': uuid,
             'number': aggregate.number.value,
