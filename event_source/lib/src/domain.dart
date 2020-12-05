@@ -1825,15 +1825,26 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           'completed': _pushQueue.completed,
         },
       },
-      if (hasSnapshot)
-        'snapshot': {
-          'uuid': snapshot.uuid,
-          'number': snapshot.number,
-          'aggregates': {
-            'count': snapshot.aggregates.length,
-            if (items)
-              'items': [
-                snapshot.aggregates.values.map((a) => {
+      if (hasSnapshot) 'snapshot': _toSnapshotMeta(items, data),
+      if (aggregate != null)
+        'aggregate': _toAggregateMeta(
+          aggregate,
+          data: data,
+          items: items,
+        ),
+    };
+  }
+
+  Map<String, Object> _toSnapshotMeta(bool items, bool data) {
+    return {
+      'uuid': snapshot.uuid,
+      'number': snapshot.number,
+      'aggregates': {
+        'count': snapshot.aggregates.length,
+        if (items)
+          'items': [
+            ...snapshot.aggregates.values
+                .map((a) => {
                       'uuid': a.uuid,
                       'number': a.number,
                       'created': <String, dynamic>{
@@ -1847,16 +1858,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
                         'timestamp': a.changedWhen.toIso8601String(),
                       },
                       if (data) 'data': a.data,
-                    }),
-              ]
-          },
-        },
-      if (aggregate != null)
-        'aggregate': _toAggregateMeta(
-          aggregate,
-          data: data,
-          items: items,
-        ),
+                    })
+                .toList(),
+          ]
+      },
     };
   }
 
