@@ -270,7 +270,7 @@ class StreamRequestQueue<V> {
       }
       _handleError(
         isTimeout ? StreamRequestTimeoutException(this, request) : error,
-        stackTrace,
+        stackTrace ?? StackTrace.current,
         request: request,
       );
       final result = StreamResult(
@@ -507,6 +507,18 @@ class StreamResult<V> {
 
   static StreamResult<V> none<V>({String tag}) => StreamResult<V>(tag: tag);
   static StreamResult<V> stop<V>({String tag}) => StreamResult<V>(tag: tag, stop: true);
+  static StreamResult<V> fail<V>(
+    Object error,
+    StackTrace stackTrace, {
+    String tag,
+    bool stop = false,
+  }) =>
+      StreamResult<V>(
+        tag: tag,
+        stop: stop,
+        error: error,
+        stackTrace: stackTrace,
+      );
 
   final V value;
   final String key;
