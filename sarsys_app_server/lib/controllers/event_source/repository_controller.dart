@@ -27,9 +27,9 @@ class RepositoryController extends ResourceController {
   @Scope(['roles:admin'])
   @Operation.get('type')
   Future<Response> getMeta(
-    @Bind.path('type') String type,
+    @Bind.path('type') String type, {
     @Bind.query('expand') String expand,
-  ) async {
+  }) async {
     try {
       final repository = manager.getFromTypeName(type);
       if (repository == null) {
@@ -56,9 +56,9 @@ class RepositoryController extends ResourceController {
   @Operation.get('type', 'uuid')
   Future<Response> getMetaWithAggregate(
     @Bind.path('type') String type,
-    @Bind.path('uuid') String uuid,
+    @Bind.path('uuid') String uuid, {
     @Bind.query('expand') String expand,
-  ) async {
+  }) async {
     try {
       final repository = manager.getFromTypeName(type);
       if (repository == null) {
@@ -104,6 +104,24 @@ class RepositoryController extends ResourceController {
       switch (command) {
         case 'rebuild':
           await repository.build();
+          break;
+        case 'replay':
+          final uuids = body.listAt<String>(
+            'params/uuids',
+            defaultList: <String>[],
+          );
+          await repository.replay(
+            uuids: uuids,
+          );
+          break;
+        case 'catchup':
+          final uuids = body.listAt<String>(
+            'params/uuids',
+            defaultList: <String>[],
+          );
+          await repository.catchup(
+            uuids: uuids,
+          );
           break;
       }
       return Response.ok(
@@ -300,6 +318,15 @@ class RepositoryController extends ResourceController {
     return APISchemaObject.object({
       'action': APISchemaObject.string()
         ..description = "Repository action"
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+        ..enumerated = [
+          'rebuild',
+        ],
+      'params': APISchemaObject.object({
+        'uuids': APISchemaObject.array(ofType: APIType.string)
+          ..description = "List of aggregate uuids which command applies to"
+      })
+        ..description = "Command properties"
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..enumerated = [
           'rebuild',

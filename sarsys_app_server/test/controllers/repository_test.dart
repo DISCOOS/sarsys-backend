@@ -79,4 +79,42 @@ Future main() async {
 
     expect(data, isNotNull);
   });
+
+  test("POST /api/devices/{type} returns status code 200 for action 'replay' repository", () async {
+    // Arrange
+    final uuid = Uuid().v4();
+    final body = createDevice(uuid);
+    expectResponse(await harness.agent.post("/api/devices", body: body), 201, body: null);
+
+    final response = await harness.agent.post("/api/repositories/device", body: {
+      'action': 'replay',
+      'params': {
+        'uuids': [
+          uuid,
+        ],
+      }
+    });
+    final data = await response.body.decode();
+
+    expect(data, isNotNull);
+  });
+
+  test("POST /api/devices/{type} returns status code 200 for action 'catchup' aggregate", () async {
+    // Arrange
+    final uuid = Uuid().v4();
+    final body = createDevice(uuid);
+    expectResponse(await harness.agent.post("/api/devices", body: body), 201, body: null);
+
+    final response = await harness.agent.post("/api/repositories/device", body: {
+      'action': 'catchup',
+      'params': {
+        'uuids': [
+          uuid,
+        ],
+      }
+    });
+    final data = await response.body.decode();
+
+    expect(data, isNotNull);
+  });
 }
