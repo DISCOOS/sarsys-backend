@@ -236,7 +236,10 @@ abstract class AggregateRule {
   Future<bool> _shouldExecute(Command command, String uuid) async {
     if (command.action != Action.create) {
       if (!target.exists(uuid)) {
-        await target.catchUp(master: true);
+        await target.catchup(
+          master: true,
+          uuids: [uuid],
+        );
       }
       return target.exists(uuid);
     }

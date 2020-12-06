@@ -597,7 +597,10 @@ class TrackingService extends MessageHandler<DomainEvent> {
   /// head of event stream before checking if uuid exists.
   Future<bool> _checkTracking(String uuid) async {
     if (!repo.contains(uuid)) {
-      await repo.catchUp(master: true);
+      await repo.catchup(
+        master: true,
+        uuids: [uuid],
+      );
     }
     return repo.contains(uuid);
   }

@@ -249,10 +249,23 @@ class TestRoute {
     return false;
   }
 
-  bool _isPathPrefix(String test) => (test.length == path.length ||
-      test.length > path.length &&
-          (test.substring(path.length, path.length + 1).startsWith('\/') ||
-              test.substring(path.length).startsWith(RegExp(r'-\d*$'))));
+  bool _isPathPrefix(String test) {
+    if (test.length == path.length) {
+      return true;
+    } else if (test.length > path.length) {
+      // Canonical stream without instance number?
+      if (test.substring(path.length, path.length + 1).startsWith('\/') ||
+          test.substring(path.length).startsWith(RegExp(r'-\d*$'))) {
+        return true;
+      }
+      // Stream without instance number?
+      if (test.substring(path.length, path.length + 1).startsWith('-') ||
+          test.substring(path.length).startsWith(RegExp(r'-\d*.*$'))) {
+        return true;
+      }
+    }
+    return false;
+  }
 }
 
 class TestStream {
@@ -304,12 +317,13 @@ class TestStream {
     String uuid,
     Map<String, dynamic> oldData,
     Map<String, dynamic> newData, {
+    String eventId,
     DateTime updated,
     bool deleted = false,
     EventNumber number = EventNumber.first,
   }) =>
       {
-        'eventId': Uuid().v4(),
+        'eventId': eventId ?? Uuid().v4(),
         'eventType': '${typeOf<T>()}',
         'eventNumber': number.value,
         'updated': (updated ?? DateTime.now()).toIso8601String(),
@@ -370,7 +384,7 @@ class TestStream {
     if (type == null) {
       _unsupported(
         request,
-        message: 'Consumer strategy $strategy not suppored',
+        message: 'Consumer strategy $strategy not supported',
       );
     } else {
       final group = pattern.firstMatch(path).group(1);
@@ -598,10 +612,16 @@ class TestStream {
     return _instances.isNotEmpty;
   }
 
-  Map<String, Map<String, dynamic>> _toEventsFromPath(String path) {
+  Map<String, Map<String, dynamic>> _toEventsFromPath(
+    String path, {
+    bool ensure = true,
+  }) {
     if (useInstanceStreams) {
       final id = int.tryParse(path.split('-').last);
       if (id >= _instances.length) {
+        if (!ensure) {
+          return null;
+        }
         for (var i = _instances.length; i <= id; i++) {
           _instances.add(LinkedHashMap.from({}));
         }
@@ -618,31 +638,45 @@ class TestStream {
 
   void handleGET(HttpRequest request) {
     final path = request.uri.path;
-    final stream = RegExp.escape(canonicalStream);
+    if (!_handleGET(RegExp.escape(canonicalStream), path, request)) {
+      if (!_handleGET(RegExp.escape(instanceStream), path, request)) {
+        _unsupported(request);
+      }
+    }
+  }
+
+  bool _handleGET(String stream, String path, HttpRequest request) {
+    var handled = true;
     if (RegExp(asHead(stream)).hasMatch(path)) {
       // Fetch events from head and backwards
       _toAtomFeedResponse(
         request,
         path: path,
+        stream: stream,
+        events: _canonical,
         pattern: asHead(stream),
       );
     } else if (RegExp(asBackward(stream)).hasMatch(path)) {
       // Fetch events from given number and backwards
       _toAtomFeedResponse(
         request,
-        pattern: asBackward(stream),
         path: path,
+        stream: stream,
+        events: _canonical,
+        pattern: asBackward(stream),
       );
     } else if (RegExp(asForward(stream)).hasMatch(path)) {
       // Fetch events from given number and forwards
       _toAtomFeedResponse(
         request,
-        pattern: asForward(stream),
         path: path,
+        stream: stream,
+        events: _canonical,
+        pattern: asForward(stream),
       );
-    } else if (RegExp(asNumber(stream)).hasMatch(path)) {
+    } else if (RegExp(asEventNumber(stream)).hasMatch(path)) {
       // Fetch events with given canonical event number
-      final number = toNumber(stream, path);
+      final number = toEventNumber(stream, path);
       if (number >= 0 && number < _canonical.keys.length) {
         final data = _canonical[_canonical.keys.elementAt(number)];
         _toAtomItemContentResponse(
@@ -653,15 +687,32 @@ class TestStream {
       } else {
         _notFound(request);
       }
+    } else if (RegExp(asInstanceNumber(stream)).hasMatch(path)) {
+      final number = toInstanceNumber(stream, path);
+      final instance = '$stream-$number';
+      final events = _toEventsFromPath(
+        instance,
+        ensure: false,
+      );
+      if (events != null) {
+        // Fetch events from given number and forwards
+        _toAtomFeedResponse(
+          request,
+          path: path,
+          events: events,
+          stream: instance,
+          pattern: asForward(instance),
+        );
+      } else {
+        _notFound(request);
+      }
     } else if (RegExp(TestSubscription.asSubscription(stream)).hasMatch(path)) {
       // Fetch next events from subscription group for given consumer
       _toCompetingAtomFeedResponse(request, TestSubscription.asSubscription(stream), path);
-//    } else if (RegExp(asUuid(stream)).hasMatch(path)) {
-//      // Fetch events with given uuid
-//      final data = _canonical[toUuid(stream, path)];
     } else {
-      _unsupported(request);
+      handled = false;
     }
+    return handled;
   }
 
   String toHost() => 'http://localhost:$port';
@@ -674,8 +725,13 @@ class TestStream {
   String asUuid(String stream) => '/streams/$stream/([\\w:-]+)';
   String toUuid(String stream, String path) => RegExp('/streams/$stream/([\\w:-]+)').firstMatch(path)?.group(1);
 
-  String asNumber(String stream) => '/streams/$stream/(\\d+)';
-  int toNumber(String stream, String path) => int.parse(RegExp('/streams/$stream/(\\d+)').firstMatch(path)?.group(1));
+  String asEventNumber(String stream) => '/streams/$stream/(\\d+)';
+  int toEventNumber(String stream, String path) =>
+      int.parse(RegExp('/streams/$stream/(\\d+)').firstMatch(path)?.group(1));
+
+  String asInstanceNumber(String stream) => '/streams/$stream-(\\d+)/(\\d+)';
+  int toInstanceNumber(String stream, String path) =>
+      int.parse(RegExp('/streams/$stream-(\\d+)/(\\d+)').firstMatch(path)?.group(1));
 
   void _toAtomItemContentResponse(HttpRequest request, int number, Map<String, dynamic> data) {
     if (request.headers.value('accept')?.contains('application/vnd.eventstore.atom+json') != true) {
@@ -702,7 +758,9 @@ class TestStream {
   void _toAtomFeedResponse(
     HttpRequest request, {
     @required String path,
+    @required String stream,
     @required String pattern,
+    @required Map<String, Map<String, dynamic>> events,
   }) {
     final match = RegExp(pattern).firstMatch(path);
     final offset = int.parse(match.group(1));
@@ -712,21 +770,21 @@ class TestStream {
         request,
         message: "TestStream only supports 'Accept:application/vnd.eventstore.atom+json'",
       );
-    } else if (offset < 0 || count < 0 || offset > _canonical.length) {
+    } else if (offset < 0 || count < 0 || offset > events.length) {
       _notFound(request);
     } else if (offset == 0 && count == 0) {
       request.response.statusCode = HttpStatus.ok;
     } else {
-      final selfUrl = toSelfURL(canonicalStream);
-      final events = _canonical.values.skip(offset).take(count).toList();
+      final selfUrl = toSelfURL(stream);
+      final paged = events.values.skip(offset).take(count).toList();
       final data = _toAtomFeed(
         toHost(),
         selfUrl,
-        canonicalStream,
+        stream,
         offset,
         // Event store always return
         // events in decreasing order
-        events.reversed,
+        paged.reversed,
         embedBody: _isEmbedBody(request),
       );
       final body = data.toJson();

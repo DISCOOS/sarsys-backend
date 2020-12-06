@@ -165,7 +165,7 @@ Future main() async {
 
     // Cleanup
     await service.dispose();
-  }, timeout: Timeout.factor(100));
+  });
 
   test('Tracking service aggregates position on DevicePositionChanged when device is trackable', () async {
     // Arrange
@@ -375,7 +375,7 @@ Future main() async {
     );
 
     await service.dispose();
-  }, timeout: Timeout.factor(100));
+  });
 
   test('Tracking services should remove tracking on TrackingDeleted', () async {
     // Arrange

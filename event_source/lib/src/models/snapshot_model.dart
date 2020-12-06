@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:meta/meta.dart';
 import 'package:equatable/equatable.dart';
 import 'package:event_source/event_source.dart';
 import 'package:event_source/src/models/aggregate_root_model.dart';
@@ -27,6 +28,37 @@ class SnapshotModel extends Equatable {
 
   /// Get event number of [Event] applied last
   final EventNumberModel number;
+
+  /// Check if snapshot is partial.
+  /// A partial snapshot contains
+  /// aggregates that are missing
+  /// events. This is an error
+  /// that should not happen,
+  /// but is resolvable.
+  bool get isPartial {
+    _checkPartial();
+    return _missing > 0;
+  }
+
+  void _checkPartial() {
+    if (_missing == null) {
+      var value = 0;
+      for (var a in aggregates.values) {
+        // Adjust for zero-based number
+        value = value + a.number.value + 1;
+      }
+      // Adjust for zero-based number
+      _missing = number.value + 1 - value;
+    }
+  }
+
+  /// Get number of events missing from snapshot
+  int get missing {
+    _checkPartial();
+    return _missing;
+  }
+
+  int _missing;
 
   /// List of aggregate roots
   @JsonKey(

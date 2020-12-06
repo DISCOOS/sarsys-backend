@@ -42,7 +42,7 @@ class RepositoryError extends Error {
 
   @override
   String toString() {
-    return '$runtimeType{error: $error, stackTrace: ${Trace.format(stackTrace)}}';
+    return '$runtimeType{error: $error, stackTrace: ${stackTrace == null ? null : Trace.format(stackTrace)}}';
   }
 }
 

@@ -870,19 +870,20 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Save snapshot of current states
   SnapshotModel save() {
     final snapshot = store.snapshots?.add(this);
-    _reset(snapshot?.uuid);
+    reset(snapshot?.uuid);
     return snapshot;
   }
 
   /// Replay events into this [Repository].
   ///
-  Future<int> replay() async {
-    _reset(store.snapshots?.last?.uuid);
-    final events = await store.replay<T>(this);
-    if (events == 0) {
-      logger.info("Stream '${store.canonicalStream}' is empty");
-    } else {
-      logger.info('Repository loaded with ${_aggregates.length} aggregates');
+  Future<int> replay({List<String> uuids = const []}) async {
+    final events = await store.replay<T>(this, uuids: uuids);
+    if (uuids.isEmpty) {
+      if (events == 0) {
+        logger.info("Stream '${store.canonicalStream}' is empty");
+      } else {
+        logger.info('Repository loaded with ${_aggregates.length} aggregates');
+      }
     }
     return events;
   }
@@ -1024,13 +1025,15 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   }
 
   /// Force a catch-up against head of [EventStore.canonicalStream]
-  Future<int> catchUp({
+  Future<int> catchup({
     bool master = false,
+    List<String> uuids = const [],
   }) =>
       isProcessing
           ? Future.value(0)
-          : store.catchUp(
+          : store.catchup(
               this,
+              uuids: uuids,
               master: master,
             );
 
@@ -1718,33 +1721,49 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         '}';
   }
 
-  /// Reset current state to
-  /// snapshot given by [_suuid].
-  /// If no snapshot exists,
-  /// nothing is changed by
-  /// this method.
+  /// Reset current state to snapshot given
+  /// by [_suuid]. If [uuids] is given, only
+  /// aggregates matching these are reset
+  /// to snapshot. If no snapshot exists,
+  /// nothing is changed by this method.
   ///
-  void _reset(String suuid) {
-    if (store.snapshots?.contains(suuid) == true) {
-      _suuid = suuid;
-      final snapshot = store.snapshots[_suuid];
-      // Remove missing
-      _aggregates.removeWhere(
-        (key, _) => !snapshot.aggregates.containsKey(key),
-      );
-      // Update existing and add missing
-      snapshot.aggregates.forEach((uuid, model) {
-        _aggregates.update(uuid, (a) => a.._reset(this), ifAbsent: () {
-          final aggregate = create(
-            _processors,
-            uuid,
-            Map.from(model.data),
-          );
-          aggregate._reset(this);
-          return aggregate;
+  bool reset(
+    String suuid, {
+    List<String> uuids = const [],
+  }) {
+    try {
+      store.pause();
+      final exists = store.snapshots?.contains(suuid) == true;
+      if (exists) {
+        _suuid = suuid;
+        final snapshot = store.snapshots[_suuid];
+        // Remove missing
+        _aggregates.removeWhere(
+          (key, _) => !snapshot.aggregates.containsKey(key),
+        );
+        // Update existing and add missing
+        snapshot.aggregates.forEach((uuid, model) {
+          if (uuids.isEmpty || uuids.contains(uuid)) {
+            _aggregates.update(uuid, (a) => a.._reset(this), ifAbsent: () {
+              final aggregate = create(
+                _processors,
+                uuid,
+                Map.from(model.data),
+              );
+              aggregate._reset(this);
+              return aggregate;
+            });
+          }
         });
-      });
-      logger.info('Reset to snapshot $_suuid@${snapshot.number.value}');
+        logger.info(
+          uuids.isEmpty
+              ? 'Reset to snapshot $_suuid@${snapshot.number.value}'
+              : 'Reset aggregates $uuids to snapshot $_suuid@${snapshot.number.value}',
+        );
+      }
+      return exists;
+    } finally {
+      store.resume();
     }
   }
 
@@ -2528,7 +2547,11 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     DomainEvent event, {
     @required bool isLocal,
   }) {
-    // Applying events in order is REQUIRED for this to work!
+    // Applying events in order
+    // is REQUIRED for this to
+    // work! This assertion
+    // will detect when this
+    // requirement is violated
     _assertStrictMonotone(event, isLocal: isLocal);
 
     // Set timestamps
@@ -2678,13 +2701,13 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   }) {
     var delta;
     if (isLocal) {
-      // Local events should increase with 1
+      // Should have same number
       delta = modifications - event.number.value;
     } else if (isApplied(event)) {
       // Should have same number
       delta = getApplied(event.uuid).number.value - event.number.value;
     } else {
-      // Next number should only increase with
+      // Next number should only increase with 1
       delta = number.value + 1 - event.number.value;
     }
     if (delta != 0) {
@@ -2746,7 +2769,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     return '$runtimeType{$uuidFieldName: $uuid, '
         'number: $number, '
         'modifications: $modifications, '
-        'applied: ${_applied.length},'
+        'applied: ${_applied.length}, '
         'pending: ${_localEvents.length}'
         '}';
   }
@@ -2952,7 +2975,7 @@ abstract class MergeStrategy {
       await onBackoff(attempt);
 
       // Catchup to head of event stream
-      await repository.store.catchUp(
+      await repository.store.catchup(
         repository,
         master: false,
       );

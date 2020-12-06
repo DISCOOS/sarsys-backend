@@ -115,7 +115,7 @@ class Storage {
   /// Reads [states] from storage
   @visibleForOverriding
   Future<Iterable<StorageState>> load() async {
-    _states = await Hive.openBox(filename);
+    _states = await Hive.openBox<StorageState>(filename);
     // Get mapped states
     return _states.values;
   }

@@ -500,6 +500,7 @@ class EventNumber extends Equatable {
   List<Object> get props => [value];
 
   EventNumber operator +(int number) => EventNumber(value + number);
+  EventNumber operator -(int number) => EventNumber(value - number);
   bool operator >(EventNumber number) => value > number.value;
   bool operator <(EventNumber number) => value < number.value;
   bool operator >=(EventNumber number) => value >= number.value;

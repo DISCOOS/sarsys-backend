@@ -321,6 +321,176 @@ Future main() async {
     await _assertCatchUp(repo1, repo2, repo3, 6);
   });
 
+  test('Repository should catch-up given aggregates only', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>(port: 4000);
+    await repo.readyAsync();
+    final uuid1 = Uuid().v4();
+    final foo1 = repo.get(uuid1, data: {'property11': 'value11'});
+    final data11 = foo1.data;
+    await repo.push(foo1);
+
+    final uuid2 = Uuid().v4();
+    final foo2 = repo.get(uuid2, data: {'property21': 'value21'});
+    final data21 = foo2.data;
+    await repo.push(foo2);
+
+    final uuid3 = Uuid().v4();
+    final foo3 = repo.get(uuid3, data: {'property31': 'value31'});
+    final data31 = foo3.data;
+    await repo.push(foo3);
+
+    // Stop catchup subscription
+    repo.store.pause();
+
+    // Perform remote modification
+    final stream = harness.server().getStream(repo.store.aggregate);
+    final data12 = Map<String, dynamic>.from(data11)
+      ..addAll(
+        {'property12': 'value12'},
+      );
+    stream.append(
+      '${stream.instanceStream}-0',
+      [
+        TestStream.asSourceEvent<FooUpdated>(
+          uuid1,
+          data11,
+          data12,
+          number: EventNumber(1),
+        ),
+      ],
+    );
+    final data22 = Map<String, dynamic>.from(data21)
+      ..addAll(
+        {'property22': 'value22'},
+      );
+    stream.append(
+      '${stream.instanceStream}-1',
+      [
+        TestStream.asSourceEvent<FooUpdated>(
+          uuid2,
+          data21,
+          data22,
+          number: EventNumber(1),
+        ),
+      ],
+    );
+    final data32 = Map<String, dynamic>.from(data31)
+      ..addAll(
+        {'property32': 'value32'},
+      );
+    stream.append(
+      '${stream.instanceStream}-2',
+      [
+        TestStream.asSourceEvent<FooUpdated>(
+          uuid3,
+          data31,
+          data32,
+          number: EventNumber(1),
+        ),
+      ],
+    );
+
+    // Act - catchup on foo1 and foo3 only
+    final events = await repo.catchup(uuids: [uuid1, uuid3]);
+
+    // Assert - foo1 and foo3 is updated
+    expect(events, 2, reason: 'should catchup on 2 events');
+    expect(foo1.number.value, equals(1));
+    expect(foo1.data, equals(data12));
+    expect(foo3.number.value, equals(1));
+    expect(foo3.data, equals(data32));
+
+    // Assert - foo2 is unchanged
+    expect(foo2.number.value, equals(0));
+    expect(foo2.data, equals(data21));
+  });
+
+  test('Repository should replay given aggregates only', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>(port: 4000);
+    await repo.readyAsync();
+    final uuid1 = Uuid().v4();
+    final foo1 = repo.get(uuid1, data: {'property11': 'value11'});
+    final data11 = foo1.data;
+    await repo.push(foo1);
+
+    final uuid2 = Uuid().v4();
+    final foo2 = repo.get(uuid2, data: {'property21': 'value21'});
+    final data21 = foo2.data;
+    await repo.push(foo2);
+
+    final uuid3 = Uuid().v4();
+    final foo3 = repo.get(uuid3, data: {'property31': 'value31'});
+    final data31 = foo3.data;
+    await repo.push(foo3);
+
+    // Stop catchup subscription
+    repo.store.pause();
+
+    // Perform remote modification
+    final stream = harness.server().getStream(repo.store.aggregate);
+    final data12 = Map<String, dynamic>.from(data11)
+      ..addAll(
+        {'property12': 'value12'},
+      );
+    stream.append(
+      '${stream.instanceStream}-0',
+      [
+        TestStream.asSourceEvent<FooUpdated>(
+          uuid1,
+          data11,
+          data12,
+          number: EventNumber(1),
+        ),
+      ],
+    );
+    final data22 = Map<String, dynamic>.from(data21)
+      ..addAll(
+        {'property22': 'value22'},
+      );
+    stream.append(
+      '${stream.instanceStream}-1',
+      [
+        TestStream.asSourceEvent<FooUpdated>(
+          uuid2,
+          data21,
+          data22,
+          number: EventNumber(1),
+        ),
+      ],
+    );
+    final data32 = Map<String, dynamic>.from(data31)
+      ..addAll(
+        {'property32': 'value32'},
+      );
+    stream.append(
+      '${stream.instanceStream}-2',
+      [
+        TestStream.asSourceEvent<FooUpdated>(
+          uuid3,
+          data31,
+          data32,
+          number: EventNumber(1),
+        ),
+      ],
+    );
+
+    // Act - replay on foo1 and foo3 only
+    final events = await repo.replay(uuids: [uuid1, uuid3]);
+
+    // Assert - foo1 and foo3 is updated
+    expect(events, 4, reason: 'should catchup on 4 events');
+    expect(foo1.number.value, equals(1));
+    expect(foo1.data, equals(data12));
+    expect(foo3.number.value, equals(1));
+    expect(foo3.data, equals(data32));
+
+    // Assert - foo2 is unchanged
+    expect(foo2.number.value, equals(0));
+    expect(foo2.data, equals(data21));
+  });
+
   test('Repository should not push local aggregate with local concurrent modifications', () async {
     // Arrange - local aggregate
     final repo = harness.get<FooRepository>();
@@ -429,7 +599,7 @@ Future main() async {
     expect(foo.data, containsPair('property3', 'value3'));
     expect(foo.data, containsPair('property4', 'value4'));
     expect(foo.data, containsPair('property5', 'value5'));
-  }, timeout: Timeout.factor(100));
+  });
 
   test('Repository should fail on push when manual merge is needed', () async {
     // Arrange
@@ -968,6 +1138,11 @@ Future main() async {
     await _testShouldBuildFromLastSnapshot(harness);
   });
 
+  test('Repository should build from last partial snapshot', () async {
+    // Arrange
+    await _testShouldBuildFromLastSnapshot(harness, partial: true);
+  });
+
   test('Repository push from last snapshot', () async {
     // Arrange
     await _testShouldBuildFromLastSnapshot(harness);
@@ -1094,53 +1269,118 @@ Future main() async {
   });
 }
 
-Future _testShouldBuildFromLastSnapshot(EventSourceHarness harness) async {
+Future _testShouldBuildFromLastSnapshot(
+  EventSourceHarness harness, {
+  bool partial = false,
+}) async {
   final repo = harness.get<FooRepository>();
   final stream = harness.server().getStream(repo.store.aggregate);
   await repo.readyAsync();
   expect(repo.snapshot, isNull, reason: 'Should have NO snapshot');
   final box = await Hive.openBox<StorageState>(repo.store.snapshots.filename);
 
-  // Foo1
+  // Arrange Foo1
   final fuuid1 = Uuid().v4();
-  final data1 = {
+  final data11 = {
     'uuid': fuuid1,
-    'parameter1': 'value1',
+    'parameter11': 'value11',
   };
-  final event1 = Event(
+  final data12 = {
+    'uuid': fuuid1,
+    'parameter11': 'value11',
+    'parameter12': 'value12',
+  };
+  final event11 = Event(
     uuid: Uuid().v4(),
     data: {
-      'patches': JsonPatch.diff({}, data1),
+      'patches': JsonPatch.diff({}, data11),
     },
     local: false,
     type: '$FooCreated',
     number: EventNumber(0),
+    created: DateTime.now(),
+  );
+  final event12 = Event(
+    uuid: Uuid().v4(),
+    data: {
+      'patches': JsonPatch.diff(data11, data12),
+    },
+    local: false,
+    type: '$FooUpdated',
+    number: EventNumber(1),
     created: DateTime.now(),
   );
   stream.append(
     '${stream.instanceStream}-0',
-    [TestStream.asSourceEvent<FooCreated>(fuuid1, {}, data1)],
+    [
+      TestStream.asSourceEvent<FooCreated>(
+        fuuid1,
+        {},
+        data11,
+        eventId: event11.uuid,
+        number: EventNumber(0),
+      ),
+      if (partial)
+        TestStream.asSourceEvent<FooUpdated>(
+          fuuid1,
+          data11,
+          data12,
+          eventId: event12.uuid,
+          number: EventNumber(1),
+        ),
+    ],
   );
 
   // Foo2
   final fuuid2 = Uuid().v4();
-  final data2 = {
+  final data21 = {
     'uuid': fuuid2,
-    'parameter2': 'value2',
+    'parameter21': 'value21',
   };
-  final event2 = Event(
+  final data22 = {
+    'uuid': fuuid2,
+    'parameter21': 'value21',
+    'parameter22': 'value22',
+  };
+  final event21 = Event(
     uuid: Uuid().v4(),
     data: {
-      'patches': JsonPatch.diff({}, data2),
+      'patches': JsonPatch.diff({}, data21),
     },
     local: false,
     type: '$FooCreated',
     number: EventNumber(0),
     created: DateTime.now(),
   );
+  final event22 = Event(
+    uuid: Uuid().v4(),
+    data: {
+      'patches': JsonPatch.diff(data21, data22),
+    },
+    local: false,
+    type: '$FooUpdated',
+    number: EventNumber(1),
+    created: DateTime.now(),
+  );
   stream.append(
     '${stream.instanceStream}-1',
-    [TestStream.asSourceEvent<FooCreated>(fuuid2, {}, data2)],
+    [
+      TestStream.asSourceEvent<FooCreated>(
+        fuuid2,
+        {},
+        data21,
+        eventId: event21.uuid,
+        number: EventNumber(0),
+      ),
+      if (partial)
+        TestStream.asSourceEvent<FooUpdated>(
+          fuuid2,
+          data21,
+          data22,
+          eventId: event22.uuid,
+          number: EventNumber(1),
+        ),
+    ],
   );
 
   // Create snapshot
@@ -1159,21 +1399,28 @@ Future _testShouldBuildFromLastSnapshot(EventSourceHarness harness) async {
   final snapshot2 = SnapshotModel(
     uuid: suuid2,
     timestamp: timestamp,
-    number: EventNumberModel(value: 1),
+    // Partial snapshot where
+    // aggregates are not up
+    // to date. This indicates
+    // that an error has occurred
+    // that should be recovered
+    // on catchup or replay
+    //
+    number: EventNumberModel(value: partial ? 3 : 1),
     aggregates: LinkedHashMap.from({
       fuuid1: AggregateRootModel(
         uuid: fuuid1,
-        createdBy: event1,
-        changedBy: event1,
-        data: data1,
-        number: EventNumberModel.from(event1.number),
+        createdBy: event11,
+        changedBy: event11,
+        data: data11,
+        number: EventNumberModel.from(event11.number),
       ),
       fuuid2: AggregateRootModel(
         uuid: fuuid2,
-        createdBy: event2,
-        changedBy: event2,
-        data: data2,
-        number: EventNumberModel.from(event2.number),
+        createdBy: event21,
+        changedBy: event21,
+        data: data21,
+        number: EventNumberModel.from(event21.number),
       ),
     }),
   );
@@ -1187,22 +1434,28 @@ Future _testShouldBuildFromLastSnapshot(EventSourceHarness harness) async {
   final count = await repo.replay();
 
   // Assert
-  expect(count, equals(0), reason: 'Should replay 0 events');
+  expect(count, equals(partial ? 2 : 0), reason: 'Should replay 0 events');
   expect(repo.snapshot, isNotNull, reason: 'Should have a snapshot');
   expect(repo.snapshot.uuid, equals(suuid2), reason: 'Should have snapshot $suuid2');
   expect(repo.number, repo.store.current(), reason: 'Should be equal');
-  expect(repo.store.current(), equals(EventNumber(1)), reason: 'Should cumulate to (events.length - 1)');
-  expect(event1.number, repo.store.current(uuid: fuuid1), reason: 'Should be equal');
-  expect(event2.number, repo.store.current(uuid: fuuid2), reason: 'Should be equal');
+  expect(
+    repo.store.current(),
+    equals(EventNumber(partial ? 3 : 1)),
+    reason: 'Should cumulate to (events.length - 1)',
+  );
+  final n1 = (partial ? event12 : event11).number;
+  final n2 = (partial ? event22 : event21).number;
+  expect(repo.store.current(uuid: fuuid1), equals(n1), reason: 'Should be equal');
+  expect(repo.store.current(uuid: fuuid2), equals(n2), reason: 'Should be equal');
 
   expect(repo.contains(fuuid1), isTrue, reason: 'Should contain aggregate root $fuuid1');
   final foo1 = repo.get(fuuid1);
-  expect(foo1.number, equals(event1.number));
-  expect(foo1.data, equals(data1));
+  expect(foo1.number, equals(n1));
+  expect(foo1.data, equals(partial ? data12 : data11));
   expect(repo.contains(fuuid2), isTrue, reason: 'Should contain aggregate root $fuuid2');
   final foo2 = repo.get(fuuid2);
-  expect(foo2.number, equals(event2.number));
-  expect(foo2.data, equals(data2));
+  expect(foo2.number, equals(n2));
+  expect(foo2.data, equals(partial ? data22 : data21));
 }
 
 Future<List<Event>> takeLocal(Stream<Event> stream, int count, {bool distinct = true}) {
