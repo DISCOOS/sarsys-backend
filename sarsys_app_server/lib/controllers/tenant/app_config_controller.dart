@@ -65,7 +65,10 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
   Future<bool> shouldWaitForDeviceCreated(Map<String, dynamic> data) async {
     final duuid = data.elementAt<String>('udid');
     if (!devices.exists(duuid)) {
-      await devices.catchUp(master: true);
+      await devices.catchup(
+        master: true,
+        uuids: [duuid],
+      );
     }
     return !devices.exists(duuid);
   }

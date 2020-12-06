@@ -46,7 +46,10 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   /// not found before checking again.
   Future<bool> exists(String uuid) async {
     if (!repository.exists(uuid)) {
-      await repository.catchUp(master: true);
+      await repository.catchup(
+        master: true,
+        uuids: [uuid],
+      );
     }
     return repository.exists(uuid);
   }
