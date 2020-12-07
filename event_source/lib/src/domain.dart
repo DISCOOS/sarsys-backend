@@ -2699,25 +2699,36 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     DomainEvent event, {
     @required bool isLocal,
   }) {
-    var delta;
+    var mode;
+    var expected;
+    var actual = event.number.value;
     if (isLocal) {
+      mode = 'local';
       // Should have same number
-      delta = modifications - event.number.value;
+      expected = modifications;
     } else if (isApplied(event)) {
+      mode = 'applied';
       // Should have same number
-      delta = getApplied(event.uuid).number.value - event.number.value;
+      expected = getApplied(event.uuid).number.value;
     } else {
+      mode = 'remote';
       // Next number should only increase with 1
-      delta = number.value + 1 - event.number.value;
+      expected = number.value + 1;
     }
+    final delta = expected - actual;
     if (delta != 0) {
       final message = 'Event number not strict monotone increasing: {\n'
-          '  aggregate.uuid: $uuid\n'
-          '  aggregate.type: $runtimeType\n'
-          '  event.type: ${event.type}\n'
-          '  event.applied: ${isApplied(event)}\n'
-          '  event.number.expected: $nextNumber\n'
-          '  event.number.actual: ${event.number.value}\n'
+          '  aggregate.uuid: $uuid,\n'
+          '  aggregate.type: $runtimeType,\n'
+          '  aggregate.number: ${number.value},\n'
+          '  aggregate.pending: ${_localEvents.length},\n'
+          '  aggregate.modification: $modifications,\n'
+          '  event.mode: $mode,\n'
+          '  event.type: ${event.type},\n'
+          '  event.applied: ${isApplied(event)}.\n'
+          '  event.number.delta: $delta,\n'
+          '  event.number.actual: $actual,\n'
+          '  event.number.expected: $expected\n'
           '}';
       throw InvalidOperation(message);
     }
