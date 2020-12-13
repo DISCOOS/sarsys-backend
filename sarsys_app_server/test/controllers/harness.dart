@@ -110,13 +110,13 @@ class SarSysHarness extends TestHarness<SarSysAppServerChannel> {
 
   @override
   Future stop() async {
+    assert(channel.router.getContexts().isEmpty, 'Contexts should be empty');
     await channel.dispose();
     for (var instance in _instances) {
+      assert(instance.channel.router.getContexts().isEmpty, 'Contexts should be empty');
       await instance.channel.dispose();
       await instance.stop();
-      assert(instance.channel.router.getContexts().isEmpty, 'Contexts should be empty');
     }
-    assert(channel.router.getContexts().isEmpty, 'Contexts should be empty');
     if (eventStoreMockServer != null) {
       await eventStoreMockServer.close();
     }
