@@ -157,13 +157,14 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     @Bind.path('uuid') String uuid,
     @Bind.body() Map<String, dynamic> data,
   ) async {
+    Transaction trx;
     try {
       if (!await exists(uuid)) {
         return Response.notFound(body: "$aggregateType $uuid not found");
       }
       data[repository.uuidFieldName] = uuid;
       final events = <Event>[];
-      final trx = repository.inTransaction(uuid) ? null : repository.getTransaction(uuid);
+      trx = repository.inTransaction(uuid) ? null : repository.getTransaction(uuid);
       final commands = onUpdate(
         validate("$aggregateType", data, isPatch: true),
       );
@@ -213,7 +214,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     } catch (e, stackTrace) {
       return toServerError(e, stackTrace);
     } finally {
-      if (repository.inTransaction(uuid)) {
+      if (trx != null && repository.inTransaction(uuid)) {
         repository.rollback(uuid);
       }
     }

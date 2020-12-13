@@ -889,7 +889,11 @@ class EventStore {
     final actual = current(uuid: uuid);
     final stream = toInstanceStream(uuid);
     try {
-      _controllers[repo.runtimeType]?.alive(repo, connection);
+      _controllers[repo.runtimeType]?.alive(
+        repo,
+        event,
+        connection,
+      );
 
       // IMPORTANT: append to store before applying to repository
       // This ensures that the event added to an aggregate during
@@ -1272,6 +1276,10 @@ class EventStoreSubscriptionController<T extends Repository> {
   /// Reconnect count. Uses in exponential backoff calculation
   int reconnects = 0;
 
+  /// Number of events processed
+  int get processed => _processed;
+  int _processed = 0;
+
   /// Reference for cancelling in [cancel]
   Timer _timer;
 
@@ -1405,19 +1413,27 @@ class EventStoreSubscriptionController<T extends Repository> {
     }
   }
 
-  void alive(T repository, EventStoreConnection connection) {
+  void alive(T repository, SourceEvent event, EventStoreConnection connection) {
     if (reconnects > 0) {
       logger.info(
         '${repository.runtimeType} reconnected to '
         "'${connection.host}:${connection.port}' after ${reconnects} attempts",
       );
       reconnects = 0;
+      _processed++;
+      _lastEvent = event;
     }
   }
 
+  /// [SourceEvent] last seen
+  SourceEvent get lastEvent => _lastEvent;
+  SourceEvent _lastEvent;
+
+  /// Check if subscription is paused
   bool get isPaused => _subscription?.isPaused == true;
 
   void pause() {
+    _timer?.cancel();
     _subscription?.pause();
   }
 
@@ -1427,8 +1443,12 @@ class EventStoreSubscriptionController<T extends Repository> {
 
   Future cancel() {
     _timer?.cancel();
+    _isCancelled = true;
     return _subscription?.cancel();
   }
+
+  bool get isCancelled => _isCancelled;
+  bool _isCancelled = false;
 }
 
 // TODO: Add delete operation to EventStoreConnection

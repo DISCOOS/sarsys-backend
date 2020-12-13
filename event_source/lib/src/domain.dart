@@ -1810,6 +1810,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     bool queue = true,
     bool items = true,
     bool snapshot = true,
+    bool subscriptions = true,
   }) {
     final aggregate = _aggregates[uuid];
     return {
@@ -1828,6 +1829,36 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           data: data,
           items: items,
         ),
+      if (subscriptions) 'subscriptions': _toSubscriptionMeta(),
+    };
+  }
+
+  Map<String, Map<String, Object>> _toSubscriptionMeta() {
+    return {
+      'catchup': {
+        'exists': _storeSubscriptionController != null,
+        if (_storeSubscriptionController != null)
+          'last': {
+            'type': '${_storeSubscriptionController.lastEvent?.type}',
+            'number': '${_storeSubscriptionController.lastEvent?.number}',
+            'timestamp': '${_storeSubscriptionController.lastEvent?.created?.toIso8601String()}',
+          },
+        if (_storeSubscriptionController != null)
+          'stats': {
+            'processed': _storeSubscriptionController.processed,
+            'reconnects': _storeSubscriptionController.reconnects,
+          },
+        if (_storeSubscriptionController != null)
+          'status': {
+            'isPaused': _storeSubscriptionController.isPaused,
+            'isCancelled': _storeSubscriptionController.isCancelled,
+            'isCompeting': _storeSubscriptionController?.isCompeting,
+          }
+      },
+      'push': {
+        'exists': _pushQueueSubscription != null,
+        if (_pushQueueSubscription != null) 'isPaused': _pushQueueSubscription.isPaused,
+      },
     };
   }
 

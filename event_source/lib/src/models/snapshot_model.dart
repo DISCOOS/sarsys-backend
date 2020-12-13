@@ -42,7 +42,7 @@ class SnapshotModel extends Equatable {
     LinkedHashMap<String, AggregateRootModel> aggregates,
   ) {
     var value = 0;
-    for (var a in aggregates.values) {
+    for (var a in (aggregates ?? {}).values) {
       // Adjust for zero-based number
       value = value + a.number.value + 1;
     }

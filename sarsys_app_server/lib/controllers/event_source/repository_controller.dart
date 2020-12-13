@@ -43,6 +43,7 @@ class RepositoryController extends ResourceController {
           queue: _shouldExpand(expand, 'queue'),
           items: _shouldExpand(expand, 'items'),
           snapshot: _shouldExpand(expand, 'snapshot'),
+          subscriptions: _shouldExpand(expand, 'subscriptions'),
         ),
       );
     } on InvalidOperation catch (e) {
@@ -140,7 +141,13 @@ class RepositoryController extends ResourceController {
       return true;
     }
     elements.removeWhere(
-      (e) => !const ['snapshot', 'queue', 'items', 'data'].contains(e),
+      (e) => !const [
+        'snapshot',
+        'queue',
+        'items',
+        'data',
+        'subscriptions',
+      ].contains(e),
     );
     return false;
   }
@@ -199,7 +206,7 @@ class RepositoryController extends ResourceController {
         parameters.add(
           APIParameter.query('expand')
             ..description = "Expand response with metadata. Legal values are: "
-                "'snapshot', 'queue', 'items' and 'data'",
+                "'snapshot', 'queue', 'items', 'data' and 'subscriptions'",
         );
         break;
     }
