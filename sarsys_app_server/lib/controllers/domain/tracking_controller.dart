@@ -135,10 +135,12 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
   }
 
   Map<String, dynamic> _toValue(Map<String, dynamic> patch, List<Map<String, dynamic>> previous) {
-    final value = const ['remove', 'replace'].contains(patch['op'])
-        ? previous.elementAt(int.parse((patch['path'] as String).split('/')[1]))
-        : patch['value'];
-    return Map<String, dynamic>.from(value as Map);
+    if (const ['remove', 'replace'].contains(patch['op'])) {
+      final path = patch.elementAt<String>('path');
+      final index = int.parse(path.split('/')[path.startsWith('/') ? 1 : 0]);
+      return previous.elementAt(index);
+    }
+    return patch.mapAt('value');
   }
 
   @override
