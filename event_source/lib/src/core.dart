@@ -411,12 +411,25 @@ abstract class Command<T extends DomainEvent> extends Message {
 /// Command interface
 abstract class EntityCommand<T extends DomainEvent> extends Command<T> {
   EntityCommand(
+    /// Command [Action]
     Action action,
+
+    /// [AggregateRoot] field name containing entities
     this.aggregateField, {
+
+    /// [AggregateRoot] uuid
     String uuid,
+
+    /// Entity id
     String entityId,
+
+    /// Aggregate uuid field name
     String uuidFieldName = 'uuid',
+
+    /// Entity field name
     this.entityIdFieldName = 'id',
+
+    /// Entity data
     Map<String, dynamic> data = const {},
   })  : _id = entityId,
         super(

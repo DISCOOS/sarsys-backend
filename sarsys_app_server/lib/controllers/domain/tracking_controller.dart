@@ -118,29 +118,34 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
         defaultList: const [],
       );
       final patches = JsonPatch.diff(next, previous);
-      // Remove before adding
+      // Remove current
       for (var patch in patches.where((patch) => const ['remove', 'replace'].contains(patch['op']))) {
-        final value = _toValue(patch, previous);
-        commands.add(
-          RemoveSourceFromTracking(uuid, value),
-        );
+        for (var value in _toList(patch, previous)) {
+          commands.add(
+            RemoveSourceFromTracking(uuid, value),
+          );
+        }
       }
       for (var patch in patches.where((patch) => const ['add', 'replace'].contains(patch['op']))) {
-        final value = _toValue(patch, next);
-        commands.add(
-          AddSourceToTracking(uuid, value),
-        );
+        for (var value in _toList(patch, next)) {
+          commands.add(
+            AddSourceToTracking(uuid, value),
+          );
+        }
       }
     }
   }
 
-  Map<String, dynamic> _toValue(Map<String, dynamic> patch, List<Map<String, dynamic>> previous) {
+  List<Map<String, dynamic>> _toList(Map<String, dynamic> patch, List<Map<String, dynamic>> entries) {
     if (const ['remove', 'replace'].contains(patch['op'])) {
       final path = patch.elementAt<String>('path');
+      if (path.isEmpty) {
+        return entries;
+      }
       final index = int.parse(path.split('/')[path.startsWith('/') ? 1 : 0]);
-      return previous.elementAt(index);
+      return [entries.elementAt(index)];
     }
-    return patch.mapAt('value');
+    return [patch.mapAt('value')];
   }
 
   @override

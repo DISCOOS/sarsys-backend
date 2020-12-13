@@ -4,9 +4,12 @@ import 'package:event_source/event_source.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart';
 import 'package:jose/jose.dart';
+import 'package:meta/meta.dart';
+import 'package:aqueduct/aqueduct.dart' as aq;
 
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
+import 'package:uuid/uuid.dart';
 
 import 'auth/auth.dart';
 import 'controllers/domain/controllers.dart';
@@ -814,7 +817,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
       APISecurityScheme.apiKey(
         'X-Passcode',
         APIParameterLocation.header,
-      )..description = "Authenticed users with an admin role is granted access to all "
+      )..description = "Authenticated users with an admin role is granted access to all "
           "objects and all available fields in each of these objects regardless of any "
           "affiliation or 'X-Passcode' given. All other roles are only granted access to "
           "objects if 'X-Passcode' is valid. Requests without header 'X-Passcode' or an invalid "
@@ -855,10 +858,55 @@ class SarSysAppServerChannel extends ApplicationChannel {
     ..register('Message', documentMessage(context));
 }
 
+class RequestContext {
+  const RequestContext({
+    @required this.correlationId,
+    @required this.transactionId,
+    @required this.inStickySession,
+  });
+
+  /// Get current correlation. A correlation id
+  /// is created if header 'x-correlation-id'
+  /// was missing.
+  final String correlationId;
+
+  /// Check if current request is in a sticky session
+  final bool inStickySession;
+
+  /// Get transaction id sticky session
+  final String transactionId;
+}
+
 class SecureRouter extends Router {
   SecureRouter(this.config) : keyStore = JsonWebKeyStore();
   final AuthConfig config;
   final JsonWebKeyStore keyStore;
+  final Map<String, RequestContext> _contexts = {};
+
+  Map<String, RequestContext> getContexts() => Map.unmodifiable(_contexts);
+  RequestContext getContext(String correlationId) => _contexts[correlationId];
+  bool hasContext(String correlationId) => _contexts.containsKey(correlationId);
+
+  Future<RequestOrResponse> setRequest(aq.Request request) async {
+    final correlationId = request.raw.headers.value('x-correlation-id') ?? Uuid().v4();
+    final transactionId = request.raw.cookies
+        // Find cookie for sticky session
+        .where((c) => c.name == 'x-transaction-id')
+        // Get transaction id
+        .map((c) => c.value)
+        .firstOrNull;
+    final inStickySession = transactionId != null;
+    request.addResponseModifier((r) {
+      r.headers['x-correlation-id'] = correlationId;
+      _contexts.remove(correlationId);
+    });
+    _contexts[correlationId] = RequestContext(
+      correlationId: correlationId,
+      transactionId: transactionId,
+      inStickySession: inStickySession,
+    );
+    return request;
+  }
 
   Future prepare() async {
     if (config.enabled) {
@@ -875,7 +923,7 @@ class SecureRouter extends Router {
   }
 
   void secure(String pattern, Controller creator()) {
-    super.route(pattern).link(authorizer).link(creator);
+    super.route(pattern).linkFunction(setRequest).link(authorizer).link(creator);
   }
 
   Controller authorizer() {

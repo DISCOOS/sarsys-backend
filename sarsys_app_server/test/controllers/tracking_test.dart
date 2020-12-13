@@ -45,7 +45,49 @@ Future main() async {
     expect(actual['data'], equals(body));
   });
 
-  test("PATCH /api/trackings/{uuid} returns status code 200", () async {
+  test("PATCH /api/trackings/{uuid} add sources to empty list and returns status code 200", () async {
+    // Arrange
+    final uuid = Uuid().v4();
+    final body = createTracking(
+      uuid,
+    );
+    expectResponse(
+      await harness.agent.post(
+        "/api/trackings",
+        headers: createAuthn(
+          createAuthnAdmin(),
+        ),
+        body: body,
+      ),
+      201,
+      body: null,
+    );
+
+    // Act - force replace patch
+    final sources2 = [
+      createSource(uuid: 's1'),
+      createSource(uuid: 's2'),
+    ];
+    body['status'] = enumName(TrackingStatus.tracking);
+    body['sources'] = sources2;
+
+    // Assert
+    final response = expectResponse(
+      await harness.agent.execute(
+        'PATCH',
+        "/api/trackings/$uuid",
+        headers: createAuthn(
+          createAuthnPersonnel(),
+        ),
+        body: body,
+      ),
+      200,
+    );
+    final actual = await response.body.decode();
+    expect(actual['data'], equals(body));
+  });
+
+  test("PATCH /api/trackings/{uuid} replace sources and returns status code 200", () async {
     // Arrange
     final uuid = Uuid().v4();
     final sources1 = [
@@ -68,10 +110,103 @@ Future main() async {
       body: null,
     );
 
-    // Act
+    // Act - force replace patch
+    final sources2 = [
+      createSource(uuid: 's2'),
+    ];
+    body['status'] = enumName(TrackingStatus.tracking);
+    body['sources'] = sources2;
+
+    // Assert
+    final response = expectResponse(
+      await harness.agent.execute(
+        'PATCH',
+        "/api/trackings/$uuid",
+        headers: createAuthn(
+          createAuthnPersonnel(),
+        ),
+        body: body,
+      ),
+      200,
+    );
+    final actual = await response.body.decode();
+    expect(actual['data'], equals(body));
+  });
+
+  test("PATCH /api/trackings/{uuid} remove, add and returns status code 200", () async {
+    // Arrange
+    final uuid = Uuid().v4();
+    final sources1 = [
+      createSource(uuid: 's1'),
+      createSource(uuid: 's2'),
+    ];
+    final body = createTracking(
+      uuid,
+      sources: sources1,
+    );
+    expectResponse(
+      await harness.agent.post(
+        "/api/trackings",
+        headers: createAuthn(
+          createAuthnAdmin(),
+        ),
+        body: body,
+      ),
+      201,
+      body: null,
+    );
+
+    // Act - force remove and add patches
     final sources2 = [
       createSource(uuid: 's2'),
       createSource(uuid: 's3'),
+    ];
+    body['status'] = enumName(TrackingStatus.tracking);
+    body['sources'] = sources2;
+
+    // Assert
+    final response = expectResponse(
+      await harness.agent.execute(
+        'PATCH',
+        "/api/trackings/$uuid",
+        headers: createAuthn(
+          createAuthnPersonnel(),
+        ),
+        body: body,
+      ),
+      200,
+    );
+    final actual = await response.body.decode();
+    expect(actual['data'], equals(body));
+  });
+
+  test("PATCH /api/trackings/{uuid} with same source ids should return code 200", () async {
+    // Arrange
+    final uuid = Uuid().v4();
+    final sources1 = [
+      createSource(uuid: 's1', type: 'device'),
+      createSource(uuid: 's2', type: 'device'),
+    ];
+    final body = createTracking(
+      uuid,
+      sources: sources1,
+    );
+    expectResponse(
+      await harness.agent.post(
+        "/api/trackings",
+        headers: createAuthn(
+          createAuthnAdmin(),
+        ),
+        body: body,
+      ),
+      201,
+      body: null,
+    );
+
+    // Act - force update patches
+    final sources2 = [
+      createSource(uuid: 's1', type: 'trackable'),
+      createSource(uuid: 's2', type: 'trackable'),
     ];
     body['status'] = enumName(TrackingStatus.tracking);
     body['sources'] = sources2;
