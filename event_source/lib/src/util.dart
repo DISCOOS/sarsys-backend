@@ -40,19 +40,19 @@ class JsonUtils {
     final patches = JsonPatch.diff(current, next)
       ..removeWhere(
         (diff) {
-          var isRemote = diff['op'] == 'remove';
-          if (isRemote) {
+          var isRemove = diff['op'] == 'remove';
+          if (isRemove) {
             final elements = (diff['path'] as String).split('/');
             if (elements.length > 1) {
               // Get path to list by removing index
               final path = elements.take(elements.length - 1).join('/');
               if (path.isNotEmpty) {
                 final value = current.elementAt(path);
-                isRemote = value is! List;
+                isRemove = value is! List;
               }
             }
           }
-          return isRemote;
+          return isRemove;
         },
       );
     return patches;

@@ -535,7 +535,7 @@ class Transaction<S extends Command, T extends AggregateRoot> {
   Iterable<DomainEvent> _rollback({@required complete}) {
     return exists
         ? repository._rollback(
-            aggregate,
+            aggregate.uuid,
             complete: complete,
           )
         : <DomainEvent>[];
@@ -796,6 +796,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     final isRebuild = _isReady;
     if (isRebuild) {
       _isReady = false;
+      _transactions.clear();
       await _pushQueue.dispose();
       await _pushQueueSubscription.cancel();
       await _storeSubscriptionController.cancel();
@@ -1524,21 +1525,22 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       );
 
   /// Rollback all pending changes
-  /// in [aggregate]. Any [Transaction]
-  /// on given [aggregate] will end.
-  Iterable<DomainEvent> rollback(T aggregate) {
+  /// in [T] with given uuid. Any
+  /// [Transaction] on given [aggregate]
+  /// will end.
+  Iterable<DomainEvent> rollback(String uuid) {
     return _rollback(
-      aggregate,
+      uuid,
       complete: true,
     );
   }
 
   /// Rollback local changes. If
   Iterable<DomainEvent> _rollback(
-    T aggregate, {
+    String uuid, {
     @required complete,
   }) {
-    final uuid = aggregate.uuid;
+    final aggregate = _assertExists(uuid);
     final trx = _transactions[uuid];
     final exists = store.contains(uuid);
     final local = aggregate.getLocalEvents();
@@ -1564,6 +1566,15 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     }
 
     return remaining;
+  }
+
+  T _assertExists(String uuid) {
+    if (!contains(uuid)) {
+      throw InvalidOperation(
+        'Aggregate $uuid not found',
+      );
+    }
+    return _aggregates[uuid];
   }
 
   /// Complete transaction for given [aggregate]

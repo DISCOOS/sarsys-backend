@@ -2650,8 +2650,8 @@ class _EventStoreSubscriptionControllerImpl {
 
     if (number < _current) {
       // This should sum up for pull-subscriptions!
-      // Ff it doesn't something is wrong!
-      if (_strategy == null && number + fetched + (number.isNone ? 1 : 0) != _current) {
+      // If it doesn't something is wrong!
+      if (_strategy == null && (number + fetched + (number.isNone ? 1 : 0)) != _current) {
         throw StateError(
           '$fetched events fetched does not match number change $number > $_current',
         );

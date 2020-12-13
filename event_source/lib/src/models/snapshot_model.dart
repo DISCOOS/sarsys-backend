@@ -1,6 +1,5 @@
 import 'dart:collection';
 
-import 'package:meta/meta.dart';
 import 'package:equatable/equatable.dart';
 import 'package:event_source/event_source.dart';
 import 'package:event_source/src/models/aggregate_root_model.dart';
@@ -18,7 +17,8 @@ class SnapshotModel extends Equatable {
     this.number,
     this.timestamp,
     LinkedHashMap<String, AggregateRootModel> aggregates,
-  }) : aggregates = aggregates ?? <String, AggregateRootModel>{};
+  })  : _missing = _checkPartial(number, aggregates),
+        aggregates = aggregates ?? <String, AggregateRootModel>{};
 
   /// [SnapshotModel] uuid
   final String uuid;
@@ -35,30 +35,24 @@ class SnapshotModel extends Equatable {
   /// events. This is an error
   /// that should not happen,
   /// but is resolvable.
-  bool get isPartial {
-    _checkPartial();
-    return _missing > 0;
-  }
+  bool get isPartial => _missing > 0;
 
-  void _checkPartial() {
-    if (_missing == null) {
-      var value = 0;
-      for (var a in aggregates.values) {
-        // Adjust for zero-based number
-        value = value + a.number.value + 1;
-      }
+  static int _checkPartial(
+    EventNumberModel number,
+    LinkedHashMap<String, AggregateRootModel> aggregates,
+  ) {
+    var value = 0;
+    for (var a in aggregates.values) {
       // Adjust for zero-based number
-      _missing = number.value + 1 - value;
+      value = value + a.number.value + 1;
     }
+    // Adjust for zero-based number
+    return number.value + 1 - value;
   }
 
   /// Get number of events missing from snapshot
-  int get missing {
-    _checkPartial();
-    return _missing;
-  }
-
-  int _missing;
+  int get missing => _missing;
+  final int _missing;
 
   /// List of aggregate roots
   @JsonKey(
