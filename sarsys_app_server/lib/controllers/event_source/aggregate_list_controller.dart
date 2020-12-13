@@ -177,6 +177,10 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       return Response.badRequest(body: e.message);
     } catch (e, stackTrace) {
       return toServerError(e, stackTrace);
+    } finally {
+      if (primary.inTransaction(uuid)) {
+        primary.rollback(uuid);
+      }
     }
   }
 
@@ -252,6 +256,10 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       return Response.badRequest(body: e.message);
     } catch (e, stackTrace) {
       return toServerError(e, stackTrace);
+    } finally {
+      if (primary.inTransaction(uuid)) {
+        primary.rollback(uuid);
+      }
     }
   }
 
@@ -327,6 +335,10 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       return Response.badRequest(body: e.message);
     } catch (e, stackTrace) {
       return toServerError(e, stackTrace);
+    } finally {
+      if (primary.inTransaction(uuid)) {
+        primary.rollback(uuid);
+      }
     }
   }
 

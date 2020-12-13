@@ -324,6 +324,10 @@ class TrackingService extends MessageHandler<DomainEvent> {
         'error: $e,\n'
         'stackTrace: ${Trace.format(stackTrace)}',
       );
+    } finally {
+      if (repo.inTransaction(tuuid)) {
+        repo.rollback(tuuid);
+      }
     }
   }
 
@@ -407,6 +411,10 @@ class TrackingService extends MessageHandler<DomainEvent> {
         'stackTrace: ${Trace.format(stackTrace)}',
       );
       return <DomainEvent>[];
+    } finally {
+      if (repo.inTransaction(tuuid)) {
+        repo.rollback(tuuid);
+      }
     }
   }
 
@@ -684,17 +692,23 @@ class TrackingService extends MessageHandler<DomainEvent> {
           [event],
           'Detaching track ${track.id} from source ${track.source.uuid}',
         );
-        final trx = repo.getTransaction(tuuid);
-        final events = await _ensureTrack(
-          tuuid,
-          track.id,
-          track.source.toJson(),
-          status: DETACHED,
-        );
-        if (events.isNotEmpty) {
-          await _updateTrackingStatus(tuuid);
+        try {
+          final trx = repo.getTransaction(tuuid);
+          final events = await _ensureTrack(
+            tuuid,
+            track.id,
+            track.source.toJson(),
+            status: DETACHED,
+          );
+          if (events.isNotEmpty) {
+            await _updateTrackingStatus(tuuid);
+          }
+          await trx.push();
+        } finally {
+          if (repo.inTransaction(tuuid)) {
+            repo.rollback(tuuid);
+          }
         }
-        await trx.push();
       }
     }
   }

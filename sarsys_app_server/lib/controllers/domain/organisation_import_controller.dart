@@ -94,6 +94,10 @@ class OrganisationImportController
       return Response.badRequest(body: e.message);
     } on Exception catch (e, stackTrace) {
       return toServerError(e, stackTrace);
+    } finally {
+      if (primary.inTransaction(uuid)) {
+        primary.rollback(uuid);
+      }
     }
   }
 
@@ -208,30 +212,36 @@ class OrganisationImportController
     final responses = <Response>[];
     final deps = div.elementAt('departments') ?? [];
     final duuid = div.elementAt('uuid') as String ?? Uuid().v4();
-    final trx = foreign.getTransaction(duuid);
-    if (!foreign.contains(duuid)) {
-      responses.add(await super.create(
-        uuid,
-        div
-          ..addAll({
-            'uuid': duuid ?? Uuid().v4(),
-            'active': div.elementAt('active') ?? true,
-          })
-          ..removeWhere((key, _) => key == 'departments'),
-      ));
-    } else {
-      responses.add(
-        await _forward(divisionController).update(
-          duuid,
-          div..remove('departments'),
-        ),
+    try {
+      final trx = foreign.getTransaction(duuid);
+      if (!foreign.contains(duuid)) {
+        responses.add(await super.create(
+          uuid,
+          div
+            ..addAll({
+              'uuid': duuid ?? Uuid().v4(),
+              'active': div.elementAt('active') ?? true,
+            })
+            ..removeWhere((key, _) => key == 'departments'),
+        ));
+      } else {
+        responses.add(
+          await _forward(divisionController).update(
+            duuid,
+            div..remove('departments'),
+          ),
+        );
+      }
+      responses.addAll(
+        await _importDeps(duuid, deps),
       );
+      await trx.push();
+      return responses;
+    } finally {
+      if (foreign.inTransaction(uuid)) {
+        foreign.rollback(uuid);
+      }
     }
-    responses.addAll(
-      await _importDeps(duuid, deps),
-    );
-    await trx.push();
-    return responses;
   }
 
   Future<Iterable<Response>> _importDeps(String uuid, dynamic deps) async {

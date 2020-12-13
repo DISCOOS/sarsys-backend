@@ -64,6 +64,10 @@ class DevicePositionBatchController extends DevicePositionControllerBase {
       return Response.badRequest(body: e.message);
     } catch (e, stackTrace) {
       return toServerError(e, stackTrace);
+    } finally {
+      if (repository.inTransaction(uuid)) {
+        repository.rollback(uuid);
+      }
     }
   }
 
