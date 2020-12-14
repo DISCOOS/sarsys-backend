@@ -1123,14 +1123,18 @@ class EventStore {
   void _assertCurrentVersion(String stream, EventNumber actual, {String reason = 'Catch up failed'}) {
     final number = current(stream: stream);
     if (number != actual) {
-      final e = EventNumberMismatch(
+      final error = EventNumberMismatch(
         stream: stream,
         actual: actual,
         message: reason,
         current: current(stream: stream),
       );
-      logger.severe('${e.message},\ndebug: ${toDebugString(stream)}', e, StackTrace.current);
-      throw e;
+      logger.severe(
+        '${error.message},\ndebug: ${toDebugString(stream)}',
+        error,
+        Trace.from(StackTrace.current),
+      );
+      throw error;
     }
   }
 
@@ -1148,7 +1152,7 @@ class EventStore {
       logger.severe(
         '$message,\ndebug: ${toDebugString(stream)}',
         error,
-        StackTrace.current,
+        Trace.from(StackTrace.current),
       );
       throw error;
     }
@@ -2465,7 +2469,7 @@ class _EventStoreSubscriptionControllerImpl {
       logger.severe(
         'Processing fetch requests failed with: $e',
         e,
-        stackTrace,
+        Trace.from(stackTrace),
       );
       return true;
     });
@@ -2629,17 +2633,18 @@ class _EventStoreSubscriptionControllerImpl {
       logger.fine(
         'Listen for events in subscription $name starting from number $_current',
       );
-    } catch (e, stackTrace) {
+    } catch (error, stackTrace) {
       _fatal(
-        'Failed to start timer for subscription $name, error: $e',
+        'Failed to start timer for subscription $name, error: $error',
+        error,
         stackTrace,
       );
     }
   }
 
-  void _fatal(String message, StackTrace stackTrace) {
+  void _fatal(String message, Object error, StackTrace stackTrace) {
     _stopTimer();
-    controller.addError(e, stackTrace);
+    controller.addError(error, stackTrace);
   }
 
   void _pauseTimer() {

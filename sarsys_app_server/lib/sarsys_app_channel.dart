@@ -6,10 +6,11 @@ import 'package:http/http.dart';
 import 'package:jose/jose.dart';
 import 'package:meta/meta.dart';
 import 'package:aqueduct/aqueduct.dart' as aq;
+import 'package:stack_trace/stack_trace.dart';
+import 'package:uuid/uuid.dart';
 
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
-import 'package:uuid/uuid.dart';
 
 import 'auth/auth.dart';
 import 'controllers/domain/controllers.dart';
@@ -657,15 +658,27 @@ class SarSysAppServerChannel extends ApplicationChannel {
     await trackingService.build();
   }
 
-  void _terminateOnFailure(error, stackTrace) {
+  void _terminateOnFailure(Object error, StackTrace stackTrace) {
     if (!_disposed) {
       if (error is ClientException || error is SocketException) {
-        logger.severe("Failed to connect to eventstore with ${manager.connection}");
+        logger.severe(
+          "Failed to connect to eventstore with ${manager.connection}",
+          error,
+          Trace.from(stackTrace),
+        );
       } else {
-        logger.severe("Failed to build repositories: $error: $stackTrace");
+        logger.severe(
+          "Failed to build repositories: $error: $stackTrace",
+          error,
+          Trace.from(stackTrace),
+        );
       }
     }
-    logger.severe("Terminating server safely...");
+    logger.severe(
+      "Terminating server safely...",
+      error,
+      Trace.from(stackTrace),
+    );
     server.close();
   }
 

@@ -254,10 +254,10 @@ class OrganisationImportController
     return responses;
   }
 
-  Future<Response> _importDep(Map<String, dynamic> dep, String uuid) async {
+  Future<Response> _importDep(Map<String, dynamic> dep, String uuid) {
     final duuid = dep.elementAt('uuid') as String ?? Uuid().v4();
     if (!departmentController.repository.contains(duuid)) {
-      return await _forward(departmentListController).create(
+      return _forward(departmentListController).create(
           uuid,
           dep
             ..addAll({
@@ -265,7 +265,7 @@ class OrganisationImportController
               'active': dep.elementAt('active') ?? true,
             }));
     }
-    return await _forward(departmentController).update(duuid, dep);
+    return _forward(departmentController).update(duuid, dep);
   }
 
   T _forward<T extends ResourceController>(T controller) {

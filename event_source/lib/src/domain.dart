@@ -1015,11 +1015,13 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
             );
           });
         }
-      } catch (e, stackTrace) {
+      } catch (error, stackTrace) {
         logger.severe(
           'Execution of rule for $event on $runtimeType failed '
-          'with error: $e,\n'
+          'with error: $error,\n'
           'stackTrace: ${Trace.format(stackTrace)}',
+          error,
+          Trace.from(stackTrace),
         );
       }
     }
@@ -1454,6 +1456,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         'Failed to push ${aggregate.runtimeType}{uuid: ${aggregate.uuid}} with error: $error,\n'
         'stacktrace: ${Trace.format(stackTrace)}\n'
         'debug: ${toDebugString(aggregate?.uuid)}',
+        error,
+        Trace.from(stackTrace),
       );
       _completeTrx(
         aggregate.uuid,
@@ -1505,6 +1509,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         'with error: $error,\n'
         'stacktrace: ${Trace.format(stackTrace)},\n'
         'debug: ${toDebugString(aggregate?.uuid)}',
+        error,
+        Trace.from(stackTrace),
       );
       _completeTrx(
         aggregate.uuid,
@@ -3056,18 +3062,20 @@ abstract class MergeStrategy {
       );
 
       return next;
-    } on WrongExpectedEventVersion catch (e, stackTrace) {
+    } on WrongExpectedEventVersion catch (error, stackTrace) {
       // Try again?
       if (attempt < transaction._maxAttempts) {
         return await _reconcileWithRetry(transaction, attempt + 1);
       }
       repository.logger.severe(
         'Aborted automatic merge after ${transaction._maxAttempts} retries on ${aggregate.runtimeType} ${aggregate.uuid} '
-        'with error $e, \n'
+        'with error $error, \n'
         'stacktrace: ${Trace.format(stackTrace)},\n'
         'debug: ${repository.toDebugString(aggregate?.uuid)}',
+        error,
+        Trace.from(stackTrace),
       );
-      throw EventVersionReconciliationFailed(e, attempt);
+      throw EventVersionReconciliationFailed(error, attempt);
     }
   }
 

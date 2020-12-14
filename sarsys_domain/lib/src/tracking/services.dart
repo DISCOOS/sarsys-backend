@@ -220,9 +220,11 @@ class TrackingService extends MessageHandler<DomainEvent> {
             break;
         }
       }
-    } on Exception catch (e, stackTrace) {
+    } catch (error, stackTrace) {
       logger.severe(
-        'Failed to handle $message: $e with stacktrace: $stackTrace',
+        'Failed to handle $message: $error with stacktrace: $stackTrace',
+        error,
+        Trace.from(stackTrace),
       );
     }
   }
@@ -318,11 +320,13 @@ class TrackingService extends MessageHandler<DomainEvent> {
       } else {
         await _ensureDetached(event);
       }
-    } on Exception catch (e, stackTrace) {
+    } catch (error, stackTrace) {
       logger.severe(
         'Failed to push changes in Tracking $tuuid,\n'
-        'error: $e,\n'
+        'error: $error,\n'
         'stackTrace: ${Trace.format(stackTrace)}',
+        error,
+        Trace.from(stackTrace),
       );
     } finally {
       if (repo.inTransaction(tuuid)) {
@@ -380,14 +384,14 @@ class TrackingService extends MessageHandler<DomainEvent> {
   /// Add position to track for given source
   Future<Iterable<DomainEvent>> _addPosition(String tuuid, PositionEvent event) async {
     try {
-      final trx = repo.getTransaction(
-        tuuid,
-      );
       final track = _findTrack(
         TrackingModel.fromJson(repo.get(tuuid).data),
         repo.toAggregateUuid(event),
       );
       if (track != null) {
+        final trx = repo.getTransaction(
+          tuuid,
+        );
         final positions = track.positions ?? [];
         positions.add(PositionModel.fromJson(event.value));
 
@@ -401,21 +405,23 @@ class TrackingService extends MessageHandler<DomainEvent> {
             'Added ${event.source} position to track ${track.id} in tracking $tuuid',
           );
           await _aggregate(tuuid);
+          return await trx.push();
         }
       }
-      return await trx.push();
-    } catch (e, stackTrace) {
+    } catch (error, stackTrace) {
       logger.severe(
         'Failed to push changes in Tracking $tuuid,\n'
-        'error: $e,\n'
+        'error: $error,\n'
         'stackTrace: ${Trace.format(stackTrace)}',
+        error,
+        Trace.from(stackTrace),
       );
-      return <DomainEvent>[];
     } finally {
       if (repo.inTransaction(tuuid)) {
         repo.rollback(tuuid);
       }
     }
+    return <DomainEvent>[];
   }
 
   /// Calculate geometric mean of last position in all tracks
@@ -452,6 +458,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
         }
       }
     }
+    return Future.value();
   }
 
   TrackModel _findTrackManagedByMe(String tuuid, String suuid) =>
@@ -525,13 +532,15 @@ class TrackingService extends MessageHandler<DomainEvent> {
   FutureOr<Iterable<DomainEvent>> _addTrack(String uuid, Map<String, Object> track) async {
     try {
       return await repo.execute(AddTrackToTracking(uuid, track));
-    } on Exception catch (e, stackTrace) {
+    } catch (error, stackTrace) {
       logger.severe(
         'Failed to add track to Tracking $uuid for '
         '${track.mapAt(SOURCE).elementAt(TYPE)} '
         '${track.mapAt(SOURCE).elementAt(UUID)},\n'
-        'error: $e,\n'
+        'error: $error,\n'
         'stackTrace: ${Trace.format(stackTrace)}',
+        error,
+        Trace.from(stackTrace),
       );
       return <DomainEvent>[];
     }
@@ -540,11 +549,13 @@ class TrackingService extends MessageHandler<DomainEvent> {
   FutureOr<Iterable<DomainEvent>> _updateTrack(String uuid, Map<String, dynamic> track) async {
     try {
       return await repo.execute(UpdateTrackingTrack(uuid, track));
-    } on Exception catch (e, stackTrace) {
+    } catch (error, stackTrace) {
       logger.severe(
         'Failed to update track ${track[UUID]} in Tracking $uuid,\n'
-        'error: $e,\n'
+        'error: $error,\n'
         'stackTrace: ${Trace.format(stackTrace)}',
+        error,
+        Trace.from(stackTrace),
       );
       return <DomainEvent>[];
     }
@@ -577,11 +588,13 @@ class TrackingService extends MessageHandler<DomainEvent> {
           );
         }
       }
-    } on Exception catch (e, stackTrace) {
+    } catch (error, stackTrace) {
       logger.severe(
         'Failed to update tracking $uuid status,\n'
-        'error: $e,\n'
+        'error: $error,\n'
         'stackTrace: ${Trace.format(stackTrace)}',
+        error,
+        Trace.from(stackTrace),
       );
     }
   }
@@ -589,11 +602,13 @@ class TrackingService extends MessageHandler<DomainEvent> {
   FutureOr<Iterable<DomainEvent>> _updateTrackingPosition(Map<String, Object> tracking) async {
     try {
       return await repo.execute(UpdateTrackingPosition(tracking));
-    } on Exception catch (e, stackTrace) {
+    } catch (error, stackTrace) {
       logger.severe(
         'Failed to update tracking ${tracking[UUID]},\n'
-        'error: $e,\n'
+        'error: $error,\n'
         'stackTrace: ${Trace.format(stackTrace)}',
+        error,
+        Trace.from(stackTrace),
       );
       return <DomainEvent>[];
     }
@@ -643,15 +658,17 @@ class TrackingService extends MessageHandler<DomainEvent> {
         }
         await _updateTrackingStatus(tuuid);
       } else {
-        logger.severe(
+        throw AggregateNotFound(
           'Tracking $tuuid not found in $repo after catch up',
         );
       }
-    } on Exception catch (e, stackTrace) {
+    } catch (error, stackTrace) {
       logger.severe(
         'Failed to push changes in Tracking $tuuid,\n'
-        'error: $e,\n'
+        'error: $error,\n'
         'stackTrace: ${Trace.format(stackTrace)}',
+        error,
+        Trace.from(stackTrace),
       );
     }
   }
@@ -730,11 +747,13 @@ class TrackingService extends MessageHandler<DomainEvent> {
       } else if (domain is TrackingDeleted) {
         await _onTrackingDeleted(domain);
       }
-    } on Exception catch (e, stackTrace) {
+    } catch (error, stackTrace) {
       logger.severe(
         'Failed to handle $event,\n'
-        'error: $e,\n'
+        'error: $error,\n'
         'stackTrace: ${Trace.format(stackTrace)}',
+        error,
+        Trace.from(stackTrace),
       );
     }
   }
@@ -746,11 +765,13 @@ class TrackingService extends MessageHandler<DomainEvent> {
         _subscription.reconnect(
           repository,
         );
-      } on Exception catch (e, stackTrace) {
+      } catch (error, stackTrace) {
         logger.severe(
           'Failed to reconnect to repository,\n'
-          'error: $e,\n'
+          'error: $error,\n'
           'stackTrace: ${Trace.format(stackTrace)}',
+          error,
+          Trace.from(stackTrace),
         );
       }
     }
@@ -768,11 +789,13 @@ class TrackingService extends MessageHandler<DomainEvent> {
         _subscription.reconnect(
           repository,
         );
-      } on Exception catch (e, stackTrace) {
+      } catch (e, stackTrace) {
         logger.severe(
           'Failed to reconnect to repository,\n'
           'error: $e,\n'
           'stackTrace: ${Trace.format(stackTrace)}',
+          e,
+          Trace.from(stackTrace),
         );
       }
     }

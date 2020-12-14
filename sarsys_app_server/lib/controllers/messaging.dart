@@ -7,6 +7,7 @@ import 'package:event_source/event_source.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:uuid/uuid.dart';
+import 'package:stack_trace/stack_trace.dart';
 
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 
@@ -312,8 +313,12 @@ class MessageChannel extends MessageHandler<Event> {
         );
       }
       await _removeAll(idle, reason: 'Idle too long');
-    } catch (e, stacktrace) {
-      logger.severe('Failed to check liveliness with: $e with stacktrace: $stacktrace');
+    } catch (error, stackTrace) {
+      logger.severe(
+        'Failed to check liveliness: $error with stacktrace: $stackTrace',
+        error,
+        Trace.from(stackTrace),
+      );
     }
   }
 
