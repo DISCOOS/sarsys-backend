@@ -1,6 +1,7 @@
 import 'package:meta/meta.dart';
 
 import 'package:event_source/event_source.dart';
+import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:sarsys_domain/src/operation/repository.dart';
 import 'package:sarsys_domain/src/tracking/tracking.dart';
 
@@ -42,11 +43,13 @@ class UnitRepository extends Repository<UnitCommand, Unit> {
     super.willStartProcessingEvents();
   }
 
-  AggregateRule newRemovePersonnelRule(_) => AssociationRule(
+  AggregateRule newRemovePersonnelRule(Repository repo) => AssociationRule(
         (source, target) => RemovePersonnelFromUnit(
           get(target),
           toAggregateUuid(source),
         ),
+        source: repo,
+        sourceField: 'uuid',
         target: this,
         intent: Action.delete,
         targetField: 'personnels',

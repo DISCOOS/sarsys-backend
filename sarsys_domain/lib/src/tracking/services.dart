@@ -299,17 +299,19 @@ class TrackingService extends MessageHandler<DomainEvent> {
     final tuuid = repo.toAggregateUuid(event);
     try {
       if (managed.contains(tuuid)) {
-        if (_addSource(tuuid, event.sourceUuid)) {
+        final data = repo.get(tuuid).data;
+        final suuid = event.toSourceUuid(data);
+        if (_addSource(tuuid, suuid)) {
           _addToStream(
             [event],
-            'Looking for other active tracks attached to ${event.sourceType} ${event.sourceUuid}',
+            'Looking for other active tracks attached to ${event.toSourceType(data)} $suuid',
           );
-          final other = _findTrackManagedByOthers(tuuid, event.sourceUuid);
+          final other = _findTrackManagedByOthers(tuuid, suuid);
           final trx = repo.getTransaction(tuuid);
           await _ensureTrack(
             tuuid,
-            event.id,
-            event.entity,
+            event.toId(data),
+            event.toEntity(data),
             positions: other ?? {}[POSITIONS],
             status: ATTACHED,
           );
@@ -392,8 +394,9 @@ class TrackingService extends MessageHandler<DomainEvent> {
         final trx = repo.getTransaction(
           tuuid,
         );
+        final position = event.position;
         final positions = track.positions ?? [];
-        positions.add(PositionModel.fromJson(event.value));
+        positions.add(position);
 
         final events = await _updateTrack(
           tuuid,
@@ -402,7 +405,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
         if (events?.isNotEmpty == true) {
           _addToStream(
             [event, ...events],
-            'Added ${event.source} position to track ${track.id} in tracking $tuuid',
+            'Added ${enumName(position.source)} position to track ${track.id} in tracking $tuuid',
           );
           await _aggregate(tuuid);
           return await trx.push();
@@ -503,6 +506,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
     Map<String, dynamic> positions,
     String status,
   }) async {
+    assert(source != null, "'source' can not be null");
     final tracking = repo.get(uuid);
     final tracks = tracking.asEntityArray(TRACKS);
     final exists = tracks.contains(id);
@@ -699,32 +703,31 @@ class TrackingService extends MessageHandler<DomainEvent> {
     return changed.isNotEmpty || empty.isNotEmpty;
   }
 
-  Future _ensureDetached(DomainEvent event) async {
-    if (event is TrackingSourceAdded || event is TrackingSourceRemoved) {
-      final tuuid = repo.toAggregateUuid(event);
-      final source = (event as TrackingSourceEvent).sourceUuid;
-      final track = _findTrackManagedByMe(tuuid, source);
-      if (track != null) {
-        _addToStream(
-          [event],
-          'Detaching track ${track.id} from source ${track.source.uuid}',
+  Future _ensureDetached(TrackingSourceEvent event) async {
+    final tuuid = repo.toAggregateUuid(event);
+    final data = repo.get(tuuid).data;
+    final suuid = event.toSourceUuid(data);
+    final track = _findTrackManagedByMe(tuuid, suuid);
+    if (track != null) {
+      _addToStream(
+        [event],
+        'Detaching track ${track.id} from source ${track.source.uuid}',
+      );
+      try {
+        final trx = repo.getTransaction(tuuid);
+        final events = await _ensureTrack(
+          tuuid,
+          track.id,
+          track.source.toJson(),
+          status: DETACHED,
         );
-        try {
-          final trx = repo.getTransaction(tuuid);
-          final events = await _ensureTrack(
-            tuuid,
-            track.id,
-            track.source.toJson(),
-            status: DETACHED,
-          );
-          if (events.isNotEmpty) {
-            await _updateTrackingStatus(tuuid);
-          }
-          await trx.push();
-        } finally {
-          if (repo.inTransaction(tuuid)) {
-            repo.rollback(tuuid);
-          }
+        if (events.isNotEmpty) {
+          await _updateTrackingStatus(tuuid);
+        }
+        await trx.push();
+      } finally {
+        if (repo.inTransaction(tuuid)) {
+          repo.rollback(tuuid);
         }
       }
     }

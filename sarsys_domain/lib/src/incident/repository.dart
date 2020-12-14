@@ -1,4 +1,5 @@
 import 'package:event_source/event_source.dart';
+import 'package:sarsys_domain/sarsys_domain.dart';
 
 import 'aggregate.dart';
 import 'commands.dart';
@@ -24,11 +25,13 @@ class IncidentRepository extends Repository<IncidentCommand, Incident> implement
           IncidentMessageRemoved: (event) => IncidentMessageRemoved(event)
         });
 
-  AssociationRule newRemoveSubjectRule(_) => AssociationRule(
+  AggregateRule newRemoveSubjectRule(Repository repo) => AssociationRule(
         (source, target) => RemoveSubjectFromIncident(
           get(target),
           toAggregateUuid(source),
         ),
+        source: repo,
+        sourceField: 'uuid',
         target: this,
         targetField: 'subjects',
         intent: Action.delete,
@@ -42,11 +45,13 @@ class IncidentRepository extends Repository<IncidentCommand, Incident> implement
         cardinality: Cardinality.any,
       );
 
-  AssociationRule newRemoveOperationRule(_) => AssociationRule(
+  AggregateRule newRemoveOperationRule(Repository repo) => AssociationRule(
         (source, target) => RemoveOperationFromIncident(
           get(target),
           toAggregateUuid(source),
         ),
+        source: repo,
+        sourceField: 'uuid',
         target: this,
         targetField: 'operations',
         intent: Action.delete,

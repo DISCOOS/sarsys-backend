@@ -1,6 +1,7 @@
 import 'package:meta/meta.dart';
 
 import 'package:event_source/event_source.dart';
+import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:sarsys_domain/src/affiliation/repository.dart';
 
 import 'aggregate.dart';
@@ -30,11 +31,13 @@ class OrganisationRepository extends Repository<OrganisationCommand, Organisatio
     super.willStartProcessingEvents();
   }
 
-  AggregateRule newRemoveDivisionRule(_) => AssociationRule(
+  AggregateRule newRemoveDivisionRule(Repository repo) => AssociationRule(
         (source, target) => RemoveDivisionFromOrganisation(
           get(target),
           toAggregateUuid(source),
         ),
+        source: repo,
+        sourceField: 'uuid',
         target: this,
         targetField: 'divisions',
         intent: Action.delete,

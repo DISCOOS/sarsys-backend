@@ -1,5 +1,6 @@
 import 'package:event_source/event_source.dart';
 import 'package:meta/meta.dart';
+import 'package:sarsys_domain/sarsys_domain.dart';
 
 class PositionEvent extends ValueObjectEvent<Map<String, dynamic>> {
   PositionEvent({
@@ -18,12 +19,7 @@ class PositionEvent extends ValueObjectEvent<Map<String, dynamic>> {
           data: data,
         );
 
-  double get lon => coordinates[0];
-  double get lat => coordinates[1];
-  double get alt => coordinates[2];
-  String get source => value.elementAt('properties/source');
-  double get acc => double.tryParse(value.elementAt('properties/accuracy'));
-  DateTime get ts => DateTime.parse(value.elementAt('properties/timestamp'));
-  Map<String, dynamic> get point => value.elementAt('geometry');
-  List<double> get coordinates => List.from(point.elementAt('coordinates'));
+  PositionModel get position => PositionModel.fromJson(
+        toValue(JsonUtils.apply(previous ?? {}, patches)),
+      );
 }

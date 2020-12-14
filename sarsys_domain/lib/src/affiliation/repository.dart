@@ -1,4 +1,5 @@
 import 'package:event_source/event_source.dart';
+import 'package:sarsys_domain/sarsys_domain.dart';
 
 import 'aggregate.dart';
 import 'commands.dart';
@@ -12,26 +13,12 @@ class AffiliationRepository extends Repository<AffiliationCommand, Affiliation> 
           AffiliationDeleted: (event) => AffiliationDeleted(event),
         });
 
-  AggregateRule newDeletePersonRule(_) => AssociationRule(
+  AggregateRule newDeleteOrganisationRule(Repository repo) => AssociationRule(
         (source, target) => DeleteAffiliation(
           get(target).data,
         ),
-        target: this,
-        targetField: 'person/uuid',
-        intent: Action.delete,
-        //
-        // Relation: 'person-to-affiliation'
-        //
-        // - will remove affiliation
-        //   when person is deleted
-        //
-        cardinality: Cardinality.o2m,
-      );
-
-  AggregateRule newDeleteOrganisationRule(_) => AssociationRule(
-        (source, target) => DeleteAffiliation(
-          get(target).data,
-        ),
+        source: repo,
+        sourceField: 'uuid',
         target: this,
         targetField: 'org/uuid',
         intent: Action.delete,
@@ -44,15 +31,35 @@ class AffiliationRepository extends Repository<AffiliationCommand, Affiliation> 
         cardinality: Cardinality.o2m,
       );
 
-  AggregateRule newDeleteDivisionRule(_) => AssociationRule(
+  AggregateRule newDeletePersonRule(Repository repo) => AssociationRule(
         (source, target) => DeleteAffiliation(
           get(target).data,
         ),
+        source: repo,
+        sourceField: 'uuid',
         target: this,
-        targetField: 'div/uuid',
+        targetField: 'person/uuid',
         intent: Action.delete,
         //
-        // Relation: 'division-to-affiliations'
+        // Relation: 'person-to-affiliation'
+        //
+        // - will remove affiliation
+        //   when person is deleted
+        //
+        cardinality: Cardinality.o2m,
+      );
+
+  AggregateRule newDeleteDepartmentRule(Repository repo) => AssociationRule(
+        (source, target) => DeleteAffiliation(
+          get(target).data,
+        ),
+        source: repo,
+        sourceField: 'uuid',
+        target: this,
+        targetField: 'dep/uuid',
+        intent: Action.delete,
+        //
+        // Relation: 'department-to-affiliations'
         //
         // - will remove affiliation
         //   when organisation is deleted
@@ -60,15 +67,17 @@ class AffiliationRepository extends Repository<AffiliationCommand, Affiliation> 
         cardinality: Cardinality.o2m,
       );
 
-  AggregateRule newDeleteDepartmentRule(_) => AssociationRule(
+  AggregateRule newDeleteDivisionRule(Repository repo) => AssociationRule(
         (source, target) => DeleteAffiliation(
           get(target).data,
         ),
+        source: repo,
+        sourceField: 'uuid',
         target: this,
-        targetField: 'dep/uuid',
+        targetField: 'div/uuid',
         intent: Action.delete,
         //
-        // Relation: 'department-to-affiliations'
+        // Relation: 'division-to-affiliations'
         //
         // - will remove affiliation
         //   when organisation is deleted

@@ -45,11 +45,13 @@ class OperationRepository extends Repository<OperationCommand, Operation> {
     super.willStartProcessingEvents();
   }
 
-  AggregateRule newRemoveUnitRule(_) => AssociationRule(
+  AggregateRule newRemoveUnitRule(Repository repo) => AssociationRule(
         (source, target) => RemoveUnitFromOperation(
           get(target),
           toAggregateUuid(source),
         ),
+        source: repo,
+        sourceField: 'uuid',
         target: this,
         targetField: 'units',
         intent: Action.delete,
@@ -63,11 +65,13 @@ class OperationRepository extends Repository<OperationCommand, Operation> {
         cardinality: Cardinality.any,
       );
 
-  AssociationRule newRemovePersonnelRule(_) => AssociationRule(
+  AggregateRule newRemovePersonnelRule(Repository repo) => AssociationRule(
         (source, target) => RemovePersonnelFromOperation(
           get(target),
           toAggregateUuid(source),
         ),
+        source: repo,
+        sourceField: 'uuid',
         target: this,
         targetField: 'personnels',
         intent: Action.delete,
@@ -81,11 +85,13 @@ class OperationRepository extends Repository<OperationCommand, Operation> {
         cardinality: Cardinality.any,
       );
 
-  AssociationRule newRemoveMissionRule(_) => AssociationRule(
+  AggregateRule newRemoveMissionRule(Repository repo) => AssociationRule(
         (source, target) => RemoveMissionFromOperation(
           get(target),
           toAggregateUuid(source),
         ),
+        source: repo,
+        sourceField: 'uuid',
         target: this,
         targetField: 'missions',
         intent: Action.delete,

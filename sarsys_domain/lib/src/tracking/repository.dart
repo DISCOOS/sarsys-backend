@@ -20,12 +20,13 @@ class TrackingRepository extends Repository<TrackingCommand, Tracking> {
           TrackingPositionChanged: (event) => TrackingPositionChanged(event),
         });
 
-  AssociationRule newCreateRule(_) => AssociationRule(
+  AssociationRule newCreateRule(Repository repo) => AssociationRule(
         (source, target) => CreateTracking({
           uuidFieldName: target,
         }),
-        target: this,
+        source: repo,
         sourceField: 'tracking/uuid',
+        target: this,
         targetField: uuidFieldName,
         intent: Action.create,
         //
@@ -37,12 +38,13 @@ class TrackingRepository extends Repository<TrackingCommand, Tracking> {
         cardinality: Cardinality.o2o,
       );
 
-  AssociationRule newDeleteRule(_) => AssociationRule(
+  AssociationRule newDeleteRule(Repository repo) => AssociationRule(
         (source, target) => DeleteTracking({
           uuidFieldName: target,
         }),
-        target: this,
+        source: repo,
         sourceField: 'tracking/uuid',
+        target: this,
         targetField: uuidFieldName,
         intent: Action.delete,
         //

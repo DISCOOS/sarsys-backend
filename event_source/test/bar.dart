@@ -41,6 +41,7 @@ class BarRepository extends Repository<BarCommand, Bar> {
         (source, target) => UpdateFoo(
           {'uuid': target, 'updated': 'value'},
         ),
+        source: this,
         target: foos,
         targetField: 'uuid',
         sourceField: 'foo/uuid',
@@ -89,7 +90,7 @@ class BarCreated extends DomainEvent {
           type: '$BarCreated',
         );
 
-  int get index => changed.elementAt('index');
+  // int get index => changed.elementAt('index');
 }
 
 class BarUpdated extends DomainEvent {

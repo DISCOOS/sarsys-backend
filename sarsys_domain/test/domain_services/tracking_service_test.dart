@@ -349,12 +349,18 @@ Future main() async {
       ]),
     );
 
+    final seen = [];
+    service.asStream().listen((event) {
+      seen.add(event);
+    });
+
     // Act - remove source after service has consumed TrackingSourceAdded
     await _removeTrackingSource(
       repo,
       tuuid,
       duuid,
     );
+
     await expectLater(
       service.asStream(),
       emitsInOrder([
@@ -420,7 +426,7 @@ Future main() async {
 
     // Cleanup
     await service.dispose();
-  });
+  }, timeout: Timeout.factor(100));
 }
 
 void _assertStates(

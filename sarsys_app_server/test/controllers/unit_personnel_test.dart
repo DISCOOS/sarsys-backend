@@ -80,7 +80,7 @@ Future main() async {
     expect(actual['offset'], equals(1));
     expect(actual['limit'], equals(2));
     expect(actual['entries'].length, equals(2));
-  }, timeout: const Timeout.factor(100));
+  });
 
   test("DELETE /api/units/{uuid}/personnels should remove from personnels from list in unit", () async {
     final auuid = Uuid().v4();

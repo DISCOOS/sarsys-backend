@@ -339,26 +339,6 @@ class EventStore {
     return numbers;
   }
 
-  // EventNumber _resetAll(Repository repository) {
-  //   _store.clear();
-  //   _events.clear();
-  //   repository.reset(
-  //     snapshots?.last?.uuid,
-  //   );
-  //   _snapshot = repository.snapshot;
-  //   if (_snapshot != null) {
-  //     if (useInstanceStreams) {
-  //       _snapshot.aggregates.values.forEach((a) {
-  //         _updateAll(a.uuid, <SourceEvent>[]);
-  //       });
-  //     }
-  //   }
-  //   final offset = _assertStreamOffset(
-  //     repository,
-  //   );
-  //   return repository.hasSnapshot ? offset + 1 : offset;
-  // }
-
   EventNumber _assertStreamOffset(
     Repository repository, {
     @required String stream,
@@ -493,7 +473,7 @@ class EventStore {
             // Handlers can determine events with
             // local origin using the local field
             // in each Event
-            _publishAll(domainEvents);
+            publish(domainEvents);
           },
         );
 
@@ -610,19 +590,12 @@ class EventStore {
           stream: toInstanceStream(uuid),
         ),
       );
-
-      // Publish locally created events.
-      // Handlers can determine events with
-      // local origin using the local field
-      // in each Event
-      _publishAll(changes);
     }
     return changes;
   }
 
   /// Publish events to [bus] and [asStream]
-  void _publishAll(Iterable<DomainEvent> events) {
-    // Notify later but before next Future
+  void publish(Iterable<DomainEvent> events) {
     events.forEach((e) => bus.publish(this, e));
     if (_streamController != null) {
       events.forEach(_streamController.add);
@@ -921,13 +894,11 @@ class EventStore {
           '  event.type: ${event.type}, \n'
           '  event.uuid: ${event.uuid}, \n'
           '  event.number: ${event.number}, \n'
-          '  event.sourced: ${_isSourced(uuid, event)}, \n'
-          '  event.applied: $isApplied, \n'
+          '  event.isSourced: ${_isSourced(uuid, event)}, \n'
+          '  event.isApplied: $isApplied, \n'
+          '  event.patches: ${applied?.patches}, \n'
           '  aggregate.uuid: ${aggregate.uuid}, \n'
           '  aggregate.stream: $stream, \n'
-          '  aggregate.applied.previous: ${applied?.previous}, \n'
-          '  aggregate.applied.patches: ${applied?.patches}, \n'
-          '  aggregate.applied.changed: ${applied?.changed}, \n'
           '  repository: ${repo.runtimeType}, \n'
           '  repository.isEmpty: $isEmpty, \n'
           '  repository.number.instance: $actual\n'
@@ -1000,7 +971,7 @@ class EventStore {
     Repository repository,
   ) {
     logger.fine(
-      '_onReplace(${event.type}(uuid: ${event.uuid}, number:${event.number}, remote:${event.remote}))',
+      '_onReplace(${event.type}(uuid: ${event.uuid}, number: ${event.number}, remote: ${event.remote}))',
     );
 
     // Catch up with stream
@@ -1012,7 +983,7 @@ class EventStore {
     // Handlers can determine events with
     // remote origin using the local field
     // in each Event
-    _publishAll([domainEvent]);
+    publish([domainEvent]);
   }
 
   /// Apply unseen event to [AggregateRoot] with given [uuid]
@@ -1035,7 +1006,7 @@ class EventStore {
     // Only apply events with numbers bigger then current
     if (event.number > actual) {
       logger.fine(
-        '_onApply(${event.type}(uuid: ${event.uuid}, number:${event.number}, remote:${event.remote}))',
+        '_onApply(${event.type}(uuid: ${event.uuid}, number: ${event.number}, remote: ${event.remote}))',
       );
 
       // Do not apply is subscriptions are suspended
@@ -1062,8 +1033,10 @@ class EventStore {
         // Handlers can determine events with
         // local origin using the local field
         // in each Event
-        _publishAll([domainEvent]);
+        publish([domainEvent]);
       }
+    } else {
+      print('hm');
     }
   }
 

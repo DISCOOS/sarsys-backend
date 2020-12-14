@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:equatable/equatable.dart';
-import 'package:json_patch/json_patch.dart';
 import 'package:meta/meta.dart';
 import 'package:uuid/uuid.dart';
 
@@ -161,39 +160,54 @@ class DomainEvent extends Event {
           created: created ?? DateTime.now(),
         );
 
-  Event rebase(Map<String, dynamic> base, {int delta = 0}) {
-    final changed = JsonPatch.apply(base, patches, strict: false);
-    return Event(
+  /// Only terse events should be stored.
+  /// This conserves memory consumption.
+  bool get isNotTerse => data.hasPath('previous');
+
+  /// Only terse events should be stored.
+  /// This conserves memory consumption.
+  bool get isTerse => !data.hasPath('previous');
+
+  /// Get previous state. Only available is [isTerse] is false.
+  /// Handlers can use this field to fetch data was deleted.
+  /// [AggregateRule]s are one example that use it to
+  /// lookup source or target values that are removed from
+  /// [AggregateRoot] when event is received.
+  Map<String, dynamic> get previous => data.mapAt('previous', defaultMap: null);
+
+  /// Get [DomainEvent] with [previous] (not terse)
+  DomainEvent expect(Map<String, dynamic> previous) {
+    return DomainEvent(
       uuid: uuid,
       type: type,
       local: local,
+      number: number,
       created: created,
-      number: number + delta,
-      data: data
+      data: Map.from(data)
         ..addAll({
-          'previous': base,
-          'changed': changed,
+          'previous': previous,
         }),
     );
   }
 
-  /// Get element at given path in [changed]. If not found, [previous] is used instead
-  @override
-  T elementAt<T>(String path) => changed.elementAt(path) ?? previous.elementAt(path);
-
-  /// Get changed fields from `data['changed']`.
-  Map<String, dynamic> get changed => data.mapAt<String, dynamic>('changed');
-
-  /// Get changed fields from `data['previous']`.
-  /// If empty, `data['changed']`is returned instead
-  Map<String, dynamic> get previous => data.mapAt<String, dynamic>('previous');
+  /// Get [DomainEvent] without [previous] (terse)
+  DomainEvent terse() {
+    return DomainEvent(
+      uuid: uuid,
+      type: type,
+      local: local,
+      number: number,
+      created: created,
+      data: Map.from(data)..removeWhere((key, _) => key == 'previous'),
+    );
+  }
 
   @override
   String toString() {
     return '$runtimeType{uuid: $uuid, type: $type, number: $number, local: $local, created: $created}';
   }
 
-  Event toEvent(uuidFieldName) => Event(
+  Event toEvent(String uuidFieldName, {bool terse = true}) => Event(
       uuid: uuid,
       type: type,
       local: local,
@@ -205,6 +219,7 @@ class DomainEvent extends Event {
         patches: patches,
         deleted: isDeleted,
         index: data?.elementAt<int>('index'),
+        previous: terse ? null : data?.mapAt<String, dynamic>('previous'),
       ));
 
   SourceEvent toSourceEvent({
@@ -233,13 +248,12 @@ class DomainEvent extends Event {
     String uuidFieldName, {
     int index,
     Map<String, dynamic> previous,
-    Map<String, dynamic> changed = const {},
     List<Map<String, dynamic>> patches = const [],
     bool deleted = false,
   }) =>
       {
         uuidFieldName: uuid,
-        'changed': changed,
+        // 'changed': changed,
         'patches': patches,
         'deleted': deleted,
         if (index != null) 'index': index,
@@ -255,23 +269,29 @@ class EntityObjectEvent extends DomainEvent {
     @required DateTime created,
     @required this.aggregateField,
     @required Map<String, dynamic> data,
-    int index,
+    @required int index,
     this.idFieldName = 'id',
-  }) : super(
+    Map<String, dynamic> previous,
+  })  : assert(index != null, 'index is required'),
+        super(
           uuid: uuid,
           type: type,
           local: local,
           created: created,
-          data: {'index': index}..addAll(data),
+          data: Map.from(data)
+            ..addAll({
+              'index': index,
+              if (previous != null) 'previous': previous,
+            }),
         );
 
   final String idFieldName;
   final String aggregateField;
 
   int get index => data['index'];
-  String get id => entity.elementAt(idFieldName);
-  Map<String, dynamic> get entity => elementAt('$aggregateField/$index');
-  EntityObject get entityObject => EntityObject(id, entity, idFieldName);
+  String toId(Map<String, dynamic> data) => toEntity(data)?.elementAt(idFieldName);
+  Map<String, dynamic> toEntity(Map<String, dynamic> data) => data?.mapAt('$aggregateField/$index');
+  EntityObject toEntityObject(Map<String, dynamic> data) => EntityObject(toId(data), toEntity(data), idFieldName);
 }
 
 class ValueObjectEvent<T> extends DomainEvent {
@@ -282,17 +302,21 @@ class ValueObjectEvent<T> extends DomainEvent {
     @required DateTime created,
     @required this.valueField,
     @required Map<String, dynamic> data,
+    Map<String, dynamic> previous,
   }) : super(
           uuid: uuid,
           type: type,
           local: local,
           created: created,
-          data: data,
+          data: Map.from(data)
+            ..addAll({
+              if (previous != null) 'previous': previous,
+            }),
         );
 
   final String valueField;
 
-  T get value => elementAt(valueField) as T;
+  T toValue(Map<String, dynamic> data) => data.elementAt(valueField) as T;
 }
 
 /// Base class for events sourced from an event stream.
@@ -327,12 +351,14 @@ class SourceEvent extends Event {
     String uuidFieldName, {
     int index,
     bool deleted = false,
+    Map<String, dynamic> previous = const {},
     List<Map<String, dynamic>> patches = const [],
   }) =>
       {
         uuidFieldName: uuid,
         'patches': patches,
         'deleted': deleted,
+        'previous': previous,
         if (index != null) 'index': index,
       };
 }

@@ -253,11 +253,24 @@ class AssociationRule extends AggregateRule {
   AssociationRule(
     CommandBuilder builder, {
     @required this.intent,
+    @required Repository source,
+    @required String sourceField,
     @required Repository target,
     @required this.targetField,
-    Repository source,
-    String sourceField,
+
+    /// Only apply rule to local events
+    /// (default true)
     bool local = true,
+
+    /// Resolve previous
+    /// [AggregateRoot.data] using
+    /// [AggregateRoot.toData] if
+    /// [DomainEvent.isTerse]
+    /// (default false).
+    this.resolve = false,
+
+    /// Association [Cardinality]
+    /// enforced by this rule.
     this.cardinality = Cardinality.any,
   })  : source = source ?? target,
         sourceField = sourceField ?? (source ?? target).uuidFieldName,
@@ -266,6 +279,11 @@ class AssociationRule extends AggregateRule {
           target,
           local: local,
         );
+
+  /// If [true] resolve previous
+  /// [AggregateRoot.data] using
+  /// [AggregateRoot.toData]
+  final bool resolve;
 
   /// Source [Repository] which events are applied
   final Repository source;
@@ -286,17 +304,17 @@ class AssociationRule extends AggregateRule {
   Future<Iterable<String>> appliesTo(DomainEvent event) async {
     // Ensure distinct target uuids
     var targets = <String>{};
-    final reference = _toSourceValue(event);
-    if (reference != null) {
-      final uuids = find(target, targetField, reference);
+    final key = _lookup(event);
+    if (key != null) {
+      final uuids = find(target, targetField, key);
       if (uuids.isNotEmpty == true) {
         targets.addAll(uuids);
       }
       switch (intent) {
         case Action.create:
-          if (_shouldCreate(reference, targets)) {
+          if (_shouldCreate(key, targets)) {
             targets = {
-              targetField == target.uuidFieldName ? reference : Uuid().v4(),
+              targetField == target.uuidFieldName ? key : Uuid().v4(),
             };
           } else {
             targets.clear();
@@ -306,7 +324,7 @@ class AssociationRule extends AggregateRule {
           // TODO: Handle replaced aggregate reference
           break;
         case Action.delete:
-          if (!_shouldDelete(reference, targets)) {
+          if (!_shouldDelete(key, targets)) {
             targets.clear();
           }
           break;
@@ -315,20 +333,39 @@ class AssociationRule extends AggregateRule {
     return targets;
   }
 
-  dynamic _toSourceValue(DomainEvent event) {
+  dynamic _lookup(DomainEvent event) {
     final uuid = source.toAggregateUuid(event);
     if (sourceField != source.uuidFieldName) {
-      var value = event.previous?.elementAt(sourceField);
-      if (value != null) {
-        return value;
+      // Lookup value in source aggregate
+      final aggregate = source.get(uuid, createNew: false);
+      var value = _toValue(event, aggregate, sourceField);
+      if (value == null && target != source) {
+        // Lookup target aggregate
+        final aggregate = target.get(uuid, createNew: false);
+        value = _toValue(event, aggregate, targetField);
       }
-      value = event.changed?.elementAt(sourceField);
-      if (value != null) {
-        return value;
-      }
-      return source.get(uuid, createNew: false)?.data?.elementAt(sourceField);
+      return value;
     }
     return uuid;
+  }
+
+  dynamic _toValue(DomainEvent event, AggregateRoot aggregate, String field) {
+    var value = aggregate?.data?.elementAt(field);
+    if (value != null) {
+      return value;
+    }
+
+    // Was value deleted?
+    if (event.isTerse) {
+      if (resolve && aggregate.isApplied(event)) {
+        final previous = aggregate.toData(event);
+        value = previous.elementAt(field);
+        if (value != null) {
+          return value;
+        }
+      }
+    }
+    return event.previous.elementAt(field);
   }
 
   Iterable<String> find(Repository repo, String field, String match) => repo.aggregates

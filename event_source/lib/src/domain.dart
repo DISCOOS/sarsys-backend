@@ -566,6 +566,12 @@ class Transaction<S extends Command, T extends AggregateRoot> {
           // applied above
           _assertNoConcurrentModifications();
           _completer.complete(changes);
+
+          // Publish locally created events.
+          // Handlers can determine events with
+          // local origin using the local field
+          // in each Event
+          repository.store.publish(changes);
         } else {
           _rollback(
             complete: false,
@@ -581,7 +587,17 @@ class Transaction<S extends Command, T extends AggregateRoot> {
         complete: !hasConcurrentModifications,
       );
       if (!hasConcurrentModifications) {
-        _completer.completeError(e, stackTrace);
+        if (_completer.isCompleted) {
+          // Should not happen!
+          repository.logger.severe(
+            'Transaction on ${repository.aggregateType} $uuid failed.'
+            'Was already started by ${_startedBy} at: $_startedAt}',
+            e,
+            stackTrace,
+          );
+        } else {
+          _completer.completeError(e, stackTrace);
+        }
       }
     } finally {
       // Transactions can not be completed until
@@ -706,7 +722,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   final int maxPushPressure;
   final String uuidFieldName;
 
-  static const timeout = Duration(seconds: 30);
+  static const timeLimit = Duration(seconds: 30);
 
   /// Internal - for local debugging
   bool debugConflicts = false;
@@ -915,10 +931,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   void willStartProcessingEvents() => {};
 
   /// Get domain event from given [event]
-  DomainEvent toDomainEvent(SourceEvent event) {
-    if (event == null) {
-      return null;
-    }
+  DomainEvent toDomainEvent(Event event) {
+    assert(event != null, 'event can not be null');
     final process = _processors['${event.type}'];
     if (process != null) {
       final uuid = toAggregateUuid(event);
@@ -932,23 +946,14 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         return applied;
       }
 
-      // Get base if exists
-      final base = event.mapAt<String, dynamic>('previous') ?? aggregate?.data ?? {};
+      // Get previous if exists in event, or
+      // use aggregate head (remote events
+      // applied only)
+      final previous = event.mapAt<String, dynamic>('previous') ?? aggregate?.head ?? {};
 
       // Prepare REQUIRED fields
       final patches = event.listAt<Map<String, dynamic>>('patches');
       assert(patches != null, 'Patches can not be null');
-
-      // Use applied changes if exists,
-      // otherwise use sourced if exists
-      // otherwise apply patches to base
-      final changed = applied?.changed ??
-          event.mapAt<String, dynamic>('changed') ??
-          JsonUtils.apply(
-            base,
-            patches,
-          );
-      assert(changed != null, 'Changed can not be null');
 
       return process(
         Message(
@@ -960,9 +965,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
             uuid,
             uuidFieldName,
             patches: patches,
-            changed: changed,
-            previous: applied?.previous ?? base,
             index: event.elementAt<int>('index'),
+            previous: applied?.previous ?? previous,
             deleted: event.elementAt<bool>('deleted') ?? aggregate?.isDeleted,
           ),
         ),
@@ -1096,7 +1100,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   FutureOr<Iterable<DomainEvent>> execute(
     S command, {
     int maxAttempts = 10,
-    Duration timeout = timeout,
+    Duration timeout = timeLimit,
   }) async {
     final changes = <DomainEvent>[];
 
@@ -1208,7 +1212,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       index: next['index'] as int,
       emits: command.emits,
       timestamp: command.created,
-      previous: Map<String, dynamic>.from(next['previous']),
+      // previous: Map<String, dynamic>.from(next['previous']),
     ));
     return aggregate;
   }
@@ -1251,7 +1255,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   Future<Iterable<DomainEvent>> push(
     T aggregate, {
     int maxAttempts = 10,
-    Duration timeout = timeout,
+    Duration timeout = timeLimit,
   }) {
     var result = <DomainEvent>[];
     final uuid = aggregate.uuid;
@@ -1264,7 +1268,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       maxAttempts,
     );
     if (aggregate.isChanged) {
-      // Ensure transaction exists is not concurrent
+      // Ensure transaction is not concurrent
       final added = _pushQueue.add(StreamRequest<Iterable<DomainEvent>>(
         key: uuid,
         fail: true,
@@ -1272,11 +1276,16 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         tag: transaction.tag,
         execute: () => _push(transaction),
       ));
-      logger.fine(
-        'Scheduled push of: ${transaction.tag} (queue pressure: $pressure)',
-      );
-      _assertAdd(added, uuid, transaction);
-      return transaction.onPush;
+      if (added) {
+        logger.fine(
+          'Scheduled push of: ${transaction.tag} (queue pressure: $pressure)',
+        );
+      } else {
+        logger.fine(
+          'Waiting on transaction already pushed: ${transaction.tag} (queue pressure: $pressure)',
+        );
+      }
+      return transaction.onPush.timeout(timeout);
     } else {
       _completeTrx(uuid);
     }
@@ -1365,18 +1374,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     );
     transaction._start(this, maxAttempts);
     return transaction;
-  }
-
-  void _assertAdd(
-    bool added,
-    String uuid,
-    Transaction transaction,
-  ) {
-    if (!added) {
-      throw StateError(
-        'Push of ${aggregateType} $uuid already scheduled > ${transaction.tag}',
-      );
-    }
   }
 
   /// Assert that this [operation] has an [Transaction]
@@ -1972,12 +1969,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
                         'type': e.type,
                         'number': e.number.value,
                         'created': e.created.toIso8601String(),
-                        if (data)
-                          'data': {
-                            'prev': e.previous,
-                            'next': e.changed,
-                            'patches': e.patches,
-                          },
+                        if (data) 'data': e.data,
                       })
                   .toList(),
             ],
@@ -2047,37 +2039,75 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
 
   /// Aggregate root data without any local
   /// changes applied. This equals to [data]
-  /// with all known remote events [applied].
+  /// with all events [applied] regardless
+  /// of origin (local or remote).
+  ///
+  /// You can calculate any previous base
+  /// using [toData].
+  ///
   Map<String, dynamic> get base {
-    // Get current base
-    var base = Map<String, dynamic>.from(
-      _base.isEmpty ? _snapshot?.data ?? {} : _base,
-    );
-    // Apply events added since last call that have patches
-    final added = _applied.values.skip(_baseIndex).where((e) => e.patches.isNotEmpty);
-    if (added.isNotEmpty) {
-      base = added.fold(
-        base,
-        (previous, event) => JsonUtils.apply(
-          previous,
-          event.patches,
-        ),
+    // Calculate trailing behind actual base of applied events
+    final take = _applied.length - _baseIndex;
+    if (take > 0) {
+      final base = Map<String, dynamic>.from(
+        _base.isEmpty ? _snapshot?.data ?? {} : _base,
       );
-      _setBase(base);
+      final next = _toData(base, _baseIndex, take);
+      _setBase(next);
     }
     // This ensures that base is not
     // recalculated on each call
     _baseIndex = _applied.length;
-    return Map.from(base);
+    return Map.from(_base);
   }
 
   int _baseIndex = 0;
   final Map<String, dynamic> _base = {};
 
+  /// Aggregate root data with only remote
+  /// events [applied]. [head] is behind
+  /// [base] until all [applied] events
+  /// are confirmed as remote from catchup
+  ///
+  /// You can calculate any previous head
+  /// using [toData].
+  ///
+  Map<String, dynamic> get head {
+    // Calculate number of events trailing behind actual head of applied remote events
+    final take = _applied.values.skip(_headIndex).takeWhile((e) => e.remote).length;
+    // Same as base?
+    if (_headIndex + take == _baseIndex) {
+      // Cleanup in case of large state
+      _head.clear();
+      _headIndex = _baseIndex;
+      return Map.from(_base);
+    }
+
+    if (take > 0) {
+      final head = Map<String, dynamic>.from(
+        _head.isEmpty ? _snapshot?.data ?? {} : _head,
+      );
+      final next = _toData(head, _headIndex, take);
+      _setHead(next);
+    }
+    // This ensures that head is not
+    // recalculated on each call
+    _headIndex += take;
+    return Map.from(_head);
+  }
+
+  int _headIndex = 0;
+  final Map<String, dynamic> _head = {};
+
   /// Aggregate root [data] (weak schema).
   /// This includes any changes applied locally.
   /// Last known remote state is given by [base].
+  ///
+  /// You can calculate any previous [data]
+  /// using [toData].
+  ///
   Map<String, dynamic> get data => Map.from(_data);
+
   final Map<String, dynamic> _data = {};
 
   /// Check if element with given [path] exists
@@ -2091,6 +2121,43 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
 
   /// Get Map at given path
   Map<S, T> mapAt<S, T>(String path, {Map<S, T> defaultMap}) => _data.mapAt<S, T>(path) ?? defaultMap;
+
+  /// Calculate [data] state from [base] to given
+  /// [event]. Note that this method will be
+  /// compute and memory expansive on large
+  /// states.
+  ///
+  ///Throws an [ArgumentError] if [Event.uuid]
+  /// is not [isApplied].
+  Map<String, dynamic> toData(Event event) {
+    if (!isApplied(event)) {
+      throw ArgumentError('Event ${event.type} ${event.uuid} is not applied');
+    }
+    if (event.number == number) {
+      return data;
+    } else if (event.number.isFirst || _snapshot.number.value == event.number.value) {
+      return base;
+    }
+    final events = _applied.values.toList();
+    final take = events.indexOf(event) + 1;
+    return _toData(_snapshot?.data ?? {}, 0, take);
+  }
+
+  // Apply events to base from given offset
+  Map<String, dynamic> _toData(Map<String, dynamic> base, int skip, int take) {
+    // Apply events added since last call that have patches
+    final added = _applied.values.skip(skip).take(take).where((e) => e.patches.isNotEmpty);
+    if (added.isNotEmpty) {
+      base = added.fold(
+        base,
+        (previous, event) => JsonUtils.apply(
+          previous,
+          event.patches,
+        ),
+      );
+    }
+    return base;
+  }
 
   /// Get number of modifications since creation
   ///
@@ -2110,15 +2177,15 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
       ? _localEvents.last
       : (_applied.isNotEmpty ? _applied.values.last : _toDomainEvent(_snapshot?.changedBy) ?? _changedBy);
 
-  /// [Message.uuid]s of applied events
-  final LinkedHashMap<String, DomainEvent> _applied = LinkedHashMap<String, DomainEvent>();
-
   /// Get current snapshot if taken
   AggregateRootModel get snapshot => _snapshot;
   AggregateRootModel _snapshot;
 
   /// Get uuids of applied events
   Iterable<DomainEvent> get applied => List.unmodifiable(_applied.values);
+
+  /// [Message.uuid]s of applied events
+  final LinkedHashMap<String, DomainEvent> _applied = LinkedHashMap<String, DomainEvent>();
 
   /// Check if event is applied to
   /// this [AggregateRoot] instance
@@ -2211,11 +2278,11 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   List<String> get conflicts => List.unmodifiable(_conflicts);
   final LinkedHashSet<String> _conflicts = LinkedHashSet<String>();
 
-  /// Remote [DomainEvent]s pending apply because of unresolvable conflicts
-  final _remoteEvents = <DomainEvent>[];
-
   /// Get remote conflicts (yours) not applied to aggregate
   Iterable<DomainEvent> getRemoteEvents() => List.unmodifiable(_remoteEvents);
+
+  /// Remote [DomainEvent]s pending apply because of unresolvable conflicts
+  final _remoteEvents = <DomainEvent>[];
 
   /// Get aggregate uuid from event
   String toAggregateUuid(Event event) => event.data[uuidFieldName] as String;
@@ -2279,10 +2346,12 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   DomainEvent _toDomainEvent(Event event) {
     if (event != null) {
       return _process(
-        event.type,
-        event.data,
-        event.created,
-        event.number,
+        uuid: event.uuid,
+        data: event.data,
+        emits: event.type,
+        local: event.local,
+        number: event.number,
+        timestamp: event.created,
       );
     }
     return null;
@@ -2309,7 +2378,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     @required Type emits,
     int index,
     DateTime timestamp,
-    Map<String, dynamic> previous,
+    // Map<String, dynamic> previous,
   }) =>
       _change(
         data,
@@ -2317,7 +2386,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         timestamp,
         isNew,
         index: index,
-        previous: previous ?? this.data,
+        // previous: previous ?? this.data,
       );
 
   DomainEvent _change(
@@ -2326,7 +2395,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     DateTime timestamp,
     bool isNew, {
     int index,
-    Map<String, dynamic> previous,
+    // Map<String, dynamic> previous,
   }) {
     // Remove all unsupported operations
     final patches = JsonUtils.diff(
@@ -2340,7 +2409,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
               index: index,
               patches: patches,
               timestamp: timestamp,
-              previous: isNew ? {} : previous,
+              // previous: isNew ? {} : previous,
             ),
             isLocal: true,
           )
@@ -2387,9 +2456,19 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         );
       }
     }
+    // Get actual committed events
     final committed = changes ?? _localEvents;
-    _localEvents.removeWhere((e) => committed.contains(e));
-    _applied.addEntries(committed.map((e) => MapEntry(e.uuid, e)));
+
+    // Add committed events to applied
+    _applied.addEntries(
+      committed.map((e) => MapEntry(e.uuid, e)),
+    );
+
+    // Remove committed events from local events
+    _localEvents.removeWhere(
+      (e) => committed.contains(e),
+    );
+
     return committed;
   }
 
@@ -2401,51 +2480,57 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     int index,
     Type emits,
     DateTime timestamp,
-    Map<String, dynamic> previous,
+    // Map<String, dynamic> previous,
     List<Map<String, dynamic>> patches = const [],
   }) =>
       _process(
-        emits.toString(),
-        DomainEvent.toData(
+        local: true,
+        uuid: Uuid().v4(),
+        number: nextNumber,
+        timestamp: timestamp,
+        emits: emits.toString(),
+        data: DomainEvent.toData(
           uuid,
           uuidFieldName,
           index: index,
           patches: patches,
-          previous: previous,
-          changed: JsonPatch.apply(_data, patches),
+          // previous: previous,
+          // changed: JsonPatch.apply(_data, patches),
         ),
-        timestamp,
-        nextNumber,
       );
 
   /// Get aggregate deleted event. Invoked from [Repository]
   @protected
   DomainEvent _deleted(DateTime timestamp) => _process(
-        typeOf<D>().toString(),
-        DomainEvent.toData(
+        local: true,
+        uuid: Uuid().v4(),
+        number: nextNumber,
+        timestamp: timestamp,
+        data: DomainEvent.toData(
           uuid,
           uuidFieldName,
           deleted: true,
-          previous: data,
+          // previous: data,
         ),
-        timestamp,
-        nextNumber,
+        emits: typeOf<D>().toString(),
       );
 
-  DomainEvent _process(
-    String emits,
-    Map<String, dynamic> data,
-    DateTime timestamp,
-    EventNumber number,
-  ) {
+  DomainEvent _process({
+    @required bool local,
+    @required String uuid,
+    @required String emits,
+    @required DateTime timestamp,
+    @required EventNumber number,
+    @required Map<String, dynamic> data,
+  }) {
     final process = _processors['$emits'];
     if (process != null) {
       return process(
         Message(
-          uuid: Uuid().v4(),
+          uuid: uuid,
           type: emits,
           data: data,
-          local: true,
+          local: local,
           created: timestamp,
         ),
       )..number = number;
@@ -2496,14 +2581,15 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         _setModifier(
           _remoteEvents.last,
         );
+        _applied.addEntries(
+          _remoteEvents.map((e) => MapEntry(e.uuid, e)),
+        );
         _localEvents.clear();
-        _localEvents.addAll(_remoteEvents);
       }
       // Reset conflicts
       _mine.clear();
       _yours.clear();
       _conflicts.clear();
-      _localEvents.clear();
       _remoteEvents.clear();
     }
     return [];
@@ -2548,45 +2634,38 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   }) {
     _assertUuid(event);
 
-    // Already applied?
-    if (_applied.containsKey(event.uuid)) {
-      _assertEqualNumber(event, _applied[event.uuid].number);
-      _applied[event.uuid] = event;
-      if (event == createdBy || event == changedBy) {
-        _setModifier(event);
-      }
-      return _applied[event.uuid];
-    }
+    // Only store terse events
+    final euuid = event.uuid;
+    final terse = event.isTerse ? event : _toDomainEvent(event.terse());
 
-    // Subscription caught up before writeEvents returned?
-    final idx = _localEvents.indexOf(event);
-    if (idx > -1) {
-      _localEvents.replaceRange(idx, idx, [event]);
+    // Already applied?
+    if (_applied.containsKey(euuid)) {
+      _assertEqualNumber(terse, _applied[euuid].number);
+      _applied[euuid] = terse;
       if (event == createdBy || event == changedBy) {
-        _setModifier(event);
+        _setModifier(terse);
       }
       return event;
     }
 
     // Apply change to data
     if (isLocal) {
-      // local change only
+      // Local change only
       _assertNoConflicts();
       _patch(
-        event,
+        terse,
         isLocal: true,
       );
     } else if (isChanged) {
-      // merge concurrent remote and local changes
-      _merge(event);
+      // Merge concurrent remote and local changes
+      _merge(terse);
     } else {
-      // remote change only
+      // Remote change only
       _patch(
-        event,
+        terse,
         isLocal: false,
       );
     }
-
     return event;
   }
 
@@ -2595,10 +2674,12 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     DomainEvent event, {
     @required bool isLocal,
   }) {
+    assert(event.isTerse, 'only terse events are applied');
+
     // Applying events in order
     // is REQUIRED for this to
     // work! This assertion
-    // will detect when this
+    // will detect if this
     // requirement is violated
     _assertStrictMonotone(event, isLocal: isLocal);
 
@@ -2608,18 +2689,18 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     // Deletion does not update data
     if (!event.isDeleted) {
       _setData(
-        _assertData(event),
+        JsonUtils.apply(
+          data,
+          event.patches,
+        ),
       );
     }
 
     if (isLocal) {
       _localEvents.add(event);
     } else {
-      _applied.update(
-        event.uuid,
-        (_) => event,
-        ifAbsent: () => event,
-      );
+      _applied[event.uuid] = event;
+      // Rebase local event numbers
       _localEvents.forEach(
         (e) => e.number++,
       );
@@ -2667,6 +2748,8 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     DomainEvent event,
     Iterable<String> conflicts,
   ) {
+    assert(event.isTerse, 'only terse events are applied');
+
     _remoteEvents.add(event);
     _yours.addAll(event.patches);
     _conflicts.addAll(conflicts);
@@ -2675,6 +2758,11 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   void _setBase(Map<String, dynamic> base) {
     _base.clear();
     _base.addAll(base);
+  }
+
+  void _setHead(Map<String, dynamic> head) {
+    _head.clear();
+    _head.addAll(head);
   }
 
   void _setData(Map<String, dynamic> data) {
@@ -2693,6 +2781,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   }
 
   void _setModifier(DomainEvent event) {
+    assert(event.isTerse, 'only terse events are applied');
     if (_createdBy == null || _createdBy == event) {
       _createdBy = event;
       _changedBy ??= event;
@@ -2780,21 +2869,6 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
           '}';
       throw InvalidOperation(message);
     }
-  }
-
-  Map<String, dynamic> _assertData(DomainEvent event) {
-    final data = event.changed;
-    if (data == null) {
-      // At this point it is assumed that
-      // patches are applied to 'previous' state
-      // and stored in event 'changed' state by
-      // EventStore using Repository.toDomainEvent
-      // or by this repository in _changed.
-      throw StateError(
-        "Event data 'changed' is missing: ${event.type} ${event.uuid}",
-      );
-    }
-    return data;
   }
 
   /// Get array of value objects

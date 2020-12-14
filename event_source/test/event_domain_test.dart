@@ -55,9 +55,10 @@ Future main() async {
     final repo = harness.get<FooRepository>();
     await repo.readyAsync();
 
-    // Act
+    // Act - created
     final uuid = Uuid().v4();
-    final foo = repo.get(uuid, data: {
+    final data1 = {
+      'uuid': uuid,
       'property1': 'value1',
       'property2': 'value2',
       'property3': 'value3',
@@ -65,51 +66,32 @@ Future main() async {
         {'name': 'item1'},
         {'name': 'item2'},
       ]
-    });
-    foo.patch({
+    };
+    final foo = repo.get(uuid, data: data1);
+    final patches1 = JsonUtils.diff({}, data1);
+    expect(foo.data, data1);
+
+    // Act - changed
+    final data2 = {
+      'uuid': uuid,
       'property1': 'patched',
       'property2': 'value2',
       'list1': [
         {'name': 'item3'},
       ],
-    }, emits: FooUpdated);
+    };
+    final patches2 = JsonUtils.diff(data1, data2);
+    foo.patch(data2, emits: FooUpdated);
+    // Patch should not remove 'property3'
+    expect(foo.data, Map.from(data2)..addAll({'property3': 'value3'}));
 
     // Assert state
     final events = foo.getLocalEvents();
     expect(events.length, equals(2), reason: 'Events should contain two events');
 
-    // Assert first event
-    final changed1 = events.first.changed;
-    final value1 = changed1.elementAt('property1');
-    expect(value1, equals('value1'));
-    var value2 = changed1.elementAt('property2');
-    expect(value2, equals('value2'));
-    var value3 = changed1.elementAt('property3');
-    expect(value3, equals('value3'));
-    var list1 = changed1.elementAt('list1');
-    expect(list1, isA<List>());
-    final item1 = changed1.elementAt('list1/0');
-    expect(item1, isA<Map>());
-    final item2 = changed1.elementAt('list1/1');
-    expect(item2, isA<Map>());
-    final name1 = changed1.elementAt('list1/0/name');
-    expect(name1, equals('item1'));
-    final name2 = changed1.elementAt('list1/1/name');
-    expect(name2, equals('item2'));
-
-    // Assert last event
-    final changed2 = events.last.changed;
-    final patched = changed2.elementAt('property1');
-    expect(patched, equals('patched'));
-    // Not given in patch, should be unchanged
-    value3 = changed2.elementAt('property3');
-    expect(value3, 'value3');
-    list1 = changed2.elementAt('list1');
-    expect(list1, isA<List>());
-    final item3 = changed2.elementAt('list1/0');
-    expect(item3, isA<Map>());
-    final name3 = changed2.elementAt('list1/0/name');
-    expect(name3, equals('item3'));
+    // Assert patches
+    expect(events.first.patches, patches1);
+    expect(events.last.patches, patches2);
   });
 
   test('Repository should support create -> patch -> push operations', () async {
@@ -133,7 +115,7 @@ Future main() async {
     expect(foo.isNew, equals(true), reason: "Foo should be flagged as 'New'");
     expect(foo.isChanged, equals(true), reason: "Foo should be flagged as 'Changed'");
     expect(foo.isDeleted, equals(false), reason: "Foo should not be flagged as 'Deleted'");
-    expect(stream.toEvents().isEmpty, equals(true), reason: 'Events should not be commited yet');
+    expect(stream.toEvents().isEmpty, equals(true), reason: 'Events should not be committed yet');
 
     // Assert push operation
     final events = await repository.push(foo);
@@ -922,6 +904,14 @@ Future main() async {
     final stream = harness.server().getStream(repo.store.aggregate);
     await repo.readyAsync();
 
+    // Catch any events raised
+    // before waiting on all
+    // events to be seen
+    final seen = <Event>[];
+    repo.store.asStream().where((e) => e.remote).listen((event) {
+      seen.add(event);
+    });
+
     // Act - Simulate concurrent modification by manually updating remote stream
     final uuid = Uuid().v4();
     final foo = repo.get(uuid, data: {'property1': 'value1'});
@@ -948,9 +938,8 @@ Future main() async {
     expect(foo.data, containsPair('property3', 'value3'));
     expect(foo.hasConflicts, isFalse);
 
-    // TODO: Fix bug if test below still fails
-    await Future.delayed(Duration(seconds: 1));
-
+    // Wait until event is remote
+    await repo.store.asStream().where((e) => e.remote).take(2 - seen.length).first;
     expect(repo.number.value, equals(2));
   });
 
@@ -1104,9 +1093,12 @@ Future main() async {
       'property1': 'value1',
     };
     final foo = foos1.get(fuuid, data: fdata);
-    // Ensure it exists before proceeding
-    // (boo rule will not wait for catchup returns empty)
     await foos1.push(foo);
+
+    // Ensure Foo exists in server 4001 before
+    // proceeding (boo rule will not wait if
+    // catchup returns empty)
+    await foos2.store.asStream().where((e) => e is FooCreated).first;
 
     // Act on second server
     final buuid = Uuid().v4();
@@ -1116,7 +1108,7 @@ Future main() async {
       'foo': {'uuid': fuuid}
     };
     final bar = bars2.get(buuid, data: bdata);
-    unawaited(bars2.push(bar));
+    await bars2.push(bar);
 
     // Wait for catchup
     // 3 local events
@@ -1576,6 +1568,7 @@ Future _assertCatchUp(FooRepository repo1, FooRepository repo2, FooRepository re
 }
 
 Iterable<Event> _assertResultStrictOrder(List<Iterable<Event>> results) {
+  var data = <String, dynamic>{};
   final events = <Event>[];
   for (var i = 0; i < 10; i++) {
     expect(
@@ -1586,12 +1579,14 @@ Iterable<Event> _assertResultStrictOrder(List<Iterable<Event>> results) {
     final event = results[i].first;
     events.add(event);
     expect(event, isA<FooCreated>());
-    expect((event as FooCreated).index, equals(i));
+    data = JsonUtils.apply(data, event.patches);
+    expect(data.elementAt<int>('index'), equals(i));
   }
   return events;
 }
 
 Iterable<DomainEvent> _assertMonotonePatch(List<Iterable<DomainEvent>> results) {
+  var data = <String, dynamic>{};
   final events = <DomainEvent>[];
   for (var i = 0; i < 10; i++) {
     expect(
@@ -1602,8 +1597,9 @@ Iterable<DomainEvent> _assertMonotonePatch(List<Iterable<DomainEvent>> results) 
     final event = results[i].first;
     events.add(event);
     expect(event, isA<FooUpdated>());
+    data = JsonUtils.apply(data, event.patches);
     expect(
-      (event as FooUpdated).data.elementAt('changed/property1'),
+      data.elementAt('property1'),
       equals(i + 1),
       reason: 'Result ${results[i]} should be an monotone increment',
     );

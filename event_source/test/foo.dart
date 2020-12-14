@@ -67,7 +67,7 @@ class FooCreated extends DomainEvent {
           type: '$FooCreated',
         );
 
-  int get index => changed.elementAt('index');
+  // int get index => changed.elementAt('index');
 }
 
 class FooUpdated extends DomainEvent {

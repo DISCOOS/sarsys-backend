@@ -9,13 +9,13 @@ import 'package:sarsys_domain/sarsys_domain.dart';
 class TrackingCreated extends DomainEvent {
   TrackingCreated(Message message)
       : super(
+          data: message.data,
           uuid: message.uuid,
           local: message.local,
           // Ensure status is set
-          data: {'status': 'ready'}..addAll(message.data),
           created: message.created, type: '$TrackingCreated',
         );
-  Map<String, dynamic> get position => changed.elementAt('position');
+  // Map<String, dynamic> get position => changed.elementAt('position');
 }
 
 class TrackingStatusChanged extends DomainEvent {
@@ -28,7 +28,7 @@ class TrackingStatusChanged extends DomainEvent {
           type: '$TrackingStatusChanged',
         );
 
-  String get status => changed['status'] as String;
+  // String get status => changed['status'] as String;
 }
 
 class TrackingInformationUpdated extends DomainEvent {
@@ -40,7 +40,7 @@ class TrackingInformationUpdated extends DomainEvent {
           created: message.created,
           type: '$TrackingInformationUpdated',
         );
-  Map<String, dynamic> get position => changed['position'];
+  // Map<String, dynamic> get position => changed['position'];
 }
 
 class TrackingDeleted extends DomainEvent {
@@ -62,9 +62,7 @@ class TrackingSourceEvent extends EntityObjectEvent {
   TrackingSourceEvent(
     Message message, {
     @required String type,
-    int index,
   }) : super(
-          index: index,
           idFieldName: 'uuid',
           type: message.type,
           uuid: message.uuid,
@@ -72,30 +70,28 @@ class TrackingSourceEvent extends EntityObjectEvent {
           data: message.data,
           created: message.created,
           aggregateField: 'sources',
+          index: message.elementAt('index'),
         );
 
-  String get sourceUuid => entity.elementAt('uuid');
-  String get sourceType => entity.elementAt('type');
+  String toSourceUuid(Map<String, dynamic> data) =>
+      toEntity(data).elementAt('uuid') ?? toEntity(previous)?.elementAt('uuid');
+
+  String toSourceType(Map<String, dynamic> data) =>
+      toEntity(data).elementAt('type') ?? toEntity(previous)?.elementAt('type');
 }
 
 class TrackingSourceAdded extends TrackingSourceEvent {
-  TrackingSourceAdded(
-    Message message, {
-    int index,
-  }) : super(
+  TrackingSourceAdded(Message message)
+      : super(
           message,
-          index: index,
           type: '$TrackingSourceAdded',
         );
 }
 
 class TrackingSourceChanged extends TrackingSourceEvent {
-  TrackingSourceChanged(
-    Message message, {
-    int index,
-  }) : super(
+  TrackingSourceChanged(Message message)
+      : super(
           message,
-          index: index,
           type: '$TrackingSourceChanged',
         );
 }
@@ -106,7 +102,6 @@ class TrackingSourceRemoved extends TrackingSourceEvent {
     int index,
   }) : super(
           message,
-          index: index,
           type: '$TrackingSourceRemoved',
         );
 }
@@ -119,20 +114,19 @@ class TrackingTrackEvent extends EntityObjectEvent {
   TrackingTrackEvent(
     Message message, {
     String type,
-    int index,
   }) : super(
-          index: index,
           type: message.type,
           uuid: message.uuid,
           local: message.local,
           data: message.data,
           created: message.created,
           aggregateField: 'tracks',
+          index: message.elementAt('index'),
         );
 
-  String get status => entity.elementAt('status');
-  Map<String, dynamic> get source => entity.elementAt('source');
-  Map<String, dynamic> get positions => entity.elementAt('positions');
+  String toStatus(Map<String, dynamic> data) => toEntity(data).elementAt('status');
+  Map<String, dynamic> toSource(Map<String, dynamic> data) => toEntity(data).elementAt('source');
+  Map<String, dynamic> toPositions(Map<String, dynamic> data) => toEntity(data).elementAt('positions');
 }
 
 class TrackingTrackAdded extends TrackingTrackEvent {
@@ -141,7 +135,6 @@ class TrackingTrackAdded extends TrackingTrackEvent {
     int index,
   }) : super(
           message,
-          index: index,
           type: '$TrackingTrackAdded',
         );
 }
@@ -152,7 +145,6 @@ class TrackingTrackChanged extends TrackingTrackEvent {
     int index,
   }) : super(
           message,
-          index: index,
           type: '$TrackingTrackChanged',
         );
 }
@@ -163,7 +155,6 @@ class TrackingTrackRemoved extends TrackingTrackEvent {
     int index,
   }) : super(
           message,
-          index: index,
           type: '$TrackingTrackRemoved',
         );
 }
