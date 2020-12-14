@@ -1,7 +1,5 @@
-import 'package:aqueduct/aqueduct.dart';
-import 'package:sarsys_app_server/controllers/event_source/controllers.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
-import 'package:sarsys_app_server/validation/validation.dart';
+import 'package:sarsys_app_server/sarsys_app_server.dart';
 
 /// Implement controller for field `personnels` in [Unit]
 class UnitPersonnelController extends AggregateListController<PersonnelCommand, Personnel, UnitCommand, Unit> {

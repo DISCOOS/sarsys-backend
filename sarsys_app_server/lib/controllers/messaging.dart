@@ -3,12 +3,12 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:event_source/event_source.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:uuid/uuid.dart';
 import 'package:stack_trace/stack_trace.dart';
 
+import 'package:event_source/event_source.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 
 class WebSocketMessageProcessor extends MessageHandler<WebSocketMessage> {

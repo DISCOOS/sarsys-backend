@@ -35,6 +35,7 @@ commit:
 test:
 	cd ../event_source; pub run test -j 1
 	cd ../sarsys_domain; pub run test -j 1
+	cd ../sarsys_server_core; pub run test -j 1
 	cd ../sarsys_app_server; pub run test -j 1
 
 serve:

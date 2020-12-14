@@ -1,11 +1,5 @@
-import 'package:event_source/event_source.dart';
-import 'package:sarsys_app_server/controllers/domain/schemas.dart';
-import 'package:sarsys_app_server/controllers/event_source/aggregate_controller.dart';
-import 'package:sarsys_app_server/sarsys_app_server.dart';
-import 'package:sarsys_app_server/validation/validation.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
-
-import 'app_config.dart';
+import 'package:sarsys_app_server/sarsys_app_server.dart';
 
 /// A ResourceController that handles
 /// [/api/app-config](http://localhost/api/client.html#/AppConfig) [Request]s

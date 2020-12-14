@@ -1,0 +1,17 @@
+name: sarsys_tracking_server
+description: SARSys tracking server
+version: 0.0.1
+author: Kenneth Gulbrandsøy <kenneth@discoos.org>
+
+environment:
+  sdk: ">=2.1.0 <3.0.0"
+
+dependencies:
+  aqueduct: ^3.0.0
+  sarsys_server_core:
+    path: ../sarsys_server_core
+
+
+dev_dependencies:
+  test: ^1.0.0
+  aqueduct_test: ^1.0.0

@@ -1,7 +1,5 @@
-import 'package:aqueduct/aqueduct.dart';
-import 'package:sarsys_app_server/controllers/event_source/entity_controller.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' as sar;
-import 'package:sarsys_app_server/validation/validation.dart';
+import 'package:sarsys_server_core/sarsys_server_core.dart';
 
 /// A ResourceController that handles
 /// [/api/incidents/{uuid}/subjects](http://localhost/api/client.html#/TalkGroup) requests

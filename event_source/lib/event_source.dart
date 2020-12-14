@@ -1,5 +1,7 @@
 library event_source;
 
+export 'package:json_patch/json_patch.dart';
+
 export 'src/bus.dart';
 export 'src/core.dart';
 export 'src/domain.dart';

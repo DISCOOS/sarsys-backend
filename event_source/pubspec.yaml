@@ -1,7 +1,7 @@
 name: event_source
 description: A client library for event sourcing using eventstore streams
 version: 0.1.0
-author: DISCO Open Source <support@discoos.org>
+author: Kenneth Gulbrandsøy <kenneth@discoos.org>
 homepage: https://github.com/DISCOOS/sarsys-backend
 
 environment:

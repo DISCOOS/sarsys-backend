@@ -12,17 +12,13 @@ import 'package:uuid/uuid.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
 
-import 'auth/auth.dart';
+import 'package:sarsys_server_core/sarsys_server_core.dart';
 import 'controllers/domain/controllers.dart';
 import 'controllers/domain/schemas.dart';
-import 'controllers/event_source/controllers.dart';
 import 'controllers/messaging.dart';
-import 'controllers/system/controllers.dart';
 import 'controllers/tenant/app_config.dart';
 import 'controllers/tenant/controllers.dart';
-import 'logging.dart';
 import 'sarsys_app_server.dart';
-import 'validation/validation.dart';
 
 /// MUST BE used when bootstrapping Aqueduct
 const int isolateStartupTimeout = 30;
@@ -65,6 +61,22 @@ class SarSysAppServerChannel extends ApplicationChannel {
   /// Logger instance
   @override
   final Logger logger = Logger("SarSysAppServerChannel");
+
+  static RemoteLogger _remoteLogger;
+
+  /// Print [LogRecord] formatted
+  static void printRecord(LogRecord rec, {bool debug = false, bool stdout = false}) {
+    final message = "${rec.time}: ${rec.level.name}: "
+        "${debug ? '${rec.loggerName}: ' : ''}"
+        "${debug && Platform.environment.containsKey('POD-NAME') ? '${Platform.environment['POD-NAME']}: ' : ''}"
+        "${rec.message}"
+        "${rec.error != null ? ':\nerror: ${rec.error}' : ''}"
+        "${rec.stackTrace != null ? ':\nstackTrace: ${rec.stackTrace}' : ''}";
+    if (stdout) {
+      print(message);
+    }
+    _remoteLogger?.log(rec);
+  }
 
   /// Initialize services in this method.
   ///
@@ -720,22 +732,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
         Platform.environment[name],
       );
     }
-  }
-
-  static RemoteLogger _remoteLogger;
-
-  /// Print [LogRecord] formatted
-  static void printRecord(LogRecord rec, {bool debug = false, bool stdout = false}) {
-    final message = "${rec.time}: ${rec.level.name}: "
-        "${debug ? '${rec.loggerName}: ' : ''}"
-        "${debug && Platform.environment.containsKey('POD-NAME') ? '${Platform.environment['POD-NAME']}: ' : ''}"
-        "${rec.message}"
-        "${rec.error != null ? ':\nerror: ${rec.error}' : ''}"
-        "${rec.stackTrace != null ? ':\nstackTrace: ${rec.stackTrace}' : ''}";
-    if (stdout) {
-      print(message);
-    }
-    _remoteLogger?.log(rec);
   }
 
   bool get isPaused => manager.isPaused;

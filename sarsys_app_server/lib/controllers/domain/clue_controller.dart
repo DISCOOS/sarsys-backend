@@ -1,7 +1,5 @@
-import 'package:sarsys_app_server/controllers/event_source/entity_controller.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_app_server/sarsys_app_server.dart';
-import 'package:sarsys_app_server/validation/validation.dart';
 
 /// A ResourceController that handles
 /// [/api/incidents/{uuid}/Clues](http://localhost/api/client.html#/Clue) requests

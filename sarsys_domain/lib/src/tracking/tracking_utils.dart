@@ -114,7 +114,7 @@ class TrackingUtils {
       ..removeWhere(
         (source) => source.uuid == suuid,
       );
-    List tracks = delete
+    final tracks = delete
         ? findAndDelete(
             tracking,
             suuid,
@@ -153,7 +153,7 @@ class TrackingUtils {
 
   static List<TrackModel> findAndDelete(TrackingModel tracking, String suuid) {
     final track = find(tracking, suuid);
-    final tracks = List.from(tracking.tracks);
+    final tracks = List<TrackModel>.from(tracking.tracks);
     if (track != null) {
       tracks.remove(track);
     }
@@ -162,7 +162,7 @@ class TrackingUtils {
 
   static List<TrackModel> findAndDetach(TrackingModel tracking, String suuid) {
     final track = find(tracking, suuid);
-    final tracks = List.from(tracking.tracks);
+    final tracks = List<TrackModel>.from(tracking.tracks);
     if (track != null) {
       tracks.remove(track);
       tracks.add(

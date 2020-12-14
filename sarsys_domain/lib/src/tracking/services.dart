@@ -157,8 +157,9 @@ class TrackingService extends MessageHandler<DomainEvent> {
     _box = await Hive.openBox('$runtimeType');
     if (init) {
       await _box.clear();
+      _box.values;
     } else {
-      final futures = List<String>.from(_box.values ?? [])
+      final futures = List<String>.from(_box.values ?? <String>[])
           .map(
             (json) => _fromJson(json),
           )
@@ -201,22 +202,22 @@ class TrackingService extends MessageHandler<DomainEvent> {
       if (message.remote) {
         switch (message.runtimeType) {
           case TrackingCreated:
-            await _onTrackingCreated(message);
+            await _onTrackingCreated(message as TrackingCreated);
             break;
           case TrackingSourceAdded:
-            await _onTrackingSourceAdded(message);
+            await _onTrackingSourceAdded(message as TrackingSourceAdded);
             break;
           case TrackingSourceRemoved:
-            await _onTrackingSourceRemoved(message);
+            await _onTrackingSourceRemoved(message as TrackingSourceRemoved);
             break;
           case DevicePositionChanged:
-            await _onDevicePositionChanged(message);
+            await _onDevicePositionChanged(message as DevicePositionChanged);
             break;
           case TrackingPositionChanged:
-            await _onSourcePositionChanged(message);
+            await _onSourcePositionChanged(message as TrackingPositionChanged);
             break;
           case TrackingDeleted:
-            await _onTrackingDeleted(message);
+            await _onTrackingDeleted(message as TrackingDeleted);
             break;
         }
       }
@@ -312,7 +313,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
             tuuid,
             event.toId(data),
             event.toEntity(data),
-            positions: other ?? {}[POSITIONS],
+            positions: Map.from((other.toJson() ?? {})[POSITIONS] as Map),
             status: ATTACHED,
           );
           await _updateTrackingStatus(tuuid);
@@ -565,7 +566,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
     }
   }
 
-  String _inferTrackingStatus(Map<String, dynamic> tracking, current) {
+  String _inferTrackingStatus(Map<String, dynamic> tracking, String current) {
     final hasSource = (tracking.elementAt(SOURCES) as List).isNotEmpty;
     final next = ['ready'].contains(current)
         ? (hasSource ? 'tracking' : 'ready')
@@ -578,7 +579,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
   Future _updateTrackingStatus(String uuid) async {
     try {
       final tracking = repo.get(uuid).data;
-      final current = tracking.elementAt('status') ?? 'none';
+      final current = tracking.elementAt<String>('status') ?? 'none';
       var next = _inferTrackingStatus(tracking, current);
       if (current != next) {
         final events = await repo.execute(UpdateTrackingStatus({
@@ -641,7 +642,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
         // Add sources currently unmapped by this service
         final added = sources
             .where(
-              (source) => _addSource(tuuid, source[UUID]),
+              (source) => _addSource(tuuid, source[UUID] as String),
             )
             .toList();
         // Map sources to tracks
@@ -654,10 +655,10 @@ class TrackingService extends MessageHandler<DomainEvent> {
         for (var track in changed) {
           await _ensureTrack(
             tuuid,
-            track[ID],
-            track[SOURCE],
+            track[ID] as String,
+            Map.from(track[SOURCE] as Map),
             status: ATTACHED,
-            positions: track[POSITIONS] ?? {},
+            positions: Map.from(track[POSITIONS] as Map ?? {}),
           );
         }
         await _updateTrackingStatus(tuuid);
@@ -733,7 +734,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
     }
   }
 
-  void _addToStream(List<DomainEvent> events, String message, {bool replay = false}) {
+  void _addToStream(Iterable<DomainEvent> events, String message, {bool replay = false}) {
     events.forEach((event) {
       _streamController.add(event);
       logger.info('Processed ${event.type}${replay ? '[replay]' : ''}: $message');
@@ -815,8 +816,8 @@ class TrackingService extends MessageHandler<DomainEvent> {
     return TrackingCreated(
       Message(
         local: true,
-        uuid: json['uuid'],
-        data: json['data'],
+        uuid: json['uuid'] as String,
+        data: Map.from(json['data'] as Map),
         created: DateTime.parse(json['created'] as String),
       ),
     );

@@ -3,7 +3,6 @@ import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 import 'package:sarsys_domain/src/core/models/coordinates.dart';
 import 'package:sarsys_domain/src/core/models/point.dart';
-import 'package:sarsys_domain/src/core/models/source.dart';
 
 part 'position.g.dart';
 
@@ -81,8 +80,8 @@ class PositionModel extends Equatable {
     double lon,
     double acc,
     double alt,
-    SourceType source,
     DateTime timestamp,
+    PositionSource source,
   }) =>
       PositionModel.from(
         lat: lat ?? this.lat,
@@ -126,8 +125,8 @@ class PositionPropertiesModel extends Equatable {
 
   PositionPropertiesModel cloneWith({
     double acc,
-    SourceType source,
     DateTime timestamp,
+    PositionSource source,
     ActivityModel activity,
   }) =>
       PositionPropertiesModel(
