@@ -24,6 +24,12 @@ class SarSysConfig extends Configuration {
   @optionalConfiguration
   String prefix;
 
+  /// Tracking flag.
+  ///
+  /// Enables TrackingService
+  @optionalConfiguration
+  bool tracking = false;
+
   /// Debug flag.
   ///
   /// Adds headers 'x-node-name' and 'x-pod-name' to

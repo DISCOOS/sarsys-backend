@@ -649,13 +649,16 @@ class SarSysAppServerChannel extends ApplicationChannel {
   }
 
   Future _buildDomainServices() async {
-    trackingService = TrackingService(
-      manager.get<TrackingRepository>(),
-      dataPath: config.data.path,
-      snapshot: config.data.enabled,
-      devices: manager.get<DeviceRepository>(),
-    );
-    await trackingService.build();
+    if (config.tracking) {
+      trackingService = TrackingService(
+        manager.get<TrackingRepository>(),
+        dataPath: config.data.path,
+        snapshot: config.data.enabled,
+        devices: manager.get<DeviceRepository>(),
+      );
+      await trackingService.build();
+    }
+    return Future.value();
   }
 
   void _terminateOnFailure(Object error, StackTrace stackTrace) {
