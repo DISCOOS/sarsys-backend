@@ -896,7 +896,7 @@ class EventStore {
           '  event.number: ${event.number}, \n'
           '  event.isSourced: ${_isSourced(uuid, event)}, \n'
           '  event.isApplied: $isApplied, \n'
-          '  event.patches: ${applied?.patches}, \n'
+          '  event.patches: ${applied?.patches?.length}, \n'
           '  aggregate.uuid: ${aggregate.uuid}, \n'
           '  aggregate.stream: $stream, \n'
           '  repository: ${repo.runtimeType}, \n'
