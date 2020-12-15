@@ -234,6 +234,8 @@ class EventStore {
     List<String> uuids,
     bool master = false,
   }) async {
+    final startTime = DateTime.now();
+
     // Sanity checks
     _assertState();
     _assertRepository(repo);
@@ -252,11 +254,13 @@ class EventStore {
       );
 
       var count = 0;
+      final isPartial = repo.hasSnapshot && repo.snapshot.isPartial;
       final snapshot = repo.hasSnapshot ? (repo.snapshot.isPartial ? '(partial snapshot)' : '(snapshot)') : '';
 
-      // Catchup on instance streams first
-      if (useInstanceStreams) {
+      // Catchup on instance streams first?
+      if ((isPartial || uuids.isNotEmpty) && useInstanceStreams) {
         for (var uuid in offsets.keys) {
+          final tic = DateTime.now();
           final offset = offsets[uuid];
           final stream = toInstanceStream(uuid);
           final events = await _catchUp(
@@ -265,13 +269,15 @@ class EventStore {
             stream: stream,
           );
           logger.info(
-            "Replayed $events events from stream '$stream' with offset ${offset.value} $snapshot",
+            "Replayed $events events from stream '$stream' with offset ${offset.value} $snapshot "
+            'in ${DateTime.now().difference(tic).inMilliseconds} ms',
           );
           count += events;
         }
       }
 
       if (uuids.isEmpty) {
+        final tic = DateTime.now();
         // Catchup on canonical stream
         final offset = _assertStreamOffset(
           repo,
@@ -287,9 +293,17 @@ class EventStore {
           offset: repo.hasSnapshot ? offset + 1 : offset,
         );
         logger.info(
-          "Replayed $events events from stream '${canonicalStream}' with offset ${offset.value} $snapshot",
+          "Replayed $events events from stream '${canonicalStream}' with offset ${offset.value} $snapshot "
+          'in ${DateTime.now().difference(tic).inMilliseconds} ms',
         );
-        return count + events;
+
+        count += events;
+      }
+      if ((isPartial || uuids.isNotEmpty) && useInstanceStreams) {
+        logger.info(
+          'Replayed $count events from ${offsets.length + 1} streams $snapshot '
+          'in ${DateTime.now().difference(startTime).inMilliseconds} ms',
+        );
       }
 
       return count;
@@ -1035,8 +1049,6 @@ class EventStore {
         // in each Event
         publish([domainEvent]);
       }
-    } else {
-      print('hm');
     }
   }
 
