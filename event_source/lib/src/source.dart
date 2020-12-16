@@ -1823,6 +1823,7 @@ class EventStoreConnection {
     ExpectedVersion version = ExpectedVersion.any,
   }) async {
     _assertState();
+    final tic = DateTime.now();
     final sourced = <SourceEvent>[];
     final data = events.map(
       (event) => {
@@ -1850,11 +1851,14 @@ class EventStoreConnection {
       body: body,
     );
     if (response.statusCode != HttpStatus.temporaryRedirect) {
-      return WriteResult.from(
-        stream: stream,
-        events: sourced,
-        version: version,
-        response: response,
+      return _checkSlowWrite(
+        WriteResult.from(
+          stream: stream,
+          events: sourced,
+          version: version,
+          response: response,
+        ),
+        tic,
       );
     }
     _logger.fine(
@@ -1872,11 +1876,14 @@ class EventStoreConnection {
           'failed with ${redirected.statusCode} ${redirected.reasonPhrase}',
         );
       }
-      return WriteResult.from(
-        stream: stream,
-        events: sourced,
-        version: version,
-        response: redirected,
+      return _checkSlowWrite(
+        WriteResult.from(
+          stream: stream,
+          events: sourced,
+          version: version,
+          response: redirected,
+        ),
+        tic,
       );
     } catch (e, stackTrace) {
       _logger.warning(
@@ -1886,6 +1893,18 @@ class EventStoreConnection {
       );
       rethrow;
     }
+  }
+
+  WriteResult _checkSlowWrite(WriteResult write, DateTime tic) {
+    if (write.isCreated) {
+      final duration = DateTime.now().difference(tic);
+      if (duration.inMilliseconds > 50) {
+        _logger.warning(
+          'SLOW WRITE: Writing ${write.events.length} to ${write.stream} took ${duration.inMilliseconds} ms',
+        );
+      }
+    }
+    return write;
   }
 
   String _toStreamUri(String stream) => '$host:$port/streams/$stream';
@@ -2280,8 +2299,10 @@ class _EventStreamController {
       FeedResult feed;
       do {
         if (!_isPaused) {
+          final tic = DateTime.now();
           // null on pause
           feed = await _readNext();
+          _checkSlowRead(feed, tic);
         }
       } while (feed != null && feed.isOK && !(feed.headOfStream || feed.isEmpty));
       _stopRead();
@@ -2290,6 +2311,17 @@ class _EventStreamController {
         'Failed to read stream $_stream@$_current in direction $_direction, error: $e',
         stackTrace,
       );
+    }
+  }
+
+  void _checkSlowRead(FeedResult feed, DateTime tic) {
+    if (feed.isOK) {
+      final duration = DateTime.now().difference(tic);
+      if (duration.inMilliseconds > 50) {
+        logger.warning(
+          'SLOW READ: Reading ${feed.atomFeed.entries.length} $stream@$_number in direction $_direction took',
+        );
+      }
     }
   }
 
