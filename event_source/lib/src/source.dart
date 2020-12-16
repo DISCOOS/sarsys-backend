@@ -1916,8 +1916,9 @@ class EventStoreConnection {
       final metric = _metrics['read'].now(tic);
       if (metric.duration.inMilliseconds > 50) {
         _logger.warning(
-          'SLOW READ: Reading ${feed.atomFeed.entries.length} ${feed.stream}@${feed.number} '
-          'in direction ${enumName(feed.direction)} took ${metric.duration.inMilliseconds} ms',
+          'SLOW READ: Reading ${feed.atomFeed.entries.length} '
+          'from ${feed.stream}@${feed.number} in direction ${enumName(feed.direction)} '
+          'took ${metric.duration.inMilliseconds} ms',
         );
       }
       _metrics['read'] = metric;
