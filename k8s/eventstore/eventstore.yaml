@@ -32,7 +32,7 @@ persistence:
 ## Schedule a scavenging CronJob
 ## ref: https://eventstore.org/docs/server/scavenging/
 scavenging:
-  enabled: true
+  enabled: false
   image: lachlanevenson/k8s-kubectl
   imageTag: latest
   # At 02:00 every day
