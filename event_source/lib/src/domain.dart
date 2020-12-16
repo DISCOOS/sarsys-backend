@@ -1813,6 +1813,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     bool queue = true,
     bool items = true,
     bool snapshot = true,
+    bool connection = true,
     bool subscriptions = true,
   }) {
     final aggregate = _aggregates[uuid];
@@ -1832,6 +1833,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           data: data,
           items: items,
         ),
+      if (connection) 'connection': store.connection.toMeta(),
       if (subscriptions) 'subscriptions': _toSubscriptionMeta(),
     };
   }

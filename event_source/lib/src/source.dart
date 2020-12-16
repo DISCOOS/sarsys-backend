@@ -1732,24 +1732,26 @@ class EventStoreConnection {
   /// Get next [AtomFeed] from previous [FeedResult.atomFeed] in given [FeedResult.direction].
   Future<FeedResult> getNextFeed(FeedResult result) async {
     _assertState();
-
-    return FeedResult.from(
-      stream: result.stream,
-      number: result.number,
-      embedded: result.embedded,
-      direction: result.direction,
-      response: await client.get(
-        _toUri(
-          result.direction,
-          result.atomFeed,
-          result.embedded,
+    final tic = DateTime.now();
+    return _checkSlowRead(
+        FeedResult.from(
+          stream: result.stream,
+          number: result.number,
+          embedded: result.embedded,
+          direction: result.direction,
+          response: await client.get(
+            _toUri(
+              result.direction,
+              result.atomFeed,
+              result.embedded,
+            ),
+            headers: {
+              'Authorization': credentials.header,
+              'Accept': 'application/vnd.eventstore.atom+json',
+            },
+          ),
         ),
-        headers: {
-          'Authorization': credentials.header,
-          'Accept': 'application/vnd.eventstore.atom+json',
-        },
-      ),
-    );
+        tic);
   }
 
   String _toUri(Direction direction, AtomFeed atomFeed, bool embed) {
@@ -1895,14 +1897,44 @@ class EventStoreConnection {
     }
   }
 
-  WriteResult _checkSlowWrite(WriteResult write, DateTime tic) {
-    if (write.isCreated) {
-      final duration = DateTime.now().difference(tic);
-      if (duration.inMilliseconds > 50) {
+  /// Get connection metadata
+  Map<String, dynamic> toMeta() => {
+        'metrics': {
+          'read': _metrics['read'].toMeta(),
+          'write': _metrics['write'].toMeta(),
+        }
+      };
+
+  /// Map of metrics
+  final Map<String, DurationMetric> _metrics = {
+    'read': DurationMetric.zero,
+    'write': DurationMetric.zero,
+  };
+
+  FeedResult _checkSlowRead(FeedResult feed, DateTime tic) {
+    if (feed?.isOK == true) {
+      final metric = _metrics['read'].now(tic);
+      if (metric.duration.inMilliseconds > 50) {
         _logger.warning(
-          'SLOW WRITE: Writing ${write.events.length} to ${write.stream} took ${duration.inMilliseconds} ms',
+          'SLOW READ: Reading ${feed.atomFeed.entries.length} ${feed.stream}@${feed.number} '
+          'in direction ${enumName(feed.direction)} took ${metric.duration.inMilliseconds} ms',
         );
       }
+      _metrics['read'] = metric;
+    }
+    return feed;
+  }
+
+  WriteResult _checkSlowWrite(WriteResult write, DateTime tic) {
+    if (write?.isCreated == true) {
+      final metric = _metrics['write'].now(tic);
+      if (metric.duration.inMilliseconds > 50) {
+        _logger.warning(
+          'SLOW WRITE: Writing ${write.events.length} '
+          'to ${write.stream} took ${metric.duration.inMilliseconds} ms',
+        );
+      }
+      _metrics['write'] = metric;
     }
     return write;
   }
@@ -2291,8 +2323,8 @@ class _EventStreamController {
     try {
       logger.fine(
         _isPaused
-            ? 'Started reading events from $stream@$_number in direction $_direction'
-            : 'Resumed reading events from $stream@$_current in direction $_direction',
+            ? 'Started reading events from $stream@$_number in direction ${enumName(_direction)}'
+            : 'Resumed reading events from $stream@$_current in direction ${enumName(_direction)}',
       );
       _resume();
 
@@ -2300,28 +2332,19 @@ class _EventStreamController {
       do {
         if (!_isPaused) {
           final tic = DateTime.now();
-          // null on pause
-          feed = await _readNext();
-          _checkSlowRead(feed, tic);
+          // Null on pause
+          feed = connection._checkSlowRead(
+            await _readNext(),
+            tic,
+          );
         }
       } while (feed != null && feed.isOK && !(feed.headOfStream || feed.isEmpty));
       _stopRead();
     } catch (e, stackTrace) {
       _fatal(
-        'Failed to read stream $_stream@$_current in direction $_direction, error: $e',
+        'Failed to read stream $_stream@$_current in direction ${enumName(_direction)}, error: $e',
         stackTrace,
       );
-    }
-  }
-
-  void _checkSlowRead(FeedResult feed, DateTime tic) {
-    if (feed.isOK) {
-      final duration = DateTime.now().difference(tic);
-      if (duration.inMilliseconds > 50) {
-        logger.warning(
-          'SLOW READ: Reading ${feed.atomFeed.entries.length} $stream@$_number in direction $_direction took',
-        );
-      }
     }
   }
 
@@ -2807,4 +2830,51 @@ int toNextTimeout(int reconnects, Duration maxBackoffTime, {int exponent = 2}) {
     maxBackoffTime.inMilliseconds,
   );
   return wait;
+}
+
+class DurationMetric {
+  const DurationMetric()
+      : count = 0,
+        duration = Duration.zero,
+        durationMean = Duration.zero;
+
+  const DurationMetric._({
+    this.count = 0,
+    this.duration = Duration.zero,
+    this.durationMean = Duration.zero,
+  });
+
+  static const DurationMetric zero = DurationMetric._();
+
+  final int count;
+  final Duration duration;
+  final Duration durationMean;
+
+  /// Calculate metric from difference between [tic] and [DateTime.now()]
+  DurationMetric now(DateTime tic) => calc(DateTime.now().difference(tic));
+
+  /// Calculate metric from difference between [tic] and [toc]
+  DurationMetric from(DateTime tic, DateTime toc) => calc(toc.difference(tic));
+
+  /// Calculate metric.
+  DurationMetric calc(Duration duration) {
+    final total = count + 1;
+    return DurationMetric._(
+      count: total,
+      duration: duration,
+
+      /// Calculate iterative mean, see
+      ///http://www.heikohoffmann.de/htmlthesis/node134.html
+      durationMean: durationMean +
+          Duration(
+            milliseconds: 1 ~/ (total) * (duration.inMilliseconds - durationMean.inMilliseconds),
+          ),
+    );
+  }
+
+  Map<String, dynamic> toMeta() => {
+        'count': count,
+        'duration': '${duration.inMilliseconds} ms',
+        'durationMean': '${durationMean.inMilliseconds} ms',
+      };
 }

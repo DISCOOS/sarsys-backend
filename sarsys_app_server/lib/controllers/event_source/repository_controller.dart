@@ -43,6 +43,7 @@ class RepositoryController extends ResourceController {
           queue: _shouldExpand(expand, 'queue'),
           items: _shouldExpand(expand, 'items'),
           snapshot: _shouldExpand(expand, 'snapshot'),
+          connection: _shouldExpand(expand, 'connection'),
           subscriptions: _shouldExpand(expand, 'subscriptions'),
         ),
       );
@@ -79,6 +80,8 @@ class RepositoryController extends ResourceController {
           queue: _shouldExpand(expand, 'queue'),
           items: _shouldExpand(expand, 'items'),
           snapshot: _shouldExpand(expand, 'snapshot'),
+          connection: _shouldExpand(expand, 'connection'),
+          subscriptions: _shouldExpand(expand, 'subscriptions'),
         ),
       );
     } on InvalidOperation catch (e) {
@@ -141,16 +144,19 @@ class RepositoryController extends ResourceController {
       return true;
     }
     elements.removeWhere(
-      (e) => !const [
-        'snapshot',
-        'queue',
-        'items',
-        'data',
-        'subscriptions',
-      ].contains(e),
+      (e) => !options.contains(e),
     );
     return false;
   }
+
+  List<String> get options => const [
+        'data',
+        'queue',
+        'items',
+        'snapshot',
+        'connection',
+        'subscriptions',
+      ];
 
   String _assertCommand(Map<String, dynamic> body) {
     final action = body.elementAt('action');
@@ -205,8 +211,8 @@ class RepositoryController extends ResourceController {
       case "GET":
         parameters.add(
           APIParameter.query('expand')
-            ..description = "Expand response with metadata. Legal values are: "
-                "'snapshot', 'queue', 'items', 'data' and 'subscriptions'",
+            ..description = "Expand response with metadata. "
+                "Legal values are: '${options.join("', '")}'",
         );
         break;
     }
