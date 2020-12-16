@@ -74,7 +74,7 @@ const _$PositionSourceEnumMap = <PositionSource, dynamic>{
 ActivityModel _$ActivityModelFromJson(Map<String, dynamic> json) {
   return ActivityModel(
       type: _$enumDecodeNullable(_$ActivityTypeEnumMap, json['type']),
-      confidence: (json['confidence'] as num)?.toDouble());
+      confidence: json['confidence'] as int);
 }
 
 Map<String, dynamic> _$ActivityModelToJson(ActivityModel instance) =>

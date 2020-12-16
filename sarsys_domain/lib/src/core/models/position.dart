@@ -155,7 +155,7 @@ class ActivityModel extends Equatable {
   final ActivityType type;
 
   /// Estimate confidence
-  final double confidence;
+  final int confidence;
 
   /// Factory constructor for creating a new `Activity`  instance
   factory ActivityModel.fromJson(Map<String, dynamic> json) => _$ActivityModelFromJson(json);
