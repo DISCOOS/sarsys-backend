@@ -53,7 +53,7 @@ docker push discoos/sarsys_app_server:latest
 ## Deploying to Kubernetes
 
 ```
-kubectl apply -f k8s/sarsys.yaml
+kubectl apply -f k8s/server.yaml
 ```
 
 See the documentation for [deployment of Aqueduct](https://aqueduct.io/docs/deploy/).

@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "app.sarsys.tracking";
+option java_outer_classname = "SarSysTrackingService";
+option objc_class_prefix = "SarSys";
+
+package app.sarsys.tracking;
+
+// Interface exported by the server.
+service SarSysTrackingService {
+  // Get metadata
+  //
+  // Obtains metadata from tracking service
+  rpc GetMeta(MetaRequest) returns (MetaResponse) {}
+
+}
+
+// Tracking Service metadata request
+//
+// Summarises tracking service data
+message MetaRequest {}
+
+// Tracking Service metadata response
+//
+// Summarises tracking service data
+message MetaResponse {
+  // Number of tracking objects
+  int32 count = 1;
+}

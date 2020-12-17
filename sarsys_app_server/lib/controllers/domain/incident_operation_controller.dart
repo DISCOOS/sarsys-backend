@@ -1,5 +1,5 @@
 import 'package:sarsys_domain/sarsys_domain.dart' as sar;
-import 'package:sarsys_server_core/sarsys_server_core.dart';
+import 'package:sarsys_http_core/sarsys_http_core.dart';
 
 /// Implement controller for field `operations` in [sar.Incident]
 class IncidentOperationsController

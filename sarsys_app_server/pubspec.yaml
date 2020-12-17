@@ -13,8 +13,8 @@ dependencies:
     path: ../event_source
   sarsys_domain:
     path: ../sarsys_domain
-  sarsys_server_core:
-    path: ../sarsys_server_core
+  sarsys_http_core:
+    path: ../sarsys_http_core
 
 
 dev_dependencies:

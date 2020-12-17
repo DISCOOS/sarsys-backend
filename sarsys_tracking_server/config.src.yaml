@@ -1,0 +1,27 @@
+debug: true
+prefix: test
+tenant: discoos
+data:
+  enabled: false
+auth:
+  enabled: false
+  audience: sarsys-app
+  issuer: https://id.discoos.io/auth/realms/DISCOOS
+  baseUrl: https://id.discoos.io/auth/realms/DISCOOS
+  rolesClaims:
+    - roles
+    - realm_access_roles
+  required:
+    - roles:personnel
+eventstore:
+  # Eventstore:
+  # host: http://127.0.0.1
+  # port: 2113
+  # MockHTTPServer
+  host: http://localhost
+  port: 4000
+  login: admin
+  password: changeit
+  requireMaster: false
+logging:
+  level: INFO

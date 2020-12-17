@@ -4,14 +4,18 @@ version: 0.0.1
 author: Kenneth Gulbrandsøy <kenneth@discoos.org>
 
 environment:
-  sdk: ">=2.1.0 <3.0.0"
+  sdk: '>=2.9.0 <3.0.0'
 
 dependencies:
-  aqueduct: ^3.0.0
-  sarsys_server_core:
-    path: ../sarsys_server_core
+
+  grpc: ^2.8.0
+  logging: ^0.11.4
+  protobuf: ^1.1.0
+  sarsys_domain:
+    path: ../sarsys_domain
+  sarsys_http_core:
+    path: ../sarsys_http_core
 
 
 dev_dependencies:
   test: ^1.0.0
-  aqueduct_test: ^1.0.0

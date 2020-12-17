@@ -12,7 +12,7 @@ import 'package:uuid/uuid.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
 
-import 'package:sarsys_server_core/sarsys_server_core.dart';
+import 'package:sarsys_http_core/sarsys_http_core.dart';
 import 'controllers/domain/controllers.dart';
 import 'controllers/domain/schemas.dart';
 import 'controllers/messaging.dart';

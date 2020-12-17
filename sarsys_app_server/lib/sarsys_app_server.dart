@@ -3,7 +3,7 @@
 /// A Aqueduct web server.
 library sarsys_app_server;
 
-export 'package:sarsys_server_core/sarsys_server_core.dart';
+export 'package:sarsys_http_core/sarsys_http_core.dart';
 
 export 'controllers/domain/controllers.dart';
 export 'controllers/domain/schemas.dart';

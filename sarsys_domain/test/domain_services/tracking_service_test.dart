@@ -426,7 +426,7 @@ Future main() async {
 
     // Cleanup
     await service.dispose();
-  }, timeout: Timeout.factor(100));
+  });
 }
 
 void _assertStates(

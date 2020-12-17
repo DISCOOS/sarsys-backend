@@ -35,7 +35,7 @@ commit:
 test:
 	cd ../event_source; pub run test -j 1
 	cd ../sarsys_domain; pub run test -j 1
-	cd ../sarsys_server_core; pub run test -j 1
+	cd ../sarsys_http_core; pub run test -j 1
 	cd ../sarsys_app_server; pub run test -j 1
 
 serve:
@@ -99,16 +99,16 @@ push:
 	echo "[✓] Deploy docker image finished"
 
 publish: check build commit push
-	echo "Applying SARSys server..."
-	kubectl apply -f ../k8s/server/ns.yaml; \
-	kubectl apply -f ../k8s/server/rbac.yaml; \
-	kubectl apply -f ../k8s/server/config.yaml; \
-	if cat ../k8s/server/sarsys.yaml | kubectl diff -f - > /dev/null 2>&1; then \
-	    echo "Statefulset unchanged, restart using rollout (k8s version 1.15 or higher)"; \
+	echo "Applying SARSys App server..."
+	kubectl apply -f ../k8s/app/ns.yaml; \
+	kubectl apply -f ../k8s/app/rbac.yaml; \
+	kubectl apply -f ../k8s/app/config.yaml; \
+	if cat ../k8s/app/server.yaml | kubectl diff -f - > /dev/null 2>&1; then \
+	    echo "StatefulSet unchanged, restart using rollout (k8s version 1.15 or higher)"; \
 	    kubectl -n sarsys rollout restart statefulset sarsys-app-server; \
 	else \
-	    echo "Statefulset changed"; \
-	    kubectl apply -f ../k8s/server/sarsys.yaml; \
+	    echo "StatefulSet changed"; \
+	    kubectl apply -f ../k8s/app/server.yaml; \
 	fi
 	if ! kubectl -n sarsys rollout status statefulset sarsys-app-server; then \
         kubectl -n sarsys rollout undo statefulset sarsys-app-server; \
@@ -119,21 +119,21 @@ publish: check build commit push
 	echo "[✓] Publish to kubernetes finished"
 
 install:
-	echo "Applying SARSys server..."
-	kubectl apply -f ../k8s/server/ns.yaml; \
-	kubectl apply -f ../k8s/server/rbac.yaml; \
-	kubectl apply -f ../k8s/server/config.yaml; \
-	kubectl apply -f ../k8s/server/sarsys.yaml; \
+	echo "Applying SARSys App server..."
+	kubectl apply -f ../k8s/app/ns.yaml; \
+	kubectl apply -f ../k8s/app/rbac.yaml; \
+	kubectl apply -f ../k8s/app/config.yaml; \
+	kubectl apply -f ../k8s/app/server.yaml; \
     kubectl -n sarsys rollout status statefulset sarsys-app-server; \
 	echo "[✓] SARSys applied"
 
 delete:
 	echo "Deleting SARSys server..."
 	# DO NOT DELETE NAMESPACE unless you know what you are doing!
-	# kubectl apply -f ../k8s/server/ns.yaml;
-	kubectl delete -f ../k8s/server/rbac.yaml; \
-	kubectl delete -f ../k8s/server/config.yaml; \
-	kubectl delete -f ../k8s/server/sarsys.yaml; \
+	# kubectl apply -f ../k8s/app/ns.yaml;
+	kubectl delete -f ../k8s/app/rbac.yaml; \
+	kubectl delete -f ../k8s/app/config.yaml; \
+	kubectl delete -f ../k8s/app/server.yaml; \
 	echo "1) Manually delete PersistentVolumeClaims"; \
 	kubectl -n sarsys get pvc | grep data-sarsys-app-server-; \
 	echo "2) Manually delete PersistentVolumes"; \
