@@ -38,7 +38,7 @@ spec:
     spec:
       # Only schedule on given node pool
       nodeSelector:
-        doks.digitalocean.com/node-pool: k8s-2
+        doks.digitalocean.com/node-pool: k8s-4
       affinity:
         podAntiAffinity:
           # Spread as evenly on nodes in node pool as possible
@@ -85,10 +85,10 @@ spec:
           resources:
             requests:
               cpu: "250m"
-              memory: "800Mi"
+              memory: "400Mi"
             limits:
               cpu: "500m"
-              memory: "1200Mi"
+              memory: "600Mi"
           readinessProbe:
             httpGet:
               path: /api/healthz
