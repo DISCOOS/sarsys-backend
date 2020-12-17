@@ -4,12 +4,12 @@ nodeSelector:
  doks.digitalocean.com/node-pool: k8s-3
 
 resources:
+  requests:
+   cpu: 800m
+   memory: 1Mi
   limits:
     cpu: 1600m
-    memory: 1Gi
-  requests:
-    cpu: 800m
-    memory: 512Mi
+    memory: 2Gi
 
 ##
 ## Configure a pod disruption budget for the Event Store StatefulSet.
