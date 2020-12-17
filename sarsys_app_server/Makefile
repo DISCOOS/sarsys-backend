@@ -100,7 +100,7 @@ push:
 
 publish: check build commit push
 	echo "Applying SARSys App server..."
-	kubectl apply -f ../k8s/app/ns.yaml; \
+	kubectl apply -f ../k8s/ns.yaml; \
 	kubectl apply -f ../k8s/app/rbac.yaml; \
 	kubectl apply -f ../k8s/app/config.yaml; \
 	if cat ../k8s/app/server.yaml | kubectl diff -f - > /dev/null 2>&1; then \
@@ -120,7 +120,7 @@ publish: check build commit push
 
 install:
 	echo "Applying SARSys App server..."
-	kubectl apply -f ../k8s/app/ns.yaml; \
+	kubectl apply -f ../k8s/ns.yaml; \
 	kubectl apply -f ../k8s/app/rbac.yaml; \
 	kubectl apply -f ../k8s/app/config.yaml; \
 	kubectl apply -f ../k8s/app/server.yaml; \
@@ -129,9 +129,9 @@ install:
 
 delete:
 	echo "Deleting SARSys server..."
-	# DO NOT DELETE NAMESPACE unless you know what you are doing!
-	# kubectl apply -f ../k8s/app/ns.yaml;
-	kubectl delete -f ../k8s/app/rbac.yaml; \
+	# DO NOT DELETE NAMESPACE AND RBACK unless you know what you are doing!
+	# kubectl apply -f ../k8s/ns.yaml;
+	# kubectl delete -f ../k8s/rbac.yaml; \
 	kubectl delete -f ../k8s/app/config.yaml; \
 	kubectl delete -f ../k8s/app/server.yaml; \
 	echo "1) Manually delete PersistentVolumeClaims"; \

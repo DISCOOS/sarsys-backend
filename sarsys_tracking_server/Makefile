@@ -95,7 +95,7 @@ publish: check build commit push
 install:
 	echo "Applying SARSys Tracking server..."
 	kubectl apply -f ../k8s/ns.yaml; \
-	kubectl apply -f ../k8s/tracking/rbac.yaml; \
+	kubectl apply -f ../k8s/rbac.yaml; \
 	kubectl apply -f ../k8s/tracking/config.yaml; \
 	kubectl apply -f ../k8s/tracking/server.yaml; \
     kubectl -n sarsys rollout status statefulset sarsys-tracking-server; \
@@ -103,8 +103,9 @@ install:
 
 delete:
 	echo "Deleting SARSys server..."
-	# DO NOT DELETE NAMESPACE unless you know what you are doing!
+	# DO NOT DELETE NAMESPACE AND RBACK unless you know what you are doing!
 	# kubectl apply -f ../k8s/ns.yaml;
+	# kubectl delete -f ../k8s/rbac.yaml; \
 	kubectl delete -f ../k8s/tracking/rbac.yaml; \
 	kubectl delete -f ../k8s/tracking/config.yaml; \
 	kubectl delete -f ../k8s/tracking/server.yaml; \
