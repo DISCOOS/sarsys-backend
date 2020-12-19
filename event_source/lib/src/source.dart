@@ -258,6 +258,10 @@ class EventStore {
       final isPartial = repo.hasSnapshot && repo.snapshot.isPartial;
       final snapshot = repo.hasSnapshot ? (repo.snapshot.isPartial ? '(partial snapshot)' : '(snapshot)') : '';
 
+      logger.info(
+        "Replay events on ${uuids.isEmpty ? 'all' : uuids.length} ${repo.aggregateType}s $snapshot",
+      );
+
       // Catchup on instance streams first?
       if ((isPartial || uuids.isNotEmpty) && useInstanceStreams) {
         for (var uuid in offsets.keys) {
@@ -404,6 +408,10 @@ class EventStore {
           // Catchup to all streams
           : [canonicalStream];
 
+      logger.info(
+        "Catchup events on ${uuids.isEmpty ? 'all' : uuids.length} ${repo.aggregateType}s",
+      );
+
       // Stop subscriptions
       // from catching up
       pause();
@@ -455,17 +463,22 @@ class EventStore {
     var count = 0;
 
     // Lower bound is last known event number in stream
-    final head = EventNumber(
+    final actual = EventNumber(
       max(offset.value, current(stream: stream).value),
     );
 
     logger.fine(
-      '_catchUp(stream: $stream, from: $head, requested: $offset, current: ${current(stream: stream)})',
+      _toObject('_catchUp', [
+        'stream: $stream',
+        'number.offset: $offset',
+        'number.actual: $actual',
+        'number.current: ${current(stream: stream)}',
+      ]),
     );
 
     final events = await connection.readEventsAsStream(
       stream: stream,
-      number: head,
+      number: actual,
       master: master,
     );
     if (_isDisposed) return 0;
@@ -711,13 +724,15 @@ class EventStore {
         version: version,
         events: changes.map((e) => e.toEvent(uuidFieldName)),
       );
-      logger.fine('writeEvents(\n'
-          '   uuid: $uuid, \n'
-          '   version: $version, \n'
-          '   first: ${changes.first.type}@${changes.first.number},\n'
-          '   last: ${changes.last.type}@${changes.last.number},\n'
-          '   result: ${result.reasonPhrase},\n'
-          ') ');
+      logger.fine(
+        _toObject('writeEvents', [
+          'uuid: $uuid',
+          'version: $version',
+          'first: ${changes.first.type}@${changes.first.number}',
+          'last: ${changes.last.type}@${changes.last.number}',
+          'result: ${result.reasonPhrase}'
+        ]),
+      );
       if (_isDisposed) return changes;
 
       if (result.isCreated) {
@@ -916,20 +931,22 @@ class EventStore {
         final aggregate = repo.get(uuid);
         final applied = aggregate.applied.where((e) => e.uuid == event.uuid).firstOrNull;
         logger.fine(
-          '_onSubscriptionEvent(${repo.runtimeType}{\n'
-          '  event.type: ${event.type}, \n'
-          '  event.uuid: ${event.uuid}, \n'
-          '  event.number: ${event.number}, \n'
-          '  event.isSourced: ${_isSourced(uuid, event)}, \n'
-          '  event.isApplied: $isApplied, \n'
-          '  event.patches: ${applied?.patches?.length}, \n'
-          '  aggregate.uuid: ${aggregate.uuid}, \n'
-          '  aggregate.stream: $stream, \n'
-          '  repository: ${repo.runtimeType}, \n'
-          '  repository.isEmpty: $isEmpty, \n'
-          '  repository.number.instance: $actual\n'
-          '  isInstanceStream: $useInstanceStreams, \n'
-          '}',
+          _toMethod('_onSubscriptionEvent', [
+            _toObject('${repo.runtimeType}', [
+              'event.type: ${event.type}',
+              'event.uuid: ${event.uuid}',
+              'number: ${event.number}',
+              'event.isSourced: ${_isSourced(uuid, event)}',
+              'event.isApplied: $isApplied',
+              'event.patches: ${applied?.patches?.length}',
+              'aggregate.uuid: ${aggregate.uuid}',
+              'aggregate.stream: $stream',
+              'repository: ${repo.runtimeType}',
+              'repository.isEmpty: $isEmpty',
+              'repository.number.instance: $actual',
+              'isInstanceStream: $useInstanceStreams',
+            ]),
+          ]),
         );
       }
     } on JsonPatchError catch (error, stackTrace) {
@@ -938,18 +955,19 @@ class EventStore {
         stream,
         error: error,
         stackTrace: stackTrace,
-        message: 'Failed to apply patches from aggregate stream ${canonicalStream}{\n'
-            '  error: $error, \n'
-            '  connection: ${repo.store.connection.host}:${repo.store.connection.port}, \n'
-            '  event.type: ${event.type}, \n'
-            '  event.uuid: ${event.uuid}, \n'
-            '  event.number: ${event.number}, \n'
-            '  repository: ${repo.runtimeType}, \n'
-            '  repository.isEmpty: $isEmpty, \n'
-            '  isInstanceStream: $useInstanceStreams, \n'
-            '  store.events.count: ${repo.store.events.values.fold(0, (count, events) => count + events.length)}, \n'
-            '  store.events.items: ${repo.store.events.values}, \n'
-            '}',
+        message: 'Failed to apply patches from aggregate stream ${canonicalStream}: ' +
+            _toObject('${error.runtimeType}', [
+              'message: ${error.message}',
+              'connection: ${repo.store.connection.host}:${repo.store.connection.port}',
+              'event.type: ${event.type}',
+              'event.uuid: ${event.uuid}',
+              'event.number: ${event.number}',
+              'repository: ${repo.runtimeType}',
+              'repository.isEmpty: $isEmpty',
+              'isInstanceStream: $useInstanceStreams',
+              'store.events.count: ${repo.store.events.values.fold(0, (count, events) => count + events.length)}',
+              'store.events.items: ${repo.store.events.values}',
+            ]),
       );
     } catch (error, stackTrace) {
       _onFatal(
@@ -964,14 +982,34 @@ class EventStore {
     }
   }
 
-  void _onFatal(SourceEvent event, String stream, {String message, Object error, StackTrace stackTrace}) {
-    final msg = 'Failed to process $event for $stream: \n'
-        'message: $message: \n'
-        'error: $error: \n'
-        'stacktrace: ${Trace.format(stackTrace)}';
-    logger.network(msg, error, stackTrace);
+  String _toMethod(String name, List<String> args) => '$name(\n  ${args.join(',\n  ')})';
+  String _toObject(String name, List<String> args) => '$name{\n  ${args.join(',\n  ')}\n}';
+
+  void _onFatal(
+    SourceEvent event,
+    String stream, {
+    String message,
+    Object error,
+    StackTrace stackTrace,
+  }) {
+    // Concatenate additional error information
+    message = 'Failed to process $event for $stream: ' +
+        _toObject('${error.runtimeType}', [
+          'message: $message',
+          'error: $error',
+          'stacktrace: ${Trace.format(stackTrace)}',
+        ]);
+
+    logger.network(
+      message,
+      error,
+      stackTrace,
+    );
     _streamController.addError(
-      RepositoryError(msg),
+      RepositoryError(
+        message,
+        stackTrace,
+      ),
       stackTrace,
     );
   }
@@ -997,7 +1035,13 @@ class EventStore {
     Repository repository,
   ) {
     logger.fine(
-      '_onReplace(${event.type}(uuid: ${event.uuid}, number: ${event.number}, remote: ${event.remote}))',
+      _toMethod('_onReplace', [
+        _toObject('${event.type}', [
+          'event.uuid: ${event.uuid}',
+          'number: ${event.number}',
+          'remove: ${_isSourced(uuid, event)}',
+        ]),
+      ]),
     );
 
     // Catch up with stream
@@ -1032,7 +1076,13 @@ class EventStore {
     // Only apply events with numbers bigger then current
     if (event.number > actual) {
       logger.fine(
-        '_onApply(${event.type}(uuid: ${event.uuid}, number: ${event.number}, remote: ${event.remote}))',
+        _toMethod('_onApply', [
+          _toObject('${event.type}', [
+            'event.uuid: ${event.uuid}',
+            'number: ${event.number}',
+            'remove: ${_isSourced(uuid, event)}',
+          ]),
+        ]),
       );
 
       // Do not apply is subscriptions are suspended
@@ -2821,9 +2871,7 @@ class _EventStoreSubscriptionControllerImpl {
       // This should sum up for pull-subscriptions!
       // If it doesn't something is wrong!
       if (_strategy == null && (_number + fetched + (number.isNone ? 1 : 0)) != _current) {
-        throw StateError(
-          '$fetched events fetched does not match number change $_number > $_current',
-        );
+        throw StateError('$fetched events fetched does not match number change $_number > $_current');
       }
       logger.fine(
         'Subscription $name caught up from $_number to $_current',
