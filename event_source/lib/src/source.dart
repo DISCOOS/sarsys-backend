@@ -446,6 +446,11 @@ class EventStore {
     }
   }
 
+  /// Flag controlling async handling of events.
+  /// If [true], this store is either disposed
+  /// or paused.
+  bool get _shouldSkipEvents => isDisposed || isPaused;
+
   /// Catch up with canonical stream
   /// from given (position) [offset]
   ///
@@ -481,11 +486,11 @@ class EventStore {
       number: actual,
       master: master,
     );
-    if (_isDisposed) return 0;
+    if (isDisposed) return 0;
 
     // Process results as they arrive
     final subscription = events.listen((result) {
-      if (result.isOK) {
+      if (!isDisposed && result.isOK) {
         // Group events by aggregate uuid
         final eventsPerAggregate = groupBy<SourceEvent, String>(
           result.events,
@@ -882,11 +887,11 @@ class EventStore {
     return competing
         ? controller.compete(
             repository,
-            stream: canonicalStream,
-            group: '${repository.aggregateType}',
             number: number,
             consume: consume,
             strategy: strategy,
+            stream: canonicalStream,
+            group: '${repository.aggregateType}',
           )
         : controller.subscribe(
             repository,
@@ -899,7 +904,7 @@ class EventStore {
   void _onSubscriptionEvent(Repository repo, SourceEvent event) {
     // In case paused after events
     // are sent from controller
-    if (isDisposed || isPaused) {
+    if (_shouldSkipEvents) {
       return;
     }
 
@@ -1243,7 +1248,12 @@ class EventStore {
     return numbers;
   }
 
-  /// Resume all subscriptions
+  /// Resume all subscriptions.
+  /// Returns current subscription
+  /// event number.
+  ///
+  /// See [EventStoreSubscriptionController.current]
+  ///
   Map<Type, EventNumber> resume() {
     final numbers = <Type, EventNumber>{};
     if (isPaused) {

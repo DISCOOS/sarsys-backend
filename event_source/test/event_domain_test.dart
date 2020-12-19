@@ -478,20 +478,15 @@ Future main() async {
     // Arrange
     final repo = harness.get<FooRepository>(port: 4000);
     await repo.readyAsync();
+
     final uuid1 = Uuid().v4();
-    final foo1 = repo.get(uuid1, data: {'property11': 'value11'});
-    final data11 = foo1.data;
-    await repo.push(foo1);
+    final data11 = {'property11': 'value11'};
 
     final uuid2 = Uuid().v4();
-    final foo2 = repo.get(uuid2, data: {'property21': 'value21'});
-    final data21 = foo2.data;
-    await repo.push(foo2);
+    final data21 = {'property21': 'value21'};
 
     final uuid3 = Uuid().v4();
-    final foo3 = repo.get(uuid3, data: {'property31': 'value31'});
-    final data31 = foo3.data;
-    await repo.push(foo3);
+    final data31 = {'property31': 'value31'};
 
     // Stop catchup subscription
     repo.store.pause();
@@ -505,6 +500,12 @@ Future main() async {
     stream.append(
       '${stream.instanceStream}-0',
       [
+        TestStream.asSourceEvent<FooCreated>(
+          uuid1,
+          {},
+          data11,
+          number: EventNumber(0),
+        ),
         TestStream.asSourceEvent<FooUpdated>(
           uuid1,
           data11,
@@ -520,6 +521,12 @@ Future main() async {
     stream.append(
       '${stream.instanceStream}-1',
       [
+        TestStream.asSourceEvent<FooCreated>(
+          uuid2,
+          {},
+          data21,
+          number: EventNumber(0),
+        ),
         TestStream.asSourceEvent<FooUpdated>(
           uuid2,
           data21,
@@ -535,6 +542,12 @@ Future main() async {
     stream.append(
       '${stream.instanceStream}-2',
       [
+        TestStream.asSourceEvent<FooCreated>(
+          uuid3,
+          {},
+          data31,
+          number: EventNumber(0),
+        ),
         TestStream.asSourceEvent<FooUpdated>(
           uuid3,
           data31,
@@ -544,16 +557,24 @@ Future main() async {
       ],
     );
 
+    // Catch any events raised
+    // before waiting on all
+    // events to be seen
+    final seen = <Event>[];
+    repo.store.asStream().where((e) => e.remote).listen((event) {
+      seen.add(event);
+    });
+
     // Act - Force subscription behind
-    await repo.replay(uuids: [uuid1, uuid3]);
+    await repo.replay();
 
     // Act - resume subscriptions
     final offsets2 = repo.store.resume();
 
-    // Assert - subscription offset
+    // Assert - subscription offset to current + 1
     expect(
       offsets2[FooRepository],
-      repo.store.current(),
+      repo.store.current() + 1,
       reason: 'should resume from current',
     );
   });
