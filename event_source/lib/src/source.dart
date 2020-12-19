@@ -215,11 +215,12 @@ class EventStore {
     if (_snapshot == null) {
       return EventNumber.none + _events.keys.length;
     }
-    final number = EventNumber(_snapshot.number.value ?? EventNumber.none);
+    final number = EventNumber(_snapshot.number.value);
+    final offset = _events.keys.length - _snapshot.aggregates.length;
     if (_snapshot.isPartial) {
-      return number - min(0, _snapshot.missing - _events.keys.length);
+      return number - min(0, _snapshot.missing - offset);
     }
-    return number + _events.keys.length;
+    return number + offset;
   }
 
   /// Replay events on given [repo].
@@ -260,10 +261,11 @@ class EventStore {
       // Catchup on instance streams first?
       if ((isPartial || uuids.isNotEmpty) && useInstanceStreams) {
         for (var uuid in offsets.keys) {
+          if (_isDisposed) break;
           final tic = DateTime.now();
           final offset = offsets[uuid];
           final stream = toInstanceStream(uuid);
-          final events = await _catchUp(
+          final events = await _catchup(
             repo,
             offset: offset,
             stream: stream,
@@ -276,21 +278,20 @@ class EventStore {
         }
       }
 
-      if (uuids.isEmpty) {
+      if (!_isDisposed && uuids.isEmpty) {
         final tic = DateTime.now();
-        // Catchup on canonical stream
-        final offset = _assertStreamOffset(
+        // Start from first event after snapshot
+        final offset = _toStreamOffset(
           repo,
           stream: canonicalStream,
         );
 
         // Fetch all events from canonical stream
-        final events = await _catchUp(
+        final events = await _catchup(
           repo,
           master: master,
           stream: canonicalStream,
-          // Start from first event after snapshot
-          offset: repo.hasSnapshot ? offset + 1 : offset,
+          offset: offset,
         );
         logger.info(
           "Replayed $events events from stream '${canonicalStream}' with offset ${offset.value} $snapshot "
@@ -331,49 +332,57 @@ class EventStore {
 
     for (var uuid in aggregates) {
       // Remove all events for given aggregate
-      final events = _aggregates[uuid];
-      for (var event in events ?? []) {
+      // ignore: prefer_collection_literals
+      final events = _aggregates[uuid] ?? LinkedHashSet<SourceEvent>();
+      for (var event in events) {
         _events.remove(event.uuid);
+      }
+
+      events.clear();
+      final stream = toInstanceStream(uuid);
+      if (_snapshot != null) {
+        final event = repository.get(uuid, createNew: false).baseEvent;
+        events.add(event.toSourceEvent(
+          streamId: stream,
+          number: event.number,
+          uuidFieldName: repository.uuidFieldName,
+        ));
+        _events[event.uuid] = uuid;
       }
 
       // Register aggregate in store (needed
       // to calculate event number later)
-      // ignore: prefer_collection_literals
-      _aggregates[uuid] = LinkedHashSet<SourceEvent>();
+      _aggregates[uuid] = events;
 
       // Start from first event (tail or snapshot)
-      final offset = _assertStreamOffset(
+      final offset = _toStreamOffset(
         repository,
-        stream: toInstanceStream(uuid),
+        stream: stream,
       );
-
-      // Start from first event after snapshot
-      numbers[uuid] = hasSnapshot ? offset + 1 : offset;
+      numbers[uuid] = offset;
     }
     return numbers;
   }
 
-  EventNumber _assertStreamOffset(
-    Repository repository, {
+  EventNumber _toStreamOffset(
+    Repository repo, {
     @required String stream,
   }) {
-    final number = current(stream: stream);
-    final offset = number.isNone ? EventNumber.first : number;
-    if (offset.value < 0) {
-      final uuid = toAggregateUuid(stream);
-      if (uuid == null) {
-        throw StateError(
-          'Stream $stream for '
-          'repository ${repository.runtimeType} is negative',
-        );
-      } else {
-        throw StateError(
-          'Instance stream $stream for '
-          '${repository.aggregateType} $uuid is negative',
-        );
+    return _toStreamHead(repo, stream: stream) + 1;
+  }
+
+  EventNumber _toStreamHead(
+    Repository repo, {
+    @required String stream,
+  }) {
+    final uuid = toAggregateUuid(stream);
+    if (uuid != null) {
+      final aggregate = repo.get(uuid, createNew: false);
+      if (aggregate.headEvent != null) {
+        return aggregate.headEvent.number;
       }
     }
-    return offset;
+    return current(stream: stream);
   }
 
   /// Catch up with streams.
@@ -401,14 +410,15 @@ class EventStore {
 
       // Catchup to given streams
       for (var stream in streams) {
-        final previous = _toHead(repo, stream);
-        final next = isEmpty ? EventNumber.first : previous + 1;
-        final events = await _catchUp(
+        final previous = current(stream: stream);
+        final next = _toStreamOffset(repo, stream: stream);
+        final events = await _catchup(
           repo,
           offset: next,
           stream: stream,
           master: master,
         );
+        if (_isDisposed) break;
         final actual = current(stream: stream);
         if (events > 0) {
           logger.info(
@@ -428,25 +438,18 @@ class EventStore {
     }
   }
 
-  // Get last known event number (head)
-  EventNumber _toHead(Repository repository, String stream) {
-    return isEmpty
-        ? EventNumber.none
-        : _assertStreamOffset(
-            repository,
-            stream: stream,
-          );
-  }
-
   /// Catch up with canonical stream
   /// from given (position) [offset]
   ///
-  Future<int> _catchUp(
+  Future<int> _catchup(
     Repository repo, {
     @required String stream,
     @required EventNumber offset,
     bool master = false,
   }) async {
+    if (isDisposed) {
+      return 0;
+    }
     assert(isPaused, 'subscriptions must be paused');
 
     var count = 0;
@@ -465,6 +468,7 @@ class EventStore {
       number: head,
       master: master,
     );
+    if (_isDisposed) return 0;
 
     // Process results as they arrive
     final subscription = events.listen((result) {
@@ -629,8 +633,9 @@ class EventStore {
   /// If not found, [null] is returned.
   String toAggregateUuid(String stream) {
     assert(useInstanceStreams, 'only allowed when instance streams are used');
-    final index = int.parse(stream.split('-').last);
-    if (index >= _aggregates.length) {
+    final parts = stream.split('-');
+    final index = int.tryParse(parts.last);
+    if (index == null || index >= _aggregates.length) {
       return null;
     }
     return _aggregates.keys.toList().elementAt(index);
@@ -713,6 +718,7 @@ class EventStore {
           '   last: ${changes.last.type}@${changes.last.number},\n'
           '   result: ${result.reasonPhrase},\n'
           ') ');
+      if (_isDisposed) return changes;
 
       if (result.isCreated) {
         // Commit all changes
@@ -782,21 +788,21 @@ class EventStore {
   ///
   /// Throws an [InvalidOperation] if [Repository.store] is not this [EventStore]
   /// Throws an [InvalidOperation] if [Repository] is already subscribing to events
-  Future<EventStoreSubscriptionController> compete(
+  EventStoreSubscriptionController compete(
     Repository repository, {
     int consume = 20,
     ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
     Duration maxBackoffTime = const Duration(seconds: 10),
-  }) async {
+  }) {
     // Sanity checks
     _assertState();
     _assertRepository(repository);
 
     // Dispose current subscription if exists
-    await _controllers[repository.runtimeType]?.cancel();
+    _controllers[repository.runtimeType]?.cancel();
 
     // Get existing or create new
-    final controller = await _subscribe(
+    final controller = _subscribe(
       _controllers[repository.runtimeType] ??
           EventStoreSubscriptionController(
             logger: logger,
@@ -818,19 +824,19 @@ class EventStore {
   ///
   /// Throws an [InvalidOperation] if [Repository.store] is not this [EventStore]
   /// Throws an [InvalidOperation] if [Repository] is already subscribing to events
-  Future<EventStoreSubscriptionController> subscribe(
+  EventStoreSubscriptionController subscribe(
     Repository repo, {
     Duration maxBackoffTime = const Duration(seconds: 10),
-  }) async {
+  }) {
     // Sanity checks
     _assertState();
     _assertRepository(repo);
 
     // Dispose current subscription if exists
-    await _controllers[repo.runtimeType]?.cancel();
+    _controllers[repo.runtimeType]?.cancel();
 
     // Get existing or create new
-    final controller = await _subscribe(
+    final controller = _subscribe(
       _controllers[repo.runtimeType] ??
           EventStoreSubscriptionController(
             logger: logger,
@@ -846,14 +852,18 @@ class EventStore {
     return controller;
   }
 
-  Future<EventStoreSubscriptionController> _subscribe(
+  EventStoreSubscriptionController _subscribe(
     EventStoreSubscriptionController controller,
     Repository repository, {
     int consume = 20,
     bool competing = false,
     ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
-  }) async {
-    final number = current();
+  }) {
+    // Get next event in stream
+    final number = repository.store._toStreamHead(
+      repository,
+      stream: canonicalStream,
+    );
     return competing
         ? controller.compete(
             repository,
@@ -872,16 +882,12 @@ class EventStore {
 
   /// Handle event from subscriptions
   void _onSubscriptionEvent(Repository repo, SourceEvent event) {
+    _assertNotReplaying(repo);
+
     final uuid = repo.toAggregateUuid(event);
     final actual = current(uuid: uuid);
     final stream = toInstanceStream(uuid);
     try {
-      _controllers[repo.runtimeType]?.alive(
-        repo,
-        event,
-        connection,
-      );
-
       // IMPORTANT: append to store before applying to repository
       // This ensures that the event added to an aggregate during
       // construction is overwritten with the remote actual
@@ -1056,9 +1062,7 @@ class EventStore {
   void _onSubscriptionDone(Repository repository) {
     logger.fine('${repository.runtimeType}: subscription closed');
     if (!_isDisposed) {
-      _controllers[repository.runtimeType].reconnect(
-        repository,
-      );
+      _controllers[repository.runtimeType].reconnect();
     }
   }
 
@@ -1070,9 +1074,7 @@ class EventStore {
       stackTrace,
     );
     if (!_isDisposed) {
-      _controllers[repository.runtimeType].reconnect(
-        repository,
-      );
+      _controllers[repository.runtimeType].reconnect();
     }
   }
 
@@ -1098,9 +1100,17 @@ class EventStore {
   }
 
   /// Assert that this this [EventStore] is managed by [repository]
-  void _assertRepository(Repository<Command, AggregateRoot> repository) {
+  void _assertRepository(Repository repository) {
     if (repository.store != this) {
       throw InvalidOperation('This $this is not managed by ${repository.runtimeType}');
+    }
+  }
+
+  /// Assert that given [repository] is not replaying
+  void _assertNotReplaying(Repository repository) {
+    if (repository.isReplaying) {
+      print('${repository.runtimeType} is replaying');
+      // throw InvalidOperation('${repository.runtimeType} is replaying');
     }
   }
 
@@ -1157,28 +1167,71 @@ class EventStore {
   bool get isPaused => !isDisposed && _paused > 0;
 
   /// Pause all subscriptions
-  void pause() {
+  Map<Type, EventNumber> pause() {
     _assertState();
+    final numbers = <Type, EventNumber>{};
     if (!isPaused) {
-      _controllers.values.forEach(
-        (controller) => controller.pause(),
+      _controllers.forEach(
+        (type, controller) {
+          numbers[type] = controller.pause();
+        },
       );
     }
     _paused++;
     logger.fine('pause($_paused)');
+    return numbers;
   }
 
   /// Resume all subscriptions
-  void resume() {
+  Map<Type, EventNumber> resume() {
+    final numbers = <Type, EventNumber>{};
     if (isPaused) {
       _paused--;
       if (!isPaused) {
-        _controllers.values.forEach(
-          (controller) => controller.resume(),
+        // Resume or restart from current number
+        _controllers.forEach(
+          (type, controller) {
+            if (_shouldRestart(controller)) {
+              // This will NOT create a new instance
+              // of EventStoreSubscriptionController,
+              // which is what we want.
+              if (controller.isCompeting) {
+                controller = compete(
+                  controller.repository,
+                  consume: controller.consume,
+                  strategy: controller.strategy,
+                  maxBackoffTime: controller.maxBackoffTime,
+                );
+              } else {
+                controller = subscribe(
+                  controller.repository,
+                  maxBackoffTime: controller.maxBackoffTime,
+                );
+              }
+              numbers[type] = controller.current;
+            } else {
+              numbers[type] = controller.resume();
+            }
+          },
         );
       }
     }
     logger.fine('resume($_paused)');
+    return numbers;
+  }
+
+  bool _shouldRestart(EventStoreSubscriptionController controller) {
+    final number = controller.current;
+    final actual = current();
+    final diff = actual.value - number.value;
+    if (diff > 0) {
+      logger.fine(
+        'Subscription on ${controller.repository.aggregateType} is behind '
+        '(last: $number, actual: $actual, diff: $diff) > restarting',
+      );
+      return true;
+    }
+    return false;
   }
 
   /// Clear events in store and close connection
@@ -1269,8 +1322,21 @@ class EventStoreSubscriptionController<T extends Repository> {
   int get processed => _processed;
   int _processed = 0;
 
+  /// Get current [EventNumber]
+  /// (position in canonical stream).
+  /// Same as [offset] + [processed].
+  EventNumber get current => _offset + _processed;
+
+  /// Get subscription [offset].
+  EventNumber get offset => _offset;
+  EventNumber _offset = EventNumber.none;
+
   /// Reference for cancelling in [cancel]
   Timer _timer;
+
+  /// Repository instance
+  T get repository => _repository;
+  T _repository;
 
   /// Flag indication if subscription is competing for events with other consumers
   bool get isCompeting => _competing;
@@ -1291,24 +1357,26 @@ class EventStoreSubscriptionController<T extends Repository> {
   /// Subscribe to events from given stream.
   ///
   /// Cancels previous subscriptions if exists
-  Future<EventStoreSubscriptionController<T>> subscribe(
+  EventStoreSubscriptionController<T> subscribe(
     T repository, {
     @required String stream,
     EventNumber number = EventNumber.first,
-  }) async {
-    await _subscription?.cancel();
-
-    _competing = false;
+  }) {
+    _subscription?.cancel();
     _group = null;
+    _processed = 0;
     _consume = null;
     _strategy = null;
+    _offset = number;
+    _competing = false;
+    _repository = repository;
     _subscription = repository.store.connection
         .subscribe(
           stream: stream,
           number: number,
         )
         .listen(
-          (event) => onEvent(repository, event),
+          (event) => _onEvent(event),
           onDone: () => onDone(repository),
           onError: (error, stackTrace) => onError(
             repository,
@@ -1323,19 +1391,22 @@ class EventStoreSubscriptionController<T extends Repository> {
   /// Compete for events from given stream.
   ///
   /// Cancels previous subscriptions if exists
-  Future<EventStoreSubscriptionController<T>> compete(
+  EventStoreSubscriptionController<T> compete(
     T repository, {
     @required String stream,
     @required String group,
     int consume = 20,
     EventNumber number = EventNumber.first,
     ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
-  }) async {
-    await _subscription?.cancel();
+  }) {
+    _subscription?.cancel();
     _competing = true;
     _group = group;
+    _processed = 0;
+    _offset = number;
     _consume = consume;
     _strategy = strategy;
+    _repository = repository;
     _subscription = repository.store.connection
         .compete(
           stream: stream,
@@ -1345,7 +1416,7 @@ class EventStoreSubscriptionController<T extends Repository> {
           strategy: strategy,
         )
         .listen(
-          (event) => onEvent(repository, event),
+          (event) => _onEvent(event),
           onDone: () => onDone(repository),
           onError: (error, StackTrace stackTrace) => onError(
             repository,
@@ -1353,37 +1424,23 @@ class EventStoreSubscriptionController<T extends Repository> {
             stackTrace,
           ),
         );
-    logger.fine('${repository.runtimeType} > Competing from $stream@$number');
+    logger.fine(
+      '${repository.runtimeType} > Competing from $stream@$number',
+    );
     return this;
   }
 
-  int toNextReconnectMillis() {
-    final wait = toNextTimeout(reconnects++, maxBackoffTime);
-    logger.info('Wait ${wait}ms before reconnecting (attempt: $reconnects)');
-    return wait;
-  }
-
-  void reconnect(T repository) async {
-    if (!repository.store.connection.isClosed) {
-      // Wait for current timer to complete
-      _timer ??= Timer(
-        Duration(milliseconds: toNextReconnectMillis()),
-        () => _retry(repository),
-      );
-    }
-  }
-
-  Future _retry(T repository) async {
+  Future _retry() async {
     try {
       _timer.cancel();
       _timer = null;
       logger.info(
-        '${repository.runtimeType}: SubscriptionController is '
+        '${_repository.runtimeType}: SubscriptionController is '
         'reconnecting to stream ${repository.store.canonicalStream}, attempt: $reconnects',
       );
       await _subscription?.cancel();
       if (_competing) {
-        final controller = await repository.store.compete(
+        final controller = await _repository.store.compete(
           repository,
           consume: _consume,
           strategy: _strategy,
@@ -1402,36 +1459,65 @@ class EventStoreSubscriptionController<T extends Repository> {
     }
   }
 
-  void alive(T repository, SourceEvent event, EventStoreConnection connection) {
+  void _onEvent(SourceEvent event) {
+    if (!isPaused) {
+      _alive(_repository, event);
+      onEvent(_repository, event);
+    }
+  }
+
+  int toNextReconnectMillis() {
+    final wait = toNextTimeout(reconnects++, maxBackoffTime);
+    logger.info('Wait ${wait}ms before reconnecting (attempt: $reconnects)');
+    return wait;
+  }
+
+  void reconnect() async {
+    if (!_repository.store.connection.isClosed) {
+      // Wait for current timer to complete
+      _timer ??= Timer(
+        Duration(
+          milliseconds: toNextReconnectMillis(),
+        ),
+        _retry,
+      );
+    }
+  }
+
+  void _alive(T repository, SourceEvent event) {
     if (reconnects > 0) {
+      final connection = repository.store.connection;
       logger.info(
         '${repository.runtimeType} reconnected to '
         "'${connection.host}:${connection.port}' after ${reconnects} attempts",
       );
       reconnects = 0;
-      _processed++;
-      _lastEvent = event;
     }
+    _processed++;
+    _lastEvent = event;
   }
 
-  /// [SourceEvent] last seen
+  /// Get last seen [SourceEvent]
   SourceEvent get lastEvent => _lastEvent;
   SourceEvent _lastEvent;
 
   /// Check if subscription is paused
   bool get isPaused => _subscription?.isPaused == true;
 
-  void pause() {
+  EventNumber pause() {
     _timer?.cancel();
     _subscription?.pause();
+    return current;
   }
 
-  void resume() {
+  EventNumber resume() {
     _subscription?.resume();
+    return current;
   }
 
   Future cancel() {
     _timer?.cancel();
+    _repository = null;
     _isCancelled = true;
     return _subscription?.cancel();
   }
@@ -2411,7 +2497,9 @@ class _EventStreamController {
       );
     }
     // Notify when all actions are done
-    controller.add(result);
+    if (controller.hasListener) {
+      controller.add(result);
+    }
   }
 
   Future<FeedResult> _nextFeed() => connection.getFeed(
@@ -2584,10 +2672,10 @@ class _EventStoreSubscriptionControllerImpl {
 
     _controller?.close();
     _controller = StreamController<SourceEvent>(
-      onListen: _startTimer,
       onPause: _pauseTimer,
-      onResume: _startTimer,
       onCancel: _stopTimer,
+      onListen: _startTimer,
+      onResume: _startTimer,
     );
     _resume();
 
@@ -2630,10 +2718,10 @@ class _EventStoreSubscriptionControllerImpl {
 
     _controller?.close();
     _controller = StreamController<SourceEvent>(
+      onPause: _pauseTimer,
+      onCancel: _stopTimer,
       onListen: _startTimer,
       onResume: _startTimer,
-      onPause: _stopTimer,
-      onCancel: _stopTimer,
     );
     _resume();
 
@@ -2691,13 +2779,17 @@ class _EventStoreSubscriptionControllerImpl {
   void _pauseTimer() {
     _isPaused = true;
 
-    logger.fine('Paused ${_strategy == null ? 'pull' : enumName(_strategy)} subscription timer for $name');
+    logger.fine(
+      'Paused ${_strategy == null ? 'pull' : enumName(_strategy)} subscription timer for $name',
+    );
     _timer?.cancel();
     _timer = null;
   }
 
   void _stopTimer() {
-    logger.fine('Stop ${_strategy == null ? 'pull' : enumName(_strategy)} subscription timer for $name');
+    logger.fine(
+      'Stop ${_strategy == null ? 'pull' : enumName(_strategy)} subscription timer for $name',
+    );
     _timer?.cancel();
     _timer = null;
   }
@@ -2781,9 +2873,11 @@ class _EventStoreSubscriptionControllerImpl {
       await _acceptEvents(feed);
     }
     // Notify when all actions are done
-    result.events.forEach(
-      controller.add,
-    );
+    if (controller.hasListener) {
+      result.events.forEach(
+        controller.add,
+      );
+    }
   }
 
   Future<FeedResult> _nextFeed() {

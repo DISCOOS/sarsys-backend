@@ -19,6 +19,7 @@ import 'foo.dart';
 import 'harness.dart';
 
 Future main() async {
+  const instances = 2;
   final harness = EventSourceHarness()
     ..withTenant()
     ..withPrefix()
@@ -26,7 +27,7 @@ Future main() async {
     ..withSnapshot()
     ..withRepository<Foo>(
       (manager, store, instance) => FooRepository(store, instance),
-      instances: 2,
+      instances: instances,
     )
     ..withRepository<Bar>(
       (manager, store, instance) => BarRepository(
@@ -34,7 +35,7 @@ Future main() async {
         instance,
         manager.get<FooRepository>(),
       ),
-      instances: 2,
+      instances: instances,
     )
     ..withProjections(projections: ['\$by_category', '\$by_event_type'])
     ..addServer(port: 4000)
@@ -407,8 +408,8 @@ Future main() async {
     final data31 = foo3.data;
     await repo.push(foo3);
 
-    // Stop catchup subscription
-    repo.store.pause();
+    // Stop catchup subscriptions
+    harness.pause();
 
     // Perform remote modification
     final stream = harness.server().getStream(repo.store.aggregate);
@@ -471,6 +472,90 @@ Future main() async {
     // Assert - foo2 is unchanged
     expect(foo2.number.value, equals(0));
     expect(foo2.data, equals(data21));
+  });
+
+  test('Repository should restart subscriptions when behind', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>(port: 4000);
+    await repo.readyAsync();
+    final uuid1 = Uuid().v4();
+    final foo1 = repo.get(uuid1, data: {'property11': 'value11'});
+    final data11 = foo1.data;
+    await repo.push(foo1);
+
+    final uuid2 = Uuid().v4();
+    final foo2 = repo.get(uuid2, data: {'property21': 'value21'});
+    final data21 = foo2.data;
+    await repo.push(foo2);
+
+    final uuid3 = Uuid().v4();
+    final foo3 = repo.get(uuid3, data: {'property31': 'value31'});
+    final data31 = foo3.data;
+    await repo.push(foo3);
+
+    // Stop catchup subscription
+    repo.store.pause();
+
+    // Perform remote modification
+    final stream = harness.server().getStream(repo.store.aggregate);
+    final data12 = Map<String, dynamic>.from(data11)
+      ..addAll(
+        {'property12': 'value12'},
+      );
+    stream.append(
+      '${stream.instanceStream}-0',
+      [
+        TestStream.asSourceEvent<FooUpdated>(
+          uuid1,
+          data11,
+          data12,
+          number: EventNumber(1),
+        ),
+      ],
+    );
+    final data22 = Map<String, dynamic>.from(data21)
+      ..addAll(
+        {'property22': 'value22'},
+      );
+    stream.append(
+      '${stream.instanceStream}-1',
+      [
+        TestStream.asSourceEvent<FooUpdated>(
+          uuid2,
+          data21,
+          data22,
+          number: EventNumber(1),
+        ),
+      ],
+    );
+    final data32 = Map<String, dynamic>.from(data31)
+      ..addAll(
+        {'property32': 'value32'},
+      );
+    stream.append(
+      '${stream.instanceStream}-2',
+      [
+        TestStream.asSourceEvent<FooUpdated>(
+          uuid3,
+          data31,
+          data32,
+          number: EventNumber(1),
+        ),
+      ],
+    );
+
+    // Act - Force subscription behind
+    await repo.replay(uuids: [uuid1, uuid3]);
+
+    // Act - resume subscriptions
+    final offsets2 = repo.store.resume();
+
+    // Assert - subscription offset
+    expect(
+      offsets2[FooRepository],
+      repo.store.current(),
+      reason: 'should resume from current',
+    );
   });
 
   test('Repository should not push local aggregate with local concurrent modifications', () async {
@@ -657,12 +742,23 @@ Future main() async {
 
     final uuid1 = 'foo1';
     await repo1.push(repo1.get(uuid1, data: {'property1': 0}));
+    final foo1 = repo1.get(uuid1);
+
     final uuid2 = 'foo2';
     await repo2.push(repo2.get(uuid2, data: {'property1': 0}));
-    final foo1 = repo1.get(uuid1);
     final foo2 = repo2.get(uuid2);
 
-    await Future.delayed(Duration(seconds: 1));
+    // Catch any events raised
+    // before waiting on all
+    // events to be seen
+    final seen1 = <Event>[];
+    final seen2 = <Event>[];
+    repo1.store.asStream().where((e) => e.remote).listen((event) {
+      seen1.add(event);
+    });
+    repo2.store.asStream().where((e) => e.remote).listen((event) {
+      seen2.add(event);
+    });
 
     // Act on foo1 and foo2 concurrently
     for (var i = 1; i <= 5; i++) {
@@ -682,8 +778,6 @@ Future main() async {
       await trx2.push();
     }
 
-    await Future.delayed(Duration(seconds: 1));
-
     // Assert state of foo1
     expect(foo1.isChanged, isFalse);
     expect(foo1.getLocalEvents(), isEmpty);
@@ -702,12 +796,18 @@ Future main() async {
     expect(repo2.count(), equals(2));
     expect(repo2.inTransaction(uuid2), isFalse);
 
+    // Wait until all events is confirmed remote
+    await repo1.store.asStream().where((e) => e.remote).take(101 - seen1.length).toList();
+    await repo2.store.asStream().where((e) => e.remote).take(101 - seen2.length).toList();
+
     // Assert events
     final stream = harness.server().getStream(typeOf<Foo>().toColonCase());
     expect(stream.instances[0].length, equals(51));
     expect(stream.instances[1].length, equals(51));
+
     expect(repo1.store.events[uuid1].length, equals(51));
     expect(repo1.store.events[uuid2].length, equals(51));
+
     expect(repo2.store.events[uuid1].length, equals(51));
     expect(repo2.store.events[uuid2].length, equals(51));
 
@@ -716,6 +816,7 @@ Future main() async {
     expect(repo1.store.current(uuid: uuid1).value, equals(50));
     expect(repo1.store.current(uuid: uuid2).value, equals(50));
     expect(repo1.store.events[uuid1].last.number.value, equals(50));
+
     expect(repo2.store.current().value, equals(101));
     expect(repo2.store.current(uuid: uuid1).value, equals(50));
     expect(repo2.store.current(uuid: uuid2).value, equals(50));
@@ -939,7 +1040,7 @@ Future main() async {
     expect(foo.hasConflicts, isFalse);
 
     // Wait until event is remote
-    await repo.store.asStream().where((e) => e.remote).take(2 - seen.length).first;
+    await repo.store.asStream().where((e) => e.remote).take(2 - seen.length).toList();
     expect(repo.number.value, equals(2));
   });
 
@@ -1184,7 +1285,12 @@ Future main() async {
     final saved = repo.get(foo.uuid);
     expect(saved.number.value, equals(snapshot.number.value));
     expect(saved.data, equals(snapshot.aggregates.values.first.data));
-    expect(saved.applied.length, 0, reason: 'Applied events should be cleared on save');
+    expect(saved.applied.length, 1, reason: 'Applied events should be reset on save to snapshot');
+    expect(
+      saved.applied.last.uuid,
+      snapshot.aggregates[saved.uuid].changedBy.uuid,
+      reason: 'Applied events should be reset on save to snapshot',
+    );
   });
 
   test('Repository should not save snapshot', () async {
@@ -1261,17 +1367,34 @@ Future main() async {
   });
 }
 
+/// Build from last snapshot.
+/// Current event number is 1.
 Future _testShouldBuildFromLastSnapshot(
   EventSourceHarness harness, {
   bool partial = false,
 }) async {
-  final repo = harness.get<FooRepository>();
-  final stream = harness.server().getStream(repo.store.aggregate);
-  await repo.readyAsync();
-  expect(repo.snapshot, isNull, reason: 'Should have NO snapshot');
-  final box = await Hive.openBox<StorageState>(repo.store.snapshots.filename);
+  // -----------------------------------
+  // Arrange repos
+  // -----------------------------------
+  final repo1 = harness.get<FooRepository>(instance: 1);
+  final repo2 = harness.get<FooRepository>(instance: 2);
+  await repo1.readyAsync();
+  await repo2.readyAsync();
+  expect(repo1.snapshot, isNull, reason: 'Should have NO snapshot');
+  expect(repo2.snapshot, isNull, reason: 'Should have NO snapshot');
 
+  // Prevent catchup on all repos
+  harness.pause();
+
+  // -----------------------------------
+  // Arrange stream and storage
+  // -----------------------------------
+  final stream = harness.server().getStream(repo1.store.aggregate);
+  final box = await Hive.openBox<StorageState>(repo1.store.snapshots.filename);
+
+  // -----------------------------------
   // Arrange Foo1
+  // -----------------------------------
   final fuuid1 = Uuid().v4();
   final data11 = {
     'uuid': fuuid1,
@@ -1323,7 +1446,9 @@ Future _testShouldBuildFromLastSnapshot(
     ],
   );
 
-  // Foo2
+  // -----------------------------------
+  // Arrange Foo2
+  // -----------------------------------
   final fuuid2 = Uuid().v4();
   final data21 = {
     'uuid': fuuid2,
@@ -1375,7 +1500,9 @@ Future _testShouldBuildFromLastSnapshot(
     ],
   );
 
+  // -----------------------------------
   // Create snapshot
+  // -----------------------------------
   final timestamp = DateTime.now();
   final suuid1 = Uuid().v4();
   final snapshot1 = SnapshotModel(
@@ -1420,34 +1547,76 @@ Future _testShouldBuildFromLastSnapshot(
     suuid2,
     StorageState(value: snapshot2),
   );
-  await repo.store.snapshots.load();
+  await repo1.store.snapshots.load();
+  await repo2.store.snapshots.load();
 
-  // Act
-  final count = await repo.replay();
+  // -----------------------------------
+  // Act in repo1
+  // -----------------------------------
+  final count1 = await repo1.replay();
 
-  // Assert
-  expect(count, equals(partial ? 2 : 0), reason: 'Should replay 0 events');
-  expect(repo.snapshot, isNotNull, reason: 'Should have a snapshot');
-  expect(repo.snapshot.uuid, equals(suuid2), reason: 'Should have snapshot $suuid2');
-  expect(repo.number, repo.store.current(), reason: 'Should be equal');
+  // Resume catchup
+  repo1.store.resume();
+
+  // -----------------------------------
+  // Assert repo1
+  // -----------------------------------
+  expect(count1, equals(partial ? 2 : 0), reason: 'Should replay 0 events');
+  expect(repo1.snapshot, isNotNull, reason: 'Should have a snapshot');
+  expect(repo1.snapshot.uuid, equals(suuid2), reason: 'Should have snapshot $suuid2');
+  expect(repo1.number, repo1.store.current(), reason: 'Should be equal');
   expect(
-    repo.store.current(),
+    repo1.store.current(),
     equals(EventNumber(partial ? 3 : 1)),
     reason: 'Should cumulate to (events.length - 1)',
   );
-  final n1 = (partial ? event12 : event11).number;
-  final n2 = (partial ? event22 : event21).number;
-  expect(repo.store.current(uuid: fuuid1), equals(n1), reason: 'Should be equal');
-  expect(repo.store.current(uuid: fuuid2), equals(n2), reason: 'Should be equal');
+  final n11 = (partial ? event12 : event11).number;
+  final n12 = (partial ? event22 : event21).number;
+  expect(repo1.store.current(uuid: fuuid1), equals(n11), reason: 'Should be equal');
+  expect(repo1.store.current(uuid: fuuid2), equals(n12), reason: 'Should be equal');
 
-  expect(repo.contains(fuuid1), isTrue, reason: 'Should contain aggregate root $fuuid1');
-  final foo1 = repo.get(fuuid1);
-  expect(foo1.number, equals(n1));
-  expect(foo1.data, equals(partial ? data12 : data11));
-  expect(repo.contains(fuuid2), isTrue, reason: 'Should contain aggregate root $fuuid2');
-  final foo2 = repo.get(fuuid2);
-  expect(foo2.number, equals(n2));
-  expect(foo2.data, equals(partial ? data22 : data21));
+  expect(repo1.contains(fuuid1), isTrue, reason: 'Should contain aggregate root $fuuid1');
+  final foo11 = repo1.get(fuuid1);
+  expect(foo11.number, equals(n11));
+  expect(foo11.data, equals(partial ? data12 : data11));
+  expect(repo1.contains(fuuid2), isTrue, reason: 'Should contain aggregate root $fuuid2');
+  final foo12 = repo1.get(fuuid2);
+  expect(foo12.number, equals(n12));
+  expect(foo12.data, equals(partial ? data22 : data21));
+
+  // -----------------------------------
+  // Act on repo2
+  // -----------------------------------
+  final count2 = await repo2.replay();
+
+  // Resume catchup
+  repo2.store.resume();
+
+  // -----------------------------------
+  // Assert repo2
+  // -----------------------------------
+  expect(count2, equals(partial ? 2 : 0), reason: 'Should replay 0 events');
+  expect(repo2.snapshot, isNotNull, reason: 'Should have a snapshot');
+  expect(repo2.snapshot.uuid, equals(suuid2), reason: 'Should have snapshot $suuid2');
+  expect(repo2.number, repo2.store.current(), reason: 'Should be equal');
+  expect(
+    repo2.store.current(),
+    equals(EventNumber(partial ? 3 : 1)),
+    reason: 'Should cumulate to (events.length - 1)',
+  );
+  final n21 = (partial ? event12 : event11).number;
+  final n22 = (partial ? event22 : event21).number;
+  expect(repo2.store.current(uuid: fuuid1), equals(n21), reason: 'Should be equal');
+  expect(repo2.store.current(uuid: fuuid2), equals(n22), reason: 'Should be equal');
+
+  expect(repo2.contains(fuuid1), isTrue, reason: 'Should contain aggregate root $fuuid1');
+  final foo21 = repo2.get(fuuid1);
+  expect(foo21.number, equals(n21));
+  expect(foo21.data, equals(partial ? data12 : data11));
+  expect(repo2.contains(fuuid2), isTrue, reason: 'Should contain aggregate root $fuuid2');
+  final foo22 = repo2.get(fuuid2);
+  expect(foo22.number, equals(n12));
+  expect(foo22.data, equals(partial ? data22 : data21));
 }
 
 Future<List<Event>> takeLocal(Stream<Event> stream, int count, {bool distinct = true}) {

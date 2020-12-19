@@ -313,7 +313,8 @@ class TrackingService extends MessageHandler<DomainEvent> {
             tuuid,
             event.toId(data),
             event.toEntity(data),
-            positions: Map.from((other.toJson() ?? {})[POSITIONS] as Map),
+            positions:
+                other == null ? <Map<String, dynamic>>[] : other.toJson().listAt<Map<String, dynamic>>(POSITIONS),
             status: ATTACHED,
           );
           await _updateTrackingStatus(tuuid);
@@ -504,7 +505,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
     String uuid,
     String id,
     Map<String, dynamic> source, {
-    Map<String, dynamic> positions,
+    List<Map<String, dynamic>> positions,
     String status,
   }) async {
     assert(source != null, "'source' can not be null");
@@ -658,7 +659,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
             track[ID] as String,
             Map.from(track[SOURCE] as Map),
             status: ATTACHED,
-            positions: Map.from(track[POSITIONS] as Map ?? {}),
+            positions: List.from(track[POSITIONS] as List ?? []),
           );
         }
         await _updateTrackingStatus(tuuid);
@@ -766,9 +767,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
     logger.fine('${repository.runtimeType}: subscription closed');
     if (!_disposed) {
       try {
-        _subscription.reconnect(
-          repository,
-        );
+        _subscription.reconnect();
       } catch (error, stackTrace) {
         logger.severe(
           'Failed to reconnect to repository,\n'
@@ -790,9 +789,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
     );
     if (!_disposed) {
       try {
-        _subscription.reconnect(
-          repository,
-        );
+        _subscription.reconnect();
       } catch (e, stackTrace) {
         logger.severe(
           'Failed to reconnect to repository,\n'

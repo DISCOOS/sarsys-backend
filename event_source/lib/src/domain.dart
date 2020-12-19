@@ -326,25 +326,37 @@ class RepositoryManager {
   bool get isPaused => _isPaused;
 
   /// Pause all subscriptions
-  void pause() async {
+  Map<Type, EventNumber> pause() {
+    final numbers = <Type, EventNumber>{};
     if (!_isPaused) {
       _isPaused = true;
-      _stores.values.forEach(
-        (store) => store.pause(),
+      stores.fold(
+        numbers,
+        (numbers, store) => numbers
+          ..addAll(
+            store.pause(),
+          ),
       );
       logger.fine('Paused ${_stores.length} subscriptions');
     }
+    return numbers;
   }
 
   /// Resume all subscriptions
-  void resume() async {
+  Map<Type, EventNumber> resume() {
+    final numbers = <Type, EventNumber>{};
     if (_isPaused) {
       _isPaused = false;
-      _stores.values.forEach(
-        (store) => store.resume(),
+      stores.fold(
+        numbers,
+        (numbers, store) => numbers
+          ..addAll(
+            store.resume(),
+          ),
       );
       logger.fine('Resumed ${_stores.length} subscriptions');
     }
+    return numbers;
   }
 
   /// Dispose all [RepositoryManager] instances
@@ -748,7 +760,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   bool _isReady = false;
 
   /// Check if events are being replayed for this repository
-  bool get isReplaying => store.bus.isReplaying;
+  bool get isReplaying => store.bus.isReplayingType<T>();
 
   /// Wait for repository becoming ready
   Future<bool> readyAsync() async {
@@ -906,7 +918,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   }
 
   /// Subscribe this [source] to compete for changes from [store]
-  void compete({
+  EventStoreSubscriptionController compete({
     int consume = 20,
     ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
     Duration maxBackoffTime = const Duration(seconds: 10),
@@ -919,7 +931,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       );
 
   /// Subscribe this [source] to receive all changes from [store]
-  Future<EventStoreSubscriptionController> subscribe({
+  EventStoreSubscriptionController subscribe({
     Duration maxBackoffTime = const Duration(seconds: 10),
   }) =>
       store.subscribe(
@@ -2021,12 +2033,16 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// Get event number of [DomainEvent] applied last
   EventNumber get number {
     if (applied.isNotEmpty) {
-      return EventNumber(applied.last.number.value);
+      return EventNumber(
+        applied.last.number.value,
+      );
     }
     if (_snapshot == null) {
       return EventNumber.none;
     }
-    return EventNumber(_snapshot.number.value);
+    return EventNumber(
+      _snapshot.number.value,
+    );
   }
 
   /// Get [EventNumber] of next [DomainEvent].
@@ -2039,6 +2055,21 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// [Message] to [DomainEvent] processors
   final Map<String, ProcessCallback> _processors;
 
+  /// Get last [applied] event that
+  /// is confirmed to be remote.
+  DomainEvent get baseEvent {
+    return _applied.isEmpty
+        // from snapshot if exists
+        ? _toSnapshotEvent()
+        // else get last applied event else
+        : _applied.values.last;
+  }
+
+  DomainEvent _toSnapshotEvent() => _toDomainEvent(
+        _snapshot?.deletedBy ?? _snapshot?.changedBy,
+        local: false,
+      );
+
   /// Aggregate root data without any local
   /// changes applied. This equals to [data]
   /// with all events [applied] regardless
@@ -2048,23 +2079,42 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// using [toData].
   ///
   Map<String, dynamic> get base {
+    return Map.from(_toBase());
+  }
+
+  Map<String, dynamic> _toBase() {
     // Calculate trailing behind actual base of applied events
-    final take = _applied.length - _baseIndex;
+    final skip = _baseIndex + 1;
+    final take = _applied.length - skip;
     if (take > 0) {
       final base = Map<String, dynamic>.from(
         _base.isEmpty ? _snapshot?.data ?? {} : _base,
       );
-      final next = _toData(base, _baseIndex, take);
+      final next = _toData(base, skip, take);
       _setBase(next);
     }
     // This ensures that base is not
     // recalculated on each call
-    _baseIndex = _applied.length;
-    return Map.from(_base);
+    _baseIndex = _applied.length - 1;
+    return _base;
   }
 
-  int _baseIndex = 0;
+  int _baseIndex = -1;
   final Map<String, dynamic> _base = {};
+
+  /// Get last [applied] event that
+  /// is confirmed to be remote. Equals
+  /// to [baseEvent] if all applied events
+  /// are confirmed to be remote.
+  DomainEvent get headEvent {
+    _toHead();
+    final event = _headIndex == -1 || _applied.isEmpty
+        // from snapshot if exists
+        ? _toSnapshotEvent()
+        // else get last applied event that is confirmed to be remote
+        : _applied.values.elementAt(_headIndex);
+    return event;
+  }
 
   /// Aggregate root data with only remote
   /// events [applied]. [head] is behind
@@ -2075,8 +2125,13 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// using [toData].
   ///
   Map<String, dynamic> get head {
+    return Map.from(_toHead());
+  }
+
+  Map<String, dynamic> _toHead() {
     // Calculate number of events trailing behind actual head of applied remote events
-    final take = _applied.values.skip(_headIndex).takeWhile((e) => e.remote).length;
+    final skip = _headIndex + 1;
+    final take = _applied.values.skip(skip).takeWhile((e) => e.remote).length;
     // Same as base?
     if (_headIndex + take == _baseIndex) {
       // Cleanup in case of large state
@@ -2089,16 +2144,16 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
       final head = Map<String, dynamic>.from(
         _head.isEmpty ? _snapshot?.data ?? {} : _head,
       );
-      final next = _toData(head, _headIndex, take);
+      final next = _toData(head, skip, take);
       _setHead(next);
     }
     // This ensures that head is not
     // recalculated on each call
     _headIndex += take;
-    return Map.from(_head);
+    return _head;
   }
 
-  int _headIndex = 0;
+  int _headIndex = -1;
   final Map<String, dynamic> _head = {};
 
   /// Aggregate root [data] (weak schema).
@@ -2175,9 +2230,8 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// 3. [SnapshotModel.changedBy]
   /// 4. [changedBy] (new aggregate)
   ///
-  DomainEvent get lastEvent => _localEvents.isNotEmpty
-      ? _localEvents.last
-      : (_applied.isNotEmpty ? _applied.values.last : _toDomainEvent(_snapshot?.changedBy) ?? _changedBy);
+  DomainEvent get lastEvent =>
+      _localEvents.isNotEmpty ? _localEvents.last : (_applied.isNotEmpty ? _applied.values.last : _changedBy);
 
   /// Get current snapshot if taken
   AggregateRootModel get snapshot => _snapshot;
@@ -2335,9 +2389,25 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
       _snapshot = repo.snapshot.aggregates[uuid];
       if (_snapshot != null) {
         _data.addAll(snapshot.data);
-        _createdBy = _toDomainEvent(snapshot.createdBy);
-        _changedBy = _toDomainEvent(snapshot.changedBy);
-        _deletedBy = _toDomainEvent(snapshot.deletedBy);
+        _createdBy = _toDomainEvent(
+          snapshot.createdBy,
+          local: false,
+        );
+        _changedBy = _toDomainEvent(
+          snapshot.changedBy,
+          local: false,
+        );
+        _deletedBy = _toDomainEvent(
+          snapshot.deletedBy,
+          local: false,
+        );
+        if (_deletedBy == null) {
+          _applied[_changedBy.uuid] = _changedBy;
+        } else {
+          _applied[_deletedBy.uuid] = _deletedBy;
+        }
+        _baseIndex = 0;
+        _headIndex = 0;
       }
     }
   }
@@ -2345,15 +2415,15 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// Convert events found in [snapshot] to [DomainEvent].
   /// Should only called from within this [AggregateRoot].
   @protected
-  DomainEvent _toDomainEvent(Event event) {
+  DomainEvent _toDomainEvent(Event event, {bool local}) {
     if (event != null) {
       return _process(
         uuid: event.uuid,
         data: event.data,
         emits: event.type,
-        local: event.local,
         number: event.number,
         timestamp: event.created,
+        local: local ?? event.local,
       );
     }
     return null;
@@ -2638,7 +2708,11 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
 
     // Only store terse events
     final euuid = event.uuid;
-    final terse = event.isTerse ? event : _toDomainEvent(event.terse());
+    final terse = event.isTerse
+        ? event
+        : _toDomainEvent(
+            event.terse(),
+          );
 
     // Already applied?
     if (_applied.containsKey(euuid)) {
@@ -2851,8 +2925,11 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
       expected = getApplied(event.uuid).number.value;
     } else {
       mode = 'remote';
-      // Next number should only increase with 1
-      expected = number.value + 1;
+      expected = (headEvent?.number ?? number).value;
+      if (headEvent != event) {
+        // Next event should only increase with 1
+        expected += 1;
+      }
     }
     final delta = expected - actual;
     if (delta != 0) {

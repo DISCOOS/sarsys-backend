@@ -293,10 +293,12 @@ class StreamRequestQueue<V> {
   ) async {
     _completed++;
     _pop(request);
-    _onEventController.add(StreamRequestCompleted(
-      request,
-      result,
-    ));
+    if (!_onEventController.isClosed) {
+      _onEventController.add(StreamRequestCompleted(
+        request,
+        result,
+      ));
+    }
     if (result.isError) {
       _failures++;
       _handleError(

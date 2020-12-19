@@ -11,6 +11,9 @@ class MessageBus implements MessageNotifier, CommandSender, EventPublisher {
   /// Check if messages are being replayed
   bool get isReplaying => _replaying.values.where((count) => count > 0).isNotEmpty;
 
+  /// Check if replaying given [AggregateRoot] of type [T]
+  bool isReplayingType<T extends AggregateRoot>() => _replaying[typeOf<T>()] > 0;
+
   /// Replay counter incremented by [ReplayStarted] and decremented by [ReplayEnded]
   final Map<Type, int> _replaying = {};
 

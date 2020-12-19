@@ -84,9 +84,6 @@ class EventSourceHarness {
     return this;
   }
 
-  final _bus = MessageBus();
-  MessageBus get bus => _bus;
-
   EventSourceHarness withRepository<T extends AggregateRoot>(
     Repository<Command, T> Function(RepositoryManager, EventStore, int) create, {
     int instances = 1,
@@ -243,7 +240,7 @@ class EventSourceHarness {
       for (var i = 0; i < builder.instances; i++) {
         if (list.length == i) {
           list.add(RepositoryManager(
-            _bus,
+            MessageBus(),
             _connections[port],
             prefix: EventStore.toCanonical([
               _tenant,
@@ -318,6 +315,46 @@ class EventSourceHarness {
 
   void onError(Object error, StackTrace stackTrace) {
     throw error;
+  }
+
+  /// Pause all subscriptions in all managers
+  Map<int, Map<Type, EventNumber>> pause() {
+    final numbers = <int, Map<Type, EventNumber>>{};
+    _managers.entries.fold(
+      numbers,
+      (numbers, entry) {
+        final list = entry.value.fold<Map<Type, EventNumber>>(
+          <Type, EventNumber>{},
+          (list, manager) => list
+            ..addAll(
+              manager.pause(),
+            ),
+        );
+        numbers[entry.key] = list;
+        return numbers;
+      },
+    );
+    return numbers;
+  }
+
+  /// Resume all subscriptions in all managers
+  Map<int, Map<Type, EventNumber>> resume() {
+    final numbers = <int, Map<Type, EventNumber>>{};
+    _managers.entries.fold(
+      numbers,
+      (numbers, entry) {
+        final list = entry.value.fold<Map<Type, EventNumber>>(
+          <Type, EventNumber>{},
+          (list, manager) => list
+            ..addAll(
+              manager.resume(),
+            ),
+        );
+        numbers[entry.key] = list;
+        return numbers;
+      },
+    );
+    return numbers;
   }
 }
 
