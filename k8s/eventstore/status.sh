@@ -19,7 +19,7 @@ kubectl -n sarsys exec eventstore-2 df
 
 echo "Get resource usage | all pods"
 kubectl top pod sarsys-app-server-0 -n sarsys --containers
-kubectl top pod sarsys-app-server-1 -n sarsys --containers
-kubectl top pod sarsys-app-server-2 -n sarsys --containers
+kubectl top pod sarsys-app-server-1 -n sarsys --containers | grep  sarsys-app-server-1
+kubectl top pod sarsys-app-server-2 -n sarsys --containers | grep  sarsys-app-server-2
 
 echo "[✓] EventStore status completed"

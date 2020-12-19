@@ -19,12 +19,12 @@ endif
 .PHONY: \
 	check commit test serve document models snapshot localhost \
 	build push publish install delete restart rollback status eventstore \
-    docker_is_up #verify_image
+    docker_is_up download-snapshots
 
 .SILENT: \
 	check commit test serve document models snapshot localhost \
 	build push publish install delete restart rollback status eventstore \
-	docker_is_up #verify_image
+	docker_is_up download-snapshots
 
 check:
 	if [[ `git status --porcelain` ]]; then echo 'You have changes, aborting.'; exit 1; else echo "No changes"; fi
@@ -66,22 +66,6 @@ build: docker_is_up test document snapshot
 	echo "Build docker image..."
 	docker build --no-cache -t discoos/sarsys_app_server:latest .
 	echo "[✓] Build docker image finished"
-
-#verify_image: docker_is_up
-#	docker run \
-#		-p 80:8082  \
-#		-v /Users/kengu/src/git/sarsys-backend/sarsys_app_server/.data:/var/lib/sarsys  \
-#		--env EVENTSTORE_HOST=http://0.0.0.0  \
-#		--env EVENTSTORE_PORT=2113  \
-#		--env EVENTSTORE_LOGIN=admin  \
-#		--env EVENTSTORE_PASSWORD=changeit  \
-#		--env TENANT=discoos  \
-#		--env AUTH_ENABLED=false  \
-#		--env DATA_PATH=/var/lib/sarsys  \
-#		--name sarsys_app_server_test  \
-#		discoos/sarsys_app_server:latest
-#	docker inspect --format "{{json .State.Health }}" tester
-
 
 localhost:
 	echo "Start SarSys App Server as docker container ..."
@@ -163,6 +147,16 @@ status:
 	kubectl top pod sarsys-app-server-2 -n sarsys --containers
 
 	echo "[✓] Status finished"
+
+download-snapshots:
+	echo "Downloading SARSys App Snapshots ..."
+	mkdir -p .data
+	kubectl -n sarsys cp sarsys/sarsys-app-server-0:/var/lib/sarsys/ .data/server-0
+	kubectl -n sarsys cp sarsys/sarsys-app-server-0:/var/lib/sarsys/ .data/server-1
+	kubectl -n sarsys cp sarsys/sarsys-app-server-0:/var/lib/sarsys/ .data/server-2
+	echo "Analysing folder '.data'"
+	ls -al .data
+	echo "[✓] Downloading finished"
 
 eventstore:
 	echo "Starting eventstore..."
