@@ -1923,6 +1923,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     return {
       'uuid': snapshot.uuid,
       'number': snapshot.number.value,
+      'keep': store.snapshots.keep,
+      'unsaved': number.value - snapshot.number.value,
+      'threshold': store.snapshots.threshold,
+      if (snapshot.isPartial) 'partial': {'missing': snapshot.missing},
       'aggregates': {
         'count': snapshot.aggregates.length,
         if (items)
