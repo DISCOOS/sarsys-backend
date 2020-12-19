@@ -49,13 +49,13 @@ class Message {
   /// Get [List] of type [T] at given path
   List<T> listAt<T>(String path) {
     final list = data.elementAt(path);
-    return list == null ? null : List<T>.from(list);
+    return list == null ? null : List<T>.from(list as List);
   }
 
   /// Get [Map] with keys of type [S] and values of type [T] at given path
   Map<S, T> mapAt<S, T>(String path) {
     final map = data.elementAt(path);
-    return map == null ? null : Map<S, T>.from(map);
+    return map == null ? null : Map<S, T>.from(map as Map);
   }
 
   @override
@@ -134,7 +134,9 @@ class Event extends Message {
   bool get isDeleted => data['deleted'] == true;
 
   /// Get list of JSON Patch methods from `data['patches']`
-  List<Map<String, dynamic>> get patches => List<Map<String, dynamic>>.from(data['patches'] as List<dynamic>);
+  List<Map<String, dynamic>> get patches => List.from(
+        (data['patches'] as List).map((e) => Map<String, dynamic>.from(e as Map)),
+      );
 
   @override
   String toString() {
@@ -288,7 +290,7 @@ class EntityObjectEvent extends DomainEvent {
   final String idFieldName;
   final String aggregateField;
 
-  int get index => data['index'];
+  int get index => data['index'] as int;
   String toId(Map<String, dynamic> data) => toEntity(data)?.elementAt(idFieldName);
   Map<String, dynamic> toEntity(Map<String, dynamic> data) => data?.mapAt('$aggregateField/$index');
   EntityObject toEntityObject(Map<String, dynamic> data) => EntityObject(toId(data), toEntity(data), idFieldName);

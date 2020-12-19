@@ -6,18 +6,14 @@ part of 'event_model.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-EventModel _$EventModelFromJson(Map json) {
+EventModel _$EventModelFromJson(Map<String, dynamic> json) {
   return EventModel(
       type: json['type'] as String,
       uuid: json['uuid'] as String,
-      data: (json['data'] as Map)?.map(
-        (k, e) => MapEntry(k as String, e),
-      ),
+      data: json['data'] as Map<String, dynamic>,
       number: json['number'] == null
           ? null
-          : EventNumberModel.fromJson((json['number'] as Map)?.map(
-              (k, e) => MapEntry(k as String, e),
-            )),
+          : EventNumberModel.fromJson(json['number'] as Map<String, dynamic>),
       created: json['created'] == null
           ? null
           : DateTime.parse(json['created'] as String));

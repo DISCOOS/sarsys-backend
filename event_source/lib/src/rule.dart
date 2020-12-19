@@ -333,7 +333,7 @@ class AssociationRule extends AggregateRule {
     return targets;
   }
 
-  dynamic _lookup(DomainEvent event) {
+  String _lookup(DomainEvent event) {
     final uuid = source.toAggregateUuid(event);
     if (sourceField != source.uuidFieldName) {
       // Lookup value in source aggregate
@@ -349,8 +349,8 @@ class AssociationRule extends AggregateRule {
     return uuid;
   }
 
-  dynamic _toValue(DomainEvent event, AggregateRoot aggregate, String field) {
-    var value = aggregate?.data?.elementAt(field);
+  String _toValue(DomainEvent event, AggregateRoot aggregate, String field) {
+    var value = aggregate?.data?.elementAt<String>(field);
     if (value != null) {
       return value;
     }
@@ -365,7 +365,7 @@ class AssociationRule extends AggregateRule {
         }
       }
     }
-    return event.previous.elementAt(field);
+    return event.previous.elementAt<String>(field);
   }
 
   Iterable<String> find(Repository repo, String field, String match) => repo.aggregates
@@ -384,7 +384,7 @@ class AssociationRule extends AggregateRule {
     return false;
   }
 
-  bool _shouldCreate(dynamic reference, Iterable<String> targets) {
+  bool _shouldCreate(String reference, Iterable<String> targets) {
     // Prevent aggregate being created
     // with uuid from same reference value
     if (targetField == target.uuidFieldName && target.contains(reference)) {
@@ -412,7 +412,7 @@ class AssociationRule extends AggregateRule {
     }
   }
 
-  bool _shouldDelete(dynamic reference, Iterable<String> targets) {
+  bool _shouldDelete(String reference, Iterable<String> targets) {
     // Prevent that does not exist being deleted
     if (targetField == target.uuidFieldName && !target.contains(reference)) {
       return false;

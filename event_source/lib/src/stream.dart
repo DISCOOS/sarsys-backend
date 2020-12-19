@@ -195,7 +195,7 @@ class StreamRequestQueue<V> {
     }
   }
 
-  Future<StreamRequest> _next() async {
+  Future<StreamRequest<V>> _next() async {
     var next = _peek();
     // Loop until valid request is found
     while (next != null && (next.isTimedOut || !contains(next.key))) {
@@ -482,8 +482,8 @@ class StreamRequest<V> {
   Duration get reminder => timeout - DateTime.now().difference(created);
   bool get isTimedOut => timeout != null && DateTime.now().difference(created) > timeout;
 
-  Object get key => _key ?? '${super.hashCode}';
-  final Object _key;
+  String get key => _key ?? '${super.hashCode}';
+  final String _key;
 
   @override
   int get hashCode => key.hashCode;

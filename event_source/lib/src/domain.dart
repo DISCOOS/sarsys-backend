@@ -163,9 +163,8 @@ class RepositoryManager {
     try {
       // Will not on each command
       // before executing the next
-      await Future.wait(
+      await Future.wait<String>(
         backlog.map((command) => _prepare(command)),
-        cleanUp: (prepared) => backlog.removeAll(prepared),
       );
       _timer?.cancel();
       _timer = null;
@@ -195,7 +194,7 @@ class RepositoryManager {
   }
 
   /// Check if projections are enabled
-  Future _prepare(String projection) async {
+  Future<String> _prepare(String projection) async {
     var result = await connection.readProjection(
       name: projection,
     );
@@ -228,6 +227,7 @@ class RepositoryManager {
     } else {
       logger.info("EventStore projection '$projection' is running");
     }
+    return projection;
   }
 
   /// Build all repositories from event stores
@@ -544,7 +544,7 @@ class Transaction<S extends Command, T extends AggregateRoot> {
   /// [Transaction] will not be
   /// completed. Useful when
   ///
-  Iterable<DomainEvent> _rollback({@required complete}) {
+  Iterable<DomainEvent> _rollback({@required bool complete}) {
     return exists
         ? repository._rollback(
             aggregate.uuid,
@@ -853,7 +853,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     return count;
   }
 
-  void _onQueueEvent(event) {
+  void _onQueueEvent(StreamEvent event) {
     switch (event.runtimeType) {
       case StreamRequestAdded:
         final request = (event as StreamRequestAdded).request;
@@ -1074,9 +1074,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// by execution of an [Command]
   /// of type [S] with [Action.create].
   ///
-  Transaction<S, T> getTransaction(String uuid) => _transactions.putIfAbsent(
+  Transaction getTransaction(String uuid) => _transactions.putIfAbsent(
         uuid,
-        () => Transaction<S, T>(uuid, this),
+        () => Transaction(uuid, this),
       );
 
   /// Check if modifications of [AggregateRoot]
@@ -1109,7 +1109,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   ///
   /// Throws [WriteFailed] for all other failures. This failure is not recoverable.
   @override
-  FutureOr<Iterable<DomainEvent>> execute(
+  Future<Iterable<DomainEvent>> execute(
     S command, {
     int maxAttempts = 10,
     Duration timeout = timeLimit,
@@ -1184,7 +1184,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   T _applyAggregateData(S command, List<DomainEvent> changes) {
     T aggregate;
-    final remaining = [];
+    final remaining = <Map<String, dynamic>>[];
     final list = _asAggregateData(command);
     switch (command.action) {
       case Action.create:
@@ -1220,7 +1220,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       changes.addAll(aggregate.getLocalEvents());
     }
     changes.add(aggregate.patch(
-      Map<String, dynamic>.from(next['data']),
+      Map<String, dynamic>.from(next['data'] as Map),
       index: next['index'] as int,
       emits: command.emits,
       timestamp: command.created,
@@ -1351,7 +1351,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   }
 
   Transaction _assertCanModify(String uuid, {bool open = false}) {
-    var transaction;
+    Transaction transaction;
     if (inTransaction(uuid) || open) {
       transaction = getTransaction(uuid);
       if (transaction.isStarted) {
@@ -1390,7 +1390,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Assert that this [operation] has an [Transaction]
   T _assertTrx(Transaction transaction) {
-    final aggregate = transaction.aggregate;
+    final aggregate = transaction.aggregate as T;
     if (!inTransaction(aggregate.uuid)) {
       throw StateError(
         'No transaction found for aggregate ${aggregateType} ${aggregate.uuid}',
@@ -1553,7 +1553,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Rollback local changes. If
   Iterable<DomainEvent> _rollback(
     String uuid, {
-    @required complete,
+    @required bool complete,
   }) {
     final aggregate = _assertExists(uuid);
     final trx = _transactions[uuid];
@@ -2186,7 +2186,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   ///
   ///Throws an [ArgumentError] if [Event.uuid]
   /// is not [isApplied].
-  Map<String, dynamic> toData(Event event) {
+  Map<String, dynamic> toData(DomainEvent event) {
     if (!isApplied(event)) {
       throw ArgumentError('Event ${event.type} ${event.uuid} is not applied');
     }
@@ -2311,7 +2311,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     if (_yourIndex < _remoteEvents.length) {
       final added = _remoteEvents.skip(_yourIndex).where((e) => e.patches.isNotEmpty);
       if (added.isNotEmpty) {
-        final yours = added.fold(
+        final yours = added.fold<List<Map<String, dynamic>>>(
           _yours.toList(),
           (previous, event) => previous..addAll(event.patches),
         );
@@ -2648,7 +2648,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     if (hasConflicts) {
       if (remote) {
         _setData(
-          JsonPatch.apply(base, _yours),
+          JsonPatch.apply(base, _yours) as Map<String, dynamic>,
         );
         _setModifier(
           _remoteEvents.last,
@@ -2808,7 +2808,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
       // 3a. Automatic merge not possible
       _conflict(
         event,
-        conflicts.map((p) => p['path']),
+        conflicts.map((p) => p['path'] as String),
       );
     } else {
       // 3b. Patch

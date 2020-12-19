@@ -188,7 +188,7 @@ class Storage {
   static bool get isInitialized => _isInitialized;
 
   static Future<void> init({
-    void Function(Object, StackTrace) onError,
+    bool Function(Object, StackTrace) onError,
   }) async {
     if (!_isInitialized) {
       Hive.registerAdapter(
@@ -242,11 +242,11 @@ class StorageStateJsonAdapter extends TypeAdapter<StorageState> {
 
   @override
   StorageState read(BinaryReader reader) {
-    var value;
     var error;
+    SnapshotModel value;
     var json = reader.readMap();
     try {
-      value = json['value'] != null ? fromJson(Map<String, dynamic>.from(json['value'])) : null;
+      value = json['value'] != null ? fromJson(Map<String, dynamic>.from(json['value'] as Map)) : null;
     } on ArgumentError catch (e, stackTrace) {
       error = _handleError(e, stackTrace);
       if (onError == null) {

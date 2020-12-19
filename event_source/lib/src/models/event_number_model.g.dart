@@ -6,7 +6,7 @@ part of 'event_number_model.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-EventNumberModel _$EventNumberModelFromJson(Map json) {
+EventNumberModel _$EventNumberModelFromJson(Map<String, dynamic> json) {
   return EventNumberModel(value: json['value'] as int);
 }
 

@@ -8,9 +8,9 @@ import 'package:uuid/uuid.dart';
 import 'aggregate_root_model.dart';
 import 'event_number_model.dart';
 
-Event fromEventModelJson(Map json) {
+Event fromEventModelJson(dynamic json) {
   final model = EventModel.fromJson(
-    toMapJson(json),
+    toMapJson(json as Map),
   );
   return Event(
     local: false,
@@ -36,9 +36,10 @@ Map<String, dynamic> toEventModelJson(Event event) {
 Map<String, dynamic> toMapJson(Map data) => Map<String, dynamic>.from(data);
 LinkedHashMap<String, dynamic> toLinkedHashMapJson(Map data) => LinkedHashMap<String, dynamic>.from(data);
 
-Map<String, AggregateRootModel> fromAggregateRootsJson(Map aggregates) =>
+LinkedHashMap<String, AggregateRootModel> fromAggregateRootsJson(dynamic aggregates) =>
     LinkedHashMap<String, AggregateRootModel>.from(
-      aggregates.map((key, value) => MapEntry(key, AggregateRootModel.fromJson(toLinkedHashMapJson(value)))),
+      (aggregates as Map)
+          .map((key, value) => MapEntry(key, AggregateRootModel.fromJson(toLinkedHashMapJson(value as Map)))),
     );
 
 LinkedHashMap<String, dynamic> toAggregateRootsJson(Map<String, AggregateRootModel> aggregates) =>
@@ -61,7 +62,7 @@ LinkedHashMap<String, AggregateRootModel> replaceAggregateRoot(
   AggregateRoot root,
 ) {
   final model = toAggregateRoot(root);
-  final updated = LinkedHashMap.from(aggregates);
+  final updated = LinkedHashMap<String, AggregateRootModel>.from(aggregates);
   updated.update(root.uuid, (_) => model, ifAbsent: () => model);
   return updated;
 }

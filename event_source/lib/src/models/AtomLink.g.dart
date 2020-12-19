@@ -6,7 +6,7 @@ part of 'AtomLink.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-AtomLink _$AtomLinkFromJson(Map json) {
+AtomLink _$AtomLinkFromJson(Map<String, dynamic> json) {
   return AtomLink(
       uri: json['uri'] as String, relation: json['relation'] as String);
 }

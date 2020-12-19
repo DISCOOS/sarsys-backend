@@ -374,8 +374,8 @@ class TestStream {
 
   Future _createSubscription(HttpRequest request, RegExp pattern, String path) async {
     final content = await utf8.decoder.bind(request).join();
-    final data = json.decode(content);
-    final offset = data['startFrom'] ?? 0;
+    final data = Map.from(json.decode(content) as Map);
+    final offset = data['startFrom'] as int ?? 0;
     final strategy = data['namedConsumerStrategy'] as String ?? enumName(ConsumerStrategy.RoundRobin);
     final type = ConsumerStrategy.values.firstWhere(
       (value) => enumName(value).toLowerCase() == strategy.toLowerCase(),
@@ -407,7 +407,7 @@ class TestStream {
   TestSubscription _createGroup(
     String group, {
     ConsumerStrategy type = ConsumerStrategy.RoundRobin,
-    offset = 0,
+    int offset = 0,
     Map data,
   }) =>
       _groups[group] = TestSubscription(
@@ -877,7 +877,10 @@ class TestSubscription {
     );
     consumed.addEntries(
       events.map(
-        (event) => MapEntry(event['eventId'], _Consumed.from(event)),
+        (event) => MapEntry(
+          event['eventId'] as String,
+          _Consumed.from(event),
+        ),
       ),
     );
     _offset += events.length;

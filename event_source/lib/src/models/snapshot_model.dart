@@ -18,7 +18,8 @@ class SnapshotModel extends Equatable {
     this.timestamp,
     LinkedHashMap<String, AggregateRootModel> aggregates,
   })  : _missing = _checkPartial(number, aggregates),
-        aggregates = aggregates ?? <String, AggregateRootModel>{};
+        // ignore: prefer_collection_literals
+        aggregates = aggregates ?? LinkedHashMap<String, AggregateRootModel>();
 
   /// [SnapshotModel] uuid
   final String uuid;
@@ -42,9 +43,11 @@ class SnapshotModel extends Equatable {
     LinkedHashMap<String, AggregateRootModel> aggregates,
   ) {
     var value = 0;
-    for (var a in (aggregates ?? {}).values) {
-      // Adjust for zero-based number
-      value = value + a.number.value + 1;
+    if (aggregates != null) {
+      for (var a in (aggregates).values) {
+        // Adjust for zero-based number
+        value = value + a.number.value + 1;
+      }
     }
     // Adjust for zero-based number
     return number.value + 1 - value;

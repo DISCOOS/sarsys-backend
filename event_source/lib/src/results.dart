@@ -82,7 +82,7 @@ class FeedResult extends StreamResult {
   }) {
     switch (response.statusCode) {
       case HttpStatus.ok:
-        final feed = Map<String, dynamic>.from(json.decode(response.body));
+        final feed = Map<String, dynamic>.from(json.decode(response.body) as Map);
         feed['entries'] = _toEntries(feed);
         return FeedResult(
           stream: stream,
@@ -106,7 +106,7 @@ class FeedResult extends StreamResult {
 
   static List<Map<String, dynamic>> _toEntries(Map<String, dynamic> feed) =>
       feed.listAt<Map<String, dynamic>>('entries').where((entry) => entry.containsKey('data')).map((entry) {
-        entry['data'] = json.decode(entry['data']);
+        entry['data'] = json.decode(entry['data'] as String);
         return entry;
       }).toList();
 

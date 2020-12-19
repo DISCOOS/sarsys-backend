@@ -531,7 +531,7 @@ class EventStore {
         // need to store these states in each event. Do not
         // evaluate events that exist locally only by skipping
         // to first event with number bigger then offset.
-        events.skipWhile((e) => e.number <= offset).fold(
+        events.skipWhile((e) => e.number <= offset).fold<EventNumber>(
               offset,
               (previous, next) => _assertStrictMonotone(
                 stream,
@@ -587,7 +587,7 @@ class EventStore {
   bool contains(String uuid) => _aggregates.containsKey(uuid);
 
   /// Get events for given [AggregateRoot.uuid]
-  Iterable<SourceEvent> get(String uuid) => List.from(_aggregates[uuid] ?? []);
+  Iterable<SourceEvent> get(String uuid) => List.from(_aggregates[uuid] ?? {});
 
   /// Commit applied events to aggregate.
   Iterable<DomainEvent> _commit(
@@ -697,7 +697,7 @@ class EventStore {
     }
 
     var idx = 0;
-    changes.fold(
+    changes.fold<EventNumber>(
       offset,
       (previous, next) => _assertStrictMonotone(stream, idx++, previous, next),
     );
@@ -1378,7 +1378,7 @@ class EventStoreSubscriptionController<T extends Repository> {
         .listen(
           (event) => _onEvent(event),
           onDone: () => onDone(repository),
-          onError: (error, stackTrace) => onError(
+          onError: (error, StackTrace stackTrace) => onError(
             repository,
             error,
             stackTrace,
@@ -1703,7 +1703,7 @@ class EventStoreConnection {
         if (response.statusCode == 200) {
           events.add(
             _toEvent(
-              Map<String, dynamic>.from(json.decode(response.body)),
+              Map<String, dynamic>.from(json.decode(response.body) as Map),
             ),
           );
         }
@@ -1787,7 +1787,7 @@ class EventStoreConnection {
       );
     }
 
-    var next;
+    ReadResult next;
     var result = ReadResult(
       stream: stream,
       number: number,
