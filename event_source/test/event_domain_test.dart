@@ -134,6 +134,100 @@ Future main() async {
     );
   });
 
+  test('Repository should recover from ES timeout on push', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    final stream = harness.server().getStream(repo.store.aggregate);
+    await repo.readyAsync();
+
+    // Act - force 500 error on push
+    final uuid = Uuid().v4();
+    var foo = repo.get(uuid);
+    final timeout = Duration(milliseconds: 100);
+    final requests = Future.wait([
+      repo.push(foo, timeout: timeout),
+      stream.onWriteDelay(duration: timeout),
+    ], eagerError: true);
+    await expectLater(
+      requests,
+      throwsA(isA<TimeoutException>()),
+    );
+    expect(repo.isEmpty, isTrue, reason: 'Repository should be rolled back');
+
+    // Assert second attempt is allowed
+    foo = repo.get(uuid);
+    await repo.push(foo);
+    expect(foo.baseEvent.number, equals(EventNumber(0)));
+  });
+
+  test('Repository should recover from ES status 500 on push', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    final stream = harness.server().getStream(repo.store.aggregate);
+    await repo.readyAsync();
+
+    // Act - force 500 error on push
+    final uuid = Uuid().v4();
+    var foo = repo.get(uuid);
+    final requests = Future.wait([
+      repo.push(foo),
+      stream.onWriteServerError('Fake error message'),
+    ], eagerError: true);
+    await expectLater(requests, throwsA(isA<WriteFailed>()));
+    expect(repo.isEmpty, isTrue, reason: 'Repository should be rolled back');
+
+    // Assert second attempt is allowed
+    foo = repo.get(uuid);
+    await repo.push(foo);
+    expect(foo.baseEvent.number, equals(EventNumber(0)));
+  });
+
+  test('Repository should recover from ES timeout on execute', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    final stream = harness.server().getStream(repo.store.aggregate);
+    await repo.readyAsync();
+
+    // Act - force 500 error on push
+    final uuid = Uuid().v4();
+    final timeout = Duration(milliseconds: 100);
+    final requests = Future.wait([
+      repo.execute(CreateFoo({'uuid': uuid}), timeout: timeout),
+      stream.onWriteDelay(duration: timeout),
+    ], eagerError: true);
+    await expectLater(
+      requests,
+      throwsA(isA<TimeoutException>()),
+    );
+    expect(repo.isEmpty, isTrue, reason: 'Repository should be rolled back');
+
+    // Assert second attempt is allowed
+    await repo.execute(CreateFoo({'uuid': uuid}));
+    final foo = repo.get(uuid);
+    expect(foo.baseEvent.number, equals(EventNumber(0)));
+  });
+
+  test('Repository should recover from ES status 500 on execute', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    final stream = harness.server().getStream(repo.store.aggregate);
+    await repo.readyAsync();
+
+    // Act - force 500 error on execute
+    final uuid = Uuid().v4();
+    final requests = Future.wait([
+      repo.execute(CreateFoo({'uuid': uuid})),
+      stream.onWriteServerError('Fake error message'),
+    ], eagerError: true);
+    await expectLater(requests, throwsA(isA<WriteFailed>()));
+    expect(repo.isEmpty, isTrue, reason: 'Repository should be rolled back');
+
+    // Assert second attempt is allowed
+    await repo.execute(CreateFoo({'uuid': uuid}));
+    final foo = repo.get(uuid);
+    expect(foo.baseEvent.number, equals(EventNumber(0)));
+  });
+
   test('Repository should update field createdBy after create and push', () async {
     // Arrange
     final repo = harness.get<FooRepository>();
@@ -720,6 +814,7 @@ Future main() async {
 
     // Assert conflict unresolved
     expect(repo.count(), equals(1));
+    expect(foo.data, containsPair('uuid', uuid));
     expect(foo.data, containsPair('property1', 'value1'));
     expect(foo.data, containsPair('property2', 'value2'));
     expect(foo.data, containsPair('property3', 'remote'));

@@ -268,6 +268,8 @@ class TestRoute {
   }
 }
 
+typedef RequestHandler = Future<bool> Function(HttpRequest request, String stream);
+
 class TestStream {
   TestStream(
     this.port,
@@ -288,6 +290,7 @@ class TestStream {
   final Replicate replicate;
   final bool useInstanceStreams;
   final ConsumerStrategy strategy;
+  final Set<RequestHandler> _handlers = {};
   final Map<String, TestSubscription> _groups = {};
   final List<Map<String, Map<String, dynamic>>> _instances = [];
 
@@ -360,6 +363,59 @@ class TestStream {
         _unsupported(request);
         break;
     }
+  }
+
+  static const timeout = Duration(seconds: 30);
+
+  Future _onHandleOnce(RequestHandler handler, Completer<bool> completer) async {
+    addRequestHandler(handler);
+    return completer.future.whenComplete(() {
+      removeRequestHandler(handler);
+    });
+  }
+
+  Future onWriteDelay({Duration duration = timeout, List<String> streams = const []}) async {
+    final completer = Completer<bool>();
+    return _onHandleOnce((HttpRequest request, String stream) async {
+      if (request.method == 'POST') {
+        if (streams.isEmpty || streams.contains(stream)) {
+          return Future.delayed(duration, () {
+            if (!completer.isCompleted) {
+              completer.complete(null);
+            }
+            return false;
+          });
+        }
+      }
+      return false;
+    }, completer);
+  }
+
+  Future onWriteServerError(String reasonPhrase, {List<String> streams = const []}) async {
+    final completer = Completer<bool>();
+    return _onHandleOnce((HttpRequest request, String stream) async {
+      logger.info('onWriteServerError(stream: $stream)');
+      if (request.method == 'POST') {
+        if (streams.isEmpty || streams.contains(stream)) {
+          request.response
+            ..statusCode = HttpStatus.internalServerError
+            ..reasonPhrase = reasonPhrase;
+          if (!completer.isCompleted) {
+            completer.complete(null);
+          }
+          return true;
+        }
+      }
+      return false;
+    }, completer);
+  }
+
+  bool addRequestHandler(RequestHandler onRequest) {
+    return _handlers.add(onRequest);
+  }
+
+  bool removeRequestHandler(RequestHandler onRequest) {
+    return _handlers.remove(onRequest);
   }
 
   Future handlePUT(HttpRequest request) async {
@@ -444,7 +500,7 @@ class TestStream {
     RegExp pattern;
     final path = request.uri.path;
     if (RegExp(asStream(RegExp.escape(instanceStream))).hasMatch(path)) {
-      await _createStream(request, path);
+      await _writeEvent(request, path);
     } else if ((pattern = RegExp(TestSubscription.asAck(RegExp.escape(canonicalStream)))).hasMatch(path)) {
       await _ackEvents(request, pattern, path);
     } else if ((pattern = RegExp(TestSubscription.asNack(RegExp.escape(canonicalStream)))).hasMatch(path)) {
@@ -454,7 +510,14 @@ class TestStream {
     }
   }
 
-  Future _createStream(HttpRequest request, String path) async {
+  Future _writeEvent(HttpRequest request, String path) async {
+    for (var handler in List<RequestHandler>.from(_handlers)) {
+      final id = int.tryParse(path.split('-').last);
+      final stream = id == null ? canonicalStream : '$instanceStream-$id';
+      if (await handler(request, stream)) {
+        return;
+      }
+    }
     if (_checkEventNumber(request, path)) {
       final content = await utf8.decoder.bind(request).join();
       final data = json.decode(content);
@@ -492,7 +555,7 @@ class TestStream {
     return true;
   }
 
-  List<Map<String, dynamic>> _toEvents(data) =>
+  List<Map<String, dynamic>> _toEvents(dynamic data) =>
       (data is List ? List<Map<String, dynamic>>.from(data) : [data as Map<String, dynamic>])
           .map(_ensureUpdated)
           .toList();
@@ -722,8 +785,8 @@ class TestStream {
   String asForward(String stream) => '/streams/$stream/(\\d+)/forward/(\\d+)';
   String asBackward(String stream) => '/streams/$stream/(\\d+)/backward/(\\d+)';
 
-  String asUuid(String stream) => '/streams/$stream/([\\w:-]+)';
-  String toUuid(String stream, String path) => RegExp('/streams/$stream/([\\w:-]+)').firstMatch(path)?.group(1);
+  // String asUuid(String stream) => '/streams/$stream/([\\w:-]+)';
+  // String toUuid(String stream, String path) => RegExp('/streams/$stream/([\\w:-]+)').firstMatch(path)?.group(1);
 
   String asEventNumber(String stream) => '/streams/$stream/(\\d+)';
   int toEventNumber(String stream, String path) =>

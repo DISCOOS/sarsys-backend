@@ -987,9 +987,6 @@ class EventStore {
     }
   }
 
-  String _toMethod(String name, List<String> args) => '$name(\n  ${args.join(',\n  ')})';
-  String _toObject(String name, List<String> args) => '$name{\n  ${args.join(',\n  ')}\n}';
-
   void _onFatal(
     SourceEvent event,
     String stream, {
@@ -3042,3 +3039,6 @@ class DurationMetric {
         'durationMean': '${durationMean.inMilliseconds} ms',
       };
 }
+
+String _toMethod(String name, List<String> args) => '$name(\n  ${args.join(',\n  ')})';
+String _toObject(String name, List<String> args) => '$name: {\n  ${args.join(',\n  ')}\n}';

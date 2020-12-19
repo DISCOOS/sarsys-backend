@@ -276,10 +276,12 @@ class StreamRequestQueue<V> {
       final result = StreamResult(
         value: await _onFallback(request),
       );
-      _onEventController.add(StreamRequestCompleted(
-        request,
-        result,
-      ));
+      if (!_onEventController.isClosed) {
+        _onEventController.add(StreamRequestCompleted(
+          request,
+          result,
+        ));
+      }
       return result;
     } finally {
       _current = null;
@@ -376,7 +378,9 @@ class StreamRequestQueue<V> {
     if (isProcessing) {
       _isIdle = true;
       // Notify listeners
-      _onEventController.add(StreamQueueIdle());
+      if (!_onEventController.isClosed) {
+        _onEventController.add(StreamQueueIdle());
+      }
     }
   }
 
@@ -509,12 +513,12 @@ class StreamResult<V> {
     this.stackTrace,
   }) : _stop = stop ?? false;
 
-  static StreamResult<V> none<V>({String tag}) => StreamResult<V>(tag: tag);
-  static StreamResult<V> stop<V>({String tag}) => StreamResult<V>(tag: tag, stop: true);
+  static StreamResult<V> none<V>({Object tag}) => StreamResult<V>(tag: tag);
+  static StreamResult<V> stop<V>({Object tag}) => StreamResult<V>(tag: tag, stop: true);
   static StreamResult<V> fail<V>(
     Object error,
     StackTrace stackTrace, {
-    String tag,
+    Object tag,
     bool stop = false,
   }) =>
       StreamResult<V>(
@@ -536,7 +540,7 @@ class StreamResult<V> {
   bool get isError => error != null;
 }
 
-class StreamRequestTimeoutException implements Exception {
+class StreamRequestTimeoutException implements TimeoutException {
   StreamRequestTimeoutException(this.queue, this.request);
   final StreamRequest request;
   final StreamRequestQueue queue;
@@ -545,4 +549,10 @@ class StreamRequestTimeoutException implements Exception {
   String toString() => '$runtimeType{\n'
       '  queue: $queue,\n '
       '  request: $request\n}';
+
+  @override
+  Duration get duration => request.timeout;
+
+  @override
+  String get message => 'Request ${request.tag} timed out';
 }

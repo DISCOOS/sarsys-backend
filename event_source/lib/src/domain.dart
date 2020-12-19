@@ -470,9 +470,6 @@ class Transaction<S extends Command, T extends AggregateRoot> {
   /// Check if concurrent modifications has occurred
   bool get hasConcurrentModifications => concurrent.isNotEmpty;
 
-  /// Get [StreamRequest.tag]
-  String get tag => '${aggregate.runtimeType} ${uuid} in transaction ${seqnum} with ${_changes.length} changes';
-
   /// Execute command on given [aggregate]
   /// root. Changes are not pushed to
   /// [Repository.store] until [push] is
@@ -529,8 +526,10 @@ class Transaction<S extends Command, T extends AggregateRoot> {
   /// If transaction is [isStarted] an
   /// [InvalidOperation] is thrown.
   ///
-  Iterable<DomainEvent> rollback() {
-    _assertStart();
+  Iterable<DomainEvent> rollback({bool force = false}) {
+    if (!force) {
+      _assertStart();
+    }
     return _rollback(complete: true);
   }
 
@@ -553,6 +552,7 @@ class Transaction<S extends Command, T extends AggregateRoot> {
         : <DomainEvent>[];
   }
 
+  bool get isOpen => !_isCompleted;
   bool get isCompleted => _isCompleted;
   bool _isCompleted = false;
 
@@ -594,7 +594,7 @@ class Transaction<S extends Command, T extends AggregateRoot> {
           );
         }
       }
-    } catch (e, stackTrace) {
+    } catch (error, stackTrace) {
       _rollback(
         complete: !hasConcurrentModifications,
       );
@@ -604,11 +604,11 @@ class Transaction<S extends Command, T extends AggregateRoot> {
           repository.logger.severe(
             'Transaction on ${repository.aggregateType} $uuid failed.'
             'Was already started by ${_startedBy} at: $_startedAt}',
-            e,
+            error,
             stackTrace,
           );
         } else {
-          _completer.completeError(e, stackTrace);
+          _completer.completeError(error, stackTrace);
         }
       }
     } finally {
@@ -687,17 +687,20 @@ class Transaction<S extends Command, T extends AggregateRoot> {
   @override
   int get hashCode => uuid.hashCode;
 
+  /// Get [StreamRequest.tag]
+  Object toTagAsString() => '${aggregate.runtimeType} ${uuid} in transaction ${seqnum} with ${_changes.length} changes';
+
   @override
   String toString() {
-    return '$runtimeType: {\n'
-        '  seqnum: $seqnum,\n'
-        '  changes: ${_changes.map((e) => '{${e.type}: ${e.uuid}')}},\n'
-        '  aggregate: {\n'
-        '    uuid: ${aggregate.uuid},\n'
-        '    modifications: ${aggregate.modifications},\n'
-        '    changes: ${aggregate._localEvents.map((e) => '{${e.type}: ${e.uuid}}')},\n'
-        '  },\n'
-        '}';
+    return _toObject('$runtimeType', [
+      'seqnum: $seqnum',
+      'changes: ${_changes.map((e) => '{${e.type}: ${e.uuid}')}}',
+      _toObject('aggregate', [
+        'uuid: ${uuid}',
+        'modifications: ${aggregate?.modifications}',
+        'changes: ${aggregate?._localEvents?.map((e) => '{${e.type}: ${e.uuid}}')}',
+      ]),
+    ]);
   }
 }
 
@@ -737,7 +740,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   static const timeLimit = Duration(seconds: 30);
 
   /// Internal - for local debugging
-  bool debugConflicts = false;
+  final _debugConflicts = false;
 
   void _printDebug(Object message) {
     logger.info(message);
@@ -758,6 +761,12 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// and that events are not being replayed
   bool get isReady => _isReady && !isReplaying;
   bool _isReady = false;
+
+  /// Check if repository is empty (have no aggregates)
+  bool get isEmpty => _aggregates.isEmpty;
+
+  /// Check if repository have aggregates
+  bool get isNotEmpty => _aggregates.isNotEmpty;
 
   /// Check if events are being replayed for this repository
   bool get isReplaying => store.bus.isReplayingType<T>();
@@ -830,16 +839,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       await _storeSubscriptionController.cancel();
       _pushQueue = StreamRequestQueue<Iterable<DomainEvent>>();
     }
-
     _pushQueueSubscription = _pushQueue.onEvent().listen(_onQueueEvent);
-    _pushQueue.catchError((error, stackTrace) {
-      logger.network(
-        'Push requests failed with: $error',
-        error,
-        Trace.from(stackTrace),
-      );
-      return false;
-    });
     if (store.snapshots != null) {
       await store.snapshots.load();
       _suuid = store.snapshots.last?.uuid;
@@ -858,30 +858,49 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       case StreamRequestAdded:
         final request = (event as StreamRequestAdded).request;
         logger.fine(
-          'Push command added: ${request.tag} (${_toPressureString()})',
+          'Push command added: ${(request.tag as Transaction).toTagAsString()} (${_toPressureString()})',
         );
         break;
       case StreamRequestCompleted:
         final request = (event as StreamRequestCompleted).request;
         logger.fine(
-          'Push command complete: ${request.tag} (${_toPressureString()})',
+          'Push command complete: ${(request.tag as Transaction).toTagAsString()} (${_toPressureString()})',
         );
         break;
       case StreamQueueIdle:
         logger.fine('Push queue idle');
         break;
       case StreamRequestTimeout:
-        final request = (event as StreamRequestTimeout).request;
-        logger.fine(
-          'Push command timeout: ${request.tag} (${_toPressureString()})',
+        final failed = event as StreamRequestTimeout;
+        _onQueueError(
+          failed.request,
+          'Push command timeout',
+          StreamRequestTimeoutException(_pushQueue, failed.request),
         );
         break;
       case StreamRequestFailed:
-        final request = (event as StreamRequestFailed).request;
-        logger.fine(
-          'Push command failed: ${request.tag} (${_toPressureString()})',
+        final failed = event as StreamRequestFailed;
+        _onQueueError(
+          failed.request,
+          'Push command failed',
+          failed.error,
+          failed.stackTrace,
         );
         break;
+    }
+  }
+
+  void _onQueueError(StreamRequest request, String message, Object error, [StackTrace stackTrace]) {
+    final trx = request.tag as Transaction;
+    logger.fine(
+      '$message: ${trx.toTagAsString()} (${_toPressureString()})',
+    );
+    if (trx.isOpen) {
+      trx.rollback(force: true);
+      trx._completer.completeError(
+        error,
+        stackTrace,
+      );
     }
   }
 
@@ -1033,9 +1052,12 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         }
       } catch (error, stackTrace) {
         logger.severe(
-          'Execution of rule for $event on $runtimeType failed '
-          'with error: $error,\n'
-          'stackTrace: ${Trace.format(stackTrace)}',
+          _toMethod('handle', [
+            _toObject('Execution of rule for $event on $runtimeType failed ', [
+              'error: $error',
+              'stacktrace: ${Trace.format(stackTrace)}',
+            ]),
+          ]),
           error,
           Trace.from(stackTrace),
         );
@@ -1269,7 +1291,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     T aggregate, {
     int maxAttempts = 10,
     Duration timeout = timeLimit,
-  }) {
+  }) async {
     var result = <DomainEvent>[];
     final uuid = aggregate.uuid;
     // After this point the transaction
@@ -1286,16 +1308,16 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         key: uuid,
         fail: true,
         timeout: timeout,
-        tag: transaction.tag,
+        tag: transaction,
         execute: () => _push(transaction),
       ));
       if (added) {
         logger.fine(
-          'Scheduled push of: ${transaction.tag} (queue pressure: $pressure)',
+          'Scheduled push of: ${transaction.toTagAsString()} (queue pressure: $pressure)',
         );
       } else {
         logger.fine(
-          'Waiting on transaction already pushed: ${transaction.tag} (queue pressure: $pressure)',
+          'Waiting on transaction already pushed: ${transaction.toTagAsString()} (queue pressure: $pressure)',
         );
       }
       return transaction.onPush.timeout(timeout);
@@ -1412,7 +1434,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   Future<StreamResult<Iterable<DomainEvent>>> _push(Transaction transaction) async {
     final aggregate = _assertTrx(transaction);
     try {
-      if (debugConflicts) {
+      if (_debugConflicts) {
         _printDebug('---PUSH---');
         _printDebug('timestamp: ${DateTime.now().toIso8601String()}');
         _printDebug('connection: ${store.connection.host}:${store.connection.port}');
@@ -1442,7 +1464,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         changes: changes,
       );
 
-      if (debugConflicts) {
+      if (_debugConflicts) {
         _printDebug('---DONE---');
         _printDebug('timestamp: ${DateTime.now().toIso8601String()}');
         _printDebug('repository: $this');
@@ -1455,7 +1477,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       }
 
       return StreamResult(
-        tag: transaction.tag,
+        tag: transaction,
         key: transaction.uuid,
         value: changes,
       );
@@ -1463,9 +1485,13 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       return await _reconcile(transaction);
     } catch (error, stackTrace) {
       logger.severe(
-        'Failed to push ${aggregate.runtimeType}{uuid: ${aggregate.uuid}} with error: $error,\n'
-        'stacktrace: ${Trace.format(stackTrace)}\n'
-        'debug: ${toDebugString(aggregate?.uuid)}',
+        _toMethod('_push', [
+          _toObject('Failed to push ${aggregate.runtimeType} ${aggregate.uuid}', [
+            'error: $error',
+            'stacktrace: ${Trace.format(stackTrace)}',
+            'debug: ${toDebugString(aggregate?.uuid)}',
+          ]),
+        ]),
         error,
         Trace.from(stackTrace),
       );
@@ -1474,10 +1500,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         error: error,
         stackTrace: stackTrace,
       );
-      return StreamResult.fail(
-        error,
-        stackTrace,
-        tag: transaction.tag,
+      return StreamResult.none(
+        tag: transaction,
       );
     } finally {
       store.snapshotWhen(this);
@@ -1487,7 +1511,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Attempts to reconcile conflicts between concurrent modifications
   Future<StreamResult<Iterable<DomainEvent>>> _reconcile(Transaction transaction) async {
     final aggregate = _assertTrx(transaction);
-    if (debugConflicts) {
+    if (_debugConflicts) {
       _printDebug('---CONFLICT---');
       _printDebug('timestamp: ${DateTime.now().toIso8601String()}');
       _printDebug('repository: $this');
@@ -1510,15 +1534,18 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       );
       return StreamResult(
         value: events,
-        tag: transaction.tag,
+        tag: transaction,
         key: transaction.uuid,
       );
     } catch (error, stackTrace) {
       logger.severe(
-        'Failed to reconcile before push of ${aggregate.runtimeType}{uuid: ${aggregate.uuid}} '
-        'with error: $error,\n'
-        'stacktrace: ${Trace.format(stackTrace)},\n'
-        'debug: ${toDebugString(aggregate?.uuid)}',
+        _toMethod('_reconcile', [
+          _toObject('Failed to reconcile before push of ${aggregate.runtimeType} ${aggregate.uuid}: ', [
+            'error: $error',
+            'stacktrace: ${Trace.format(stackTrace)}',
+            'debug: ${toDebugString(aggregate?.uuid)}',
+          ]),
+        ]),
         error,
         Trace.from(stackTrace),
       );
@@ -1530,7 +1557,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       return StreamResult.fail(
         error,
         stackTrace,
-        tag: transaction.tag,
+        tag: transaction,
       );
     }
   }
@@ -1551,7 +1578,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     );
   }
 
-  /// Rollback local changes. If
+  /// Rollback local changes
   Iterable<DomainEvent> _rollback(
     String uuid, {
     @required bool complete,
@@ -1562,17 +1589,16 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     final local = aggregate.getLocalEvents();
     final remaining = trx?.remaining ?? local;
 
+    // Reset aggregate last known head
+    aggregate._reset(this, toHead: exists);
+
     if (exists) {
-      if (aggregate.isChanged) {
-        // Replay remote events
-        aggregate._replay(this);
-      }
+      // Catchup to remote head
+      aggregate._catchup(this);
     } else {
       // Aggregate only exists
       // locally, remove it
       _aggregates.remove(uuid);
-      // Reset aggregate
-      aggregate._reset(this);
     }
 
     if (complete) {
@@ -2365,7 +2391,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
 
   /// Catchup to head of remote event stream.
   @protected
-  AggregateRoot _catchUp(Repository repo) {
+  AggregateRoot _catchup(Repository repo) {
     // Get events applied since last _apply or _catchup
     final added = repo.store.get(uuid).skip(_applied.length);
     final offset = number;
@@ -2379,40 +2405,54 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   }
 
   /// Reset to initial state
-  void _reset(Repository repo) {
+  void _reset(Repository repo, {bool toHead = false}) {
+    _base.clear();
     _data.clear();
     _mine.clear();
     _yours.clear();
-    _applied.clear();
     _conflicts.clear();
     _localEvents.clear();
     _remoteEvents.clear();
-    _createdBy = null;
-    _changedBy = null;
-    _deletedBy = null;
-    if (repo.hasSnapshot) {
-      _snapshot = repo.snapshot.aggregates[uuid];
-      if (_snapshot != null) {
-        _data.addAll(snapshot.data);
-        _createdBy = _toDomainEvent(
-          snapshot.createdBy,
-          local: false,
+    if (toHead) {
+      _baseIndex = _headIndex;
+      _base.addAll(_head);
+      _data.addAll(_head);
+      _head.clear();
+      if (_baseIndex >= 0) {
+        _setModifier(
+          _applied.values.elementAt(_baseIndex),
         );
-        _changedBy = _toDomainEvent(
-          snapshot.changedBy,
-          local: false,
-        );
-        _deletedBy = _toDomainEvent(
-          snapshot.deletedBy,
-          local: false,
-        );
-        if (_deletedBy == null) {
-          _applied[_changedBy.uuid] = _changedBy;
-        } else {
-          _applied[_deletedBy.uuid] = _deletedBy;
+      }
+    } else {
+      _head.clear();
+      _applied.clear();
+      _createdBy = null;
+      _changedBy = null;
+      _deletedBy = null;
+      if (repo.hasSnapshot) {
+        _snapshot = repo.snapshot.aggregates[uuid];
+        if (_snapshot != null) {
+          _data.addAll(snapshot.data);
+          _createdBy = _toDomainEvent(
+            snapshot.createdBy,
+            local: false,
+          );
+          _changedBy = _toDomainEvent(
+            snapshot.changedBy,
+            local: false,
+          );
+          _deletedBy = _toDomainEvent(
+            snapshot.deletedBy,
+            local: false,
+          );
+          if (_deletedBy == null) {
+            _applied[_changedBy.uuid] = _changedBy;
+          } else {
+            _applied[_deletedBy.uuid] = _deletedBy;
+          }
+          _baseIndex = 0;
+          _headIndex = 0;
         }
-        _baseIndex = 0;
-        _headIndex = 0;
       }
     }
   }
@@ -3236,10 +3276,16 @@ abstract class MergeStrategy {
         return await _reconcileWithRetry(transaction, attempt + 1);
       }
       repository.logger.severe(
-        'Aborted automatic merge after ${transaction._maxAttempts} retries on ${aggregate.runtimeType} ${aggregate.uuid} '
-        'with error $error, \n'
-        'stacktrace: ${Trace.format(stackTrace)},\n'
-        'debug: ${repository.toDebugString(aggregate?.uuid)}',
+        _toMethod('_reconcileWithRetry', [
+          _toObject(
+              'Aborted automatic merge after ${transaction._maxAttempts} '
+              'retries on ${aggregate.runtimeType} ${aggregate.uuid}: ',
+              [
+                'error: $error',
+                'stacktrace: ${Trace.format(stackTrace)}',
+                'debug: ${repository.toDebugString(aggregate?.uuid)}',
+              ]),
+        ]),
         error,
         Trace.from(stackTrace),
       );
@@ -3273,9 +3319,12 @@ class ThreeWayMerge extends MergeStrategy {
       // remote concurrent modification and
       // register any conflicts with remote
       // events that it caught up to
-      aggregate._catchUp(repository);
+      aggregate._catchup(repository);
     }
 
     return aggregate;
   }
 }
+
+String _toMethod(String name, List<String> args) => '$name(\n  ${args.join(',\n  ')})';
+String _toObject(String name, List<String> args) => '$name: {\n  ${args.join(',\n  ')}\n}';
