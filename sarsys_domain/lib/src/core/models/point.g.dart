@@ -6,16 +6,13 @@ part of 'point.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-PointModel _$PointModelFromJson(Map<String, dynamic> json) {
+PointModel _$PointModelFromJson(Map json) {
   return PointModel(
-      coordinates: json['coordinates'] == null
-          ? null
-          : _coordsFromJson(json['coordinates'] as List));
+    coordinates: _coordsFromJson(json['coordinates'] as List),
+  );
 }
 
 Map<String, dynamic> _$PointModelToJson(PointModel instance) =>
     <String, dynamic>{
-      'coordinates': instance.coordinates == null
-          ? null
-          : _coordsToJson(instance.coordinates)
+      'coordinates': _coordsToJson(instance.coordinates),
     };

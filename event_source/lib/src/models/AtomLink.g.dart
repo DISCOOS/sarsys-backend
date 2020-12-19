@@ -6,10 +6,23 @@ part of 'AtomLink.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-AtomLink _$AtomLinkFromJson(Map<String, dynamic> json) {
+AtomLink _$AtomLinkFromJson(Map json) {
   return AtomLink(
-      uri: json['uri'] as String, relation: json['relation'] as String);
+    uri: json['uri'] as String,
+    relation: json['relation'] as String,
+  );
 }
 
-Map<String, dynamic> _$AtomLinkToJson(AtomLink instance) =>
-    <String, dynamic>{'uri': instance.uri, 'relation': instance.relation};
+Map<String, dynamic> _$AtomLinkToJson(AtomLink instance) {
+  final val = <String, dynamic>{};
+
+  void writeNotNull(String key, dynamic value) {
+    if (value != null) {
+      val[key] = value;
+    }
+  }
+
+  writeNotNull('uri', instance.uri);
+  writeNotNull('relation', instance.relation);
+  return val;
+}

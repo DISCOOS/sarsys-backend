@@ -23,14 +23,17 @@ Event fromEventModelJson(dynamic json) {
 }
 
 Map<String, dynamic> toEventModelJson(Event event) {
-  final model = EventModel(
-    type: event.type,
-    uuid: event.uuid,
-    data: event.data,
-    created: event.created,
-    number: EventNumberModel.from(event.number),
-  );
-  return model.toJson();
+  if (event != null) {
+    final model = EventModel(
+      type: event.type,
+      uuid: event.uuid,
+      data: event.data,
+      created: event.created,
+      number: EventNumberModel.from(event.number),
+    );
+    return model.toJson();
+  }
+  return null;
 }
 
 Map<String, dynamic> toMapJson(Map data) => Map<String, dynamic>.from(data);
