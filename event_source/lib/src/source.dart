@@ -560,16 +560,16 @@ class EventStore {
   }
 
   Iterable<DomainEvent> _applyAll(
-    Repository repository,
+    Repository repo,
     String uuid,
     List<SourceEvent> events,
   ) {
     final unseen = _updateAll(uuid, events);
-    final exists = repository.contains(uuid);
-    final aggregate = repository.get(uuid);
+    final exists = repo.contains(uuid);
+    final aggregate = repo.get(uuid);
 
     final domainEvents = unseen.map(
-      repository.toDomainEvent,
+      repo.toDomainEvent,
     );
 
     // Commit remote changes to existing aggregate?
@@ -945,12 +945,12 @@ class EventStore {
             '  store.events.items: ${repo.store.events.values}, \n'
             '}',
       );
-    } catch (e, stackTrace) {
+    } catch (error, stackTrace) {
       _onFatal(
         event,
         stream,
-        error: e,
-        message: '$e',
+        error: error,
+        message: '$error',
         stackTrace: stackTrace,
       );
     } finally {
@@ -1137,13 +1137,18 @@ class EventStore {
     final delta = next.number.value - previous.value;
     if (delta != 1) {
       final message = 'Event number not strict monotone increasing: {\n'
-          '  index: $index\n'
-          '  uuid: ${next.uuid}\n'
-          '  type: ${next.type}\n'
-          '  number.prev: $previous\n'
-          '  number.next: ${next.number}\n'
+          '  stream: $stream,\n'
+          '  event.prev.number: $previous,\n'
+          '  event.next.index: $index,\n'
+          '  event.next.uuid: ${next.uuid},\n'
+          '  event.next.type: ${next.type},\n'
+          '  event.next.number: ${next.number},\n'
+          '  delta: $delta,\n'
           '}';
-      final error = InvalidOperation(message);
+      final error = EventNumberNotStrictMonotone(
+        message,
+        next,
+      );
       logger.severe(
         '$message,\ndebug: ${toDebugString(stream)}',
         error,
@@ -2806,12 +2811,12 @@ class _EventStoreSubscriptionControllerImpl {
       fetched = fetched + (feed?.atomFeed?.entries?.length ?? 0);
     } while (feed != null && feed.isOK && !(feed.headOfStream || feed.isEmpty));
 
-    if (number < _current) {
+    if (_number < _current) {
       // This should sum up for pull-subscriptions!
       // If it doesn't something is wrong!
-      if (_strategy == null && (number + fetched + (number.isNone ? 1 : 0)) != _current) {
+      if (_strategy == null && (_number + fetched + (number.isNone ? 1 : 0)) != _current) {
         throw StateError(
-          '$fetched events fetched does not match number change $number > $_current',
+          '$fetched events fetched does not match number change $_number > $_current',
         );
       }
       logger.fine(

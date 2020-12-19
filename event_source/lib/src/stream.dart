@@ -351,11 +351,13 @@ class StreamRequestQueue<V> {
           stackTrace,
         );
       }
-      _onEventController.add(StreamRequestFailed(
-        request,
-        error,
-        stackTrace,
-      ));
+      if (!_onEventController.isClosed) {
+        _onEventController.add(StreamRequestFailed(
+          request,
+          error,
+          stackTrace,
+        ));
+      }
     }
   }
 

@@ -832,11 +832,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     }
 
     _pushQueueSubscription = _pushQueue.onEvent().listen(_onQueueEvent);
-    _pushQueue.catchError((e, stackTrace) {
+    _pushQueue.catchError((error, stackTrace) {
       logger.network(
-        'Push requests failed',
-        e,
-        stackTrace,
+        'Push requests failed with: $error',
+        error,
+        Trace.from(stackTrace),
       );
       return false;
     });
@@ -2928,25 +2928,35 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
       expected = (headEvent?.number ?? number).value;
       if (headEvent != event) {
         // Next event should only increase with 1
-        expected += 1;
       }
+      expected += 1;
     }
     final delta = expected - actual;
     if (delta != 0) {
       final message = 'Event number not strict monotone increasing: {\n'
+          '  event.mode: $mode,\n'
+          '  event.type: ${event.type},\n'
+          '  event.uuid: ${event.uuid},\n'
+          '  event.applied: ${isApplied(event)}.\n'
+          '  event.number.expected: $expected\n'
+          '  event.number.actual: $actual,\n'
+          '  event.number.delta: $delta,\n'
           '  aggregate.uuid: $uuid,\n'
           '  aggregate.type: $runtimeType,\n'
           '  aggregate.number: ${number.value},\n'
           '  aggregate.pending: ${_localEvents.length},\n'
           '  aggregate.modification: $modifications,\n'
-          '  event.mode: $mode,\n'
-          '  event.type: ${event.type},\n'
-          '  event.applied: ${isApplied(event)}.\n'
-          '  event.number.delta: $delta,\n'
-          '  event.number.actual: $actual,\n'
-          '  event.number.expected: $expected\n'
+          '  aggregate.head.uuid: ${headEvent.uuid},\n'
+          '  aggregate.head.number: ${headEvent.number},\n'
+          '  aggregate.base.uuid: ${baseEvent.uuid},\n'
+          '  aggregate.base.number: ${baseEvent.number},\n'
+          '  aggregate.last.uuid: ${lastEvent.uuid},\n'
+          '  aggregate.last.number: ${lastEvent.number},\n'
           '}';
-      throw InvalidOperation(message);
+      throw EventNumberNotStrictMonotone(
+        message,
+        event,
+      );
     }
   }
 

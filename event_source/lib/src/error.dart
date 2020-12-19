@@ -22,6 +22,16 @@ class InvalidOperation extends EventSourceException {
 }
 
 /// Thrown when an invalid operation is attempted
+class EventNumberNotStrictMonotone extends InvalidOperation {
+  const EventNumberNotStrictMonotone(
+    String message,
+    this.event,
+  ) : super(message);
+
+  final Event event;
+}
+
+/// Thrown when an invalid operation is attempted
 class CommandTimeout extends EventSourceException {
   const CommandTimeout(String message, this.command) : super(message);
   final Command command;
