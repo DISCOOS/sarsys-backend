@@ -882,19 +882,27 @@ class EventStore {
 
   /// Handle event from subscriptions
   void _onSubscriptionEvent(Repository repo, SourceEvent event) {
+    // In case paused after events
+    // are sent from controller
+    if (isDisposed || isPaused) {
+      return;
+    }
+
+    // Sanity checks
     _assertNotReplaying(repo);
 
     final uuid = repo.toAggregateUuid(event);
     final actual = current(uuid: uuid);
     final stream = toInstanceStream(uuid);
+
     try {
-      // IMPORTANT: append to store before applying to repository
+      // IMPORTANT: Append to store before applying to repository!
       // This ensures that the event added to an aggregate during
-      // construction is overwritten with the remote actual
+      // construction is overwritten with the remote event actual
       // received here.
       _updateAll(uuid, [event]);
 
-      // Event is applied to aggregate?
+      // Event is already applied to aggregate?
       final isApplied = _isApplied(uuid, event, repo);
 
       if (isApplied) {
@@ -904,13 +912,11 @@ class EventStore {
         _onApply(uuid, stream, event, actual, repo);
       }
 
-      // micro-optimization to
-      // minimize string interpolations
       if (logger.level <= Level.FINE) {
         final aggregate = repo.get(uuid);
         final applied = aggregate.applied.where((e) => e.uuid == event.uuid).firstOrNull;
         logger.fine(
-          '_onSubscriptionEvent(${repo.runtimeType}, ${event.runtimeType}){\n'
+          '_onSubscriptionEvent(${repo.runtimeType}{\n'
           '  event.type: ${event.type}, \n'
           '  event.uuid: ${event.uuid}, \n'
           '  event.number: ${event.number}, \n'
@@ -926,14 +932,14 @@ class EventStore {
           '}',
         );
       }
-    } on JsonPatchError catch (e, stackTrace) {
+    } on JsonPatchError catch (error, stackTrace) {
       _onFatal(
         event,
         stream,
-        error: e,
+        error: error,
         stackTrace: stackTrace,
         message: 'Failed to apply patches from aggregate stream ${canonicalStream}{\n'
-            '  error: $e, \n'
+            '  error: $error, \n'
             '  connection: ${repo.store.connection.host}:${repo.store.connection.port}, \n'
             '  event.type: ${event.type}, \n'
             '  event.uuid: ${event.uuid}, \n'
