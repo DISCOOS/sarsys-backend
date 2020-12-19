@@ -9,17 +9,20 @@ import 'aggregate_root_model.dart';
 import 'event_number_model.dart';
 
 Event fromEventModelJson(dynamic json) {
-  final model = EventModel.fromJson(
-    toMapJson(json as Map),
-  );
-  return Event(
-    local: false,
-    type: model.type,
-    uuid: model.uuid,
-    data: model.data,
-    created: model.created,
-    number: EventNumber(model.number.value),
-  );
+  if (json != null) {
+    final model = EventModel.fromJson(
+      toMapJson(json as Map),
+    );
+    return Event(
+      local: false,
+      type: model.type,
+      uuid: model.uuid,
+      data: model.data,
+      created: model.created,
+      number: EventNumber(model.number.value),
+    );
+  }
+  return null;
 }
 
 Map<String, dynamic> toEventModelJson(Event event) {
