@@ -58,11 +58,12 @@ extension MapX on Map {
         }
       }
       final element = (parent ?? {});
+      final index = int.tryParse(name);
       return element is Map
           ? element[name]
-          : element is List && element.isNotEmpty
-              ? element[int.parse(name)]
-              : null;
+          : element is List && element.isNotEmpty && index != null && index >= 0 && index < element.length
+              ? element[index]
+              : defaultValue;
     });
     return (found ?? defaultValue) as T;
   }
