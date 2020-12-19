@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:meta/meta.dart';
@@ -29,7 +30,7 @@ abstract class PolicyUtils {
           .take(count)
           .last
           .timeout(timeout);
-    } on Exception catch (e, stackTrace) {
+    } on TimeoutException catch (e, stackTrace) {
       if (fail) {
         final message = 'Waiting for (${typeOf<T>()} x $count) timed out after $timeout';
         logger?.severe('$message: $e: $stackTrace');
@@ -108,7 +109,7 @@ abstract class PolicyUtils {
           .last
           // Fail on time
           .timeout(timeout);
-    } on Exception catch (e, stackTrace) {
+    } on TimeoutException catch (e, stackTrace) {
       if (fail) {
         final message = 'Waiting for $expected timed out after $timeout. Actual was: $actual, Seen: $events';
         logger?.severe('$message: $e: $stackTrace');

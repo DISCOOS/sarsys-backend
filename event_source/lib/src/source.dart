@@ -381,9 +381,9 @@ class EventStore {
   }) {
     final uuid = toAggregateUuid(stream);
     if (uuid != null) {
-      final aggregate = repo.get(uuid, createNew: false);
-      if (aggregate.headEvent != null) {
-        return aggregate.headEvent.number;
+      final head = repo.get(uuid, createNew: false)?.headEvent;
+      if (head != null) {
+        return head.number;
       }
     }
     return current(stream: stream);
@@ -875,7 +875,7 @@ class EventStore {
     ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
   }) {
     // Get next event in stream
-    final number = repository.store._toStreamHead(
+    final number = repository.store._toStreamOffset(
       repository,
       stream: canonicalStream,
     );
@@ -936,8 +936,8 @@ class EventStore {
               'event.type: ${event.type}',
               'event.uuid: ${event.uuid}',
               'number: ${event.number}',
-              'event.isSourced: ${_isSourced(uuid, event)}',
-              'event.isApplied: $isApplied',
+              'event.sourced: ${_isSourced(uuid, event)}',
+              'event.applied: $isApplied',
               'event.patches: ${applied?.patches?.length}',
               'aggregate.uuid: ${aggregate.uuid}',
               'aggregate.stream: $stream',
@@ -1192,15 +1192,15 @@ class EventStore {
   EventNumber _assertStrictMonotone(String stream, int index, EventNumber previous, Event next) {
     final delta = next.number.value - previous.value;
     if (delta != 1) {
-      final message = 'Event number not strict monotone increasing: {\n'
-          '  stream: $stream,\n'
-          '  event.prev.number: $previous,\n'
-          '  event.next.index: $index,\n'
-          '  event.next.uuid: ${next.uuid},\n'
-          '  event.next.type: ${next.type},\n'
-          '  event.next.number: ${next.number},\n'
-          '  delta: $delta,\n'
-          '}';
+      final message = _toObject('Event number not strict monotone increasing: ', [
+        'stream: $stream',
+        'event.prev.number: $previous',
+        'event.next.index: $index',
+        'event.next.uuid: ${next.uuid}',
+        'event.next.type: ${next.type}',
+        'event.next.number: ${next.number}',
+        'delta: $delta',
+      ]);
       final error = EventNumberNotStrictMonotone(
         message,
         next,

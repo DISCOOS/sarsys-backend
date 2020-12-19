@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:meta/meta.dart';
 import 'package:stack_trace/stack_trace.dart';
 
@@ -32,9 +34,11 @@ class EventNumberNotStrictMonotone extends InvalidOperation {
 }
 
 /// Thrown when an invalid operation is attempted
-class CommandTimeout extends EventSourceException {
-  const CommandTimeout(String message, this.command) : super(message);
+class CommandTimeout extends EventSourceException implements TimeoutException {
+  const CommandTimeout(String message, this.command, this.duration) : super(message);
   final Command command;
+  @override
+  final Duration duration;
 }
 
 /// Thrown when an required projection is not available

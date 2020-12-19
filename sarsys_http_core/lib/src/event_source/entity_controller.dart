@@ -132,7 +132,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       return Response.badRequest(body: e.message);
     } on RepositoryMaxPressureExceeded catch (e) {
       return tooManyRequests(body: e.message);
-    } on CommandTimeout catch (e) {
+    } on TimeoutException catch (e) {
       return gatewayTimeout(
         body: e.message,
       );
@@ -188,7 +188,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       return Response.badRequest(body: e.message);
     } on SchemaException catch (e) {
       return Response.badRequest(body: e.message);
-    } on CommandTimeout catch (e) {
+    } on TimeoutException catch (e) {
       return gatewayTimeout(
         body: e.message,
       );
@@ -230,7 +230,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       return Response.badRequest(body: e.message);
     } on RepositoryMaxPressureExceeded catch (e) {
       return tooManyRequests(body: e.message);
-    } on CommandTimeout catch (e) {
+    } on TimeoutException catch (e) {
       return gatewayTimeout(
         body: e.message,
       );

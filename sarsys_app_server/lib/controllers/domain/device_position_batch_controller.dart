@@ -49,7 +49,7 @@ class DevicePositionBatchController extends DevicePositionControllerBase {
       return Response.badRequest(body: e.message);
     } on RepositoryMaxPressureExceeded catch (e) {
       return tooManyRequests(body: e.message);
-    } on CommandTimeout catch (e) {
+    } on TimeoutException catch (e) {
       return gatewayTimeout(
         body: e.message,
       );

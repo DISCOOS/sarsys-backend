@@ -1153,10 +1153,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         try {
           _commands.add(command);
           await trx.onPush.timeout(timeout);
-        } on TimeoutException {
+        } on TimeoutException catch (e) {
           throw CommandTimeout(
             'Command ${command.runtimeType} ${command.uuid} timed out',
             command,
+            e.duration,
           );
         } finally {
           _commands.remove(command);
