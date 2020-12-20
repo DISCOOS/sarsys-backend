@@ -1,15 +1,15 @@
 imageTag: release-5.0.9
 clusterSize: 3
 nodeSelector: 
- doks.digitalocean.com/node-pool: k8s-3
+ doks.digitalocean.com/node-pool: k8s-4
 
 resources:
   requests:
    cpu: 800m
-   memory: 1Mi
+   memory: 2Mi
   limits:
     cpu: 1600m
-    memory: 2Gi
+    memory: 3Gi
 
 ##
 ## Configure a pod disruption budget for the Event Store StatefulSet.
