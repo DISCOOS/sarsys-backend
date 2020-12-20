@@ -825,10 +825,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Check given aggregate root exists.
   /// An aggregate exists IFF it repository contains it and is not deleted
-  bool exists(String uuid) => _aggregates.containsKey(uuid) && !_aggregates[uuid].isDeleted;
+  bool exists(String uuid) => contains(uuid) && !get(uuid).isDeleted;
 
-  /// Check if repository contains given aggregate root
-  bool contains(String uuid) => _aggregates.containsKey(uuid);
+  /// Check if given aggregate root exists (may need to be loaded from store)
+  bool contains(String uuid) => _aggregates.containsKey(uuid) || store.contains(uuid);
 
   /// Used in [dispose] to close open subscriptions
   StreamSubscription _pushQueueSubscription;
@@ -1408,11 +1408,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         this,
       );
     }
-    if (!_aggregates.containsKey(uuid)) {
-      throw AggregateNotFound(
-        'Aggregate $aggregateType $uuid not found',
-      );
-    }
+
+    _assertExists(uuid);
+
     final transaction = _assertCanModify(
       uuid,
       open: true,
@@ -1621,11 +1619,12 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   T _assertExists(String uuid) {
     if (!contains(uuid)) {
-      throw InvalidOperation(
-        'Aggregate $uuid not found',
+      throw AggregateNotFound(
+        '${typeOf<T>()} $uuid does not exists',
       );
     }
-    return _aggregates[uuid];
+    // Will fetch from store
+    return get(uuid);
   }
 
   /// Complete transaction for given [aggregate]
@@ -1694,7 +1693,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   List<Map<String, dynamic>> _asAggregateData(S command) {
     switch (command.action) {
       case Action.create:
-        if (_aggregates.containsKey(command.uuid)) {
+        if (contains(command.uuid)) {
           final existing = _aggregates[command.uuid];
           throw AggregateExists(
             '${typeOf<T>()} ${command.uuid} exists',
@@ -1704,21 +1703,17 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         break;
       case Action.update:
       case Action.delete:
-        if (!_aggregates.containsKey(command.uuid)) {
-          throw AggregateNotFound('${typeOf<T>()} ${command.uuid} does not exists');
-        }
+        // Will fetch aggregate from store if exists
+        _assertExists(command.uuid);
         break;
     }
     return [command.data];
   }
 
   Map<String, dynamic> _asEntityData(EntityCommand command) {
-    if (!_aggregates.containsKey(command.uuid)) {
-      throw AggregateNotFound('${typeOf<T>()} ${command.uuid} does not exist');
-    }
     var index;
     final data = {};
-    final root = get(command.uuid);
+    final root = _assertExists(command.uuid);
     final array = root.asEntityArray(
       command.aggregateField,
       entityIdFieldName: command.entityIdFieldName,

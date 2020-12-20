@@ -263,12 +263,19 @@ Future main() async {
     );
     // Wait for write to complete
     await Future.delayed(Duration(milliseconds: 250));
-    expect(repo.isNotEmpty, isTrue, reason: 'Repository should be rolled back');
+    expect(
+      repo.isNotEmpty,
+      isTrue,
+      reason: 'Repository should contain aggregate written after timeout',
+    );
 
     // Assert second attempt is allowed
     foo = repo.get(uuid);
     foo.patch({'uuid': uuid, 'property1': 'value1'}, emits: FooUpdated);
     await repo.push(foo);
+
+    // Assert that FooCreated which was late is applied
+    expect(foo.createdBy.type, equals('$FooCreated'));
     expect(foo.baseEvent.number, equals(EventNumber(1)));
   });
 
@@ -296,11 +303,18 @@ Future main() async {
     );
     // Wait for write to complete
     await Future.delayed(Duration(milliseconds: 250));
-    expect(repo.isNotEmpty, isTrue, reason: 'Repository should be rolled back');
+    expect(
+      repo.isNotEmpty,
+      isTrue,
+      reason: 'Repository should contain aggregate written after timeout',
+    );
 
     // Assert second attempt is allowed
     await repo.execute(UpdateFoo({'uuid': uuid, 'property1': 'value1'}));
     final foo = repo.get(uuid);
+
+    // Assert that FooCreated which was late is applied
+    expect(foo.createdBy.type, equals('$FooCreated'));
     expect(foo.baseEvent.number, equals(EventNumber(1)));
   });
 
