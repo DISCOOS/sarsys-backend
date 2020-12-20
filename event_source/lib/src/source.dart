@@ -218,6 +218,7 @@ class EventStore {
     final number = EventNumber(_snapshot.number.value);
     final offset = _events.keys.length - _snapshot.aggregates.length;
     if (_snapshot.isPartial) {
+      // TODO: This is wrong. Need to store position in projection as well
       return number - min(0, _snapshot.missing - offset);
     }
     return number + offset;
@@ -533,7 +534,11 @@ class EventStore {
     }
   }
 
-  Iterable<SourceEvent> _updateAll(String uuid, Iterable<SourceEvent> events) {
+  Iterable<SourceEvent> _updateAll(
+    String uuid,
+    String uuidFieldName,
+    Iterable<SourceEvent> events,
+  ) {
     if (events.isNotEmpty) {
       if (useInstanceStreams) {
         var idx = 0;
@@ -552,10 +557,12 @@ class EventStore {
         events.skipWhile((e) => e.number <= offset).fold<EventNumber>(
               offset,
               (previous, next) => _assertStrictMonotone(
-                stream,
-                idx++,
-                previous,
-                next,
+                uuid: uuid,
+                next: next,
+                index: idx++,
+                stream: stream,
+                previous: previous,
+                uuidFieldName: uuidFieldName,
               ),
             );
       }
@@ -582,7 +589,7 @@ class EventStore {
     String uuid,
     List<SourceEvent> events,
   ) {
-    final unseen = _updateAll(uuid, events);
+    final unseen = _updateAll(uuid, repo.uuidFieldName, events);
     final exists = repo.contains(uuid);
     final aggregate = repo.get(uuid);
 
@@ -620,6 +627,7 @@ class EventStore {
     if (bus.isReplaying == false && changes.isNotEmpty) {
       _updateAll(
         uuid,
+        uuidFieldName,
         _toSourceEvents(
           events: changes,
           uuidFieldName: uuidFieldName,
@@ -717,7 +725,14 @@ class EventStore {
     var idx = 0;
     changes.fold<EventNumber>(
       offset,
-      (previous, next) => _assertStrictMonotone(stream, idx++, previous, next),
+      (previous, next) => _assertStrictMonotone(
+        uuid: uuid,
+        next: next,
+        index: idx++,
+        stream: stream,
+        previous: previous,
+        uuidFieldName: uuidFieldName,
+      ),
     );
 
     try {
@@ -796,6 +811,7 @@ class EventStore {
 
   /// Subscription controller for each repository
   /// subscribing to events from [canonicalStream]
+  /// TODO: Really not needed as there is a 1-to-1 relationship between repo and store
   final _controllers = <Type, EventStoreSubscriptionController>{};
 
   /// Subscribe given [repository] to compete for changes from [canonicalStream]
@@ -920,7 +936,7 @@ class EventStore {
       // This ensures that the event added to an aggregate during
       // construction is overwritten with the remote event actual
       // received here.
-      _updateAll(uuid, [event]);
+      _updateAll(uuid, repo.uuidFieldName, [event]);
 
       // Event is already applied to aggregate?
       final isApplied = _isApplied(uuid, event, repo);
@@ -1191,21 +1207,33 @@ class EventStore {
     }
   }
 
-  EventNumber _assertStrictMonotone(String stream, int index, EventNumber previous, Event next) {
-    final delta = next.number.value - previous.value;
+  EventNumber _assertStrictMonotone({
+    @required int index,
+    @required Event next,
+    @required String uuid,
+    @required String stream,
+    @required EventNumber previous,
+    @required String uuidFieldName,
+  }) {
+    final expected = next.number.value;
+    final delta = expected - previous.value;
     if (delta != 1) {
-      final message = _toObject('Event number not strict monotone increasing: ', [
+      final message = _toObject('Event number not strict monotone increasing', [
+        'uuid: $uuid',
         'stream: $stream',
+        'delta: $delta',
         'event.prev.number: $previous',
+        'event.next.number: ${next.number}',
         'event.next.index: $index',
         'event.next.uuid: ${next.uuid}',
         'event.next.type: ${next.type}',
-        'event.next.number: ${next.number}',
-        'delta: $delta',
       ]);
       final error = EventNumberNotStrictMonotone(
-        message,
-        next,
+        uuid: uuid,
+        event: next,
+        message: message,
+        uuidFieldName: uuidFieldName,
+        expected: EventNumber(expected),
       );
       logger.severe(
         '$message,\ndebug: ${toDebugString(stream)}',
@@ -1358,6 +1386,10 @@ class EventStore {
           uuidFieldName: uuidFieldName,
         ));
   }
+
+  /// Check if a [EventStoreSubscriptionController]
+  /// exists for given [repository]
+  bool hasSubscription(Repository repository) => _controllers.containsKey(repository.runtimeType);
 }
 
 /// Class for handling a subscription with automatic reconnection on failures
@@ -1506,31 +1538,94 @@ class EventStoreSubscriptionController<T extends Repository> {
         '${_repository.runtimeType}: SubscriptionController is '
         'reconnecting to stream ${repository.store.canonicalStream}, attempt: $reconnects',
       );
-      await _subscription?.cancel();
-      if (_competing) {
-        final controller = await _repository.store.compete(
-          repository,
-          consume: _consume,
-          strategy: _strategy,
-          maxBackoffTime: maxBackoffTime,
-        );
-        _subscription = controller._subscription;
-      } else {
-        final controller = await repository.store.subscribe(
-          repository,
-          maxBackoffTime: maxBackoffTime,
-        );
-        _subscription = controller._subscription;
-      }
+      await _restart();
     } catch (e, stackTrace) {
       logger.network('Failed to reconnect: $e: $stackTrace', e, stackTrace);
     }
   }
 
+  Future _restart() async {
+    await _subscription?.cancel();
+    if (_competing) {
+      final controller = await _repository.store.compete(
+        repository,
+        consume: _consume,
+        strategy: _strategy,
+        maxBackoffTime: maxBackoffTime,
+      );
+      _subscription = controller._subscription;
+    } else {
+      final controller = await repository.store.subscribe(
+        repository,
+        maxBackoffTime: maxBackoffTime,
+      );
+      _subscription = controller._subscription;
+    }
+  }
+
   void _onEvent(SourceEvent event) {
-    if (!isPaused) {
-      _alive(_repository, event);
-      onEvent(_repository, event);
+    try {
+      if (!isPaused) {
+        _alive(_repository, event);
+        onEvent(_repository, event);
+      }
+    } on EventNumberNotStrictMonotone catch (e) {
+      // Fault-tolerant handling of this
+      // situation if it happens. If not handled,
+      // every successive event will throw a
+      // EventNumberNotStrictMonotone eventually
+      // leading to a partial snapshot being
+      // stored. Although this exception should
+      // never happen, regressions might lead to
+      // it happen anyway, which should be logged
+      // and handled as follows:
+
+      // ----------------------------------------
+      // 1. Pause immediately to ensure no more
+      // events are processed (method below is
+      // async and pausing will therefore happen
+      // later if called inside that method).
+      // Subscription is resumed when catchup
+      // is completed.
+      pause();
+
+      // ----------------------------------------
+      // 2. Attempt to catchup on affected
+      // aggregate only. If it fails, this
+      // subscription is cancelled and removed,
+      // effectively stopping repository from
+      // catchup automatically. This will
+      // gracefully degrade to manuel catchup
+      // on conflict, increasing write time.
+      _handleEventNumberNotStrictMonotone(e);
+    }
+  }
+
+  void _handleEventNumberNotStrictMonotone(EventNumberNotStrictMonotone error) async {
+    try {
+      logger.severe(_toMethod('_handleEventNumberNotStrictMonotone', [
+        _toObject('Attempting catchup on:', ['${repository.aggregateType}: ${error.uuid}'])
+      ]));
+      // Attempt to catchup on affected aggregate
+      await repository.catchup(uuids: [error.uuid]);
+      // Only resume on success
+      resume();
+    } catch (e, stackTrace) {
+      logger.severe(
+        _toMethod('_handleEventNumberNotStrictMonotone', [
+          _toObject(
+            'Failed catchup, degrading to manual catchup on conflicts',
+            ['${repository.aggregateType}: ${e.uuid}'],
+          )
+        ]),
+        e,
+        stackTrace,
+      );
+      // Was unable to handle error, cancel subscription
+      await cancel();
+      // Cleanup
+      final type = repository.runtimeType;
+      repository.store._controllers.remove(type);
     }
   }
 

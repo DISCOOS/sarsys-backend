@@ -25,12 +25,21 @@ class InvalidOperation extends EventSourceException {
 
 /// Thrown when an invalid operation is attempted
 class EventNumberNotStrictMonotone extends InvalidOperation {
-  const EventNumberNotStrictMonotone(
-    String message,
-    this.event,
-  ) : super(message);
+  const EventNumberNotStrictMonotone({
+    @required String message,
+    @required this.uuid,
+    @required this.event,
+    @required this.expected,
+    @required this.uuidFieldName,
+  }) : super(message);
 
+  /// Aggregate uuid
+  final String uuid;
   final Event event;
+  final String uuidFieldName;
+  final EventNumber expected;
+  EventNumber get actual => event.number;
+  int get delta => actual.value - expected.value;
 }
 
 /// Thrown when an invalid operation is attempted

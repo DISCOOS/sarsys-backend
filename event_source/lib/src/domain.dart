@@ -180,11 +180,10 @@ class RepositoryManager {
         );
       } else {
         completer.completeError(
-          ProjectionNotAvailable(
-            'Failed to prepare projections $backlog '
-            'with error: $e\n,'
+          ProjectionNotAvailable(_toObject('Failed to prepare projections $backlog', [
+            'error: $e',
             'stackTrace: ${Trace.format(stackTrace)}',
-          ),
+          ])),
           StackTrace.current,
         );
       }
@@ -373,10 +372,10 @@ class RepositoryManager {
         _stores.keys.map((repo) => repo.dispose()),
       );
     } on ClientException catch (e, stackTrace) {
-      logger.warning(
-        'Failed to dispose one or more stores with error: $e,\n'
-        'stacktrace: ${Trace.format(stackTrace)}',
-      );
+      logger.warning(_toObject('Failed to dispose one or more stores', [
+        'error: $e',
+        'stackTrace: ${Trace.format(stackTrace)}',
+      ]));
     }
     _stores.clear();
   }
@@ -771,6 +770,15 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Check if events are being replayed for this repository
   bool get isReplaying => store.bus.isReplayingType<T>();
 
+  /// Check if [catchup] is performed
+  /// manually on conflicts.
+  bool get isManual => !isManual;
+
+  /// Check if [catchup] is performed
+  /// automatically with [subscribe] or
+  /// [compete],
+  bool get isAutomatic => store.hasSubscription(this);
+
   /// Wait for repository becoming ready
   Future<bool> readyAsync() async {
     final callback = Completer<bool>();
@@ -896,7 +904,12 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       '$message: ${trx.toTagAsString()} (${_toPressureString()})',
     );
     if (trx.isOpen) {
-      trx.rollback(force: true);
+      _rollback(
+        trx.uuid,
+        error: error,
+        complete: true,
+        stackTrace: stackTrace,
+      );
       trx._completer.completeError(
         error,
         stackTrace,
@@ -1540,7 +1553,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     } catch (error, stackTrace) {
       logger.severe(
         _toMethod('_reconcile', [
-          _toObject('Failed to reconcile before push of ${aggregate.runtimeType} ${aggregate.uuid}: ', [
+          _toObject('Failed to reconcile before push of ${aggregate.runtimeType} ${aggregate.uuid}', [
             'error: $error',
             'stacktrace: ${Trace.format(stackTrace)}',
             'debug: ${toDebugString(aggregate?.uuid)}',
@@ -1582,6 +1595,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   Iterable<DomainEvent> _rollback(
     String uuid, {
     @required bool complete,
+    Object error,
+    StackTrace stackTrace,
   }) {
     final aggregate = _assertExists(uuid);
     final trx = _transactions[uuid];
@@ -1604,6 +1619,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     if (complete) {
       _completeTrx(
         uuid,
+        error: error,
+        stackTrace: stackTrace,
       );
     }
 
@@ -1759,19 +1776,19 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   String toDebugString([String uuid]) {
     final aggregate = _aggregates[uuid];
     final stream = store.toInstanceStream(uuid);
-    return '$runtimeType: {\n'
-        'ready: $isReady, '
-        'count: ${count()}, '
-        'stream: $stream,\n'
-        'canonicalStream: ${store.canonicalStream}}},\n'
-        'aggregate.type: ${aggregate?.runtimeType},\n'
-        'aggregate.uuid: ${aggregate?.uuid},\n'
-        'aggregate.data: ${aggregate?.data},\n'
-        'aggregate.modifications: ${aggregate?.modifications},\n'
-        'aggregate.applied.count: ${aggregate?.applied?.length},\n'
-        'aggregate.pending.count: ${aggregate?.getLocalEvents()?.length},\n'
-        'aggregate.pending.items: ${aggregate?.getLocalEvents()},\n'
-        '}';
+    return _toObject('$runtimeType', [
+      'ready: $isReady',
+      'count: ${count()}',
+      'stream: $stream',
+      'canonicalStream: ${store.canonicalStream}}}',
+      'aggregate.type: ${aggregate?.runtimeType}',
+      'aggregate.uuid: ${aggregate?.uuid}',
+      'aggregate.data: ${aggregate?.data}',
+      'aggregate.modifications: ${aggregate?.modifications}',
+      'aggregate.applied.count: ${aggregate?.applied?.length}',
+      'aggregate.pending.count: ${aggregate?.getLocalEvents()?.length}',
+      'aggregate.pending.items: ${aggregate?.getLocalEvents()}',
+    ]);
   }
 
   /// Reset current state to snapshot given
@@ -1864,6 +1881,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         'transactions': _transactions.length,
       },
       'number': number.value,
+      'automatic': isAutomatic,
       if (queue) 'queue': _toQueueMeta(),
       if (snapshot && hasSnapshot) 'snapshot': _toSnapshotMeta(items, data),
       if (aggregate != null)
@@ -2939,16 +2957,16 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     }
   }
 
-  void _assertEqualNumber(DomainEvent event, EventNumber number) {
-    final delta = number.value - event.number.value;
+  void _assertEqualNumber(DomainEvent event, EventNumber expected) {
+    final delta = expected.value - event.number.value;
     if (delta != 0) {
-      final message = 'Event number not equal to current: {\n'
-          '  aggregate.uuid: $uuid\n'
-          '  aggregate.type: $runtimeType\n'
-          '  event.type: ${event.type}\n'
-          '  event.number.expected: $number\n'
-          '  event.number.actual: ${event.number.value}\n'
-          '}';
+      final message = _toObject('Event number not equal to current', [
+        'aggregate.uuid: $uuid',
+        'aggregate.type: $runtimeType',
+        'event.type: ${event.type}',
+        'event.number.expected: $expected',
+        'event.number.actual: ${event.number.value}'
+      ]);
       throw InvalidOperation(message);
     }
   }
@@ -2957,9 +2975,9 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     DomainEvent event, {
     @required bool isLocal,
   }) {
-    var mode;
-    var expected;
-    var actual = event.number.value;
+    String mode;
+    int expected;
+    final actual = event.number.value;
     if (isLocal) {
       mode = 'local';
       // Should have same number
@@ -2978,29 +2996,32 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     }
     final delta = expected - actual;
     if (delta != 0) {
-      final message = 'Event number not strict monotone increasing: {\n'
-          '  event.mode: $mode,\n'
-          '  event.type: ${event.type},\n'
-          '  event.uuid: ${event.uuid},\n'
-          '  event.applied: ${isApplied(event)}.\n'
-          '  event.number.expected: $expected\n'
-          '  event.number.actual: $actual,\n'
-          '  event.number.delta: $delta,\n'
-          '  aggregate.uuid: $uuid,\n'
-          '  aggregate.type: $runtimeType,\n'
-          '  aggregate.number: ${number.value},\n'
-          '  aggregate.pending: ${_localEvents.length},\n'
-          '  aggregate.modification: $modifications,\n'
-          '  aggregate.head.uuid: ${headEvent.uuid},\n'
-          '  aggregate.head.number: ${headEvent.number},\n'
-          '  aggregate.base.uuid: ${baseEvent.uuid},\n'
-          '  aggregate.base.number: ${baseEvent.number},\n'
-          '  aggregate.last.uuid: ${lastEvent.uuid},\n'
-          '  aggregate.last.number: ${lastEvent.number},\n'
-          '}';
+      final message = _toObject('Event number not strict monotone increasing', [
+        'event.mode: $mode',
+        'event.type: ${event.type}',
+        'event.uuid: ${event.uuid}',
+        'event.applied: ${isApplied(event)}',
+        'event.number.expected: $expected',
+        'event.number.actual: $actual',
+        'event.number.delta: $delta',
+        'aggregate.uuid: $uuid',
+        'aggregate.type: $runtimeType',
+        'aggregate.number: ${number.value}',
+        'aggregate.pending: ${_localEvents.length}',
+        'aggregate.modification: $modifications',
+        'aggregate.head.uuid: ${headEvent.uuid}',
+        'aggregate.head.number: ${headEvent.number}',
+        'aggregate.base.uuid: ${baseEvent.uuid}',
+        'aggregate.base.number: ${baseEvent.number}',
+        'aggregate.last.uuid: ${lastEvent.uuid}',
+        'aggregate.last.number: ${lastEvent.number}',
+      ]);
       throw EventNumberNotStrictMonotone(
-        message,
-        event,
+        uuid: uuid,
+        event: event,
+        message: message,
+        uuidFieldName: uuidFieldName,
+        expected: EventNumber(expected),
       );
     }
   }
@@ -3279,11 +3300,11 @@ abstract class MergeStrategy {
         _toMethod('_reconcileWithRetry', [
           _toObject(
               'Aborted automatic merge after ${transaction._maxAttempts} '
-              'retries on ${aggregate.runtimeType} ${aggregate.uuid}: ',
+              'retries on ${aggregate.runtimeType} ${aggregate.uuid}',
               [
                 'error: $error',
                 'stacktrace: ${Trace.format(stackTrace)}',
-                'debug: ${repository.toDebugString(aggregate?.uuid)}',
+                'debug: ${repository.toDebugString(aggregate?.uuid)}'
               ]),
         ]),
         error,

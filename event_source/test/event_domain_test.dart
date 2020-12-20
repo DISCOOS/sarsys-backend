@@ -143,10 +143,14 @@ Future main() async {
     // Act - force 500 error on push
     final uuid = Uuid().v4();
     var foo = repo.get(uuid);
-    final timeout = Duration(milliseconds: 100);
     final requests = Future.wait([
-      repo.push(foo, timeout: timeout),
-      stream.onWriteDelay(duration: timeout),
+      repo.push(
+        foo,
+        timeout: Duration(milliseconds: 100),
+      ),
+      stream.onWriteDelay(
+        duration: Duration(milliseconds: 200),
+      ),
     ], eagerError: true);
     await expectLater(
       requests,
@@ -190,10 +194,14 @@ Future main() async {
 
     // Act - force 500 error on push
     final uuid = Uuid().v4();
-    final timeout = Duration(milliseconds: 100);
     final requests = Future.wait([
-      repo.execute(CreateFoo({'uuid': uuid}), timeout: timeout),
-      stream.onWriteDelay(duration: timeout),
+      repo.execute(
+        CreateFoo({'uuid': uuid}),
+        timeout: Duration(milliseconds: 100),
+      ),
+      stream.onWriteDelay(
+        duration: Duration(milliseconds: 200),
+      ),
     ], eagerError: true);
     await expectLater(
       requests,
