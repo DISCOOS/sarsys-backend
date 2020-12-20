@@ -134,6 +134,52 @@ Future main() async {
     );
   });
 
+  test('Repository subscription should handle patch errors by skipping events', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
+    final uuid = Uuid().v4();
+    final foo = repo.get(uuid, data: {'property11': 'value11'});
+    final data1 = foo.data;
+    await repo.push(foo);
+
+    // Stop catchup subscription
+    repo.store.pause();
+
+    // Perform remote modification on data not found locally
+    final stream = harness.server().getStream(repo.store.aggregate);
+    final data2 = {
+      'property12': ['value12', 'value13', 'value14']
+    };
+    final data3 = {
+      'property12': ['value13', 'value14', 'value15']
+    };
+    final eventId = Uuid().v4();
+    stream.append(
+      '${stream.instanceStream}-0',
+      [
+        TestStream.asSourceEvent<FooUpdated>(
+          uuid,
+          data2,
+          data3,
+          eventId: eventId,
+          number: EventNumber(1),
+        ),
+      ],
+    );
+
+    // Act - resume catchup
+    repo.store.resume();
+
+    // Wait for catchup to complete
+    await Future.delayed(Duration(milliseconds: 300));
+
+    // Assert - patches in event 2 is skipped
+    expect(foo.number.value, equals(1));
+    expect(foo.data, equals(data1));
+    expect(foo.skipped, contains(eventId));
+  });
+
   test('Repository should recover from ES error on push', () async {
     // Arrange
     final repo = harness.get<FooRepository>();
@@ -151,9 +197,9 @@ Future main() async {
     expect(repo.isEmpty, isTrue, reason: 'Repository should be rolled back');
 
     // Assert second attempt is allowed
-    //   foo = repo.get(uuid);
-    //   await repo.push(foo);
-    //   expect(foo.baseEvent.number, equals(EventNumber(0)));
+    foo = repo.get(uuid);
+    await repo.push(foo);
+    expect(foo.baseEvent.number, equals(EventNumber(0)));
   });
 
   test('Repository should recover from ES status 500 on execute', () async {

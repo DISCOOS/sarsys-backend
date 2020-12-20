@@ -1080,13 +1080,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     bool master = false,
     List<String> uuids = const [],
   }) =>
-      isProcessing
-          ? Future.value(0)
-          : store.catchup(
-              this,
-              uuids: uuids,
-              master: master,
-            );
+      store.catchup(
+        this,
+        uuids: uuids,
+        master: master,
+      );
 
   final Map<String, Transaction> _transactions = {};
 
@@ -1495,9 +1493,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       logger.severe(
         _toMethod('_push', [
           _toObject('Failed to push ${aggregate.runtimeType} ${aggregate.uuid}', [
+            'debug: ${toDebugString(aggregate?.uuid)}',
             'error: $error',
             'stacktrace: ${Trace.format(stackTrace)}',
-            'debug: ${toDebugString(aggregate?.uuid)}',
           ]),
         ]),
         error,
@@ -1547,9 +1545,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       logger.severe(
         _toMethod('_reconcile', [
           _toObject('Failed to reconcile before push of ${aggregate.runtimeType} ${aggregate.uuid}', [
+            'debug: ${toDebugString(aggregate?.uuid)}',
             'error: $error',
             'stacktrace: ${Trace.format(stackTrace)}',
-            'debug: ${toDebugString(aggregate?.uuid)}',
           ]),
         ]),
         error,
@@ -1868,7 +1866,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         'transactions': _transactions.length,
       },
       'number': number.value,
-      'automatic': isAutomatic,
       if (queue) 'queue': _toQueueMeta(),
       if (snapshot && hasSnapshot) 'snapshot': _toSnapshotMeta(items, data),
       if (aggregate != null)
@@ -1882,10 +1879,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     };
   }
 
-  Map<String, Map<String, Object>> _toSubscriptionMeta() {
+  Map<String, Map<String, dynamic>> _toSubscriptionMeta() {
     return {
       'catchup': {
-        'exists': _storeSubscriptionController != null,
+        'isAutomatic': isAutomatic,
+        'exists': store.hasSubscription(this),
         if (_storeSubscriptionController != null)
           'last': {
             'type': '${_storeSubscriptionController.lastEvent?.type}',
@@ -1989,42 +1987,57 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     AggregateRoot aggregate, {
     bool data = true,
     bool items = true,
-  }) =>
-      <String, dynamic>{
-        'uuid': aggregate.uuid,
-        'number': aggregate.number.value,
-        'created': <String, dynamic>{
-          'uuid': aggregate.createdBy?.uuid,
-          'type': '${aggregate.createdBy?.type}',
-          'timestamp': aggregate.createdWhen.toIso8601String(),
-        },
-        'changed': <String, dynamic>{
-          'uuid': aggregate.changedBy?.uuid,
-          'type': '${aggregate.changedBy?.type}',
-          'timestamp': aggregate.changedWhen.toIso8601String(),
-        },
-        'modifications': aggregate.modifications,
-        'applied': <String, dynamic>{
-          'count': aggregate.applied?.length,
-        },
-        if (data) 'data': aggregate.data,
-        'transaction': inTransaction(aggregate.uuid),
-        'pending': <String, dynamic>{
-          'count': aggregate.getLocalEvents()?.length,
-          if (items)
-            'items': [
-              ...aggregate
-                  .getLocalEvents()
-                  .map((e) => {
-                        'type': e.type,
-                        'number': e.number.value,
-                        'created': e.created.toIso8601String(),
-                        if (data) 'data': e.data,
-                      })
-                  .toList(),
-            ],
-        },
-      };
+  }) {
+    final applied = aggregate._applied;
+    return <String, dynamic>{
+      'uuid': aggregate.uuid,
+      'number': aggregate.number.value,
+      'created': <String, dynamic>{
+        'uuid': aggregate.createdBy?.uuid,
+        'type': '${aggregate.createdBy?.type}',
+        'timestamp': aggregate.createdWhen.toIso8601String(),
+      },
+      'changed': <String, dynamic>{
+        'uuid': aggregate.changedBy?.uuid,
+        'type': '${aggregate.changedBy?.type}',
+        'timestamp': aggregate.changedWhen.toIso8601String(),
+      },
+      'modifications': aggregate.modifications,
+      'applied': <String, dynamic>{
+        'count': applied?.length,
+      },
+      'skipped': <String, dynamic>{
+        'count': aggregate.skipped?.length,
+        if (items)
+          'items': aggregate.skipped
+              .map((uuid) => applied[uuid])
+              .map((e) => {
+                    'type': e.type,
+                    'number': e.number.value,
+                    'created': e.created.toIso8601String(),
+                    if (data) 'patches': e.patches,
+                  })
+              .toList(),
+      },
+      if (data) 'data': aggregate.data,
+      'transaction': inTransaction(aggregate.uuid),
+      'pending': <String, dynamic>{
+        'count': aggregate.getLocalEvents()?.length,
+        if (items)
+          'items': [
+            ...aggregate
+                .getLocalEvents()
+                .map((e) => {
+                      'type': e.type,
+                      'number': e.number.value,
+                      'created': e.created.toIso8601String(),
+                      if (data) 'data': e.data,
+                    })
+                .toList(),
+          ],
+      },
+    };
+  }
 }
 
 /// Base class for [aggregate roots](https://martinfowler.com/bliki/DDD_Aggregate.html).
@@ -2279,6 +2292,10 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// [Message.uuid]s of applied events
   final LinkedHashMap<String, DomainEvent> _applied = LinkedHashMap<String, DomainEvent>();
 
+  /// List of remote events not applied because of errors
+  Iterable<String> get skipped => List.unmodifiable(_skipped);
+  final LinkedHashSet<String> _skipped = LinkedHashSet<String>();
+
   /// Check if event is applied to
   /// this [AggregateRoot] instance
   /// and can be fetched
@@ -2431,6 +2448,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     } else {
       _head.clear();
       _applied.clear();
+      _skipped.clear();
       _createdBy = null;
       _changedBy = null;
       _deletedBy = null;
@@ -2679,8 +2697,9 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// method when the aggregate has [hasConflicts]
   /// will throw an [InvalidOperation].
   ///
-  DomainEvent apply(DomainEvent event) => _apply(
+  DomainEvent apply(DomainEvent event, {bool skip = false}) => _apply(
         event,
+        skip: skip,
         isLocal: false,
       );
 
@@ -2753,6 +2772,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   DomainEvent _apply(
     DomainEvent event, {
     @required bool isLocal,
+    bool skip = false,
   }) {
     _assertUuid(event);
 
@@ -2778,17 +2798,19 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     if (isLocal) {
       // Local change only
       _assertNoConflicts();
+      // Never skip local changes
       _patch(
         terse,
         isLocal: true,
       );
-    } else if (isChanged) {
+    } else if (!skip && isChanged) {
       // Merge concurrent remote and local changes
       _merge(terse);
     } else {
       // Remote change only
       _patch(
         terse,
+        skip: skip,
         isLocal: false,
       );
     }
@@ -2799,6 +2821,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   void _patch(
     DomainEvent event, {
     @required bool isLocal,
+    bool skip = false,
   }) {
     assert(event.isTerse, 'only terse events are applied');
 
@@ -2812,8 +2835,9 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     // Set timestamps
     _setModifier(event);
 
-    // Deletion does not update data
-    if (!event.isDeleted) {
+    // Deletion does not update data.
+    // Add event to list of skipped events if skipped
+    if (!(skip || event.isDeleted)) {
       _setData(
         JsonUtils.apply(
           data,
@@ -2826,6 +2850,9 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
       _localEvents.add(event);
     } else {
       _applied[event.uuid] = event;
+      if (skip) {
+        _skipped.add(event.uuid);
+      }
       // Rebase local event numbers
       _localEvents.forEach(
         (e) => e.number++,
@@ -3289,10 +3316,10 @@ abstract class MergeStrategy {
               'Aborted automatic merge after ${transaction._maxAttempts} '
               'retries on ${aggregate.runtimeType} ${aggregate.uuid}',
               [
+                'debug: ${repository.toDebugString(aggregate?.uuid)}',
                 'error: $error',
                 'stacktrace: ${Trace.format(stackTrace)}',
-                'debug: ${repository.toDebugString(aggregate?.uuid)}'
-              ]),
+              ])
         ]),
         error,
         Trace.from(stackTrace),

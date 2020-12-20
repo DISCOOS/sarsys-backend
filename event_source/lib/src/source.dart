@@ -173,6 +173,17 @@ class EventStore {
   /// This map is used to count number of events
   final LinkedHashMap<String, String> _events = LinkedHashMap();
 
+  /// Get [AggregateRoot.uuid] from given [Event].
+  /// Returns null if event does not exist.
+  String getAggregateUuid(Event event) => _events[event.uuid];
+
+  /// Check if given [SourceEvent] exist in store
+  bool exists(SourceEvent event) => _events.containsKey(event.uuid);
+
+  /// Check event [SourceEvent] with given [uuid]
+  SourceEvent getEvent(String uuid) =>
+      _events.containsKey(uuid) ? _aggregates[_events[uuid]].where((e) => e.uuid == uuid).firstOrNull : null;
+
   /// Get [Storage] instance
   final Storage snapshots;
 
@@ -1086,8 +1097,8 @@ class EventStore {
 
   /// Handle subscription errors
   void _onSubscriptionError(Repository repository, Object error, StackTrace stackTrace) {
-    _fatal(
-      repository,
+    _onFatal(
+      '${repository.runtimeType} subscription failed',
       error,
       stackTrace,
     );
@@ -1096,11 +1107,13 @@ class EventStore {
     }
   }
 
-  void _fatal(Repository repository, Object error, StackTrace stackTrace) {
+  void _onFatal(String message, Object error, StackTrace stackTrace) {
     logger.network(
-      '${repository.runtimeType}: subscription failed '
-      'with error: $error, \n'
-      'stacktrace: ${Trace.format(stackTrace)}',
+      _toMethod('_onFatal', [
+        'message: $message',
+        'error: $error',
+        'stacktrace: ${Trace.format(stackTrace)}',
+      ]),
       error,
       stackTrace,
     );
@@ -1136,6 +1149,7 @@ class EventStore {
   void _assertCurrentVersion(String stream, EventNumber actual, {String reason = 'Catch up failed'}) {
     final number = current(stream: stream);
     if (number != actual) {
+      final stackTrace = StackTrace.current;
       final error = EventNumberMismatch(
         stream: stream,
         actual: actual,
@@ -1143,9 +1157,15 @@ class EventStore {
         current: current(stream: stream),
       );
       logger.severe(
-        '${error.message},\ndebug: ${toDebugString(stream)}',
+        _toMethod('_assertCurrentVersion', [
+          _toObject('${error.runtimeType}', [
+            'debug: ${toDebugString(stream)}',
+            'error: ${error.message}',
+            'stackTrace: ${Trace.format(stackTrace)}',
+          ])
+        ]),
         error,
-        Trace.from(StackTrace.current),
+        Trace.from(stackTrace),
       );
       throw error;
     }
@@ -1162,6 +1182,7 @@ class EventStore {
     final expected = next.number.value;
     final delta = expected - previous.value;
     if (delta != 1) {
+      final stackTrace = StackTrace.current;
       final message = _toObject('Event number not strict monotone increasing', [
         'uuid: $uuid',
         'stream: $stream',
@@ -1179,11 +1200,19 @@ class EventStore {
         uuidFieldName: uuidFieldName,
         expected: EventNumber(expected),
       );
+
       logger.severe(
-        '$message,\ndebug: ${toDebugString(stream)}',
+        _toMethod('_assertCurrentVersion', [
+          _toObject('${error.runtimeType}', [
+            'debug: ${toDebugString(stream)}',
+            'error: ${error.message}',
+            'stackTrace: ${Trace.format(stackTrace)}',
+          ])
+        ]),
         error,
-        Trace.from(StackTrace.current),
+        Trace.from(stackTrace),
       );
+
       throw error;
     }
     return next.number;
@@ -1213,7 +1242,12 @@ class EventStore {
       );
     }
     _paused++;
-    logger.fine('pause($_paused)');
+    if (logger.level <= Level.FINE) {
+      logger.fine(_toMethod('pause', [
+        'paused: $_paused',
+        'stackTrace: ${Trace.format(StackTrace.current)}',
+      ]));
+    }
     return numbers;
   }
 
@@ -1256,7 +1290,12 @@ class EventStore {
         );
       }
     }
-    logger.fine('resume($_paused)');
+    if (logger.level <= Level.FINE) {
+      logger.fine(_toMethod('resume', [
+        'paused: $_paused',
+        'stackTrace: ${Trace.format(StackTrace.current)}',
+      ]));
+    }
     return numbers;
   }
 
@@ -1514,27 +1553,12 @@ class EventStoreSubscriptionController<T extends Repository> {
         onEvent(_repository, event);
       }
     } on JsonPatchError catch (error, stackTrace) {
-      final store = _repository.store;
-      final stream = _repository.store.canonicalStream;
-      _onFatal(
+      _handleJsonPatchError(
         event,
-        error: error,
-        stream: stream,
-        stackTrace: stackTrace,
-        message: _toObject('${error.runtimeType}', [
-          'message: Failed to apply patches from stream $stream: ${error.message}',
-          'connection: ${store.connection.host}:${store.connection.port}',
-          'event.type: ${event.type}',
-          'event.uuid: ${event.uuid}',
-          'event.number: ${event.number}',
-          'repository: ${_repository.runtimeType}',
-          'repository.empty: ${_repository.isEmpty}',
-          'isInstanceStream: ${store.useInstanceStreams}',
-          'store.events.count: ${store.events.values.fold(0, (count, events) => count + events.length)}',
-          'store.events.items: ${store.events.values}',
-        ]),
+        error,
+        Trace.from(stackTrace),
       );
-    } on EventNumberNotStrictMonotone catch (e) {
+    } on EventNumberNotStrictMonotone catch (error, stackTrace) {
       // Fault-tolerant handling of this
       // situation if it happens. If not handled,
       // every successive event will throw a
@@ -1562,53 +1586,170 @@ class EventStoreSubscriptionController<T extends Repository> {
       // catchup automatically. This will
       // gracefully degrade to manuel catchup
       // on conflict, increasing write time.
-      _handleEventNumberNotStrictMonotone(e);
+      _handleEventNumberNotStrictMonotone(
+        error,
+        Trace.from(stackTrace),
+      );
     } catch (error, stackTrace) {
       final store = _repository.store;
+      final uuid = _repository.toAggregateUuid(event);
       final stream = _repository.store.canonicalStream;
+      final aggregate = _repository.get(uuid, createNew: false);
       _onFatal(
         event,
         error: error,
         stream: stream,
         stackTrace: stackTrace,
-        message: _toObject('${error.runtimeType}', [
-          'message: $error',
-          'connection: ${store.connection.host}:${store.connection.port}',
-          'event.type: ${event.type}',
-          'event.uuid: ${event.uuid}',
-          'event.number: ${event.number}',
-          'repository: ${_repository.runtimeType}',
-          'repository.empty: ${_repository.isEmpty}',
-          'isInstanceStream: ${store.useInstanceStreams}',
-          'store.events.count: ${store.events.values.fold(0, (count, events) => count + events.length)}',
-          'store.events.items: ${store.events.values}',
+        message: _toObject('Failed to process $event from $stream', [
+          'cause: unknown',
+          'error: $error',
+          _toObject('debug', [
+            'connection: ${store.connection.host}:${store.connection.port}',
+            'event.type: ${event.type}',
+            'event.uuid: ${event.uuid}',
+            'event.number: ${event.number}',
+            _toObject(
+              'event.patches',
+              event.patches.map((p) => '$p').toList(),
+            ),
+            'aggregate.uuid: $uuid',
+            'aggregate.type: ${_repository.aggregateType}',
+            'aggregate.number: ${aggregate?.number}',
+            'repository: ${_repository.runtimeType}',
+            'repository.empty: ${_repository.isEmpty}',
+            'isInstanceStream: ${store.useInstanceStreams}',
+            'store.events.count: ${store.events.values.fold(0, (count, events) => count + events.length)}',
+          ])
         ]),
       );
     }
   }
 
-  void _handleEventNumberNotStrictMonotone(EventNumberNotStrictMonotone error) async {
+  void _handleJsonPatchError(SourceEvent event, JsonPatchError error, Trace stackTrace) {
+    final store = _repository.store;
+    final uuid = _repository.toAggregateUuid(event);
+    final stream = _repository.store.canonicalStream;
+    final aggregate = _repository.get(uuid, createNew: false);
+
+    final debug = _toObject('debug', [
+      'connection: ${store.connection.host}:${store.connection.port}',
+      'event.type: ${event.type}',
+      'event.uuid: ${event.uuid}',
+      'event.number: ${event.number}',
+      _toObject(
+        'event.patches',
+        event.patches.map((p) => '$p').toList(),
+      ),
+      'aggregate.uuid: $uuid',
+      'aggregate.type: ${_repository.aggregateType}',
+      'aggregate.number: ${aggregate?.number}',
+      'repository: ${_repository.runtimeType}',
+      'repository.empty: ${_repository.isEmpty}',
+      'isInstanceStream: ${store.useInstanceStreams}',
+      'store.events.count: ${store.events.values.fold(0, (count, events) => count + events.length)}',
+    ]);
+
+    if (aggregate != null) {
+      // This implies that event exists in store
+      if (store.exists(event)) {
+        // Apply it safely by skip patching
+        aggregate.apply(
+          _repository.toDomainEvent(event),
+          skip: true,
+        );
+        logger.warning(
+          _toMethod('_handleJsonPatchError', [
+            'resolution: skipped',
+            'cause: Failed to apply patches from stream $stream',
+            'error: $error',
+            debug,
+          ]),
+          error,
+          stackTrace,
+        );
+      } else {
+        // Notify
+        _onFatal(
+          event,
+          error: error,
+          stream: stream,
+          stackTrace: stackTrace,
+          message: _toObject('Failed to process $event from $stream', [
+            'resolution: none',
+            _toObject('cause', [
+              'Failed to apply patches from stream $stream',
+              'Failed to add event to skipped because event does not exist in store',
+            ]),
+            'error: $error',
+            debug,
+          ]),
+        );
+      }
+    }
+  }
+
+  void _handleEventNumberNotStrictMonotone(EventNumberNotStrictMonotone error, Trace stackTrace) async {
     try {
-      logger.severe(_toMethod('_handleEventNumberNotStrictMonotone', [
-        _toObject('Attempting catchup on', ['${repository.aggregateType}: ${error.uuid}'])
-      ]));
-      // Attempt to catchup on affected aggregate
-      await repository.catchup(uuids: [error.uuid]);
-      // Only resume on success
-      resume();
-    } catch (e, stackTrace) {
       logger.severe(
         _toMethod('_handleEventNumberNotStrictMonotone', [
-          _toObject(
-            'Failed catchup, degrading to manual catchup on conflicts',
-            ['${repository.aggregateType}: ${e.uuid}'],
-          )
+          _toObject('Attempting catchup on', [
+            _toObject('${repository.aggregateType}', [
+              'uuid: ${error.uuid}',
+              'delta: ${error.delta}',
+              'actual: ${error.actual}',
+              'expected: ${error.expected}',
+            ]),
+          ]),
         ]),
-        e,
+        error,
         stackTrace,
       );
+
+      // Attempt to catchup on affected aggregate
+      await repository.catchup(uuids: [error.uuid]);
+
+      // Only resume on success
+      resume();
+
+      final aggregate = repository.get(error.uuid);
+
+      logger.severe(
+        _toMethod('_handleEventNumberNotStrictMonotone', [
+          _toObject('Catchup succeed on', [
+            _toObject('${repository.aggregateType}', [
+              'uuid: ${aggregate?.uuid}',
+              'after: ${aggregate?.number}',
+              'before: ${error.actual}',
+              'expected: ${error.expected}',
+            ]),
+          ]),
+        ]),
+        error,
+        stackTrace,
+      );
+    } catch (e, next) {
+      logger.severe(
+        _toMethod('_handleEventNumberNotStrictMonotone', [
+          _toObject('Failed catchup, degrading to manual catchup on conflicts', [
+            _toObject('${repository.aggregateType}', [
+              'uuid: ${error.uuid}',
+              'delta: ${error.delta}',
+              'actual: ${error.actual}',
+              'expected: ${error.expected}',
+            ]),
+            _toObject('cause', [
+              'error: $error',
+              'stackTrace: ${Trace.format(StackTrace.current)}',
+            ]),
+          ])
+        ]),
+        e,
+        next,
+      );
+
       // Was unable to handle error, cancel subscription
       await cancel();
+
       // Cleanup
       final type = repository.runtimeType;
       repository.store._controllers.remove(type);
@@ -1623,26 +1764,17 @@ class EventStoreSubscriptionController<T extends Repository> {
     StackTrace stackTrace,
   }) {
     // Concatenate additional error information
-    message = 'Failed to process $event from $stream: ' +
-        _toObject('${error.runtimeType}', [
-          'message: $message',
-          'error: $error',
-          'stacktrace: ${Trace.format(stackTrace)}',
-        ]);
+    message = _toMethod('_onFatal', [
+      'message: $message',
+      'error: $error',
+      'stacktrace: ${Trace.format(stackTrace)}',
+    ]);
 
     logger.network(
       message,
       error,
       stackTrace,
     );
-
-    // _streamController.addError(
-    //   RepositoryError(
-    //     message,
-    //     stackTrace,
-    //   ),
-    //   stackTrace,
-    // );
   }
 
   int toNextReconnectMillis() {
@@ -2607,7 +2739,7 @@ class _EventStreamController {
       } while (feed != null && feed.isOK && !(feed.headOfStream || feed.isEmpty));
       _stopRead();
     } catch (e, stackTrace) {
-      _fatal(
+      _onFatal(
         'Failed to read stream $_stream@$_current in direction ${enumName(_direction)}, error: $e',
         stackTrace,
       );
@@ -2691,7 +2823,7 @@ class _EventStreamController {
         direction: Direction.forward,
       );
 
-  void _fatal(Object error, StackTrace stackTrace) {
+  void _onFatal(Object error, StackTrace stackTrace) {
     _controller?.addError(error, stackTrace);
     _stopRead();
   }
@@ -2942,7 +3074,7 @@ class _EventStoreSubscriptionControllerImpl {
         'Listen for events in subscription $name starting from number $_current',
       );
     } catch (error, stackTrace) {
-      _fatal(
+      _onFatal(
         'Failed to start timer for subscription $name, error: $error',
         error,
         stackTrace,
@@ -2950,7 +3082,7 @@ class _EventStoreSubscriptionControllerImpl {
     }
   }
 
-  void _fatal(String message, Object error, StackTrace stackTrace) {
+  void _onFatal(String message, Object error, StackTrace stackTrace) {
     _stopTimer();
     controller.addError(error, stackTrace);
   }
@@ -3152,4 +3284,4 @@ class DurationMetric {
 }
 
 String _toMethod(String name, List<String> args) => '$name(\n  ${args.join(',\n  ')})';
-String _toObject(String name, List<String> args) => '$name: {\n  ${args.join(',\n  ')}\n}';
+String _toObject(String name, List<String> args) => '$name: {\n  ${args.join(',\n  ')}}';
