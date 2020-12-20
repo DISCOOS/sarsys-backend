@@ -367,23 +367,35 @@ class TestStream {
 
   static const timeout = Duration(seconds: 30);
 
-  Future _onHandleOnce(RequestHandler handler, Completer<bool> completer) async {
+  Future _onHandleOnce(RequestHandler handler, Completer<bool> completer) {
+    final onHandled = Completer();
     addRequestHandler(handler);
-    return completer.future.whenComplete(() {
+    completer.future.whenComplete(() {
       removeRequestHandler(handler);
+      onHandled.complete();
     });
+    return onHandled.future;
   }
 
-  Future onWriteDelay({Duration duration = timeout, List<String> streams = const []}) async {
+  Future onWriteDelay({
+    Duration duration = timeout,
+    List<String> streams = const [],
+    bool override = false,
+    String reasonPhrase = 'Fake error message',
+    int statusCode = HttpStatus.internalServerError,
+  }) async {
     final completer = Completer<bool>();
     return _onHandleOnce((HttpRequest request, String stream) async {
       if (request.method == 'POST') {
         if (streams.isEmpty || streams.contains(stream)) {
           return Future.delayed(duration, () {
-            if (!completer.isCompleted) {
-              completer.complete(null);
+            if (override) {
+              request.response
+                ..statusCode = statusCode
+                ..reasonPhrase = reasonPhrase;
             }
-            return false;
+            completer.complete();
+            return override;
           });
         }
       }
@@ -391,18 +403,18 @@ class TestStream {
     }, completer);
   }
 
-  Future onWriteServerError(String reasonPhrase, {List<String> streams = const []}) async {
+  Future onWriteServerError({
+    String reasonPhrase = 'Fake error message',
+    List<String> streams = const [],
+  }) async {
     final completer = Completer<bool>();
     return _onHandleOnce((HttpRequest request, String stream) async {
-      logger.info('onWriteServerError(stream: $stream)');
       if (request.method == 'POST') {
         if (streams.isEmpty || streams.contains(stream)) {
           request.response
             ..statusCode = HttpStatus.internalServerError
             ..reasonPhrase = reasonPhrase;
-          if (!completer.isCompleted) {
-            completer.complete(null);
-          }
+          completer.complete();
           return true;
         }
       }

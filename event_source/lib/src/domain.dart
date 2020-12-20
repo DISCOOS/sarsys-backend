@@ -543,12 +543,10 @@ class Transaction<S extends Command, T extends AggregateRoot> {
   /// completed. Useful when
   ///
   Iterable<DomainEvent> _rollback({@required bool complete}) {
-    return exists
-        ? repository._rollback(
-            aggregate.uuid,
-            complete: complete,
-          )
-        : <DomainEvent>[];
+    return repository._rollback(
+      uuid,
+      complete: complete,
+    );
   }
 
   bool get isOpen => !_isCompleted;
@@ -562,10 +560,10 @@ class Transaction<S extends Command, T extends AggregateRoot> {
   }) {
     try {
       _assertComplete();
-      // Prevent infinite reentry loop
-      // from calling rollback on errors
-      if (exists) {
-        if (error == null) {
+      if (error == null) {
+        // Prevent infinite reentry loop
+        // from calling rollback on errors
+        if (exists) {
           if (aggregate.isChanged) {
             final completed = aggregate.commit(
               changes: changes,
@@ -583,15 +581,15 @@ class Transaction<S extends Command, T extends AggregateRoot> {
           // local origin using the local field
           // in each Event
           repository.store.publish(changes);
-        } else {
-          _rollback(
-            complete: false,
-          );
-          _completer.completeError(
-            error,
-            stackTrace,
-          );
         }
+      } else {
+        _rollback(
+          complete: false,
+        );
+        _completer.completeError(
+          error,
+          stackTrace,
+        );
       }
     } catch (error, stackTrace) {
       _rollback(
@@ -607,7 +605,10 @@ class Transaction<S extends Command, T extends AggregateRoot> {
             stackTrace,
           );
         } else {
-          _completer.completeError(error, stackTrace);
+          _completer.completeError(
+            error,
+            stackTrace,
+          );
         }
       }
     } finally {
@@ -903,16 +904,12 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     logger.fine(
       '$message: ${trx.toTagAsString()} (${_toPressureString()})',
     );
+
     if (trx.isOpen) {
-      _rollback(
+      _completeTrx(
         trx.uuid,
         error: error,
-        complete: true,
         stackTrace: stackTrace,
-      );
-      trx._completer.completeError(
-        error,
-        stackTrace,
       );
     }
   }
@@ -1508,12 +1505,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         error,
         Trace.from(stackTrace),
       );
-      _completeTrx(
-        aggregate.uuid,
-        error: error,
-        stackTrace: stackTrace,
-      );
-      return StreamResult.none(
+      // Forward error to _onQueueEvent
+      return StreamResult.fail(
+        error,
+        stackTrace,
         tag: transaction,
       );
     } finally {
@@ -1562,11 +1557,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         error,
         Trace.from(stackTrace),
       );
-      _completeTrx(
-        aggregate.uuid,
-        error: error,
-        stackTrace: stackTrace,
-      );
+      // Forward error to _onQueueEvent
       return StreamResult.fail(
         error,
         stackTrace,
@@ -1598,14 +1589,15 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     Object error,
     StackTrace stackTrace,
   }) {
-    final aggregate = _assertExists(uuid);
     final trx = _transactions[uuid];
     final exists = store.contains(uuid);
-    final local = aggregate.getLocalEvents();
-    final remaining = trx?.remaining ?? local;
+
+    // Do not assert when transaction must be completed
+    final aggregate = complete ? _aggregates[uuid] : _assertExists(uuid);
+    final remaining = trx?.remaining ?? aggregate?.getLocalEvents() ?? <DomainEvent>[];
 
     // Reset aggregate last known head
-    aggregate._reset(this, toHead: exists);
+    aggregate?._reset(this, toHead: exists);
 
     if (exists) {
       // Catchup to remote head

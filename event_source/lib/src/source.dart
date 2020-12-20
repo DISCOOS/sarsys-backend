@@ -750,7 +750,8 @@ class EventStore {
           'version: $version',
           'first: ${changes.first.type}@${changes.first.number}',
           'last: ${changes.last.type}@${changes.last.number}',
-          'result: ${result.reasonPhrase}'
+          'code: ${result.statusCode}',
+          'reason: ${result.reasonPhrase}'
         ]),
       );
       if (_isDisposed) return changes;
