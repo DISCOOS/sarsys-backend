@@ -9,13 +9,14 @@ import 'extension.dart';
 
 /// Message interface
 class Message {
-  const Message({
+  Message({
     @required this.uuid,
-    @required this.local,
+    @required bool local,
     this.created,
     String type,
     this.data,
-  }) : _type = type;
+  })  : _type = type,
+        _local = local;
 
   /// Massage uuid
   ///
@@ -24,10 +25,26 @@ class Message {
   /// Flag indicating that event has local origin.
   /// Allow handlers to decide if event should be processed0
   ///
-  final bool local;
+  bool get local => _local;
+  bool _local;
 
   /// Convenience method for checking if [local == false]
   bool get remote => !local;
+
+  /// Set origin to remote.
+  ///
+  /// Is only allowed to set if [next]
+  /// is true. This ensures that
+  /// origin can be set after adding
+  /// it to a list which does
+  /// not update when added again.
+  ///
+  set remote(bool next) {
+    if (!next) {
+      throw StateError('Origin can only set to remote');
+    }
+    _local = false;
+  }
 
   /// Message creation time
   /// *NOTE*: Not stable until read from remote stream
@@ -226,15 +243,16 @@ class DomainEvent extends Event {
 
   SourceEvent toSourceEvent({
     @required String streamId,
-    @required EventNumber number,
     @required String uuidFieldName,
+    bool local,
+    EventNumber number,
   }) =>
       SourceEvent(
         uuid: uuid,
         type: type,
-        local: local,
         created: created,
         streamId: streamId,
+        local: local ?? this.local,
         data: SourceEvent.toData(
           data?.elementAt<String>('uuid'),
           uuidFieldName,

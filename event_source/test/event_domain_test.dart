@@ -619,6 +619,53 @@ Future main() async {
     expect(foo2.data, equals(data21));
   });
 
+  test('Repository should replace data in given aggregate', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
+
+    final uuid = Uuid().v4();
+    final data1 = {'uuid': uuid, 'parameter1': 'value1'};
+    final foo = repo.get(uuid, data: data1);
+    await repo.push(foo);
+    await repo.store.asStream().where((e) => e.remote).first;
+
+    // Act
+    final data2 = {'uuid': 'any', 'parameter2': 'value2'};
+    final prev = repo.replace(uuid, data: data2);
+
+    // Assert
+    expect(
+      prev.headEvent,
+      equals(foo.headEvent),
+    );
+    expect(
+      prev.baseEvent,
+      equals(foo.baseEvent),
+    );
+
+    final next = repo.get(uuid);
+    expect(prev.data, data1);
+    expect(next.data, data2..addAll({'uuid': uuid}));
+    expect(prev.number, next.number);
+    expect(prev.skipped, next.skipped);
+    expect(prev.applied, next.applied);
+    expect(prev.createdBy, next.createdBy);
+    expect(prev.changedBy, next.changedBy);
+    expect(prev.deletedBy, next.deletedBy);
+    expect(
+      next.headEvent,
+      equals(prev.headEvent),
+    );
+    expect(
+      next.baseEvent,
+      equals(prev.baseEvent),
+    );
+    expect(next.base, equals(isNot(prev.base)));
+    expect(next.data, equals(isNot(prev.data)));
+    expect(next.head, equals(isNot(prev.head)));
+  });
+
   test('Repository should replay given aggregates only', () async {
     // Arrange
     final repo = harness.get<FooRepository>(port: 4000);
@@ -1542,6 +1589,16 @@ Future main() async {
       saved.applied.last.uuid,
       snapshot.aggregates[saved.uuid].changedBy.uuid,
       reason: 'Applied events should be reset on save to snapshot',
+    );
+    expect(
+      repo.store.length,
+      equals(1),
+      reason: 'Events before saved snapshot should be removed',
+    );
+    expect(
+      repo.store.containsEvent(saved.changedBy),
+      isTrue,
+      reason: 'Store should contain applied event',
     );
   });
 

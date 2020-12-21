@@ -680,6 +680,47 @@ class Transaction<S extends Command, T extends AggregateRoot> {
     }
   }
 
+  Map<String, dynamic> toMeta({bool data = false, bool items = false}) {
+    return {
+      'uuid': uuid,
+      'seqnum': seqnum,
+      'tag': toTagAsString(),
+      'maxAttempts': _maxAttempts,
+      'changes': {
+        'count': _changes.length,
+        if (items)
+          'items': _changes
+              .map((e) => {
+                    'type': e.type,
+                    'number': e.number.value,
+                    'created': e.created.toIso8601String(),
+                    if (data) 'patches': e.patches,
+                  })
+              .toList(),
+      },
+      'conflicts': {
+        'count': conflicting.length,
+        if (items)
+          'items': conflicting
+              .map((e) => {
+                    'type': e.type,
+                    'number': e.number.value,
+                    'created': e.created.toIso8601String(),
+                    if (data) 'patches': e.patches,
+                  })
+              .toList(),
+      },
+      'status': {
+        'isStarted': isStarted,
+        'isCompleted': isCompleted,
+        'isModifiable': isModifiable,
+        'hasConflicts': hasConflicts,
+        'startedBy': '${startedBy.runtimeType}',
+        'startedAt': Trace.format(startedAt),
+      }
+    };
+  }
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) || other is Transaction && runtimeType == other.runtimeType && uuid == other.uuid;
@@ -928,8 +969,41 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Save snapshot of current states
   SnapshotModel save() {
     final snapshot = store.snapshots?.add(this);
-    reset(snapshot?.uuid);
+    store.reset(this, suuid: snapshot?.uuid);
     return snapshot;
+  }
+
+  /// Replace current aggregate data with given.
+  /// If [data] is given, it will replace current.
+  /// If [patches] are given, it is applied current data.
+  /// If both are are given, data takes preference.
+  /// Returns previous aggregate.
+  T replace(
+    String uuid, {
+    Map<String, dynamic> data,
+    Iterable<Map<String, dynamic>> patches,
+  }) {
+    final prev = _assertExists(uuid);
+
+    // Recreate from last known state
+    _aggregates.remove(uuid);
+    final next = get(uuid);
+
+    // Replace data with given
+    final json = Map<String, dynamic>.from(data ?? JsonPatch.apply(prev.data ?? {}, patches) as Map)
+      ..addAll({
+        // Overwrite any 'uuid' in given data or patch
+        'uuid': uuid,
+      });
+
+    // Initialize head, base and data
+    next._setBase(json);
+    next._head.clear();
+    next._baseIndex = next._applied.length - 1;
+    next._headIndex = next._baseIndex;
+    next._setData(json);
+
+    return prev;
   }
 
   /// Replay events into this [Repository].
@@ -1777,19 +1851,19 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   }
 
   /// Reset current state to snapshot given
-  /// by [_suuid]. If [uuids] is given, only
+  /// by [suuid]. If [uuids] is given, only
   /// aggregates matching these are reset
   /// to snapshot. If no snapshot exists,
   /// nothing is changed by this method.
   ///
-  bool reset(
-    String suuid, {
+  bool reset({
+    String suuid,
     List<String> uuids = const [],
   }) {
+    final exists = store.snapshots?.contains(suuid ?? _suuid) == true;
     try {
-      store.pause();
-      final exists = store.snapshots?.contains(suuid) == true;
       if (exists) {
+        store.pause();
         _suuid = suuid;
         final snapshot = store.snapshots[_suuid];
         // Remove missing
@@ -1818,7 +1892,12 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       }
       return exists;
     } finally {
-      store.resume();
+      // At this point, subscriptions
+      // will resume from base given
+      // by snapshot above
+      if (exists) {
+        store.resume();
+      }
     }
   }
 
@@ -1848,8 +1927,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         'pending.commands: ${_commands.length}}';
   }
 
-  Map<String, dynamic> getMeta({
-    String uuid,
+  Map<String, dynamic> toMeta({
     bool data = true,
     bool queue = true,
     bool items = true,
@@ -1857,7 +1935,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     bool connection = true,
     bool subscriptions = true,
   }) {
-    final aggregate = _aggregates[uuid];
     return {
       'type': '$aggregateType',
       'aggregates': <String, dynamic>{
@@ -1868,12 +1945,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       'number': number.value,
       if (queue) 'queue': _toQueueMeta(),
       if (snapshot && hasSnapshot) 'snapshot': _toSnapshotMeta(items, data),
-      if (aggregate != null)
-        'aggregate': _toAggregateMeta(
-          aggregate,
-          data: data,
-          items: items,
-        ),
       if (connection) 'connection': store.connection.toMeta(),
       if (subscriptions) 'subscriptions': _toSubscriptionMeta(),
     };
@@ -1964,6 +2035,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
             ...snapshot.aggregates.values
                 .map((a) => {
                       'uuid': a.uuid,
+                      'type': '$aggregateType',
                       'number': a.number.value,
                       'created': <String, dynamic>{
                         'uuid': a.createdBy?.uuid,
@@ -1979,62 +2051,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
                     })
                 .toList(),
           ]
-      },
-    };
-  }
-
-  Map<String, dynamic> _toAggregateMeta(
-    AggregateRoot aggregate, {
-    bool data = true,
-    bool items = true,
-  }) {
-    final applied = aggregate._applied;
-    return <String, dynamic>{
-      'uuid': aggregate.uuid,
-      'number': aggregate.number.value,
-      'created': <String, dynamic>{
-        'uuid': aggregate.createdBy?.uuid,
-        'type': '${aggregate.createdBy?.type}',
-        'timestamp': aggregate.createdWhen.toIso8601String(),
-      },
-      'changed': <String, dynamic>{
-        'uuid': aggregate.changedBy?.uuid,
-        'type': '${aggregate.changedBy?.type}',
-        'timestamp': aggregate.changedWhen.toIso8601String(),
-      },
-      'modifications': aggregate.modifications,
-      'applied': <String, dynamic>{
-        'count': applied?.length,
-      },
-      'skipped': <String, dynamic>{
-        'count': aggregate.skipped?.length,
-        if (items)
-          'items': aggregate.skipped
-              .map((uuid) => applied[uuid])
-              .map((e) => {
-                    'type': e.type,
-                    'number': e.number.value,
-                    'created': e.created.toIso8601String(),
-                    if (data) 'patches': e.patches,
-                  })
-              .toList(),
-      },
-      if (data) 'data': aggregate.data,
-      'transaction': inTransaction(aggregate.uuid),
-      'pending': <String, dynamic>{
-        'count': aggregate.getLocalEvents()?.length,
-        if (items)
-          'items': [
-            ...aggregate
-                .getLocalEvents()
-                .map((e) => {
-                      'type': e.type,
-                      'number': e.number.value,
-                      'created': e.created.toIso8601String(),
-                      if (data) 'data': e.data,
-                    })
-                .toList(),
-          ],
       },
     };
   }
@@ -2909,8 +2925,12 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   }
 
   void _setBase(Map<String, dynamic> base) {
-    _base.clear();
-    _base.addAll(base);
+    _base.addAll(
+      _verifyData(
+        _base..clear(),
+        base,
+      ),
+    );
   }
 
   void _setHead(Map<String, dynamic> head) {
@@ -2948,6 +2968,10 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
       _isDeleted = true;
       _deletedBy = event;
     }
+  }
+
+  Map<String, dynamic> _verifyData(Map<String, dynamic> prev, Map<String, dynamic> next) {
+    return next;
   }
 
   void _assertUuid(DomainEvent event) {
@@ -3057,6 +3081,68 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   AggregateRoot _ensureList(String field) {
     _data.putIfAbsent(field, () => []);
     return this;
+  }
+
+  Map<String, dynamic> toMeta({
+    bool data = false,
+    bool items = false,
+  }) {
+    return <String, dynamic>{
+      'uuid': uuid,
+      'number': number.value,
+      'created': <String, dynamic>{
+        'uuid': createdBy?.uuid,
+        'type': '${createdBy?.type}',
+        'timestamp': createdWhen.toIso8601String(),
+      },
+      'changed': <String, dynamic>{
+        'uuid': changedBy?.uuid,
+        'type': '${changedBy?.type}',
+        'timestamp': changedWhen.toIso8601String(),
+      },
+      'modifications': modifications,
+      'applied': <String, dynamic>{
+        'count': _applied?.length,
+        if (items)
+          'items': _applied.keys
+              .map((uuid) => _applied[uuid])
+              .map((e) => {
+                    'type': e.type,
+                    'number': e.number.value,
+                    'created': e.created.toIso8601String(),
+                    if (data) 'patches': e.patches,
+                  })
+              .toList(),
+      },
+      'skipped': <String, dynamic>{
+        'count': skipped?.length,
+        if (items)
+          'items': skipped
+              .map((uuid) => _applied[uuid])
+              .map((e) => {
+                    'type': e.type,
+                    'number': e.number.value,
+                    'created': e.created.toIso8601String(),
+                    if (data) 'patches': e.patches,
+                  })
+              .toList(),
+      },
+      'pending': <String, dynamic>{
+        'count': getLocalEvents()?.length,
+        if (items)
+          'items': [
+            ...getLocalEvents()
+                .map((e) => {
+                      'type': e.type,
+                      'number': e.number.value,
+                      'created': e.created.toIso8601String(),
+                      if (data) 'data': e.data,
+                    })
+                .toList(),
+          ],
+      },
+      if (data) 'data': this.data,
+    };
   }
 
   @override
@@ -3362,4 +3448,4 @@ class ThreeWayMerge extends MergeStrategy {
 }
 
 String _toMethod(String name, List<String> args) => '$name(\n  ${args.join(',\n  ')})';
-String _toObject(String name, List<String> args) => '$name: {\n  ${args.join(',\n  ')}\n}';
+String _toObject(String name, List<String> args) => '$name: {\n  ${args.join(',\n  ')}}';

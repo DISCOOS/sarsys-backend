@@ -142,11 +142,14 @@ class EventStore {
   /// [EventStoreConnection] instance
   final EventStoreConnection connection;
 
+  /// Get number of events in store
+  int get length => _events.length;
+
   /// Check if store is empty
-  bool get isEmpty => _aggregates.isEmpty;
+  bool get isEmpty => _events.isEmpty;
 
   /// Check if store is not empty
-  bool get isNotEmpty => _aggregates.isNotEmpty;
+  bool get isNotEmpty => _events.isNotEmpty;
 
   /// Get all events
   Map<String, Set<SourceEvent>> get events => Map.from(_aggregates);
@@ -177,8 +180,8 @@ class EventStore {
   /// Returns null if event does not exist.
   String getAggregateUuid(Event event) => _events[event.uuid];
 
-  /// Check if given [SourceEvent] exist in store
-  bool exists(SourceEvent event) => _events.containsKey(event.uuid);
+  /// Check if given [Event] exist in store
+  bool containsEvent(Event event) => _events.containsKey(event.uuid);
 
   /// Check event [SourceEvent] with given [uuid]
   SourceEvent getEvent(String uuid) =>
@@ -244,6 +247,7 @@ class EventStore {
   /// type [T] is performed.
   Future<int> replay<T extends AggregateRoot>(
     Repository<Command, T> repo, {
+    String suuid,
     List<String> uuids,
     bool master = false,
   }) async {
@@ -261,9 +265,11 @@ class EventStore {
       bus.replayStarted<T>();
 
       // Clear current state
-      final offsets = _reset(
+      final offsets = reset(
         repo,
         uuids: uuids,
+        // Always replay from last snapshot if not given
+        suuid: suuid ?? snapshots?.last?.uuid,
       );
 
       var count = 0;
@@ -330,15 +336,15 @@ class EventStore {
     }
   }
 
-  Map<String, EventNumber> _reset(
+  Map<String, EventNumber> reset(
     Repository repository, {
+    String suuid,
     List<String> uuids = const [],
   }) {
-    assert(isPaused, 'store must be paused');
     final numbers = <String, EventNumber>{};
     repository.reset(
-      snapshots?.last?.uuid,
       uuids: uuids,
+      suuid: suuid,
     );
     _snapshot = repository.snapshot;
     final hasSnapshot = repository.hasSnapshot;
@@ -350,14 +356,17 @@ class EventStore {
       // Remove all events for given aggregate
       // ignore: prefer_collection_literals
       final events = _aggregates[uuid] ?? LinkedHashSet<SourceEvent>();
-      for (var event in events) {
+      // Find all events before snapshot
+      final before = events;
+      for (var event in before) {
         _events.remove(event.uuid);
       }
 
       events.clear();
       final stream = toInstanceStream(uuid);
-      if (_snapshot != null) {
-        final event = repository.get(uuid, createNew: false).baseEvent;
+      if (hasSnapshot) {
+        final event = repository.get(uuid).baseEvent;
+        assert(event.remote, 'must be remote');
         events.add(event.toSourceEvent(
           streamId: stream,
           number: event.number,
@@ -586,7 +595,22 @@ class EventStore {
     // used).
     _aggregates.update(
       uuid,
-      (current) => current..addAll(events),
+      (current) {
+        for (var e in events) {
+          // Already added?
+          if (!current.add(e)) {
+            if (e.remote) {
+              final prev = current.lookup(e);
+              // Workaround for LinkedHashSet
+              // will not change when equal
+              // event is added (equality is
+              // made on type and uuid only)
+              prev.remote = true;
+            }
+          }
+        }
+        return current;
+      },
       ifAbsent: () => LinkedHashSet.of(events),
     );
     events.forEach(
@@ -655,6 +679,11 @@ class EventStore {
     if (_streamController != null) {
       events.forEach(_streamController.add);
     }
+  }
+
+  /// Get name of aggregate stream for [AggregateRoot.uuid].
+  String toStream(String uuid) {
+    return useInstanceStreams ? toInstanceStream(uuid) : canonicalStream;
   }
 
   /// Get name of aggregate instance stream for [AggregateRoot.uuid].
@@ -1651,7 +1680,7 @@ class EventStoreSubscriptionController<T extends Repository> {
 
     if (aggregate != null) {
       // This implies that event exists in store
-      if (store.exists(event)) {
+      if (store.containsEvent(event)) {
         // Apply it safely by skip patching
         aggregate.apply(
           _repository.toDomainEvent(event),
