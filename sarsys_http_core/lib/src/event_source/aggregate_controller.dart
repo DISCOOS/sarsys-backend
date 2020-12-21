@@ -1,7 +1,5 @@
 import 'package:sarsys_http_core/sarsys_http_core.dart';
 
-// TODO: Add support for entities as query-param to limit default response to only value objects
-
 /// A basic CRUD ResourceController for [AggregateRoot] requests
 abstract class AggregateController<S extends Command, T extends AggregateRoot> extends ResourceController
     with RequestValidatorMixin {
@@ -25,6 +23,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   @override
   final List<Validator> validators;
 
+  /// Get aggregate [Type]
   Type get aggregateType => typeOf<T>();
 
   @override

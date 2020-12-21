@@ -27,6 +27,13 @@ Response gatewayTimeout({int retryAfter = 30, Map<String, dynamic> headers, dyna
       body,
     );
 
+/// Represents a 416 response.
+Response requestedRangeNotSatisfiable({Map<String, dynamic> headers, dynamic body}) => Response(
+      HttpStatus.requestedRangeNotSatisfiable,
+      headers,
+      {},
+    );
+
 /// Represents a 429 response.
 Response tooManyRequests({int retryAfter = 30, Map<String, dynamic> headers, dynamic body}) => Response(
       HttpStatus.tooManyRequests,

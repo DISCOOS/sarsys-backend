@@ -29,6 +29,9 @@ class RepositoryController extends ResourceController {
     @Bind.query('expand') String expand,
   }) async {
     try {
+      if (!_shouldAccept()) {
+        return requestedRangeNotSatisfiable();
+      }
       final repository = manager.getFromTypeName(type);
       if (repository == null) {
         return Response.notFound(
@@ -60,6 +63,9 @@ class RepositoryController extends ResourceController {
     @Bind.query('expand') String expand,
   }) async {
     try {
+      if (!_shouldAccept()) {
+        return requestedRangeNotSatisfiable();
+      }
       final repository = manager.getFromTypeName(type);
       if (repository == null) {
         return Response.notFound(
@@ -96,6 +102,9 @@ class RepositoryController extends ResourceController {
     @Bind.body() Map<String, dynamic> body,
   ) async {
     try {
+      if (!_shouldAccept()) {
+        return requestedRangeNotSatisfiable();
+      }
       final repository = manager.getFromTypeName(type);
       if (repository == null) {
         return Response.notFound(
@@ -134,6 +143,15 @@ class RepositoryController extends ResourceController {
     } catch (e, stackTrace) {
       return toServerError(e, stackTrace);
     }
+  }
+
+  bool _shouldAccept() {
+    if (Platform.environment.containsKey('POD-NAME')) {
+      final name = Platform.environment['POD-NAME'];
+      final match = request.raw.headers.value('x-if-match-pod');
+      return match == null || name == null || match.toLowerCase() == name.toLowerCase();
+    }
+    return true;
   }
 
   bool _shouldExpand(String expand, String field) {
