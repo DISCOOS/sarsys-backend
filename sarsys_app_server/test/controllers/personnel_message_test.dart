@@ -4,7 +4,7 @@ import 'package:test/test.dart';
 import 'harness.dart';
 
 Future main() async {
-  final harness = SarSysHarness()
+  final harness = SarSysHttpHarness()
     ..withEventStoreMock()
     ..install(restartForEachTest: true);
 
@@ -121,7 +121,7 @@ Future main() async {
   });
 }
 
-Future<String> _prepare(SarSysHarness harness, String auuid) async {
+Future<String> _prepare(SarSysHttpHarness harness, String auuid) async {
   await _createAffiliation(harness, auuid);
   final iuuid = Uuid().v4();
   expectResponse(await harness.agent.post("/api/incidents", body: createIncident(iuuid)), 201);
@@ -130,7 +130,7 @@ Future<String> _prepare(SarSysHarness harness, String auuid) async {
   return ouuid;
 }
 
-Future<String> _createAffiliation(SarSysHarness harness, String auuid) async {
+Future<String> _createAffiliation(SarSysHttpHarness harness, String auuid) async {
   final puuid = Uuid().v4();
   expectResponse(await harness.agent.post("/api/persons", body: createPerson(puuid)), 201);
   final orguuid = Uuid().v4();

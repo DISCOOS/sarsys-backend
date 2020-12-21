@@ -6,7 +6,7 @@ import 'package:meta/meta.dart';
 import 'harness.dart';
 
 Future main() async {
-  final harness = SarSysHarness()
+  final harness = SarSysHttpHarness()
     ..withEventStoreMock()
     ..install(restartForEachTest: true);
 
@@ -144,7 +144,7 @@ Future main() async {
   });
 }
 
-Future _testGet(SarSysHarness harness, {bool expand = false}) async {
+Future _testGet(SarSysHttpHarness harness, {bool expand = false}) async {
   final auuid = Uuid().v4();
   final puuid = Uuid().v4();
   final orguuid = Uuid().v4();
@@ -167,7 +167,7 @@ Future _testGet(SarSysHarness harness, {bool expand = false}) async {
 }
 
 Future _testGetAll(
-  SarSysHarness harness, {
+  SarSysHttpHarness harness, {
   bool expand = false,
   bool filter = false,
   bool uuids = false,
@@ -201,7 +201,7 @@ Future _testGetAll(
 }
 
 Future _prepare(
-  SarSysHarness harness, {
+  SarSysHttpHarness harness, {
   String puuid,
   String orguuid,
   String divuuid,

@@ -5,7 +5,7 @@ import 'package:test/test.dart';
 import 'harness.dart';
 
 Future main() async {
-  final harness = SarSysHarness()
+  final harness = SarSysHttpHarness()
     ..withEventStoreMock()
     ..install(restartForEachTest: true);
 
@@ -324,7 +324,7 @@ Future main() async {
   });
 }
 
-Future _testImport(SarSysHarness harness) async {
+Future _testImport(SarSysHttpHarness harness) async {
   final ouuid = await _prepare(harness);
   final divuuid1 = Uuid().v4();
   final divuuid2 = Uuid().v4();
@@ -421,7 +421,7 @@ Future _testImport(SarSysHarness harness) async {
       ));
 }
 
-Future<String> _prepare(SarSysHarness harness) async {
+Future<String> _prepare(SarSysHttpHarness harness) async {
   final orguuid = Uuid().v4();
   final organisation = createOrganisation(orguuid);
   expectResponse(await harness.agent.post("/api/organisations", body: organisation), 201, body: null);

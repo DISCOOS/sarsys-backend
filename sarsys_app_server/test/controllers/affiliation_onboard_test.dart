@@ -4,7 +4,7 @@ import 'package:test/test.dart';
 import 'harness.dart';
 
 Future main() async {
-  final harness = SarSysHarness()
+  final harness = SarSysHttpHarness()
     ..withEventStoreMock()
     ..install(restartForEachTest: true);
 
@@ -95,7 +95,7 @@ Future main() async {
 }
 
 Future _prepare(
-  SarSysHarness harness, {
+  SarSysHttpHarness harness, {
   String puuid,
   String orguuid,
   String divuuid,

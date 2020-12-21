@@ -219,6 +219,24 @@ APISchemaObject documentValueResponse(
       ..description = 'Value Object Response'
       ..isReadOnly = true;
 
+APISchemaObject documentEvent(
+  APIDocumentContext context, {
+  String type,
+  bool readOnly = true,
+}) =>
+    APISchemaObject.object({
+      'uuid': documentUUID()
+        ..description = 'Globally unique event id'
+        ..isReadOnly = readOnly,
+      'type': APISchemaObject.string()
+        ..description = '${type ?? 'Event'} Type'
+        ..isReadOnly = readOnly,
+      'timestamp': APISchemaObject.string()
+        ..description = 'When event occurred'
+        ..format = 'date-time'
+        ..isReadOnly = readOnly,
+    });
+
 APISchemaObject documentConflict(
   APIDocumentContext context,
 ) =>

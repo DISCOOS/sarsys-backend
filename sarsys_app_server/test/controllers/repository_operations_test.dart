@@ -5,11 +5,11 @@ import 'package:test/test.dart';
 import 'harness.dart';
 
 Future main() async {
-  final harness = SarSysHarness()
+  final harness = SarSysHttpHarness()
     ..withEventStoreMock()
     ..install(restartForEachTest: true);
 
-  test("GET /api/devices/{type} returns status code 200", () async {
+  test("GET /api/repositories/device returns status code 200", () async {
     // Arrange
     final uuid = Uuid().v4();
     final body = createDevice(uuid);
@@ -23,12 +23,12 @@ Future main() async {
     expect(data['snapshot'], isNull);
   });
 
-  test("GET /api/devices/{type}?expand=queue returns status code 200", () async {
+  test("GET /api/repositories/device?expand=queue returns status code 200", () async {
     // Arrange
     final uuid = Uuid().v4();
     final body = createDevice(uuid);
-    harness.channel.manager.get<DeviceRepository>().save();
     expectResponse(await harness.agent.post("/api/devices", body: body), 201, body: null);
+    harness.channel.manager.get<DeviceRepository>().save();
 
     final response = await harness.agent.get("/api/repositories/device?expand=queue");
     final data = await response.body.decode();
@@ -36,37 +36,7 @@ Future main() async {
     expect(data['queue'], isNotNull);
   });
 
-  test("GET /api/devices/{type}/{uuid} returns status code 200", () async {
-    // Arrange
-    final uuid = Uuid().v4();
-    final body = createDevice(uuid);
-    expectResponse(await harness.agent.post("/api/devices", body: body), 201, body: null);
-
-    final response = await harness.agent.get("/api/repositories/device/$uuid");
-    final data = Map<String, dynamic>.from(
-      await response.body.decode(),
-    );
-
-    expect(data, isNotNull);
-    expect(data.hasPath('aggregate/data'), isFalse);
-  });
-
-  test("GET /api/devices/{type}/{uuid}?expand=queue,data returns status code 200", () async {
-    // Arrange
-    final uuid = Uuid().v4();
-    final body = createDevice(uuid);
-    expectResponse(await harness.agent.post("/api/devices", body: body), 201, body: null);
-
-    final response = await harness.agent.get("/api/repositories/device/$uuid?expand=queue,data");
-    final data = Map<String, dynamic>.from(
-      await response.body.decode(),
-    );
-
-    expect(data['queue'], isNotNull);
-    expect(data.hasPath('aggregate/data'), isTrue);
-  });
-
-  test("POST /api/devices/{type} returns status code 200 for action 'rebuild'", () async {
+  test("POST /api/repositories/device returns status code 200 for action 'rebuild'", () async {
     // Arrange
     final uuid = Uuid().v4();
     final body = createDevice(uuid);
@@ -80,7 +50,7 @@ Future main() async {
     expect(data, isNotNull);
   });
 
-  test("POST /api/devices/{type} returns status code 200 for action 'replay' repository", () async {
+  test("POST /api/repositories/device returns status code 200 for action 'replay' repository", () async {
     // Arrange
     final uuid = Uuid().v4();
     final body = createDevice(uuid);
@@ -99,7 +69,7 @@ Future main() async {
     expect(data, isNotNull);
   });
 
-  test("POST /api/devices/{type} returns status code 200 for action 'catchup' aggregate", () async {
+  test("POST /api/repositories/device returns status code 200 for action 'catchup' aggregate", () async {
     // Arrange
     final uuid = Uuid().v4();
     final body = createDevice(uuid);

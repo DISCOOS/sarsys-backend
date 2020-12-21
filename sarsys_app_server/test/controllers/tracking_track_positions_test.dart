@@ -7,7 +7,7 @@ import 'package:test/test.dart';
 import 'harness.dart';
 
 Future main() async {
-  final harness = SarSysHarness()
+  final harness = SarSysHttpHarness()
     ..withEventStoreMock()
     ..install(restartForEachTest: true);
 
@@ -75,7 +75,7 @@ Future main() async {
   });
 }
 
-Future _testTruncate(SarSysHarness harness, String truncate, int skip, int take) async {
+Future _testTruncate(SarSysHttpHarness harness, String truncate, int skip, int take) async {
   // Arrange
   final uuid = Uuid().v4();
   final p1 = createPosition(lat: 1.0);
@@ -101,7 +101,7 @@ Future _testTruncate(SarSysHarness harness, String truncate, int skip, int take)
 }
 
 Future<Map<String, dynamic>> _prepareGet(
-  SarSysHarness harness,
+  SarSysHttpHarness harness,
   String uuid,
   List<Map<String, Object>> positions,
 ) async {

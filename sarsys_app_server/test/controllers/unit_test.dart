@@ -4,7 +4,7 @@ import 'package:test/test.dart';
 import 'harness.dart';
 
 Future main() async {
-  final harness = SarSysHarness()
+  final harness = SarSysHttpHarness()
     ..withEventStoreMock()
     ..install(restartForEachTest: true);
 
@@ -130,7 +130,7 @@ Future main() async {
   });
 }
 
-Future _createPersonnel(SarSysHarness harness, String ouuid, String puuid) async {
+Future _createPersonnel(SarSysHttpHarness harness, String ouuid, String puuid) async {
   final auuid = Uuid().v4();
   await _createAffiliation(harness, puuid, auuid);
   expectResponse(
@@ -140,7 +140,7 @@ Future _createPersonnel(SarSysHarness harness, String ouuid, String puuid) async
   );
 }
 
-Future<String> _createAffiliation(SarSysHarness harness, String puuid, String auuid) async {
+Future<String> _createAffiliation(SarSysHttpHarness harness, String puuid, String auuid) async {
   expectResponse(await harness.agent.post("/api/persons", body: createPerson(puuid)), 201);
   final orguuid = Uuid().v4();
   expectResponse(await harness.agent.post("/api/organisations", body: createOrganisation(orguuid)), 201);
@@ -155,7 +155,7 @@ Future<String> _createAffiliation(SarSysHarness harness, String puuid, String au
   return auuid;
 }
 
-Future<String> _prepare(SarSysHarness harness) async {
+Future<String> _prepare(SarSysHttpHarness harness) async {
   final iuuid = Uuid().v4();
   expectResponse(await harness.agent.post("/api/incidents", body: createIncident(iuuid)), 201);
   final ouuid = Uuid().v4();

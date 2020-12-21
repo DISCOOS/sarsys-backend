@@ -1,8 +1,8 @@
 import 'package:sarsys_http_core/sarsys_http_core.dart';
 
-/// A basic CRUD ResourceController for [Repository] metadata requests
-class RepositoryController extends ResourceController {
-  RepositoryController(
+/// A [ResourceController] for [AggregateRoot] operations requests
+class AggregateOperationsController extends ResourceController {
+  AggregateOperationsController(
     this.manager, {
     @required this.tag,
   });
@@ -23,41 +23,8 @@ class RepositoryController extends ResourceController {
   //////////////////////////////////
 
   @Scope(['roles:admin'])
-  @Operation.get('type')
-  Future<Response> getMeta(
-    @Bind.path('type') String type, {
-    @Bind.query('expand') String expand,
-  }) async {
-    try {
-      if (!_shouldAccept()) {
-        return requestedRangeNotSatisfiable();
-      }
-      final repository = manager.getFromTypeName(type);
-      if (repository == null) {
-        return Response.notFound(
-          body: 'Repository for type $type not found',
-        );
-      }
-      return Response.ok(
-        repository.getMeta(
-          data: _shouldExpand(expand, 'data'),
-          queue: _shouldExpand(expand, 'queue'),
-          items: _shouldExpand(expand, 'items'),
-          snapshot: _shouldExpand(expand, 'snapshot'),
-          connection: _shouldExpand(expand, 'connection'),
-          subscriptions: _shouldExpand(expand, 'subscriptions'),
-        ),
-      );
-    } on InvalidOperation catch (e) {
-      return Response.badRequest(body: e.message);
-    } catch (e, stackTrace) {
-      return toServerError(e, stackTrace);
-    }
-  }
-
-  @Scope(['roles:admin'])
   @Operation.get('type', 'uuid')
-  Future<Response> getMetaWithAggregate(
+  Future<Response> getMeta(
     @Bind.path('type') String type,
     @Bind.path('uuid') String uuid, {
     @Bind.query('expand') String expand,
@@ -77,16 +44,15 @@ class RepositoryController extends ResourceController {
           body: 'Aggregate ${repository.aggregateType} $uuid not found',
         );
       }
+      final aggregate = repository.get(uuid);
+      final trx = repository.inTransaction(uuid) ? repository.get(uuid) : null;
+      final data = _shouldExpand(expand, 'data');
+      final items = _shouldExpand(expand, 'items');
       return Response.ok(
-        repository.getMeta(
-          uuid: uuid,
-          data: _shouldExpand(expand, 'data'),
-          queue: _shouldExpand(expand, 'queue'),
-          items: _shouldExpand(expand, 'items'),
-          snapshot: _shouldExpand(expand, 'snapshot'),
-          connection: _shouldExpand(expand, 'connection'),
-          subscriptions: _shouldExpand(expand, 'subscriptions'),
-        ),
+        aggregate.toMeta(
+          data: data,
+          items: items,
+        )..addAll({'transaction': trx?.toMeta(data: data, items: items) ?? {}}),
       );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
@@ -96,11 +62,13 @@ class RepositoryController extends ResourceController {
   }
 
   @Scope(['roles:admin'])
-  @Operation.post('type')
+  @Operation.post('type', 'uuid')
   Future<Response> command(
+    @Bind.path('uuid') String uuid,
     @Bind.path('type') String type,
-    @Bind.body() Map<String, dynamic> body,
-  ) async {
+    @Bind.body() Map<String, dynamic> body, {
+    @Bind.query('expand') String expand,
+  }) async {
     try {
       if (!_shouldAccept()) {
         return requestedRangeNotSatisfiable();
@@ -111,33 +79,72 @@ class RepositoryController extends ResourceController {
           body: 'Repository for type $type not found',
         );
       }
-      final command = _assertCommand(body);
-      switch (command) {
-        case 'rebuild':
-          await repository.build();
-          break;
-        case 'replay':
-          final uuids = body.listAt<String>(
-            'params/uuids',
-            defaultList: <String>[],
-          );
-          await repository.replay(
-            uuids: uuids,
-          );
-          break;
-        case 'catchup':
-          final uuids = body.listAt<String>(
-            'params/uuids',
-            defaultList: <String>[],
-          );
-          await repository.catchup(
-            uuids: uuids,
-          );
-          break;
+      if (!repository.contains(uuid)) {
+        Response.notFound(
+          body: 'Aggregate ${repository.aggregateType} $uuid not found',
+        );
       }
-      return Response.ok(
-        repository.getMeta(),
+      final command = _assertCommand(body);
+      final expandData = _shouldExpand(expand, 'data');
+      final expandItems = _shouldExpand(expand, 'items');
+
+      switch (command) {
+        case 'replay':
+          await repository.replay(
+            uuids: [uuid],
+          );
+          return Response.ok(
+            repository.get(uuid).toMeta(
+                  data: expandData,
+                  items: expandItems,
+                ),
+          );
+        case 'catchup':
+          await repository.catchup(
+            uuids: [uuid],
+          );
+          return Response.ok(
+            repository.get(uuid).toMeta(
+                  data: expandData,
+                  items: expandItems,
+                ),
+          );
+        case 'replace':
+          final data = body.mapAt<String, dynamic>(
+            'data',
+          );
+          final patches = body.listAt<Map<String, dynamic>>(
+            'patches',
+          );
+          final old = repository.replace(
+            uuid,
+            data: data,
+            patches: patches,
+          );
+          return Response.ok(
+            old.toMeta(
+              data: expandData,
+              items: expandItems,
+            ),
+          );
+      }
+      return Response.badRequest(
+        body: 'Command $command not found',
       );
+    } on RepositoryMaxPressureExceeded catch (e) {
+      return tooManyRequests(body: e.message);
+    } on TimeoutException catch (e) {
+      return gatewayTimeout(
+        body: e.message,
+      );
+    } on StreamRequestTimeout catch (e) {
+      return gatewayTimeout(
+        body: 'Repository was unable to process request ${e.request.tag}',
+      );
+    } on SocketException catch (e) {
+      return serviceUnavailable(body: 'Eventstore unavailable: $e');
+    } on SchemaException catch (e) {
+      return Response.badRequest(body: e.message);
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } catch (e, stackTrace) {
@@ -167,11 +174,7 @@ class RepositoryController extends ResourceController {
 
   List<String> get options => const [
         'data',
-        'queue',
         'items',
-        'snapshot',
-        'connection',
-        'subscriptions',
       ];
 
   String _assertCommand(Map<String, dynamic> body) {
@@ -206,10 +209,10 @@ class RepositoryController extends ResourceController {
     String summary;
     switch (operation.method) {
       case 'GET':
-        summary = 'Get repository metadata';
+        summary = 'Get aggregate metadata';
         break;
       case 'POST':
-        summary = 'Execute command on repository';
+        summary = 'Execute command on aggregate';
         break;
     }
     return summary;
@@ -240,8 +243,8 @@ class RepositoryController extends ResourceController {
     switch (operation.method) {
       case 'POST':
         return APIRequestBody.schema(
-          context.schema['RepositoryCommand'],
-          description: 'Repository Command Request',
+          context.schema['AggregateCommand'],
+          description: 'Aggregate Command Request',
           required: true,
         );
         break;
@@ -252,9 +255,15 @@ class RepositoryController extends ResourceController {
   @override
   Map<String, APIResponse> documentOperationResponses(APIDocumentContext context, Operation operation) {
     final responses = {
+      '200': context.responses.getObject('200'),
+      '400': context.responses.getObject('400'),
       '401': context.responses.getObject('401'),
       '403': context.responses.getObject('403'),
+      '416': context.responses.getObject('416'),
+      '429': context.responses.getObject('429'),
+      '500': context.responses.getObject('503'),
       '503': context.responses.getObject('503'),
+      '504': context.responses.getObject('504'),
     };
     switch (operation.method) {
       case 'GET':
@@ -292,53 +301,56 @@ class RepositoryController extends ResourceController {
   }
 
   Map<String, APISchemaObject> documentSchemaObjects(APIDocumentContext context) => {
-        'RepositoryMeta': _documentMeta(),
-        'RepositoryCommand': _documentCommand(),
+        'AggregateMeta': _documentMeta(context),
+        'AggregateCommand': _documentCommand(),
       };
 
-  APISchemaObject _documentMeta() {
+  APISchemaObject _documentMeta(APIDocumentContext context) {
     return APISchemaObject.object({
+      'uuid': documentUUID()
+        ..description = 'Globally unique aggregate id'
+        ..isReadOnly = true,
       'type': APISchemaObject.string()
         ..description = 'Aggregate Type'
         ..isReadOnly = true,
-      'count': APISchemaObject.integer()
-        ..description = 'Number of aggregates'
+      'number': APISchemaObject.integer()
+        ..description = 'Current event number'
         ..isReadOnly = true,
-      'queue': APISchemaObject.object({
-        'pressure': APISchemaObject.object({
-          'push': APISchemaObject.integer()
-            ..description = 'Number of pending pushes'
-            ..isReadOnly = true,
-          'command': APISchemaObject.integer()
-            ..description = 'Number of pending commands'
-            ..isReadOnly = true,
-          'total': APISchemaObject.integer()
-            ..description = 'Total pressure'
-            ..isReadOnly = true,
-          'maximum': APISchemaObject.integer()
-            ..description = 'Maximum allowed pressure'
-            ..isReadOnly = true,
-          'exceeded': APISchemaObject.boolean()
-            ..description = 'True if maximum pressure is exceeded'
-            ..isReadOnly = true,
-        })
-          ..description = 'Queue pressure data'
+      'created': documentEvent(context)
+        ..description = 'Created by given event'
+        ..isReadOnly = true,
+      'changed': documentEvent(context)
+        ..description = 'Last changed by given event'
+        ..isReadOnly = true,
+      'modifications': APISchemaObject.integer()
+        ..description = 'Total number of modifications'
+        ..isReadOnly = true,
+      'applied': APISchemaObject.object({
+        'count': APISchemaObject.integer()
+          ..description = 'Total number of applied events'
           ..isReadOnly = true,
-        'status': APISchemaObject.object({
-          'idle': APISchemaObject.boolean()
-            ..description = 'True if queue is idle'
-            ..isReadOnly = true,
-          'ready': APISchemaObject.boolean()
-            ..description = 'True if queue is ready to process requests'
-            ..isReadOnly = true,
-          'disposed': APISchemaObject.boolean()
-            ..description = 'True if queue is disposed'
-            ..isReadOnly = true,
-        })
-          ..description = 'Queue status'
+        'items': APISchemaObject.array(
+          ofSchema: documentEvent(context),
+        )..description = 'Array of skipped events',
+      }),
+      'skipped': APISchemaObject.object({
+        'count': APISchemaObject.integer()
+          ..description = 'Total number of skipped events'
           ..isReadOnly = true,
-      })
-        ..description = 'Queue metadata'
+        'items': APISchemaObject.array(
+          ofSchema: documentEvent(context),
+        )..description = 'Array of skipped events',
+      }),
+      'pending': APISchemaObject.object({
+        'count': APISchemaObject.integer()
+          ..description = 'Total number of local events pending push'
+          ..isReadOnly = true,
+        'items': APISchemaObject.array(
+          ofSchema: documentEvent(context),
+        )..description = 'Array of local events pending push',
+      }),
+      'data': APISchemaObject.freeForm()
+        ..description = 'Map of JSON-Patch compliant values'
         ..isReadOnly = true,
     });
   }
@@ -346,20 +358,21 @@ class RepositoryController extends ResourceController {
   APISchemaObject _documentCommand() {
     return APISchemaObject.object({
       'action': APISchemaObject.string()
-        ..description = 'Repository action'
+        ..description = 'Aggregate actions'
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..enumerated = [
-          'rebuild',
+          'replay',
+          'replace',
+          'catchup',
         ],
       'params': APISchemaObject.object({
-        'uuids': APISchemaObject.array(ofType: APIType.string)
-          ..description = 'List of aggregate uuids which command applies to'
+        'data': APISchemaObject.freeForm()..description = 'Map of JSON-compliant values',
+        'patches': APISchemaObject.array(
+          ofSchema: APISchemaObject.freeForm()..description = 'Map of JSON-Patch compliant values',
+        )
       })
         ..description = 'Command properties'
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
-        ..enumerated = [
-          'rebuild',
-        ]
     });
   }
 }

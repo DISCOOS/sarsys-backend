@@ -133,8 +133,14 @@ class SarSysAppServerChannel extends ApplicationChannel {
                 messages,
               ))
       ..secure(
-          '/api/repositories/:type[/:uuid]',
-          () => RepositoryController(
+          '/api/repositories/:type',
+          () => RepositoryOperationsController(
+                manager,
+                tag: 'System',
+              ))
+      ..secure(
+          '/api/aggregates/:type/:uuid',
+          () => AggregateOperationsController(
                 manager,
                 tag: 'System',
               ))
@@ -777,6 +783,12 @@ class SarSysAppServerChannel extends ApplicationChannel {
   APIComponentCollection<APIResponse> documentResponses(APIDocumentContext registry) {
     return registry.responses
       ..register(
+          "200",
+          APIResponse(
+            "OK. Indicates that the request has succeeded. A 200 response is cacheable by default. "
+            "The meaning of a success depends on the HTTP request method.",
+          ))
+      ..register(
           "201",
           APIResponse(
             "Created. The POST-ed resource was created.",
@@ -802,9 +814,10 @@ class SarSysAppServerChannel extends ApplicationChannel {
             "Forbidden. The client does not have access rights to the content.",
           ))
       ..register(
-        "404",
-        APIResponse("Not found. The requested resource does not exist in server."),
-      )
+          "404",
+          APIResponse(
+            "Not found. The requested resource does not exist in server.",
+          ))
       ..register(
           "405",
           APIResponse(
@@ -816,10 +829,38 @@ class SarSysAppServerChannel extends ApplicationChannel {
             "Conflict. This response is sent when a request conflicts with the current state of the server.",
           ))
       ..register(
+          "416",
+          APIResponse(
+            "Range Not Satisfiable. Indicates that a server cannot serve the requested ranges. "
+            "The most likely reason is that the document doesn't contain such ranges, "
+            "or that the Range header value, though syntactically correct, doesn't make sense.",
+          ))
+      ..register(
+          "429",
+          APIResponse(
+            "Too Many Requests. Indicates the user has sent too many requests in a given amount of time "
+            "('rate limiting'). A Retry-After header might be included to this response indicating "
+            "how long to wait before making a new request.",
+          ))
+      ..register(
+          "500",
+          APIResponse(
+            "Internal Server Error. indicates that the server encountered an unexpected condition "
+            "that prevented it from fulfilling the request. This error response is a generic 'catch-all' response",
+          ))
+      ..register(
           "503",
           APIResponse(
-            "Service unavailable. The server is not ready to handle the request. "
-            "Common causes are a server that is down for maintenance or that is overloaded.",
+            "Service unavailable. The server is currently unable to handle the request due to a temporary "
+            "overloading or maintenance of the server. The implication is that this is a temporary "
+            "condition which will be alleviated after some delay. If known, the length of the delay MAY be "
+            "indicated in a Retry-After header.",
+          ))
+      ..register(
+          "504",
+          APIResponse(
+            "Gateway Timeout server. Indicates that the server, while acting as a gateway or proxy, "
+            "did not get a response in time from the upstream server that it needed in order to complete the request.",
           ));
   }
 

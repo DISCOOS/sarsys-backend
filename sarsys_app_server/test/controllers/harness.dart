@@ -26,7 +26,7 @@ export 'package:aqueduct/aqueduct.dart';
 ///           });
 ///         }
 ///
-class SarSysHarness extends TestHarness<SarSysAppServerChannel> {
+class SarSysHttpHarness extends TestHarness<SarSysAppServerChannel> {
   EventStoreMockServer eventStoreMockServer;
   final Set<int> _ports = {};
   final Map<int, Agent> _agents = {};
@@ -40,7 +40,7 @@ class SarSysHarness extends TestHarness<SarSysAppServerChannel> {
         4000,
       );
 
-  SarSysHarness withInstance(int port) {
+  SarSysHttpHarness withInstance(int port) {
     assert(port != 80, 'Instance with port 80 exists');
     assert(!_ports.contains(port), 'Instance with port $port exists');
     _ports.add(port);
@@ -141,7 +141,7 @@ class SarSysHarness extends TestHarness<SarSysAppServerChannel> {
 //////////////////////////////////
 
 Future expectAggregateInList(
-  SarSysHarness harness, {
+  SarSysHttpHarness harness, {
   String uri,
   String uuid,
   int port = 80,
@@ -157,7 +157,7 @@ Future expectAggregateInList(
 }
 
 Future expectAggregateReference(
-  SarSysHarness harness, {
+  SarSysHttpHarness harness, {
   String uri,
   int port = 80,
   String childUuid,
