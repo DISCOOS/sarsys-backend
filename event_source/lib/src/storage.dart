@@ -15,6 +15,7 @@ class Storage {
   Storage(
     this.type, {
     this.keep = 20,
+    this.automatic = true,
     this.threshold = 1000,
   }) : logger = Logger('Storage');
 
@@ -22,10 +23,12 @@ class Storage {
   static Storage fromType<T extends AggregateRoot>({
     int keep = 20,
     int threshold = 1000,
+    bool automatic = true,
   }) =>
       Storage(
         typeOf<T>(),
         keep: keep,
+        automatic: automatic,
         threshold: threshold,
       );
 
@@ -34,6 +37,9 @@ class Storage {
 
   /// Get [AggregateRoot] type stored
   final Type type;
+
+  /// Only save automatically if enabled
+  bool automatic;
 
   /// Number of snapshot to keep.
   /// When exceeded [first] is

@@ -1033,9 +1033,9 @@ Future main() async {
   });
 
   test('Repository should commit transactions on push', () async {
-    // Arrange
-    final repo1 = harness.get<FooRepository>(instance: 1);
-    final repo2 = harness.get<FooRepository>(instance: 2);
+    // Arrange - turn of snapshots to ensure all events are kept during this test
+    final repo1 = harness.get<FooRepository>(instance: 1)..store.snapshots.automatic = false;
+    final repo2 = harness.get<FooRepository>(instance: 2)..store.snapshots.automatic = false;
     await repo1.readyAsync();
     await repo2.readyAsync();
 
@@ -1099,7 +1099,7 @@ Future main() async {
     await repo1.store.asStream().where((e) => e.remote).take(101 - seen1.length).toList();
     await repo2.store.asStream().where((e) => e.remote).take(101 - seen2.length).toList();
 
-    // Assert events
+    // Assert events - counts are dependant on snapshots not being taken
     final stream = harness.server().getStream(typeOf<Foo>().toColonCase());
     expect(stream.instances[0].length, equals(51));
     expect(stream.instances[1].length, equals(51));

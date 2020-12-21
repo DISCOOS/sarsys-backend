@@ -546,7 +546,7 @@ class EventStore {
   /// stored events exceed
   /// [snapshots.threshold]
   void snapshotWhen(Repository repo) {
-    if (snapshots?.threshold is num) {
+    if (snapshots?.automatic == true && snapshots?.threshold is num) {
       final last = snapshots.last?.number?.value ?? EventNumber.first.value;
       if (repo.number.value - last >= snapshots.threshold) {
         repo.save();
@@ -606,6 +606,7 @@ class EventStore {
               // event is added (equality is
               // made on type and uuid only)
               prev.remote = true;
+              print('Remote! $e');
             }
           }
         }
