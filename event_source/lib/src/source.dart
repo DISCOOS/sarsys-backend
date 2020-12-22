@@ -78,12 +78,13 @@ class EventStore {
   ///
   EventStore({
     @required this.bus,
-    @required this.snapshots,
     @required this.aggregate,
     @required this.connection,
+    @required Storage snapshots,
     this.prefix,
     this.useInstanceStreams = true,
-  }) : logger = Logger('EventStore[${toCanonical([prefix, aggregate])}][${connection.port}]');
+  })  : _snapshots = snapshots,
+        logger = Logger('EventStore[${toCanonical([prefix, aggregate])}][${connection.port}]');
 
   /// Get canonical stream name
   static String toCanonical(List<String> segments) => segments
@@ -187,8 +188,18 @@ class EventStore {
   SourceEvent getEvent(String uuid) =>
       _events.containsKey(uuid) ? _aggregates[_events[uuid]].where((e) => e.uuid == uuid).firstOrNull : null;
 
-  /// Get [Storage] instance
-  final Storage snapshots;
+  /// Get snapshots [Storage] instance
+  Storage get snapshots => _snapshots;
+
+  /// Set snapshots [Storage] instance
+  set snapshots(Storage snapshots) {
+    _snapshots = snapshots;
+    if (_snapshots == null && !_snapshots.contains(_snapshot?.uuid)) {
+      _snapshot = null;
+    }
+  }
+
+  Storage _snapshots;
 
   /// Current snapshot
   SnapshotModel _snapshot;
@@ -342,13 +353,12 @@ class EventStore {
     List<String> uuids = const [],
   }) {
     final numbers = <String, EventNumber>{};
-    repository.reset(
+    final hasSnapshot = repository.reset(
       uuids: uuids,
       suuid: suuid,
     );
     _snapshot = repository.snapshot;
-    final hasSnapshot = repository.hasSnapshot;
-    final existing = hasSnapshot ? repository.snapshot.aggregates.keys : _aggregates.keys;
+    final existing = hasSnapshot ? _snapshot.aggregates.keys : _aggregates.keys;
     final keep = uuids.isNotEmpty ? uuids : existing;
     final aggregates = existing.toList()..retainWhere((uuid) => keep.contains(uuid));
 
@@ -545,13 +555,14 @@ class EventStore {
   /// Save a snapshot when locally
   /// stored events exceed
   /// [snapshots.threshold]
-  void snapshotWhen(Repository repo) {
+  SnapshotModel snapshotWhen(Repository repo) {
     if (snapshots?.automatic == true && snapshots?.threshold is num) {
       final last = snapshots.last?.number?.value ?? EventNumber.first.value;
       if (repo.number.value - last >= snapshots.threshold) {
-        repo.save();
+        return repo.save();
       }
     }
+    return null;
   }
 
   Iterable<SourceEvent> _updateAll(
@@ -606,7 +617,6 @@ class EventStore {
               // event is added (equality is
               // made on type and uuid only)
               prev.remote = true;
-              print('Remote! $e');
             }
           }
         }

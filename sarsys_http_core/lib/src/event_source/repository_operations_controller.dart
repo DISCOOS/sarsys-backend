@@ -95,6 +95,12 @@ class RepositoryOperationsController extends ResourceController {
             uuids: uuids,
           );
           break;
+        case 'snapshot':
+          return _doSnapshot(
+            repository,
+            body,
+            expand,
+          );
         default:
           return Response.badRequest(
             body: 'Command $command not found',
@@ -115,6 +121,48 @@ class RepositoryOperationsController extends ResourceController {
     } catch (e, stackTrace) {
       return toServerError(e, stackTrace);
     }
+  }
+
+  Response _doSnapshot(
+    Repository repository,
+    Map<String, dynamic> body,
+    String expand,
+  ) {
+    final snapshots = repository.store.snapshots;
+    if (snapshots == null) {
+      return Response.badRequest(
+        body: 'Snapshots not activated',
+      );
+    }
+    final automatic = body.elementAt<bool>(
+      'params/automatic',
+      defaultValue: snapshots.automatic,
+    );
+    final threshold = body.elementAt<int>(
+      'params/threshold',
+      defaultValue: snapshots.threshold,
+    );
+    final keep = body.elementAt<int>(
+      'params/keep',
+      defaultValue: snapshots.keep,
+    );
+    snapshots
+      ..keep = keep
+      ..automatic = automatic
+      ..threshold = threshold;
+    logger.info(
+      'Snapshots configured: automatic: $automatic, keep: $keep, threshold, $threshold',
+    );
+    repository.store.snapshotWhen(repository);
+    return Response.ok(
+      snapshots.toMeta(
+        current: repository.number,
+        type: repository.aggregateType,
+        uuid: repository.snapshot?.uuid,
+        data: _shouldExpand(expand, 'data'),
+        items: _shouldExpand(expand, 'items'),
+      ),
+    );
   }
 
   bool _shouldAccept() {
@@ -346,6 +394,9 @@ class RepositoryOperationsController extends ResourceController {
       'threshold': APISchemaObject.integer()
         ..description = 'Number of unsaved events before saving to next snapshot'
         ..isReadOnly = true,
+      'automatic': APISchemaObject.integer()
+        ..description = 'Control flag for automatic snapshots when threshold is reached'
+        ..isReadOnly = true,
       'partial': APISchemaObject.object({
         'missing': APISchemaObject.integer()
           ..description = 'Number of missing events in snapshot'
@@ -479,7 +530,11 @@ class RepositoryOperationsController extends ResourceController {
         ],
       'params': APISchemaObject.object({
         'uuids': APISchemaObject.array(ofType: APIType.string)
-          ..description = 'List of aggregate uuids which command applies to'
+          ..description = 'List of aggregate uuids which command applies to',
+        'keep': APISchemaObject.integer()..description = 'Number of snapshots to keep (oldest are deleted)',
+        'threshold': APISchemaObject.integer()..description = 'Snapshot threshold',
+        'automatic': APISchemaObject.boolean()
+          ..description = 'Control flag for automatic snapshots when threshold is reached',
       })
         ..description = 'Command properties'
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed

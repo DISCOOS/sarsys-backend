@@ -8,6 +8,7 @@ data:
   snapshots:
     enabled: $DATA_SNAPSHOTS_ENABLED
     keep: $DATA_SNAPSHOTS_KEEP
+    automatic: $DATA_SNAPSHOTS_AUTOMATIC
     threshold: $DATA_SNAPSHOTS_THRESHOLD
 
 auth:

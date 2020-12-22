@@ -188,6 +188,53 @@ class Storage {
     await _states.close();
   }
 
+  /// Get metadata for snapshot with given [uuid]
+  Map<String, dynamic> toMeta({
+    Type type,
+    String uuid,
+    EventNumber current,
+    bool data = false,
+    bool items = false,
+  }) {
+    final snapshot = get(uuid);
+    final withSnapshot = snapshot != null;
+    final withNumber = withSnapshot && current != null;
+    return {
+      if (withSnapshot) 'uuid': snapshot.uuid,
+      if (withSnapshot) 'number': snapshot.number.value,
+      'keep': keep,
+      'automatic': automatic,
+      if (withNumber) 'unsaved': current.value - snapshot.number.value,
+      'threshold': threshold,
+      if (withSnapshot && snapshot.isPartial) 'partial': {'missing': snapshot.missing},
+      if (withSnapshot)
+        'aggregates': {
+          'count': snapshot.aggregates.length,
+          if (items)
+            'items': [
+              ...snapshot.aggregates.values
+                  .map((a) => {
+                        'uuid': a.uuid,
+                        if (type != null) 'type': '$type',
+                        'number': a.number.value,
+                        'created': <String, dynamic>{
+                          'uuid': a.createdBy?.uuid,
+                          'type': '${a.createdBy?.type}',
+                          'timestamp': a.createdWhen.toIso8601String(),
+                        },
+                        'changed': <String, dynamic>{
+                          'uuid': a.changedBy?.uuid,
+                          'type': '${a.changedBy?.type}',
+                          'timestamp': a.changedWhen.toIso8601String(),
+                        },
+                        if (data) 'data': a.data,
+                      })
+                  .toList(),
+            ]
+        },
+    };
+  }
+
   static int _typeId = 0;
   static bool _isInitialized = false;
 

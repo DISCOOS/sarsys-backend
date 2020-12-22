@@ -100,6 +100,10 @@ class SnapshotsConfig extends Configuration {
   @optionalConfiguration
   bool enabled = false;
 
+  /// SARSys automatic snapshots activated
+  @optionalConfiguration
+  bool automatic = true;
+
   /// SARSys snapshots keep number
   @optionalConfiguration
   int keep = 20;

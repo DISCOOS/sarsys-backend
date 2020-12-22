@@ -628,10 +628,28 @@ class SarSysAppServerChannel extends ApplicationChannel {
     String stream,
     bool useInstanceStreams = true,
   }) {
-    final snapshots = config.data.snapshots.enabled
+    // Context allows for testing to pass these
+    final keep = options.context.elementAt<int>(
+      'snapshot_keep',
+      defaultValue: config.data.snapshots.keep,
+    );
+    final enabled = options.context.elementAt<bool>(
+      'snapshots_enabled',
+      defaultValue: config.data.snapshots.enabled,
+    );
+    final automatic = options.context.elementAt<bool>(
+      'snapshot_automatic',
+      defaultValue: config.data.snapshots.automatic,
+    );
+    final threshold = options.context.elementAt<int>(
+      'snapshot_threshold',
+      defaultValue: config.data.snapshots.threshold,
+    );
+    final snapshots = enabled
         ? Storage.fromType<T>(
-            keep: config.data.snapshots.keep,
-            threshold: config.data.snapshots.threshold,
+            keep: keep,
+            automatic: automatic,
+            threshold: threshold,
           )
         : null;
     manager.register<T>(
@@ -644,8 +662,16 @@ class SarSysAppServerChannel extends ApplicationChannel {
   }
 
   void _initHive() {
-    if (config.data.enabled) {
-      final hiveDir = Directory(config.data.path);
+    final enabled = options.context.elementAt<bool>(
+      'data_enabled',
+      defaultValue: config.data.enabled,
+    );
+    if (enabled) {
+      final path = options.context.elementAt<String>(
+        'data_path',
+        defaultValue: config.data.path,
+      );
+      final hiveDir = Directory(path);
       hiveDir.createSync(recursive: true);
       Hive.init(hiveDir.path);
     }

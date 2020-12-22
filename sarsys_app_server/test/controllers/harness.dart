@@ -7,6 +7,7 @@ import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
 import 'package:test/test.dart';
 import 'package:meta/meta.dart';
+import 'package:hive/hive.dart';
 
 export 'package:event_source/event_source.dart';
 export 'package:aqueduct_test/aqueduct_test.dart';
@@ -40,6 +41,22 @@ class SarSysHttpHarness extends TestHarness<SarSysAppServerChannel> {
         4000,
       );
 
+  int _keep;
+  int _threshold;
+  bool _automatic;
+  bool _withSnapshots = false;
+  SarSysHttpHarness withSnapshot({
+    int threshold = 100,
+    int keep = 10,
+    bool automatic = true,
+  }) {
+    _keep = keep;
+    _automatic = automatic;
+    _threshold = threshold;
+    _withSnapshots = true;
+    return this;
+  }
+
   SarSysHttpHarness withInstance(int port) {
     assert(port != 80, 'Instance with port 80 exists');
     assert(!_ports.contains(port), 'Instance with port $port exists');
@@ -70,6 +87,18 @@ class SarSysHttpHarness extends TestHarness<SarSysAppServerChannel> {
       eventStoreMockServer.withStream(typeOf<Mission>().toColonCase());
       eventStoreMockServer.withStream(typeOf<Person>().toColonCase());
       await eventStoreMockServer.open();
+    }
+    _configureSnapshots(application);
+  }
+
+  void _configureSnapshots(Application application) {
+    if (_withSnapshots) {
+      application.options.context['data_enabled'] = true;
+      application.options.context['data_path'] = 'test/.hive';
+      application.options.context['snapshots_keep'] = _keep;
+      application.options.context['snapshots_enabled'] = true;
+      application.options.context['snapshots_threshold'] = _threshold;
+      application.options.context['snapshots_automatic'] = _automatic;
     }
   }
 
@@ -110,6 +139,9 @@ class SarSysHttpHarness extends TestHarness<SarSysAppServerChannel> {
 
   @override
   Future stop() async {
+    if (_withSnapshots) {
+      await Hive.deleteFromDisk();
+    }
     assert(channel.router.getContexts().isEmpty, 'Contexts should be empty');
     await channel.dispose();
     for (var instance in _instances) {
@@ -127,11 +159,13 @@ class SarSysHttpHarness extends TestHarness<SarSysAppServerChannel> {
 
   Future<Agent> _startInstance(int port) async {
     final application = Application<SarSysAppServerChannel>()..options = options;
+    _configureSnapshots(application);
     await application.startOnCurrentIsolate();
     application.channel.config.logging.stdout = false;
     final agent = Agent(application);
     await application.channel.manager.readyAsync();
     _instances.add(application);
+
     return agent;
   }
 }

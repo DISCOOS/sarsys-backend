@@ -968,8 +968,14 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Save snapshot of current states
   SnapshotModel save() {
-    final snapshot = store.snapshots?.add(this);
+    final candidate = store.snapshots?.add(this);
     store.reset(this, suuid: snapshot?.uuid);
+    if (hasSnapshot) {
+      logger.info(
+        'Snapshot saved for $aggregateType@${snapshot.number} '
+        '(${snapshot.isPartial ? 'partial,' : ''} ${snapshot.aggregates.length} aggregates)',
+      );
+    }
     return snapshot;
   }
 
@@ -1861,10 +1867,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     List<String> uuids = const [],
   }) {
     final exists = store.snapshots?.contains(suuid ?? _suuid) == true;
+    _suuid = exists ? suuid : null;
     try {
       if (exists) {
         store.pause();
-        _suuid = suuid;
         final snapshot = store.snapshots[_suuid];
         // Remove missing
         _aggregates.removeWhere(
@@ -1944,7 +1950,14 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       },
       'number': number.value,
       if (queue) 'queue': _toQueueMeta(),
-      if (snapshot && hasSnapshot) 'snapshot': _toSnapshotMeta(items, data),
+      if (snapshot && hasSnapshot)
+        'snapshot': store.snapshots.toMeta(
+          data: data,
+          items: items,
+          uuid: _suuid,
+          current: number,
+          type: aggregateType,
+        ),
       if (connection) 'connection': store.connection.toMeta(),
       if (subscriptions) 'subscriptions': _toSubscriptionMeta(),
     };
@@ -2016,41 +2029,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         'processed': _pushQueue.processed,
         'cancelled': _pushQueue.cancelled,
         'completed': _pushQueue.completed,
-      },
-    };
-  }
-
-  Map<String, Object> _toSnapshotMeta(bool items, bool data) {
-    return {
-      'uuid': snapshot.uuid,
-      'number': snapshot.number.value,
-      'keep': store.snapshots.keep,
-      'unsaved': number.value - snapshot.number.value,
-      'threshold': store.snapshots.threshold,
-      if (snapshot.isPartial) 'partial': {'missing': snapshot.missing},
-      'aggregates': {
-        'count': snapshot.aggregates.length,
-        if (items)
-          'items': [
-            ...snapshot.aggregates.values
-                .map((a) => {
-                      'uuid': a.uuid,
-                      'type': '$aggregateType',
-                      'number': a.number.value,
-                      'created': <String, dynamic>{
-                        'uuid': a.createdBy?.uuid,
-                        'type': '${a.createdBy?.type}',
-                        'timestamp': a.createdWhen.toIso8601String(),
-                      },
-                      'changed': <String, dynamic>{
-                        'uuid': a.changedBy?.uuid,
-                        'type': '${a.changedBy?.type}',
-                        'timestamp': a.changedWhen.toIso8601String(),
-                      },
-                      if (data) 'data': a.data,
-                    })
-                .toList(),
-          ]
       },
     };
   }
