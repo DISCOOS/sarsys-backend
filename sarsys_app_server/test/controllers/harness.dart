@@ -64,7 +64,7 @@ class SarSysHttpHarness extends TestHarness<SarSysAppServerChannel> {
   }) {
     _context.clear();
     _context.addAll({
-      if (podName != null) 'POD-NAME': podName,
+      if (podName != null) 'POD_NAME': podName,
       if (dataPath != null) 'data_path': 'test/.hive',
     });
     return this;

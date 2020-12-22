@@ -68,7 +68,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
   static void printRecord(LogRecord rec, {bool debug = false, bool stdout = false}) {
     final message = "${rec.time}: ${rec.level.name}: "
         "${debug ? '${rec.loggerName}: ' : ''}"
-        "${debug && Platform.environment.containsKey('POD-NAME') ? '${Platform.environment['POD-NAME']}: ' : ''}"
+        "${debug && Platform.environment.containsKey('POD_NAME') ? '${Platform.environment['POD_NAME']}: ' : ''}"
         "${rec.message}"
         "${rec.error != null ? ':\nerror: ${rec.error}' : ''}"
         "${rec.stackTrace != null ? ':\nstackTrace: ${rec.stackTrace}' : ''}";

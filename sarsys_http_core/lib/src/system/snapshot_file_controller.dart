@@ -34,8 +34,8 @@ class SnapshotFileController extends ResourceController {
   bool contains(String name) => context.containsKey(name) || Platform.environment.containsKey(name);
 
   bool shouldAccept() {
-    if (contains('POD-NAME')) {
-      final name = get('POD-NAME');
+    if (contains('POD_NAME')) {
+      final name = get('POD_NAME');
       final match = request.raw.headers.value('x-if-match-pod');
       return match == null || name == null || match.toLowerCase() == name.toLowerCase();
     }
