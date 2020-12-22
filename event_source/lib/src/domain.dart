@@ -970,13 +970,19 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Save snapshot of current states
   SnapshotModel save() {
-    final candidate = store.snapshots?.add(this);
-    store.reset(this, suuid: candidate?.uuid);
-    if (hasSnapshot) {
-      logger.info(
-        'Snapshot saved for $aggregateType@${snapshot.number} '
-        '(${snapshot.isPartial ? 'partial,' : ''} ${snapshot.aggregates.length} aggregates)',
-      );
+    if (store.snapshots != null) {
+      final last = store.snapshots.last?.number?.value ?? -1;
+      // Only save if more events have been added
+      if (last < number.value) {
+        final candidate = store.snapshots?.add(this);
+        store.reset(this, suuid: candidate?.uuid);
+        if (hasSnapshot) {
+          logger.info(
+            'Snapshot saved for $aggregateType@${snapshot.number} '
+            '(${snapshot.isPartial ? 'partial, ' : ''}${snapshot.aggregates.length} aggregates)',
+          );
+        }
+      }
     }
     return snapshot;
   }

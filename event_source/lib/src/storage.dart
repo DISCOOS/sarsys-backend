@@ -120,10 +120,21 @@ class Storage {
 
   /// Reads [states] from storage
   @visibleForOverriding
-  Future<Iterable<StorageState>> load() async {
-    _states = await Hive.openBox<StorageState>(filename);
+  Future<Iterable<StorageState>> load({String path}) async {
+    _states = await Hive.openBox<StorageState>(
+      filename,
+      path: path,
+    );
     // Get mapped states
     return _states.values;
+  }
+
+  /// Unload [states] from memory
+  @visibleForOverriding
+  Future<Iterable<StorageState>> unload({String path}) async {
+    final values = List<StorageState>.from(_states.values);
+    await _states.close();
+    return values;
   }
 
   /// Get [SnapshotModel] from [uuid]
@@ -352,7 +363,11 @@ class StorageException implements Exception {
   final String message;
   final StorageState state;
   final StackTrace stackTrace;
-  StorageException(this.message, {this.state, this.stackTrace});
+  StorageException(
+    this.message, {
+    this.state,
+    StackTrace stackTrace,
+  }) : stackTrace = StackTrace.current;
   @override
   String toString() {
     return '$runtimeType: {message: $message, state: $state, stackTrace: ${Trace.format(stackTrace)}}';

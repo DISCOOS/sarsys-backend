@@ -1,21 +1,33 @@
 import 'package:sarsys_http_core/sarsys_http_core.dart';
 
+import 'controllers.dart';
+
 /// A [ResourceController] for [Repository] operations requests
-class RepositoryOperationsController extends ResourceController {
+class RepositoryOperationsController extends SystemOperationsBaseController {
   RepositoryOperationsController(
-    this.manager, {
-    @required this.tag,
-  });
-
-  final String tag;
-
-  final RepositoryManager manager;
-
-  @override
-  FutureOr<RequestOrResponse> willProcessRequest(Request req) => manager.isReady
-      ? req
-      : serviceUnavailable(
-          body: 'Repositories are unavailable: build pending',
+    RepositoryManager manager, {
+    @required String tag,
+    @required SarSysConfig config,
+    @required Map<String, dynamic> context,
+  }) : super(
+          manager,
+          tag: tag,
+          options: [
+            'data',
+            'queue',
+            'items',
+            'snapshot',
+            'connection',
+            'subscriptions',
+          ],
+          actions: [
+            'rebuild',
+            'replay',
+            'catchup',
+          ],
+          config: config,
+          context: context,
+          type: 'Repository',
         );
 
   //////////////////////////////////
@@ -24,12 +36,12 @@ class RepositoryOperationsController extends ResourceController {
 
   @Scope(['roles:admin'])
   @Operation.get('type')
-  Future<Response> getMeta(
+  Future<Response> getRepoMeta(
     @Bind.path('type') String type, {
     @Bind.query('expand') String expand,
   }) async {
     try {
-      if (!_shouldAccept()) {
+      if (!shouldAccept()) {
         return requestedRangeNotSatisfiable();
       }
       final repository = manager.getFromTypeName(type);
@@ -40,12 +52,12 @@ class RepositoryOperationsController extends ResourceController {
       }
       return Response.ok(
         repository.toMeta(
-          data: _shouldExpand(expand, 'data'),
-          queue: _shouldExpand(expand, 'queue'),
-          items: _shouldExpand(expand, 'items'),
-          snapshot: _shouldExpand(expand, 'snapshot'),
-          connection: _shouldExpand(expand, 'connection'),
-          subscriptions: _shouldExpand(expand, 'subscriptions'),
+          data: shouldExpand(expand, 'data'),
+          queue: shouldExpand(expand, 'queue'),
+          items: shouldExpand(expand, 'items'),
+          snapshot: shouldExpand(expand, 'snapshot'),
+          connection: shouldExpand(expand, 'connection'),
+          subscriptions: shouldExpand(expand, 'subscriptions'),
         ),
       );
     } on InvalidOperation catch (e) {
@@ -57,13 +69,13 @@ class RepositoryOperationsController extends ResourceController {
 
   @Scope(['roles:admin'])
   @Operation.post('type')
-  Future<Response> command(
+  Future<Response> repoCommand(
     @Bind.path('type') String type,
     @Bind.body() Map<String, dynamic> body, {
     @Bind.query('expand') String expand,
   }) async {
     try {
-      if (!_shouldAccept()) {
+      if (!shouldAccept()) {
         return requestedRangeNotSatisfiable();
       }
       final repository = manager.getFromTypeName(type);
@@ -72,35 +84,17 @@ class RepositoryOperationsController extends ResourceController {
           body: 'Repository for type $type not found',
         );
       }
-      final command = _assertCommand(body);
+      final command = assertCommand(body);
       switch (command) {
         case 'rebuild':
           await repository.build();
           break;
         case 'replay':
-          final uuids = body.listAt<String>(
-            'params/uuids',
-            defaultList: <String>[],
-          );
-          await repository.replay(
-            uuids: uuids,
-          );
+          await _doReplay(body, repository);
           break;
         case 'catchup':
-          final uuids = body.listAt<String>(
-            'params/uuids',
-            defaultList: <String>[],
-          );
-          await repository.catchup(
-            uuids: uuids,
-          );
+          await _doCatchup(body, repository);
           break;
-        case 'snapshot':
-          return _doSnapshot(
-            repository,
-            body,
-            expand,
-          );
         default:
           return Response.badRequest(
             body: "Command '$command' not found",
@@ -108,12 +102,12 @@ class RepositoryOperationsController extends ResourceController {
       }
       return Response.ok(
         repository.toMeta(
-          data: _shouldExpand(expand, 'data'),
-          queue: _shouldExpand(expand, 'queue'),
-          items: _shouldExpand(expand, 'items'),
-          snapshot: _shouldExpand(expand, 'snapshot'),
-          connection: _shouldExpand(expand, 'connection'),
-          subscriptions: _shouldExpand(expand, 'subscriptions'),
+          data: shouldExpand(expand, 'data'),
+          queue: shouldExpand(expand, 'queue'),
+          items: shouldExpand(expand, 'items'),
+          snapshot: shouldExpand(expand, 'snapshot'),
+          connection: shouldExpand(expand, 'connection'),
+          subscriptions: shouldExpand(expand, 'subscriptions'),
         ),
       );
     } on InvalidOperation catch (e) {
@@ -123,206 +117,40 @@ class RepositoryOperationsController extends ResourceController {
     }
   }
 
-  Response _doSnapshot(
-    Repository repository,
-    Map<String, dynamic> body,
-    String expand,
-  ) {
-    final snapshots = repository.store.snapshots;
-    if (snapshots == null) {
-      return Response.badRequest(
-        body: 'Snapshots not activated',
-      );
-    }
-    final automatic = body.elementAt<bool>(
-      'params/automatic',
-      defaultValue: snapshots.automatic,
+  Future _doCatchup(Map<String, dynamic> body,
+      Repository<Command<DomainEvent>, AggregateRoot<DomainEvent, DomainEvent>> repository) async {
+    final uuids = body.listAt<String>(
+      'params/uuids',
+      defaultList: <String>[],
     );
-    final threshold = body.elementAt<int>(
-      'params/threshold',
-      defaultValue: snapshots.threshold,
-    );
-    final keep = body.elementAt<int>(
-      'params/keep',
-      defaultValue: snapshots.keep,
-    );
-    snapshots
-      ..keep = keep
-      ..automatic = automatic
-      ..threshold = threshold;
-    logger.info(
-      'Snapshots configured: automatic: $automatic, keep: $keep, threshold, $threshold',
-    );
-    repository.store.snapshotWhen(repository);
-    return Response.ok(
-      snapshots.toMeta(
-        current: repository.number,
-        type: repository.aggregateType,
-        uuid: repository.snapshot?.uuid,
-        data: _shouldExpand(expand, 'data'),
-        items: _shouldExpand(expand, 'items'),
-      ),
+    await repository.catchup(
+      uuids: uuids,
     );
   }
 
-  bool _shouldAccept() {
-    if (Platform.environment.containsKey('POD-NAME')) {
-      final name = Platform.environment['POD-NAME'];
-      final match = request.raw.headers.value('x-if-match-pod');
-      return match == null || name == null || match.toLowerCase() == name.toLowerCase();
-    }
-    return true;
-  }
-
-  bool _shouldExpand(String expand, String field) {
-    final elements = expand?.split(',') ?? <String>[];
-    if (elements.any((element) => element.toLowerCase() == field)) {
-      return true;
-    }
-    elements.removeWhere(
-      (e) => !options.contains(e),
+  Future _doReplay(Map<String, dynamic> body,
+      Repository<Command<DomainEvent>, AggregateRoot<DomainEvent, DomainEvent>> repository) async {
+    final uuids = body.listAt<String>(
+      'params/uuids',
+      defaultList: <String>[],
     );
-    return false;
+    await repository.replay(
+      uuids: uuids,
+    );
   }
-
-  List<String> get options => const [
-        'data',
-        'queue',
-        'items',
-        'snapshot',
-        'connection',
-        'subscriptions',
-      ];
-
-  String _assertCommand(Map<String, dynamic> body) {
-    final action = body.elementAt('action');
-    if (action == null) {
-      throw const InvalidOperation("Argument 'action' is missing");
-    } else if (action is! String) {
-      throw InvalidOperation("Argument 'action' is not a String: $action");
-    }
-    return (action as String).toLowerCase();
-  }
-
-  /// Report error to Sentry and
-  /// return 500 with message as body
-  Response toServerError(Object error, StackTrace stackTrace) => serverError(
-        request,
-        error,
-        stackTrace,
-        logger: logger,
-      );
 
   //////////////////////////////////
   // Documentation
   //////////////////////////////////
 
   @override
-  List<String> documentOperationTags(APIDocumentContext context, Operation operation) =>
-      tag == null ? super.documentOperationTags(context, operation) : [tag];
-
-  @override
-  String documentOperationSummary(APIDocumentContext context, Operation operation) {
-    String summary;
-    switch (operation.method) {
-      case 'GET':
-        summary = 'Get repository metadata';
-        break;
-      case 'POST':
-        summary = 'Execute command on repository';
-        break;
-    }
-    return summary;
-  }
-
-  @override
-  String documentOperationDescription(APIDocumentContext context, Operation operation) {
-    return '${documentOperationSummary(context, operation)}.';
-  }
-
-  @override
-  List<APIParameter> documentOperationParameters(APIDocumentContext context, Operation operation) {
-    final parameters = super.documentOperationParameters(context, operation);
-    switch (operation.method) {
-      case 'GET':
-        parameters.add(
-          APIParameter.query('expand')
-            ..description = 'Expand response with metadata. '
-                "Legal values are: '${options.join("', '")}'",
-        );
-        break;
-    }
-    return parameters;
-  }
-
-  @override
-  APIRequestBody documentOperationRequestBody(APIDocumentContext context, Operation operation) {
-    switch (operation.method) {
-      case 'POST':
-        return APIRequestBody.schema(
-          context.schema['RepositoryCommand'],
-          description: 'Repository Command Request',
-          required: true,
-        );
-        break;
-    }
-    return super.documentOperationRequestBody(context, operation);
-  }
-
-  @override
-  Map<String, APIResponse> documentOperationResponses(APIDocumentContext context, Operation operation) {
-    final responses = {
-      '200': context.responses.getObject('200'),
-      '400': context.responses.getObject('400'),
-      '401': context.responses.getObject('401'),
-      '403': context.responses.getObject('403'),
-      '416': context.responses.getObject('416'),
-      '429': context.responses.getObject('429'),
-      '500': context.responses.getObject('503'),
-      '503': context.responses.getObject('503'),
-      '504': context.responses.getObject('504'),
-    };
-    switch (operation.method) {
-      case 'GET':
-        responses.addAll({
-          '200': APIResponse.schema(
-            'Successful response.',
-            context.schema['RepositoryMeta'],
-          ),
-        });
-        break;
-      case 'POST':
-        responses.addAll({
-          '200': APIResponse.schema(
-            'Successful response.',
-            context.schema['RepositoryMeta'],
-          ),
-        });
-        break;
-    }
-    return responses;
-  }
-
-  @override
-  void documentComponents(APIDocumentContext context) {
-    super.documentComponents(context);
-    documentSchemaObjects(context).forEach((name, object) {
-      if (object.title?.isNotEmpty == false) {
-        object.title = '$name';
-      }
-      if (object.description?.isNotEmpty == false) {
-        object.description = '$name schema';
-      }
-      context.schema.register(name, object);
-    });
-  }
-
-  Map<String, APISchemaObject> documentSchemaObjects(APIDocumentContext context) => {
-        'RepositoryMeta': _documentMeta(context),
-        'RepositoryCommand': _documentCommand(),
+  Map<String, APISchemaObject> documentCommandParams(APIDocumentContext context) => {
+        'uuids': APISchemaObject.array(ofType: APIType.string)
+          ..description = 'List of aggregate uuids which command applies to',
       };
 
-  APISchemaObject _documentMeta(APIDocumentContext context) {
+  @override
+  APISchemaObject documentMeta(APIDocumentContext context) {
     return APISchemaObject.object({
       'type': APISchemaObject.string()
         ..description = 'Aggregate Type'
@@ -515,29 +343,6 @@ class RepositoryOperationsController extends ResourceController {
       })
         ..description = 'Request queue subscription status'
         ..isReadOnly = true,
-    });
-  }
-
-  APISchemaObject _documentCommand() {
-    return APISchemaObject.object({
-      'action': APISchemaObject.string()
-        ..description = 'Repository actions'
-        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
-        ..enumerated = [
-          'rebuild',
-          'replay',
-          'catchup',
-        ],
-      'params': APISchemaObject.object({
-        'uuids': APISchemaObject.array(ofType: APIType.string)
-          ..description = 'List of aggregate uuids which command applies to',
-        'keep': APISchemaObject.integer()..description = 'Number of snapshots to keep (oldest are deleted)',
-        'threshold': APISchemaObject.integer()..description = 'Snapshot threshold',
-        'automatic': APISchemaObject.boolean()
-          ..description = 'Control flag for automatic snapshots when threshold is reached',
-      })
-        ..description = 'Command properties'
-        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
     });
   }
 }

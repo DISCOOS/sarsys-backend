@@ -57,6 +57,19 @@ class SarSysHttpHarness extends TestHarness<SarSysAppServerChannel> {
     return this;
   }
 
+  final Map<String, dynamic> _context = {};
+  SarSysHttpHarness withContext({
+    String podName = 'bar',
+    String dataPath,
+  }) {
+    _context.clear();
+    _context.addAll({
+      if (podName != null) 'POD-NAME': podName,
+      if (dataPath != null) 'data_path': 'test/.hive',
+    });
+    return this;
+  }
+
   SarSysHttpHarness withInstance(int port) {
     assert(port != 80, 'Instance with port 80 exists');
     assert(!_ports.contains(port), 'Instance with port $port exists');
@@ -66,6 +79,8 @@ class SarSysHttpHarness extends TestHarness<SarSysAppServerChannel> {
 
   @override
   Future beforeStart() async {
+    await _deleteTestData();
+
     if (eventStoreMockServer != null) {
       // Define required projections
       eventStoreMockServer.withProjection('\$by_category');
@@ -88,10 +103,21 @@ class SarSysHttpHarness extends TestHarness<SarSysAppServerChannel> {
       eventStoreMockServer.withStream(typeOf<Person>().toColonCase());
       await eventStoreMockServer.open();
     }
-    _configureSnapshots(application);
+    _configureContext(application);
   }
 
-  void _configureSnapshots(Application application) {
+  Future _deleteTestData() async {
+    if (_withSnapshots) {
+      await Hive.deleteFromDisk();
+    }
+    final dataPath = Directory((_context['data_path'] ?? 'data_path') as String);
+    if (dataPath.existsSync()) {
+      dataPath.deleteSync();
+    }
+  }
+
+  void _configureContext(Application application) {
+    application.options.context.addAll(_context);
     if (_withSnapshots) {
       application.options.context['data_enabled'] = true;
       application.options.context['data_path'] = 'test/.hive';
@@ -139,10 +165,8 @@ class SarSysHttpHarness extends TestHarness<SarSysAppServerChannel> {
 
   @override
   Future stop() async {
-    if (_withSnapshots) {
-      await Hive.deleteFromDisk();
-    }
-    assert(channel.router.getContexts().isEmpty, 'Contexts should be empty');
+    await _deleteTestData();
+    // assert(channel.router.getContexts().isEmpty, 'Contexts should be empty');
     await channel.dispose();
     for (var instance in _instances) {
       assert(instance.channel.router.getContexts().isEmpty, 'Contexts should be empty');
@@ -159,7 +183,7 @@ class SarSysHttpHarness extends TestHarness<SarSysAppServerChannel> {
 
   Future<Agent> _startInstance(int port) async {
     final application = Application<SarSysAppServerChannel>()..options = options;
-    _configureSnapshots(application);
+    _configureContext(application);
     await application.startOnCurrentIsolate();
     application.channel.config.logging.stdout = false;
     final agent = Agent(application);

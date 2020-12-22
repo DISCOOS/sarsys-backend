@@ -123,7 +123,8 @@ class SarSysAppServerChannel extends ApplicationChannel {
       ..route('/api/*').link(
         () => DocumentController(),
       )
-      ..route('/api/healthz').link(() => HealthController(
+      ..route('/api/healthz/alive').link(() => LivenessController())
+      ..route('/api/healthz/ready').link(() => ReadinessController(
             manager,
           ))
       ..secure(
@@ -137,12 +138,40 @@ class SarSysAppServerChannel extends ApplicationChannel {
           () => RepositoryOperationsController(
                 manager,
                 tag: 'System',
+                config: config,
+                context: options.context,
               ))
       ..secure(
           '/api/aggregates/:type/:uuid',
           () => AggregateOperationsController(
                 manager,
                 tag: 'System',
+                config: config,
+                context: options.context,
+              ))
+      ..secure(
+          '/api/snapshots/:type',
+          () => SnapshotOperationsController(
+                manager,
+                tag: 'System',
+                config: config,
+                context: options.context,
+              ))
+      ..secure(
+          '/api/snapshots/:type/upload',
+          () => SnapshotFileController(
+                manager,
+                tag: 'System',
+                config: config,
+                context: options.context,
+              ))
+      ..secure(
+          '/api/snapshots/:type/download',
+          () => SnapshotFileController(
+                manager,
+                tag: 'System',
+                config: config,
+                context: options.context,
               ))
       ..secure(
           '/api/app-configs[/:uuid]',

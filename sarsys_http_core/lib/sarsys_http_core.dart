@@ -22,6 +22,5 @@ export 'src/event_source/policy.dart';
 export 'src/event_source/schemas.dart';
 export 'src/logging.dart';
 export 'src/responses.dart';
-export 'src/system/document_controller.dart';
-export 'src/system/health_controller.dart';
+export 'src/system/controllers.dart';
 export 'src/validation/validation.dart';

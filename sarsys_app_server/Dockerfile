@@ -25,6 +25,6 @@ EXPOSE 8082
 
 VOLUME /var/lib/sarsys
 
-HEALTHCHECK --timeout=4s CMD curl -sf http://localhost:8082/api/healthz || exit 1
+HEALTHCHECK --timeout=4s CMD curl -sf http://localhost:8082/api/healthz/alive || exit 1
 
 ENTRYPOINT ["dart", "main.snapshot", "--port", "8082", "--instances", "1", "--config", "config.yaml"]

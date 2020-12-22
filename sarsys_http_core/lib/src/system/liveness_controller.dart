@@ -2,13 +2,12 @@ import 'package:aqueduct/aqueduct.dart';
 import 'package:event_source/event_source.dart';
 import 'package:sarsys_http_core/sarsys_http_core.dart';
 
-class HealthController extends ResourceController {
-  HealthController(this.manager);
-  final RepositoryManager manager;
+class LivenessController extends ResourceController {
+  LivenessController();
 
   @Operation.get()
   Future<Response> check() async {
-    return manager.isReady ? Response.ok('Status OK') : serviceUnavailable(body: 'Status Not ready');
+    return Response.ok('Status OK');
   }
 
   @override

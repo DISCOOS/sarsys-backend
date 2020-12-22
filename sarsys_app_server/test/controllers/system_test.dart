@@ -9,7 +9,11 @@ Future main() async {
     expectResponse(await harness.agent.get("/api/client.html"), 200);
   });
 
-  test("GET /api/healthz returns status code 200 Status OK", () async {
-    expectResponse(await harness.agent.get("/api/healthz"), 200, body: "Status OK");
+  test("GET /api/healthz/alive returns status code 200 Status OK", () async {
+    expectResponse(await harness.agent.get("/api/healthz/alive"), 200, body: "Status OK");
+  });
+
+  test("GET /api/healthz/ready returns status code 200 Status OK", () async {
+    expectResponse(await harness.agent.get("/api/healthz/ready"), 200, body: "Status OK");
   });
 }
