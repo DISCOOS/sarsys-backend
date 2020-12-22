@@ -1154,9 +1154,17 @@ Future main() async {
       throwsA(isA<ConflictNotReconcilable>()),
     );
 
+    // Hack - must find out why this seems to work
+    await Future.delayed(Duration(seconds: 1));
+
     // Assert conflict unresolved
     expect(repo.count(), equals(1));
     expect(repo.inTransaction(uuid), isFalse);
+    expect(
+      trx.isCompleted,
+      isTrue,
+      reason: 'Should be completed',
+    );
     expect(foo.data, containsPair('property1', 'value1'));
     expect(foo.data, containsPair('property2', 'value2'));
     expect(foo.data, containsPair('property3', 'remote'));

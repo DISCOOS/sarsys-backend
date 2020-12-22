@@ -61,7 +61,7 @@ Future main() async {
     expect(data1['data'], equals(body));
     final next = expectResponse(await harness.agent.get("/api/devices/$uuid"), 200);
     final data2 = await next.body.decode();
-    expect(data2['data'], equals({'parameter1': 'value1'}));
+    expect(data2['data'], equals({'uuid': uuid, 'parameter1': 'value1'}));
   });
 
   test("POST /api/aggregates/device/{uuid} returns status code 200 for action 'catchup' aggregate", () async {

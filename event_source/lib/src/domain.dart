@@ -889,7 +889,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       await _storeSubscriptionController.cancel();
       _pushQueue = StreamRequestQueue<Iterable<DomainEvent>>();
     }
-    _pushQueueSubscription = _pushQueue.onEvent().listen(_onQueueEvent);
+    _pushQueueSubscription = _pushQueue.onEvent().listen(
+          _onQueueEvent,
+        );
     if (store.snapshots != null) {
       await store.snapshots.load();
       _suuid = store.snapshots.last?.uuid;
@@ -969,7 +971,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Save snapshot of current states
   SnapshotModel save() {
     final candidate = store.snapshots?.add(this);
-    store.reset(this, suuid: snapshot?.uuid);
+    store.reset(this, suuid: candidate?.uuid);
     if (hasSnapshot) {
       logger.info(
         'Snapshot saved for $aggregateType@${snapshot.number} '
