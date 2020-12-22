@@ -103,7 +103,7 @@ class RepositoryOperationsController extends ResourceController {
           );
         default:
           return Response.badRequest(
-            body: 'Command $command not found',
+            body: "Command '$command' not found",
           );
       }
       return Response.ok(

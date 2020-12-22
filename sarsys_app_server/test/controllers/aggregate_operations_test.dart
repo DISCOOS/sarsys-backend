@@ -52,7 +52,9 @@ Future main() async {
 
     final request = harness.agent.post("/api/aggregates/device/$uuid?expand=data", body: {
       'action': 'replace',
-      'data': {'parameter1': 'value1'}
+      'params': {
+        'data': {'parameter1': 'value1'}
+      }
     });
     final previous = expectResponse(await request, 200);
     final data1 = await previous.body.decode();

@@ -111,10 +111,10 @@ class AggregateOperationsController extends ResourceController {
           );
         case 'replace':
           final data = body.mapAt<String, dynamic>(
-            'data',
+            'params/data',
           );
           final patches = body.listAt<Map<String, dynamic>>(
-            'patches',
+            'params/patches',
           );
           final old = repository.replace(
             uuid,
@@ -129,7 +129,7 @@ class AggregateOperationsController extends ResourceController {
           );
       }
       return Response.badRequest(
-        body: 'Command $command not found',
+        body: "Command '$command' not found",
       );
     } on RepositoryMaxPressureExceeded catch (e) {
       return tooManyRequests(body: e.message);

@@ -995,7 +995,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
     // Recreate from last known state
     _aggregates.remove(uuid);
-    final next = get(uuid);
 
     // Replace data with given
     final json = Map<String, dynamic>.from(data ?? JsonPatch.apply(prev.data ?? {}, patches) as Map)
@@ -1003,6 +1002,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         // Overwrite any 'uuid' in given data or patch
         'uuid': uuid,
       });
+
+    // Get event, skipping any
+    final next = _get(uuid, data: json, fail: false);
 
     // Initialize head, base and data
     next._setBase(json);
@@ -1738,9 +1740,24 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// of to each [DomainEvent].
   T get(
     String uuid, {
+    bool createNew = true,
     Map<String, dynamic> data = const {},
     List<Map<String, dynamic>> patches = const [],
+  }) {
+    return _get(
+      uuid,
+      createNew: createNew,
+      data: data,
+      patches: patches,
+    );
+  }
+
+  T _get(
+    String uuid, {
+    bool fail = true,
     bool createNew = true,
+    Map<String, dynamic> data = const {},
+    List<Map<String, dynamic>> patches = const [],
   }) {
     var aggregate = _aggregates[uuid];
     if (aggregate == null && createNew) {
@@ -1757,7 +1774,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       // otherwise keep the event from
       // construction of this aggregate
       if (store.contains(uuid) || hasSnapshot && snapshot.contains(uuid)) {
-        aggregate._replay(this);
+        aggregate._replay(
+          this,
+          fail: fail,
+        );
       }
     }
     return aggregate;
@@ -2394,15 +2414,29 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
 
   /// Load events from history.
   @protected
-  AggregateRoot _replay(Repository repo) {
+  AggregateRoot _replay(Repository repo, {bool fail = true}) {
     final events = repo.store.get(uuid);
     _reset(repo);
     final offset = number;
-    events?.where((event) => event.number > offset)?.forEach((event) => _apply(
+    events?.where((event) => event.number > offset)?.forEach((event) {
+      try {
+        _apply(
           // Must use this method to ensure previous
           repo.toDomainEvent(event),
           isLocal: false,
-        ));
+        );
+      } on JsonPatchError {
+        if (fail) {
+          rethrow;
+        }
+        _apply(
+          repo.toDomainEvent(event),
+          // Skip patch with
+          skip: true,
+          isLocal: false,
+        );
+      }
+    });
 
     return this;
   }
