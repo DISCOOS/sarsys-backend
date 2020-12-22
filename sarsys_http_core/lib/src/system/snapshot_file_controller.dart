@@ -158,6 +158,7 @@ class SnapshotFileController extends ResourceController {
     // saved during upload
     final old = snapshots.automatic;
     snapshots.automatic = false;
+    repository.store.pause();
 
     // Take backup of hive files
     final postfix = '${DateTime.now().millisecondsSinceEpoch}';
@@ -233,6 +234,7 @@ class SnapshotFileController extends ResourceController {
       );
     } finally {
       snapshots.automatic = old;
+      repository.store.resume();
     }
   }
 
