@@ -1,10 +1,13 @@
 
 .PHONY: \
-	models
+	models test
 .SILENT: \
-	models
+	models test
 
 models:
 	echo "Generating models..."; \
 	pub run build_runner build --delete-conflicting-outputs; \
 	echo "[✓] Generating models complete."
+
+test:
+	pub run test -j 1
