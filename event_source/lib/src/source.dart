@@ -472,7 +472,6 @@ class EventStore {
       }
       return count;
     } finally {
-      snapshotWhen(repo);
       resume();
     }
   }
@@ -545,6 +544,9 @@ class EventStore {
         );
 
         count += result.events.length;
+
+        // Free up memory
+        snapshotWhen(repo);
       }
     });
     await events.length;
