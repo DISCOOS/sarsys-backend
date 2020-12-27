@@ -327,9 +327,9 @@ class Storage {
     if (isReady) {
       if (isEmpty || !repo.hasSnapshot || last.number.value < repo.number.value) {
         final candidate = toSnapshot(repo);
-        final tag = 'snapshot ${candidate.uuid} of '
-            '${candidate.runtimeType}@${candidate.number.value} '
-            '(${candidate.isPartial ? 'partial, ' : ''}${candidate.aggregates.length} aggregates)';
+        final tag = 'snapshot ${candidate.uuid} ${candidate.isPartial ? '(partial) of' : 'of'} '
+            '${candidate.type}@${candidate.number.value} '
+            'with ${candidate.aggregates.length} aggregates';
         final key = '${candidate.number}';
         final added = _saveQueue.add(StreamRequest<SnapshotModel>(
           key: key,
@@ -363,7 +363,7 @@ class Storage {
         StorageState(value: model),
       );
       logger.info(
-        'Added $tag',
+        'Added $tag to storage',
       );
       await purge(repo);
       return StreamResult(

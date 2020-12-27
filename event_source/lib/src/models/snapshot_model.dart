@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:meta/meta.dart';
 import 'package:equatable/equatable.dart';
 import 'package:event_source/event_source.dart';
 import 'package:event_source/src/models/aggregate_root_model.dart';
@@ -13,13 +14,17 @@ part 'snapshot_model.g.dart';
 @JsonSerializable()
 class SnapshotModel extends Equatable {
   SnapshotModel({
-    this.uuid,
-    this.number,
+    @required this.uuid,
+    @required this.type,
+    @required this.number,
     this.timestamp,
     LinkedHashMap<String, AggregateRootModel> aggregates,
   })  : _missing = _checkPartial(number, aggregates),
         // ignore: prefer_collection_literals
         aggregates = aggregates ?? LinkedHashMap<String, AggregateRootModel>();
+
+  /// Aggregate type
+  final String type;
 
   /// [SnapshotModel] uuid
   final String uuid;
@@ -72,10 +77,12 @@ class SnapshotModel extends Equatable {
   SnapshotModel copyWith(
     Repository repo, {
     String uuid,
+    String type,
     AggregateRoot root,
     DateTime timestamp,
   }) =>
       SnapshotModel(
+        type: type ?? this.type,
         uuid: uuid ?? this.uuid,
         timestamp: timestamp ?? DateTime.now(),
         number: EventNumberModel.from(repo.number),

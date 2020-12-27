@@ -56,9 +56,11 @@ SnapshotModel toSnapshot(Repository repo, {DateTime timestamp}) =>
       repo,
       uuid: Uuid().v4(),
       timestamp: timestamp,
+      type: '${repo.aggregateType}',
     ) ??
     SnapshotModel(
       uuid: Uuid().v4(),
+      type: '${repo.aggregateType}',
       aggregates: toAggregateRoots(repo),
       timestamp: timestamp ?? DateTime.now(),
       number: EventNumberModel.from(repo.number),

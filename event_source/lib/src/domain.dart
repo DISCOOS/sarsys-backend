@@ -26,6 +26,7 @@ import 'source.dart';
 /// [Repository] manager class.
 ///
 /// Use this to manage sourcing of multiple event streams
+///
 class RepositoryManager {
   RepositoryManager(
     this.bus,
@@ -836,9 +837,16 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     }
   }
 
-  /// Get current event number.
-  /// see [EventStore.current].
-  EventNumber get number => store.current();
+  /// Get current event number, see [EventStore.current].
+  ///
+  /// If reset is performed without replay,
+  /// [EventNumber.none] is returned
+  /// regardless of [EventStore.current].
+  ///
+  EventNumber get number {
+    // TODO: Use event position from canonical stream
+    return _aggregates.values.where((a) => !a.isNew).isEmpty ? EventNumber.none : store.current();
+  }
 
   /// Maximum backoff duration between retries
   final Duration maxBackoffTime;
@@ -879,7 +887,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Build repository from [store].
   /// Returns number of events processed.
-  Future<int> build() async {
+  Future<int> build({String path}) async {
     final isRebuild = _isReady;
     if (isRebuild) {
       _isReady = false;
@@ -893,7 +901,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           _onQueueEvent,
         );
     if (store.snapshots != null) {
-      await store.snapshots.load();
+      await store.snapshots.load(path: path);
       _snapshot = store.snapshots.last;
     }
     final count = await replay();
@@ -1031,20 +1039,16 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Save snapshot of current states
   SnapshotModel save() {
-    if (store.snapshots != null) {
-      try {
-        if (isReady) {
-          // store.pause();
+    if (!isLocked && store.snapshots?.isReady == true) {
+      if (store.snapshots.last == null || store.snapshots.last.number.value < number.value) {
+        try {
           lock();
           // Only save if more events have been added
-          if (store.snapshots.last == null || store.snapshots.last.number.value < number.value) {
-            final candidate = store.snapshots.save(this);
-            _snapshot = _assertSnapshot(candidate);
-          }
+          final candidate = store.snapshots.save(this);
+          _snapshot = _assertSnapshot(candidate);
+        } finally {
+          unlock();
         }
-      } finally {
-        unlock();
-        // store.resume();
       }
     }
     return _snapshot;
@@ -1111,18 +1115,48 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     return prev;
   }
 
-  /// Replay events into this [Repository].
-  ///
-  Future<int> replay({List<String> uuids = const []}) async {
-    final events = await store.replay<T>(this, uuids: uuids);
-    if (uuids.isEmpty) {
-      if (events == 0) {
-        logger.info("Stream '${store.canonicalStream}' is empty");
-      } else {
-        logger.info('Repository loaded with ${_aggregates.length} aggregates');
+  /// Load snapshots and reset to given [suuid] (defaults to last if exists)
+  Future<SnapshotModel> load({String path, bool replay = true}) async {
+    if (store.snapshots != null) {
+      try {
+        // Stop subscriptions
+        // from catching up
+        store.pause();
+        await store.snapshots.load(path: path);
+        final suuid = store.snapshots.last?.uuid;
+        if (replay) {
+          await this.replay(suuid: suuid);
+        } else {
+          await reset(suuid: store.snapshots.last?.uuid);
+        }
+      } finally {
+        store.resume();
       }
     }
-    return events;
+    return _snapshot;
+  }
+
+  /// Replay events into this [Repository].
+  ///
+  Future<int> replay({String suuid, List<String> uuids = const []}) async {
+    try {
+      store.pause();
+      final events = await store.replay<T>(
+        this,
+        suuid: suuid,
+        uuids: uuids,
+      );
+      if (uuids.isEmpty) {
+        if (events == 0) {
+          logger.info("Stream '${store.canonicalStream}' is empty");
+        } else {
+          logger.info('Repository loaded with ${_aggregates.length} aggregates');
+        }
+      }
+      return events;
+    } finally {
+      store.resume();
+    }
   }
 
   /// Subscribe this [source] to compete for changes from [store]
@@ -2055,7 +2089,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     String suuid,
     List<String> uuids = const [],
   }) async {
-    final exists = store.snapshots?.contains(suuid ?? _snapshot?.uuid) == true;
+    // Ensure snapshot is selected if possible (default is last)
+    final next = suuid ?? _snapshot?.uuid ?? store.snapshots?.last?.uuid;
+    final exists = store.snapshots?.contains(next) == true;
     try {
       store.pause();
       if (exists) {
@@ -2083,10 +2119,13 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
               ? 'Reset to snapshot ${_snapshot.uuid}@${snapshot.number.value}'
               : 'Reset aggregates $uuids to snapshot ${_snapshot.uuid}@${snapshot.number.value}',
         );
-        return exists;
+      } else {
+        _snapshot = null;
+        _aggregates.values.where((a) => uuids.isEmpty || uuids.contains(a.uuid)).forEach(
+              (a) => a._reset(this),
+            );
       }
-      _snapshot = null;
-      return false;
+      return _snapshot != null;
     } finally {
       // At this point, subscriptions
       // will resume from base given
@@ -2655,6 +2694,8 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
       _head.clear();
       _applied.clear();
       _skipped.clear();
+      _headIndex = -1;
+      _baseIndex = -1;
       _createdBy = null;
       _changedBy = null;
       _deletedBy = null;

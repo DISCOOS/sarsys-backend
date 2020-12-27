@@ -285,7 +285,7 @@ class EventStore {
 
       var count = 0;
       final isPartial = repo.hasSnapshot && repo.snapshot.isPartial;
-      final snapshot = repo.hasSnapshot ? (repo.snapshot.isPartial ? '(partial snapshot)' : '(snapshot)') : '';
+      final snapshot = repo.hasSnapshot ? (repo.snapshot.isPartial ? '(partial snapshot) ' : '(snapshot) ') : '';
 
       logger.info(
         "Replay events on ${uuids.isEmpty ? 'all' : uuids.length} ${repo.aggregateType}s $snapshot",
@@ -311,6 +311,8 @@ class EventStore {
         }
       }
 
+      var streams = offsets.length;
+
       if (!_isDisposed && uuids.isEmpty) {
         final tic = DateTime.now();
         // Start from first event after snapshot
@@ -331,11 +333,12 @@ class EventStore {
           'in ${DateTime.now().difference(tic).inMilliseconds} ms',
         );
 
+        streams += 1;
         count += events;
       }
       if ((isPartial || uuids.isNotEmpty) && useInstanceStreams) {
         logger.info(
-          'Replayed $count events from ${offsets.length + 1} streams $snapshot '
+          'Replayed $count events from $streams streams $snapshot'
           'in ${DateTime.now().difference(startTime).inMilliseconds} ms',
         );
       }
@@ -348,16 +351,16 @@ class EventStore {
   }
 
   Future<Map<String, EventNumber>> reset(
-    Repository repository, {
+    Repository repo, {
     String suuid,
     List<String> uuids = const [],
   }) async {
     final numbers = <String, EventNumber>{};
-    final hasSnapshot = await repository.reset(
+    final hasSnapshot = await repo.reset(
       uuids: uuids,
       suuid: suuid,
     );
-    _snapshot = repository.snapshot;
+    _snapshot = repo.snapshot;
     final existing = hasSnapshot ? _snapshot.aggregates.keys : _aggregates.keys;
     final keep = uuids.isNotEmpty ? uuids : existing;
     final aggregates = existing.toList()..retainWhere((uuid) => keep.contains(uuid));
@@ -375,12 +378,12 @@ class EventStore {
       events.clear();
       final stream = toInstanceStream(uuid);
       if (hasSnapshot) {
-        final event = repository.get(uuid).baseEvent;
+        final event = repo.get(uuid).baseEvent;
         assert(event.remote, 'must be remote');
         events.add(event.toSourceEvent(
           streamId: stream,
           number: event.number,
-          uuidFieldName: repository.uuidFieldName,
+          uuidFieldName: repo.uuidFieldName,
         ));
         _events[event.uuid] = uuid;
       }
@@ -391,7 +394,7 @@ class EventStore {
 
       // Start from first event (tail or snapshot)
       final offset = _toStreamOffset(
-        repository,
+        repo,
         stream: stream,
       );
       numbers[uuid] = offset;
