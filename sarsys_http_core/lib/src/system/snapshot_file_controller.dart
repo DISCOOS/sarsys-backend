@@ -1,4 +1,3 @@
-import 'package:hive/hive.dart';
 import 'package:mime/mime.dart';
 import 'package:filesize/filesize.dart';
 import 'package:sarsys_http_core/sarsys_http_core.dart';
@@ -254,16 +253,13 @@ class SnapshotFileController extends ResourceController {
       return Response.badRequest(
         body: 'Unable to load snapshot data',
       );
-    } on Exception catch (error, stackTrace) {
+    } catch (error, stackTrace) {
       return serverError(
         request,
         'Unable to restore from backup: $error',
         stackTrace == null ? Trace.current() : Trace.from(stackTrace),
       );
     }
-    return Response.badRequest(
-      body: 'Unable to load snapshot data',
-    );
   }
 
   Future<bool> _restore(Repository repo, String postfix) {

@@ -69,9 +69,15 @@ class SnapshotModel extends Equatable {
   bool contains(String uuid) => aggregates.containsKey(uuid);
 
   /// Get updated snapshot model
-  SnapshotModel copyWith(Repository repo, {String uuid, AggregateRoot root}) => SnapshotModel(
+  SnapshotModel copyWith(
+    Repository repo, {
+    String uuid,
+    AggregateRoot root,
+    DateTime timestamp,
+  }) =>
+      SnapshotModel(
         uuid: uuid ?? this.uuid,
-        timestamp: DateTime.now(),
+        timestamp: timestamp ?? DateTime.now(),
         number: EventNumberModel.from(repo.number),
         aggregates: root == null ? toAggregateRoots(repo) : replaceAggregateRoot(aggregates, root),
       );
