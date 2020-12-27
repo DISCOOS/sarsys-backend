@@ -276,7 +276,7 @@ class EventStore {
       bus.replayStarted<T>();
 
       // Clear current state
-      final offsets = reset(
+      final offsets = await reset(
         repo,
         uuids: uuids,
         // Always replay from last snapshot if not given
@@ -347,13 +347,13 @@ class EventStore {
     }
   }
 
-  Map<String, EventNumber> reset(
+  Future<Map<String, EventNumber>> reset(
     Repository repository, {
     String suuid,
     List<String> uuids = const [],
-  }) {
+  }) async {
     final numbers = <String, EventNumber>{};
-    final hasSnapshot = repository.reset(
+    final hasSnapshot = await repository.reset(
       uuids: uuids,
       suuid: suuid,
     );
@@ -557,14 +557,14 @@ class EventStore {
   /// Save a snapshot when locally
   /// stored events exceed
   /// [snapshots.threshold]
-  SnapshotModel snapshotWhen(Repository repo) {
-    if (snapshots?.automatic == true && snapshots?.threshold is num) {
-      final last = snapshots.last?.number?.value ?? EventNumber.first.value;
-      if (repo.number.value - last >= snapshots.threshold) {
-        return repo.save();
+  ///
+  void snapshotWhen(Repository repo) {
+    if (snapshots?.isReady == true && snapshots?.automatic == true && snapshots?.threshold is num) {
+      final last = EventNumber(snapshots.last?.number?.value ?? -1);
+      if (repo.number.value - last.value >= snapshots.threshold) {
+        repo.save();
       }
     }
-    return null;
   }
 
   Iterable<SourceEvent> _updateAll(
@@ -662,7 +662,7 @@ class EventStore {
   /// Get events for given [AggregateRoot.uuid]
   Iterable<SourceEvent> get(String uuid) => List.from(_aggregates[uuid] ?? {});
 
-  /// Commit applied events to aggregate.
+  /// Commit applied events to store.
   Iterable<DomainEvent> _commit(
     String uuid,
     String uuidFieldName,
@@ -1287,7 +1287,7 @@ class EventStore {
     if (logger.level <= Level.FINE) {
       logger.fine(_toMethod('pause', [
         'paused: $_paused',
-        'stackTrace: ${Trace.format(StackTrace.current)}',
+        // 'stackTrace: ${Trace.format(StackTrace.current)}',
       ]));
     }
     return numbers;
@@ -1335,7 +1335,7 @@ class EventStore {
     if (logger.level <= Level.FINE) {
       logger.fine(_toMethod('resume', [
         'paused: $_paused',
-        'stackTrace: ${Trace.format(StackTrace.current)}',
+        // 'stackTrace: ${Trace.format(StackTrace.current)}',
       ]));
     }
     return numbers;
@@ -3276,53 +3276,6 @@ int toNextTimeout(int reconnects, Duration maxBackoffTime, {int exponent = 2}) {
     maxBackoffTime.inMilliseconds,
   );
   return wait;
-}
-
-class DurationMetric {
-  const DurationMetric()
-      : count = 0,
-        duration = Duration.zero,
-        durationMean = Duration.zero;
-
-  const DurationMetric._({
-    this.count = 0,
-    this.duration = Duration.zero,
-    this.durationMean = Duration.zero,
-  });
-
-  static const DurationMetric zero = DurationMetric._();
-
-  final int count;
-  final Duration duration;
-  final Duration durationMean;
-
-  /// Calculate metric from difference between [tic] and [DateTime.now()]
-  DurationMetric now(DateTime tic) => calc(DateTime.now().difference(tic));
-
-  /// Calculate metric from difference between [tic] and [toc]
-  DurationMetric from(DateTime tic, DateTime toc) => calc(toc.difference(tic));
-
-  /// Calculate metric.
-  DurationMetric calc(Duration duration) {
-    final total = count + 1;
-    return DurationMetric._(
-      count: total,
-      duration: duration,
-
-      /// Calculate iterative mean, see
-      ///http://www.heikohoffmann.de/htmlthesis/node134.html
-      durationMean: durationMean +
-          Duration(
-            milliseconds: 1 ~/ (total) * (duration.inMilliseconds - durationMean.inMilliseconds),
-          ),
-    );
-  }
-
-  Map<String, dynamic> toMeta() => {
-        'count': count,
-        'duration': '${duration.inMilliseconds} ms',
-        'durationMean': '${durationMean.inMilliseconds} ms',
-      };
 }
 
 String _toMethod(String name, List<String> args) => '$name(\n  ${args.join(',\n  ')})';

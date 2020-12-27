@@ -89,7 +89,8 @@ Future main() async {
 
   test("POST /api/snapshots/device/upload invalid file returns status code 400", () async {
     // Arrange
-    await _prepare(harness);
+    final snapshot = await _prepare(harness);
+    final snapshots = harness.channel.manager.get<DeviceRepository>().store.snapshots;
     final file = File('test/.hive/device-broken.hive');
     await file.writeAsBytes(List.filled(100, -1));
 
@@ -110,6 +111,8 @@ Future main() async {
 
     // Assert
     expect(response.statusCode, 400);
+    expect(snapshots.last, snapshot);
+    expect(snapshots.isReady, isTrue);
   });
 }
 
@@ -119,5 +122,7 @@ Future<SnapshotModel> _prepare(SarSysHttpHarness harness) async {
   final repo = harness.channel.manager.get<DeviceRepository>();
   expectResponse(await harness.agent.post("/api/devices", body: body), 201, body: null);
   final snapshot = repo.save();
+  // Wait for save to complete
+  await repo.store.snapshots.onIdle;
   return snapshot;
 }

@@ -1,26 +1,39 @@
+import 'dart:async';
+import 'dart:collection';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:meta/meta.dart';
 import 'package:hive/hive.dart';
+import 'package:path/path.dart';
 import 'package:logging/logging.dart';
 import 'package:stack_trace/stack_trace.dart';
 
-import 'package:event_source/event_source.dart';
-import 'package:event_source/src/models/converters.dart';
-
+import 'core.dart';
+import 'extension.dart';
+import 'domain.dart';
+import 'models/converters.dart';
 import 'models/snapshot_model.dart';
+import 'stream.dart';
+import 'util.dart';
 
 /// [AggregateRoot] snapshot storage class
 class Storage {
   Storage(
     this.type, {
+    this.prefix,
     this.keep = 20,
     this.automatic = true,
     this.threshold = 1000,
-  }) : logger = Logger('Storage');
+  }) : logger = Logger('Storage') {
+    _eventSubscriptions.add(_saveQueue.onEvent().listen(
+          (e) => _onQueueEvent('Save', e),
+        ));
+  }
 
   /// Create storage for given [AggregateRoot] type [T]
   static Storage fromType<T extends AggregateRoot>({
+    String prefix,
     int keep = 20,
     int threshold = 1000,
     bool automatic = true,
@@ -28,6 +41,7 @@ class Storage {
       Storage(
         typeOf<T>(),
         keep: keep,
+        prefix: prefix,
         automatic: automatic,
         threshold: threshold,
       );
@@ -37,6 +51,9 @@ class Storage {
 
   /// Get [AggregateRoot] type stored
   final Type type;
+
+  /// File prefix
+  final String prefix;
 
   /// Only save automatically if enabled
   bool automatic;
@@ -70,125 +87,323 @@ class Storage {
   bool get isEmpty => !isReady || _states.isEmpty;
 
   /// Get [SnapshotModel] from [uuid]
-  SnapshotModel operator [](String uuid) => get(uuid);
+  Future<SnapshotModel> operator [](String uuid) => get(uuid);
 
   /// Get number of states
   int get length => isReady ? _states.length : 0;
 
   /// Get all (key,value)-pairs as unmodifiable map
-  Map<String, SnapshotModel> get map =>
-      Map.unmodifiable(isReady ? Map.fromIterables(keys, values) : <String, SnapshotModel>{});
+  Future<Map<String, SnapshotModel>> get map async {
+    final map = <String, SnapshotModel>{};
+    if (isReady) {
+      for (var uuid in _states.keys) {
+        final state = await _states.get(uuid);
+        map[uuid as String] = state.value;
+      }
+    }
+    return map;
+  }
 
   /// Get all uuids as unmodifiable list
   Iterable<String> get keys => List.unmodifiable(isReady ? _states?.keys : []);
 
   /// Get all values as unmodifiable list
-  Iterable<SnapshotModel> get values =>
-      List.unmodifiable(isReady ? _states.values.map((state) => state.value) : <SnapshotModel>[]);
+  Future<Iterable<SnapshotModel>> get values async {
+    final values = <SnapshotModel>[];
+    if (isReady) {
+      for (var uuid in _states.keys) {
+        final state = await _states.get(uuid);
+        values.add(state.value);
+      }
+    }
+    return values;
+  }
 
   /// Check if key exists
   bool contains(String uuid) => isReady ? _states.keys.contains(uuid) : false;
 
   /// Get [SnapshotModel] with the lowest event number
-  SnapshotModel get first {
-    final models = _sort(
-      (s1, s2) => s1.number.value - s2.number.value,
-    );
-    return models.isEmpty ? null : models.first;
+  String get first {
+    return _sorted.isEmpty ? null : _sorted.keys.first;
   }
+
+  /// Get current model
+  SnapshotModel _last;
 
   /// Get [SnapshotModel] with the highest event number
   SnapshotModel get last {
-    final models = _sort(
-      (s1, s2) => s1.number.value - s2.number.value,
-    );
-    return models.isEmpty ? null : models.last;
+    return _last;
   }
 
-  Iterable<SnapshotModel> _sort(int Function(SnapshotModel a, SnapshotModel b) compare) {
-    final sorted = values.toList();
-    sorted.sort(
-      compare,
-    );
-    return sorted;
+  void _setLast(SnapshotModel model) {
+    if (_last == null || model.number.value > _last.number.value) {
+      _last = model;
+      _sort({
+        model.uuid: model.number.value,
+      });
+    }
   }
 
-  Box<StorageState> _states;
+  /// Get [EventNumber] of [SnapshotModel] with given [uuid]
+  /// If SnapshotModel is not found [EventNumber.none] is
+  /// returned
+  EventNumber getNumber(String uuid) => _sorted.containsKey(uuid) ? EventNumber(_sorted[uuid]) : EventNumber.none;
+
+  /// Map of uuids sorted on event number
+  final LinkedHashMap<String, int> _sorted = LinkedHashMap();
+
+  Iterable<String> _sort(
+    Map<String, int> models,
+  ) {
+    if (models.keys.any((uuid) => !_sorted.containsKey(uuid))) {
+      _sorted.addAll(models);
+      return sortMapValues<String, int>(
+        _sorted,
+        compare: (n1, n2) => n1 - n2,
+      ).keys;
+    }
+    return _sorted.keys;
+  }
+
+  LazyBox<StorageState> _states;
 
   /// Get storage filename
-  String get filename => type.toKebabCase();
+  String get filename => [prefix, type.toKebabCase()].where((s) => s != null).join('-');
 
-  /// Reads [states] from storage
+  /// Validate given file.
+  ///
+  /// If box with same name as filename
+  /// without extension exists,
+  /// validate will return false.
+  ///
+  Future<bool> validate(File file, {bool allowEmpty = false}) async {
+    try {
+      final filename = basenameWithoutExtension(file.path);
+      final box = await Hive.openBox<StorageState>(
+        filename,
+        path: file.parent.path,
+      );
+      final isValid = allowEmpty || box.keys.isNotEmpty;
+      await box.close();
+      return isValid;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Reads [states] from storage.
+  /// Returns keys in sorted order from first to last
   @visibleForOverriding
-  Future<Iterable<StorageState>> load({String path}) async {
-    _states = await Hive.openBox<StorageState>(
+  Future<Iterable<String>> load({String path}) async {
+    _states = await Hive.openLazyBox<StorageState>(
       filename,
       path: path,
     );
-    // Get mapped states
-    return _states.values;
+    SnapshotModel last;
+    final models = <String, int>{};
+    for (var uuid in keys) {
+      final model = await get(uuid);
+      models[model.uuid] = model.number.value;
+      if (last == null || model.number.value > last.number.value) {
+        last = model;
+      }
+    }
+    _last = last;
+    final suuids = _sort(
+      models,
+    );
+    return List.from(suuids);
   }
 
   /// Unload [states] from memory
   @visibleForOverriding
-  Future<Iterable<StorageState>> unload({String path}) async {
-    final values = List<StorageState>.from(_states.values);
+  Future<Iterable<String>> unload({String path}) async {
+    final keys = List<String>.from(_states.keys);
     await _states.close();
-    return values;
+    return keys;
   }
 
   /// Get [SnapshotModel] from [uuid]
-  SnapshotModel get(String uuid) => getState(uuid)?.value;
+  Future<SnapshotModel> get(String uuid) async {
+    if (contains(uuid)) {
+      final state = await getState(uuid);
+      return state.value;
+    }
+    return null;
+  }
 
   /// Get [StorageState] from [uuid]
-  StorageState getState(String uuid) => isReady && _isNotNull(uuid) && contains(uuid) ? _states?.get(uuid) : null;
+  Future<StorageState> getState(String uuid) =>
+      isReady && _isNotNull(uuid) && contains(uuid) ? _states?.get(uuid) : null;
   bool _isNotNull(String uuid) => uuid != null;
 
-  /// Add [StorageState] for given
+  /// Get number of [save] requests waiting to be executed
+  int get pressure {
+    return _saveQueue.length;
+  }
+
+  /// Future returning when queues returns to idle
+  Future get onIdle => _saveQueue.isIdle ? null : _saveQueue.onEvent().firstWhere((e) => e is StreamQueueIdle);
+
+  /// Queue processing save in progress
+  final StreamRequestQueue<SnapshotModel> _saveQueue = StreamRequestQueue();
+
+  /// List of queue event subscriptions
+  final List<StreamSubscription> _eventSubscriptions = [];
+
+  /// Map of metrics
+  final Map<String, DurationMetric> _metrics = {
+    'save': DurationMetric.zero,
+  };
+
+  StreamRequest _checkSlowSave(StreamRequest request) {
+    final metric = _metrics['save'].now(request.created);
+    if (metric.duration.inMilliseconds > 50) {
+      logger.warning(
+        'SLOW SAVE: Request ${request.tag} took ${metric.duration.inMilliseconds} ms',
+      );
+    }
+    _metrics['save'] = metric;
+    return request;
+  }
+
+  /// Common queue event handler
+  void _onQueueEvent(String queue, StreamEvent event) {
+    switch (event.runtimeType) {
+      case StreamRequestAdded:
+        final request = (event as StreamRequestAdded).request;
+        logger.fine(
+          '$queue request added: ${request.tag} (${_toPressureString()})',
+        );
+        break;
+      case StreamRequestCompleted:
+        final request = _checkSlowSave(
+          (event as StreamRequestCompleted).request,
+        );
+        logger.fine(
+          '$queue request completed in '
+          '${DateTime.now().difference(request.created).inMilliseconds} ms: '
+          '${request.tag} (${_toPressureString()})',
+        );
+        break;
+      case StreamQueueIdle:
+        logger.fine('Save queue idle');
+        break;
+      case StreamRequestTimeout:
+        final failed = event as StreamRequestTimeout;
+        _onQueueError(
+          failed.request,
+          '$queue request timeout',
+          StreamRequestTimeoutException(_saveQueue, failed.request),
+        );
+        break;
+      case StreamRequestFailed:
+        final failed = event as StreamRequestFailed;
+        _onQueueError(
+          failed.request,
+          '$queue request failed',
+          failed.error,
+          failed.stackTrace,
+        );
+        break;
+    }
+  }
+
+  void _onQueueError(StreamRequest request, String message, Object error, [StackTrace stackTrace]) {
+    logger.network(
+      '$message: ${request.tag} (${_toPressureString()})',
+      error,
+      stackTrace,
+    );
+  }
+
+  String _toPressureString() => 'queue pressure: $pressure';
+
+  /// Save [StorageState] for given
   /// [repo] if [Repository.number]
-  /// larger then [last.number].
-  SnapshotModel add(Repository repo) {
-    checkState();
+  /// is larger then [last].
+  SnapshotModel save(Repository repo) {
     var model = repo.snapshot;
-    if (isEmpty || last.number.value < repo.number.value) {
-      model = toSnapshot(repo);
-      _states.put(
+    if (isReady) {
+      if (isEmpty || !repo.hasSnapshot || last.number.value < repo.number.value) {
+        final candidate = toSnapshot(repo);
+        final tag = 'snapshot ${candidate.uuid} of '
+            '${candidate.runtimeType}@${candidate.number.value} '
+            '(${candidate.isPartial ? 'partial, ' : ''}${candidate.aggregates.length} aggregates)';
+        final key = '${candidate.number}';
+        final added = _saveQueue.add(StreamRequest<SnapshotModel>(
+          key: key,
+          tag: tag,
+          fail: true,
+          execute: () => _save(
+            repo,
+            candidate,
+            tag,
+          ),
+        ));
+        // Prevent repeated adds
+        if (added) {
+          _setLast(candidate);
+        }
+        logger.fine(
+          added
+              ? 'Scheduled save: $tag (queue pressure: ${_saveQueue.length})'
+              : 'Waiting on save already scheduled: $tag (queue pressure: ${_saveQueue.length})',
+        );
+        model = candidate;
+      }
+    }
+    return model;
+  }
+
+  Future<StreamResult<SnapshotModel>> _save(Repository repo, SnapshotModel model, String tag) async {
+    if (isReady) {
+      await _states.put(
         model.uuid,
         StorageState(value: model),
       );
       logger.info(
-        'Added snapshot ${model.uuid} of '
-        '${repo.runtimeType}@${model.number.value}',
+        'Added $tag',
+      );
+      await purge(repo);
+      return StreamResult(
+        tag: tag,
+        value: model,
       );
     }
-    // Always keep 1 snapshot
-    if (length > max(keep ?? 1, 1)) {
-      final model = _states.get(first.uuid).value;
-      _states.delete(first.uuid);
-      logger.info(
-        'Deleted snapshot ${model.uuid} of '
-        '${repo.runtimeType}@${model.number.value}',
-      );
+    return StreamResult.none(
+      tag: tag,
+    );
+  }
+
+  Future<Iterable<String>> purge(Repository repo) async {
+    final deleted = <String>[];
+    if (isReady) {
+      // Always keep 1 snapshot
+      final count = length - max<int>(keep ?? 1, 1);
+      if (count > 0) {
+        final delete = _sorted.keys.take(count);
+        for (var uuid in delete) {
+          if (contains(uuid)) {
+            await _states.delete(
+              first,
+            );
+            logger.info(
+              'Deleted snapshot $first of '
+              '${repo.runtimeType}@${_sorted[first]}',
+            );
+            _sorted.remove(first);
+            deleted.add(uuid);
+          }
+        }
+      }
     }
-    return model;
+    return deleted;
   }
 
   /// Check if [Repository] is disposed
   bool get isDisposed => _isDisposed;
   bool _isDisposed = false;
-
-  /// Asserts that storage is operational.
-  /// Should be called before methods is called.
-  /// If not ready an [StorageNotReadyException] is thrown
-  /// If disposed an [StorageIsDisposedException] is thrown
-  @protected
-  void checkState() {
-    if (_states?.isOpen != true) {
-      throw StorageNotReadyException(this);
-    } else if (_isDisposed) {
-      throw StorageIsDisposedException(this);
-    }
-  }
 
   /// Dispose storage
   ///
@@ -197,17 +412,21 @@ class Storage {
   Future<void> dispose() async {
     _isDisposed = true;
     await _states.close();
+    await Future.wait(_eventSubscriptions.map(
+      (s) => s.cancel(),
+    ));
+    _eventSubscriptions.clear();
   }
 
   /// Get metadata for snapshot with given [uuid]
-  Map<String, dynamic> toMeta({
+  Future<Map<String, dynamic>> toMeta({
     Type type,
     String uuid,
     EventNumber current,
     bool data = false,
     bool items = false,
-  }) {
-    final snapshot = get(uuid);
+  }) async {
+    final snapshot = await get(uuid);
     final withSnapshot = snapshot != null;
     final withNumber = withSnapshot && current != null;
     return {
@@ -218,6 +437,9 @@ class Storage {
       if (withNumber) 'unsaved': current.value - snapshot.number.value,
       'threshold': threshold,
       if (withSnapshot && snapshot.isPartial) 'partial': {'missing': snapshot.missing},
+      'metrics': {
+        'save': _metrics['save'].toMeta(),
+      },
       if (withSnapshot)
         'aggregates': {
           'count': snapshot.aggregates.length,

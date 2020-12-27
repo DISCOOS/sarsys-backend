@@ -78,7 +78,7 @@ Future main() async {
     expect(data['keep'], 100);
     expect(data['threshold'], 1000);
     expect(data['automatic'], isFalse);
-    expect(data['uuid'], isNotEmpty);
+    expect(data['uuid'], isNotNull);
     expect(data['uuid'], isNot(equals(snapshot.uuid)));
   });
 }

@@ -610,6 +610,53 @@ class ExpectedVersion {
   EventNumber toNumber() => EventNumber(value);
 }
 
+class DurationMetric {
+  const DurationMetric()
+      : count = 0,
+        duration = Duration.zero,
+        durationMean = Duration.zero;
+
+  const DurationMetric._({
+    this.count = 0,
+    this.duration = Duration.zero,
+    this.durationMean = Duration.zero,
+  });
+
+  static const DurationMetric zero = DurationMetric._();
+
+  final int count;
+  final Duration duration;
+  final Duration durationMean;
+
+  /// Calculate metric from difference between [tic] and [DateTime.now()]
+  DurationMetric now(DateTime tic) => calc(DateTime.now().difference(tic));
+
+  /// Calculate metric from difference between [tic] and [toc]
+  DurationMetric from(DateTime tic, DateTime toc) => calc(toc.difference(tic));
+
+  /// Calculate metric.
+  DurationMetric calc(Duration duration) {
+    final total = count + 1;
+    return DurationMetric._(
+      count: total,
+      duration: duration,
+
+      /// Calculate iterative mean, see
+      ///http://www.heikohoffmann.de/htmlthesis/node134.html
+      durationMean: durationMean +
+          Duration(
+            milliseconds: 1 ~/ (total) * (duration.inMilliseconds - durationMean.inMilliseconds),
+          ),
+    );
+  }
+
+  Map<String, dynamic> toMeta() => {
+        'count': count,
+        'duration': '${duration.inMilliseconds} ms',
+        'durationMean': '${durationMean.inMilliseconds} ms',
+      };
+}
+
 /// Get enum value name
 String enumName(Object o) => o.toString().split('.').last;
 

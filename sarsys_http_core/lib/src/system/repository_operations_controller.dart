@@ -51,7 +51,7 @@ class RepositoryOperationsController extends SystemOperationsBaseController {
         );
       }
       return Response.ok(
-        repository.toMeta(
+        await repository.toMeta(
           data: shouldExpand(expand, 'data'),
           queue: shouldExpand(expand, 'queue'),
           items: shouldExpand(expand, 'items'),
@@ -101,7 +101,7 @@ class RepositoryOperationsController extends SystemOperationsBaseController {
           );
       }
       return Response.ok(
-        repository.toMeta(
+        await repository.toMeta(
           data: shouldExpand(expand, 'data'),
           queue: shouldExpand(expand, 'queue'),
           items: shouldExpand(expand, 'items'),
@@ -320,7 +320,7 @@ class RepositoryOperationsController extends SystemOperationsBaseController {
         })
           ..description = 'Catchup subscription status'
           ..isReadOnly = true,
-        'stats': APISchemaObject.object({
+        'metrics': APISchemaObject.object({
           'processed': APISchemaObject.integer()
             ..description = 'Number of events processed'
             ..isReadOnly = true,

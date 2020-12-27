@@ -51,6 +51,7 @@ LinkedHashMap<String, AggregateRootModel> fromAggregateRootsJson(dynamic aggrega
 LinkedHashMap<String, dynamic> toAggregateRootsJson(Map<String, AggregateRootModel> aggregates) =>
     toLinkedHashMapJson(aggregates.map((key, value) => MapEntry(key, value.toJson())));
 
+// TODO: Reuse objects from existing snapshot (minimizes memory usage on snapshots with large aggregate states)
 SnapshotModel toSnapshot(Repository repo, {DateTime timestamp}) => SnapshotModel(
       uuid: Uuid().v4(),
       aggregates: toAggregateRoots(repo),
@@ -58,8 +59,9 @@ SnapshotModel toSnapshot(Repository repo, {DateTime timestamp}) => SnapshotModel
       number: EventNumberModel.from(repo.number),
     );
 
+/// Only aggregates with base is included
 LinkedHashMap<String, AggregateRootModel> toAggregateRoots(Repository repo) =>
-    LinkedHashMap.fromEntries(repo.aggregates.map(toAggregateRoot).map(
+    LinkedHashMap.fromEntries(repo.aggregates.where((a) => !a.isNew).map(toAggregateRoot).map(
           (a) => MapEntry(a.uuid, a),
         ));
 
@@ -73,11 +75,16 @@ LinkedHashMap<String, AggregateRootModel> replaceAggregateRoot(
   return updated;
 }
 
+/// Store remote state only!
 AggregateRootModel toAggregateRoot(AggregateRoot root) => AggregateRootModel(
       uuid: root.uuid,
-      data: root.data,
+      data: root.head,
       createdBy: root.createdBy,
-      changedBy: root.changedBy,
+      changedBy: root.baseEvent,
       deletedBy: root.deletedBy,
-      number: EventNumberModel.from(root.number),
+      // Since only aggregates
+      // confirmed to exist remotely
+      // should be persisted, BaseEvent
+      // MUST exist!
+      number: EventNumberModel.from(root.baseEvent.number),
     );

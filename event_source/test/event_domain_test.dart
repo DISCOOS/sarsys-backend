@@ -1154,9 +1154,6 @@ Future main() async {
       throwsA(isA<ConflictNotReconcilable>()),
     );
 
-    // Hack - must find out why this seems to work
-    await Future.delayed(Duration(seconds: 1));
-
     // Assert conflict unresolved
     expect(repo.count(), equals(1));
     expect(repo.inTransaction(uuid), isFalse);
@@ -1578,21 +1575,35 @@ Future main() async {
     final foo = repo.get(uuid, data: {
       'property1': 'value1',
     });
-    expect(foo.data, containsPair('property1', 'value1'));
+    expect(
+      foo.data,
+      containsPair('property1', 'value1'),
+    );
     await repo.push(foo);
     expect(foo.applied.length, 1);
 
-    // Act
-    final snapshot = await repo.save();
+    // Wait for repo to catching up to head of remote stream
+    await takeRemote(repo.store.asStream(), 1, distinct: true);
 
-    // Assert
+    // Act
+    final snapshot = repo.save();
+
+    // Wait for save to finish
+    await repo.store.snapshots.onIdle;
+
+    // Assert snapshot
     expect(repo.snapshot, isNotNull, reason: 'Should have a snapshot');
     expect(repo.snapshot.uuid, equals(snapshot.uuid), reason: 'Should have snapshot ${snapshot.uuid}');
     expect(repo.contains(uuid), isTrue, reason: 'Should contain aggregate root $uuid');
-    final saved = repo.get(foo.uuid);
-    expect(saved.number.value, equals(snapshot.number.value));
-    expect(saved.data, equals(snapshot.aggregates.values.first.data));
+
+    // Assert aggregate
+    final saved = repo.get(uuid);
     expect(saved.applied.length, 1, reason: 'Applied events should be reset on save to snapshot');
+    expect(saved.number.value, equals(snapshot.number.value));
+    expect(
+      saved.data,
+      equals(snapshot.aggregates.values.first.data),
+    );
     expect(
       saved.applied.last.uuid,
       snapshot.aggregates[saved.uuid].changedBy.uuid,
@@ -1625,8 +1636,8 @@ Future main() async {
     await repo.push(foo);
 
     // Act
-    final snapshot1 = await repo.save();
-    final snapshot2 = await repo.save();
+    final snapshot1 = repo.save();
+    final snapshot2 = repo.save();
 
     // Assert
     expect(snapshot1, equals(snapshot2), reason: 'Should not have a new snapshot');
@@ -1642,45 +1653,67 @@ Future main() async {
     expect(repo.snapshot, isNull, reason: 'Should have NO snapshot');
 
     // Act
+    const count = 100;
     final uuid = Uuid().v4();
     final foo = repo.get(uuid);
-    for (var i = 1; i <= 100; i++) {
+    await repo.push(foo);
+    for (var i = 1; i <= count; i++) {
       foo.patch({'property1': 'value$i'}, emits: FooUpdated);
       await repo.push(foo);
     }
     final last = repo.get(foo.uuid);
-    expect(last.data, containsPair('property1', 'value100'));
-    expect(repo.number.value, equals(100));
+    expect(last.data, containsPair('property1', 'value$count'));
+    expect(repo.number.value, equals(count));
+
+    // Wait for all saves to complete
+    await repo.store.snapshots.onIdle;
 
     // Assert
     expect(repo.snapshot, isNotNull, reason: 'Should have snapshot');
-    expect(repo.snapshot.number.value, equals(100), reason: 'Event number should be 100');
-    expect(repo.store.snapshots.length, equals(10), reason: 'Should have 2 snapshots');
+    expect(
+      repo.snapshot.number.value,
+      equals(count - 1),
+      reason: 'Event number should be $count',
+    );
+    final snapshots = count ~/ threshold;
+    expect(
+      repo.store.snapshots.length,
+      equals(snapshots),
+      reason: 'Should have $snapshots snapshots',
+    );
   });
 
   test('Repository should delete snapshots automatically', () async {
     // Arrange
     final keep = 5;
-    final repo = harness.get<FooRepository>();
+    final repo = harness.get<FooRepository>(instance: 1);
     await repo.readyAsync();
     expect(repo.snapshot, isNull, reason: 'Should have NO snapshot');
     repo.store.snapshots.keep = keep;
     repo.store.snapshots.threshold = 10;
 
+    // Disable snapshots for instance 2
+    harness.get<FooRepository>(instance: 2).store.snapshots.automatic == false;
+
     // Act
+    const last = 99;
     final uuid = Uuid().v4();
     final foo = repo.get(uuid);
-    for (var i = 1; i <= 100; i++) {
+    await repo.push(foo);
+    for (var i = 1; i <= last; i++) {
       foo.patch({'property1': 'value$i'}, emits: FooUpdated);
       await repo.push(foo);
     }
-    expect(foo.data, containsPair('property1', 'value100'));
-    expect(repo.number.value, equals(100));
+    expect(foo.data, containsPair('property1', 'value$last'));
+    expect(repo.number.value, equals(last));
+
+    // Wait for all saves to complete
+    await repo.store.snapshots.onIdle;
 
     // Assert
     expect(repo.snapshot, isNotNull, reason: 'Should have snapshot');
-    expect(repo.snapshot.number.value, equals(100), reason: 'Event number should be 100');
-    expect(repo.store.snapshots.length, equals(keep), reason: 'Should have 2 snapshots');
+    expect(repo.snapshot.number.value, equals(last), reason: 'Event number should be $last');
+    expect(repo.store.snapshots.keys.length, equals(keep), reason: 'Should have $keep snapshots');
   });
 }
 
@@ -1707,7 +1740,7 @@ Future _testShouldBuildFromLastSnapshot(
   // Arrange stream and storage
   // -----------------------------------
   final stream = harness.server().getStream(repo1.store.aggregate);
-  final box = await Hive.openBox<StorageState>(repo1.store.snapshots.filename);
+  final box = await Hive.lazyBox<StorageState>(repo1.store.snapshots.filename);
 
   // -----------------------------------
   // Arrange Foo1
@@ -1908,6 +1941,9 @@ Future _testShouldBuildFromLastSnapshot(
 
   // Resume catchup
   repo2.store.resume();
+
+  // Wait for deletes to complete
+  await Future.delayed(Duration(milliseconds: 1000));
 
   // -----------------------------------
   // Assert repo2

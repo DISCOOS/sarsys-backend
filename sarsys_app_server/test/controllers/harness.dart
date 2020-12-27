@@ -29,6 +29,9 @@ export 'package:aqueduct/aqueduct.dart';
 ///
 class SarSysHttpHarness extends TestHarness<SarSysAppServerChannel> {
   EventStoreMockServer eventStoreMockServer;
+
+  static const testDataPath = 'test/.hive';
+
   final Set<int> _ports = {};
   final Map<int, Agent> _agents = {};
   final List<Application<SarSysAppServerChannel>> _instances = [];
@@ -65,7 +68,7 @@ class SarSysHttpHarness extends TestHarness<SarSysAppServerChannel> {
     _context.clear();
     _context.addAll({
       if (podName != null) 'POD_NAME': podName,
-      if (dataPath != null) 'data_path': 'test/.hive',
+      if (dataPath != null) 'data_path': testDataPath,
     });
     return this;
   }
@@ -107,12 +110,10 @@ class SarSysHttpHarness extends TestHarness<SarSysAppServerChannel> {
   }
 
   Future _deleteTestData() async {
-    if (_withSnapshots) {
-      await Hive.deleteFromDisk();
-    }
-    final dataPath = Directory((_context['data_path'] ?? 'data_path') as String);
+    await Hive.deleteFromDisk();
+    final dataPath = Directory((_context['data_path'] ?? testDataPath) as String);
     if (dataPath.existsSync()) {
-      dataPath.deleteSync();
+      dataPath.deleteSync(recursive: true);
     }
   }
 
@@ -120,7 +121,7 @@ class SarSysHttpHarness extends TestHarness<SarSysAppServerChannel> {
     application.options.context.addAll(_context);
     if (_withSnapshots) {
       application.options.context['data_enabled'] = true;
-      application.options.context['data_path'] = 'test/.hive';
+      application.options.context['data_path'] = testDataPath;
       application.options.context['snapshots_keep'] = _keep;
       application.options.context['snapshots_enabled'] = true;
       application.options.context['snapshots_threshold'] = _threshold;
@@ -166,7 +167,7 @@ class SarSysHttpHarness extends TestHarness<SarSysAppServerChannel> {
   @override
   Future stop() async {
     await _deleteTestData();
-    // assert(channel.router.getContexts().isEmpty, 'Contexts should be empty');
+    assert(channel.router.getContexts().isEmpty, 'Contexts should be empty');
     await channel.dispose();
     for (var instance in _instances) {
       assert(instance.channel.router.getContexts().isEmpty, 'Contexts should be empty');

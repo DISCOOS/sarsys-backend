@@ -52,7 +52,7 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
       }
 
       return Response.ok(
-        snapshots.toMeta(
+        await snapshots.toMeta(
           type: repository.aggregateType,
           uuid: repository.snapshot?.uuid,
           data: shouldExpand(expand, 'data'),
@@ -103,11 +103,11 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
     }
   }
 
-  Response _doSave(
+  Future<Response> _doSave(
     Repository repository,
     Map<String, dynamic> body,
     String expand,
-  ) {
+  ) async {
     final snapshots = repository.store.snapshots;
     if (snapshots == null) {
       return Response.badRequest(
@@ -136,10 +136,11 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
     );
     final prev = repository.snapshot?.uuid;
     final next = repository.save().uuid;
+    await repository.store.snapshots.onIdle;
     return prev == next
         ? Response.noContent()
         : Response.ok(
-            snapshots.toMeta(
+            await snapshots.toMeta(
               uuid: next,
               current: repository.number,
               type: repository.aggregateType,

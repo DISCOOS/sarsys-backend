@@ -248,7 +248,7 @@ class EventSourceHarness {
             ]),
           ));
         }
-        builder(list[i], i);
+        builder(port, list[i], i);
       }
       server.withStream(builder.stream);
     });
@@ -375,11 +375,13 @@ class _RepositoryBuilder<T extends AggregateRoot> {
   final bool useInstanceStreams;
   String get stream => typeOf<T>().toColonCase();
 
-  void call(RepositoryManager manager, int instance) {
+  void call(int port, RepositoryManager manager, int instance) {
     final snapshots = withSnapshots
         ? Storage.fromType<T>(
             keep: keep,
             threshold: threshold,
+            // Servers do no share snapshots
+            prefix: '$port',
           )
         : null;
     manager.register<T>(

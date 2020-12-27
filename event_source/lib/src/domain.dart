@@ -800,7 +800,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Flag indicating that [build] succeeded
   /// and that events are not being replayed
-  bool get isReady => _isReady && !isReplaying;
+  bool get isReady => _isReady && !(isReplaying || _isDisposed);
   bool _isReady = false;
 
   /// Check if repository is empty (have no aggregates)
@@ -894,7 +894,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         );
     if (store.snapshots != null) {
       await store.snapshots.load();
-      _suuid = store.snapshots.last?.uuid;
+      _snapshot = store.snapshots.last;
     }
     final count = await replay();
     _storeSubscriptionController = await subscribe();
@@ -910,13 +910,15 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       case StreamRequestAdded:
         final request = (event as StreamRequestAdded).request;
         logger.fine(
-          'Push command added: ${(request.tag as Transaction).toTagAsString()} (${_toPressureString()})',
+          'Push request added: ${(request.tag as Transaction).toTagAsString()} (${_toPressureString()})',
         );
         break;
       case StreamRequestCompleted:
         final request = (event as StreamRequestCompleted).request;
         logger.fine(
-          'Push command complete: ${(request.tag as Transaction).toTagAsString()} (${_toPressureString()})',
+          'Push request completed in '
+          '${DateTime.now().difference(request.created).inMilliseconds} ms: '
+          '${(request.tag as Transaction).toTagAsString()} (${_toPressureString()})',
         );
         break;
       case StreamQueueIdle:
@@ -926,7 +928,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         final failed = event as StreamRequestTimeout;
         _onQueueError(
           failed.request,
-          'Push command timeout',
+          'Push request timeout',
           StreamRequestTimeoutException(_pushQueue, failed.request),
         );
         break;
@@ -934,7 +936,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         final failed = event as StreamRequestFailed;
         _onQueueError(
           failed.request,
-          'Push command failed',
+          'Push request failed',
           failed.error,
           failed.stackTrace,
         );
@@ -960,31 +962,118 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   String _toPressureString() => 'queue pressure: ${_pushQueue.length}, command pressure: ${_commands.length}';
 
   /// Check if repository has a active snapshot
-  bool get hasSnapshot => store.snapshots?.contains(_suuid) == true;
+  bool get hasSnapshot => _snapshot != null;
 
   /// Get current [SnapshotModel]
-  SnapshotModel get snapshot => hasSnapshot ? store.snapshots[_suuid] : null;
+  SnapshotModel get snapshot => _snapshot;
 
   /// Current [SnapshotModel.uuid]
-  String _suuid;
+  SnapshotModel _snapshot;
+
+  /// Check if writes are locked
+  bool get isLocked => _locks > 0;
+  int _locks = 0;
+
+  /// Lock writes until [unlock] is called
+  int lock() {
+    _locks++;
+    if (logger.level <= Level.FINE) {
+      logger.fine(_toMethod('lock', [
+        'locks: $_locks',
+        // 'stackTrace: ${Trace.format(StackTrace.current)}',
+      ]));
+    }
+    return _locks;
+  }
+
+  /// Unlock writes.
+  ///
+  /// Needs to be called equal amount
+  /// of times as [lock] before unlock
+  /// occurs and [onUnlocked] completes.
+  ///
+  /// Returns [true] when writes are unlocked,
+  /// [false] otherwise.
+  ///
+  bool unlock() {
+    if (isLocked) {
+      _locks--;
+      if (!isLocked) {
+        if (_unlock?.isCompleted == false) {
+          _unlock.complete(number);
+        }
+        _unlock = null;
+      }
+    }
+    if (logger.level <= Level.FINE) {
+      logger.fine(_toMethod('unlock', [
+        'locks: $_locks',
+        // 'stackTrace: ${Trace.format(StackTrace.current)}',
+      ]));
+    }
+    return !isLocked;
+  }
+
+  /// Get future that returns when writing is unlocked
+  ///
+  /// It not locked, current [number] is
+  /// returned directly.
+  ///
+  Future<EventNumber> get onUnlocked {
+    if (isLocked) {
+      _unlock ??= Completer();
+      return _unlock.future;
+    }
+    return Future.value(number);
+  }
+
+  Completer<EventNumber> _unlock;
 
   /// Save snapshot of current states
   SnapshotModel save() {
     if (store.snapshots != null) {
-      final last = store.snapshots.last?.number?.value ?? -1;
-      // Only save if more events have been added
-      if (last < number.value) {
-        final candidate = store.snapshots?.add(this);
-        store.reset(this, suuid: candidate?.uuid);
-        if (hasSnapshot) {
-          logger.info(
-            'Snapshot saved for $aggregateType@${snapshot.number} '
-            '(${snapshot.isPartial ? 'partial, ' : ''}${snapshot.aggregates.length} aggregates)',
-          );
+      try {
+        if (isReady) {
+          // store.pause();
+          lock();
+          // Only save if more events have been added
+          if (store.snapshots.last == null || store.snapshots.last.number.value < number.value) {
+            final candidate = store.snapshots.save(this);
+            _snapshot = _assertSnapshot(candidate);
+          }
+        }
+      } finally {
+        unlock();
+        // store.resume();
+      }
+    }
+    return _snapshot;
+  }
+
+  SnapshotModel _assertSnapshot(SnapshotModel model) {
+    if (isReady) {
+      for (var snapshot in model.aggregates.values) {
+        final aggregate = _aggregates[snapshot.uuid];
+        final baseEvent = aggregate.baseEvent;
+        final delta = baseEvent.number.value - snapshot.number.value;
+        if (delta != 0) {
+          RepositoryError(_toObject(
+            'Snapshot of ${aggregateType} ${snapshot.uuid} does not match head',
+            [
+              _toObject('snapshot', [
+                'number: ${snapshot.number}',
+                'baseEvent: ${snapshot.changedBy}',
+              ]),
+              _toObject('aggregate', [
+                'number: ${aggregate.number}',
+                'baseEvent: $baseEvent',
+              ]),
+            ],
+          ));
         }
       }
     }
-    return snapshot;
+    return model;
   }
 
   /// Replace current aggregate data with given.
@@ -1234,11 +1323,13 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     int maxAttempts = 10,
     Duration timeout = timeLimit,
   }) async {
+    final tic = DateTime.now();
     final changes = <DomainEvent>[];
 
     // Await transaction if exists
     // and push has started
     await _onNextCommand(
+      tic,
       command,
       timeout,
     );
@@ -1248,6 +1339,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       command,
       changes,
     );
+
     if (aggregate.isChanged) {
       // If in transaction return
       // changes without pushing them
@@ -1263,7 +1355,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     return <DomainEvent>[];
   }
 
-  Future<String> _onNextCommand(S command, Duration timeout) async {
+  Future<String> _onNextCommand(DateTime tic, S command, Duration timeout) async {
     final uuid = _assertExecute(
       command,
     );
@@ -1272,7 +1364,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       if (trx.isStarted) {
         try {
           _commands.add(command);
-          await trx.onPush.timeout(timeout);
+          await _awaitUnlock(
+            tic,
+            timeout,
+            future: trx.onPush,
+          );
         } on TimeoutException catch (e) {
           throw CommandTimeout(
             'Command ${command.runtimeType} ${command.uuid} timed out',
@@ -1285,6 +1381,44 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       }
     }
     return uuid;
+  }
+
+  Future _awaitUnlock(
+    DateTime tic,
+    Duration timeout, {
+    Future future,
+  }) async {
+    try {
+      final t2 = timeout - DateTime.now().difference(tic);
+      if (t2.inMilliseconds <= 0) {
+        throw TimeoutException(
+          'Timeout exceeded before checks',
+        );
+      }
+      do {
+        await onUnlocked.timeout(timeout);
+        if (future != null) {
+          final t3 = timeout - DateTime.now().difference(tic);
+          if (t3.inMilliseconds > 0) {
+            await future.timeout(t3);
+          }
+        }
+      } while (isLocked);
+
+      if (logger.level <= Level.FINE) {
+        logger.fine(_toMethod('_awaitUnlock', [
+          'Waited for ${DateTime.now().difference(tic).inMilliseconds} ms',
+        ]));
+      }
+    } on TimeoutException {
+      final reason = [
+        if (isLocked) 'locked',
+        if (isMaximumPushPressure) 'maximum pressure',
+      ].join(',');
+      throw TimeoutException(
+        'Timeout occurred because of: $reason',
+      );
+    }
   }
 
   T _execute(S command, List<DomainEvent> changes) {
@@ -1407,7 +1541,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         fail: true,
         timeout: timeout,
         tag: transaction,
-        execute: () => _push(transaction),
+        execute: () => _push(
+          DateTime.now(),
+          timeout,
+          transaction,
+        ),
       ));
       if (added) {
         logger.fine(
@@ -1452,6 +1590,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Check if [push] or [execute] is possible
   bool get isMaximumPushPressure => maxPushPressure != null && pressure >= maxPushPressure;
+
+  /// Map of metrics
+  final Map<String, DurationMetric> _metrics = {
+    'push': DurationMetric.zero,
+  };
 
   /// Get commands waiting to execute
   final _commands = <S>{};
@@ -1527,7 +1670,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     return aggregate;
   }
 
-  Future<StreamResult<Iterable<DomainEvent>>> _push(Transaction transaction) async {
+  Future<StreamResult<Iterable<DomainEvent>>> _push(
+    DateTime tic,
+    Duration timeout,
+    Transaction transaction,
+  ) async {
     final aggregate = _assertTrx(transaction);
     try {
       if (_debugConflicts) {
@@ -1544,6 +1691,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         _printDebug('aggregate.pending.items: ${aggregate.getLocalEvents().length}');
       }
 
+      // Wait on lock if exists
+      await _awaitUnlock(tic, timeout);
+
       // This will attempt to push all changes
       // in one operation, regardless of the
       // number of events that it contains.
@@ -1553,6 +1703,17 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         // if changed after transaction was started
         transaction.changes,
         uuidFieldName: uuidFieldName,
+      );
+
+      // At this point, we have a result
+      // and should try apply them when
+      // possible. Catchup will apply changes
+      // later if a timeout actually happens
+      // (should happen infrequent, is logged
+      // below).
+      await _awaitUnlock(
+        tic,
+        const Duration(seconds: 30),
       );
 
       _completeTrx(
@@ -1890,22 +2051,21 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// to snapshot. If no snapshot exists,
   /// nothing is changed by this method.
   ///
-  bool reset({
+  Future<bool> reset({
     String suuid,
     List<String> uuids = const [],
-  }) {
-    final exists = store.snapshots?.contains(suuid ?? _suuid) == true;
-    _suuid = exists ? suuid : null;
+  }) async {
+    final exists = store.snapshots?.contains(suuid ?? _snapshot?.uuid) == true;
     try {
+      store.pause();
       if (exists) {
-        store.pause();
-        final snapshot = store.snapshots[_suuid];
+        _snapshot = await store.snapshots[suuid];
         // Remove missing
         _aggregates.removeWhere(
-          (key, _) => !snapshot.aggregates.containsKey(key),
+          (key, _) => !_snapshot.aggregates.containsKey(key),
         );
         // Update existing and add missing
-        snapshot.aggregates.forEach((uuid, model) {
+        _snapshot.aggregates.forEach((uuid, model) {
           if (uuids.isEmpty || uuids.contains(uuid)) {
             _aggregates.update(uuid, (a) => a.._reset(this), ifAbsent: () {
               final aggregate = create(
@@ -1920,25 +2080,31 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         });
         logger.info(
           uuids.isEmpty
-              ? 'Reset to snapshot $_suuid@${snapshot.number.value}'
-              : 'Reset aggregates $uuids to snapshot $_suuid@${snapshot.number.value}',
+              ? 'Reset to snapshot ${_snapshot.uuid}@${snapshot.number.value}'
+              : 'Reset aggregates $uuids to snapshot ${_snapshot.uuid}@${snapshot.number.value}',
         );
+        return exists;
       }
-      return exists;
+      _snapshot = null;
+      return false;
     } finally {
       // At this point, subscriptions
       // will resume from base given
       // by snapshot above
-      if (exists) {
-        store.resume();
-      }
+      store.resume();
     }
   }
+
+  /// Check if repository is disposed
+  bool get isDisposed => _isDisposed;
+  bool _isDisposed = false;
 
   /// Dispose resources.
   ///
   /// Can not be called after this.
   Future<void> dispose() async {
+    _isReady = false;
+    _isDisposed = true;
     _aggregates.clear();
     await _pushQueue?.dispose();
     await _pushQueueSubscription?.cancel();
@@ -1961,14 +2127,14 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         'pending.commands: ${_commands.length}}';
   }
 
-  Map<String, dynamic> toMeta({
+  Future<Map<String, dynamic>> toMeta({
     bool data = true,
     bool queue = true,
     bool items = true,
     bool snapshot = true,
     bool connection = true,
     bool subscriptions = true,
-  }) {
+  }) async {
     return {
       'type': '$aggregateType',
       'aggregates': <String, dynamic>{
@@ -1977,14 +2143,18 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         'transactions': _transactions.length,
       },
       'number': number.value,
+      'metrics': {
+        'events': store.events.length,
+        'push': _metrics['push'].toMeta(),
+      },
       if (queue) 'queue': _toQueueMeta(),
       if (snapshot && hasSnapshot)
-        'snapshot': store.snapshots.toMeta(
+        'snapshot': await store.snapshots.toMeta(
           data: data,
           items: items,
-          uuid: _suuid,
           current: number,
           type: aggregateType,
+          uuid: _snapshot.uuid,
         ),
       if (connection) 'connection': store.connection.toMeta(),
       if (subscriptions) 'subscriptions': _toSubscriptionMeta(),
@@ -2003,7 +2173,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
             'timestamp': '${_storeSubscriptionController.lastEvent?.created?.toIso8601String()}',
           },
         if (_storeSubscriptionController != null)
-          'stats': {
+          'metrics': {
             'processed': _storeSubscriptionController.processed,
             'reconnects': _storeSubscriptionController.reconnects,
           },
@@ -2049,7 +2219,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
             'timestamp': '${_pushQueue.currentAt.toIso8601String()}',
           },
       },
-      'stats': {
+      'metrics': {
         'queued': _pushQueue.length,
         'started': _pushQueue.started,
         'failures': _pushQueue.failures,
@@ -2335,7 +2505,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// Local changes pending commit
   final _localEvents = <DomainEvent>[];
 
-  /// Check if uncommitted changes exists
+  /// Check if aggregate only exist locally
   bool get isNew => number.isNone && _applied.isEmpty;
 
   /// Check if local uncommitted changes exists
