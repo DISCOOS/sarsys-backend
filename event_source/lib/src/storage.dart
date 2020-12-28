@@ -256,9 +256,10 @@ class Storage {
     'save': DurationMetric.zero,
   };
 
-  StreamRequest _checkSlowSave(StreamRequest request) {
+  StreamRequest _checkSlowSave(StreamRequestCompleted result, int limit) {
+    final request = result.request;
     final metric = _metrics['save'].now(request.created);
-    if (metric.duration.inMilliseconds > 50) {
+    if (metric.duration.inMilliseconds > limit) {
       logger.warning(
         'SLOW SAVE: Request ${request.tag} took ${metric.duration.inMilliseconds} ms',
       );
@@ -278,7 +279,8 @@ class Storage {
         break;
       case StreamRequestCompleted:
         final request = _checkSlowSave(
-          (event as StreamRequestCompleted).request,
+          event as StreamRequestCompleted,
+          DurationMetric.limit,
         );
         logger.fine(
           '$queue request completed in '

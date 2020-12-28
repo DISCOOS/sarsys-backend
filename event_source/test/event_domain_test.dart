@@ -1496,6 +1496,7 @@ Future main() async {
       // Assert repo 1
       expect(repo1.snapshot, isNotNull);
       expect(repo1.store.snapshots.length, 5); // (total 101 events and page size is 20 => 5 snapshots)
+      expect(repo1.store.aggregateMap.length, 102 - repo1.number.value + 1);
 
       // Act on repo 2
       await repo2.load(); // Required since storage instances are not synchronized!
@@ -1504,9 +1505,11 @@ Future main() async {
       // Assert repo 2
       expect(repo2.snapshot, isNotNull);
       expect(repo2.store.snapshots.length, 5); // (total 101 events and page size is 20 => 5 snapshots)
+      expect(repo2.store.aggregateMap.length, 102 - repo2.number.value + 1);
     },
     // TODO: Fix expectation failure in _repositoryShouldCommitTransactionsOnPush
-    retry: 1,
+    retry: 0,
+    timeout: Timeout.factor(100),
   );
 
   test('Repository push from last snapshot', () async {
@@ -1760,22 +1763,22 @@ Future _repositoryShouldCommitTransactionsOnPush(
   expect(stream.instances[0].length, equals(51));
   expect(stream.instances[1].length, equals(51));
 
-  expect(repo1.store.events[uuid1].length, equals(51));
-  expect(repo1.store.events[uuid2].length, equals(51));
+  expect(repo1.store.aggregateMap[uuid1].length, equals(51));
+  expect(repo1.store.aggregateMap[uuid2].length, equals(51));
 
-  expect(repo2.store.events[uuid1].length, equals(51));
-  expect(repo2.store.events[uuid2].length, equals(51));
+  expect(repo2.store.aggregateMap[uuid1].length, equals(51));
+  expect(repo2.store.aggregateMap[uuid2].length, equals(51));
 
   // Assert event numbers
   expect(repo1.store.current().value, equals(101));
   expect(repo1.store.current(uuid: uuid1).value, equals(50));
   expect(repo1.store.current(uuid: uuid2).value, equals(50));
-  expect(repo1.store.events[uuid1].last.number.value, equals(50));
+  expect(repo1.store.aggregateMap[uuid1].last.number.value, equals(50));
 
   expect(repo2.store.current().value, equals(101));
   expect(repo2.store.current(uuid: uuid1).value, equals(50));
   expect(repo2.store.current(uuid: uuid2).value, equals(50));
-  expect(repo2.store.events[uuid2].last.number.value, equals(50));
+  expect(repo2.store.aggregateMap[uuid2].last.number.value, equals(50));
 }
 
 /// Build from last snapshot.
@@ -2108,8 +2111,8 @@ Future _assertCatchUp(FooRepository repo1, FooRepository repo2, FooRepository re
   await group.close();
 
   // Get actual source events
-  final source2 = repo2.store.events[uuid].last;
-  final source3 = repo3.store.events[uuid].last;
+  final source2 = repo2.store.aggregateMap[uuid].last;
+  final source3 = repo3.store.aggregateMap[uuid].last;
 
   // Get actual aggregates
   final foo2 = repo2.get(uuid);
@@ -2228,7 +2231,7 @@ Iterable<DomainEvent> _assertEventNumberStrictOrder(Repository repo, String uuid
 }
 
 void _assertUniqueEvents(Repository repo, Iterable<Event> events) {
-  final actual = repo.store.events.values.fold(
+  final actual = repo.store.aggregateMap.values.fold(
     <String>[],
     (uuids, items) => uuids..addAll(items.map((e) => e.uuid)),
   );

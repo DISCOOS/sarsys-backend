@@ -922,7 +922,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         );
         break;
       case StreamRequestCompleted:
-        final request = (event as StreamRequestCompleted).request;
+        final request = _checkSlowPush(
+          event as StreamRequestCompleted,
+          DurationMetric.limit,
+        );
         logger.fine(
           'Push request completed in '
           '${DateTime.now().difference(request.created).inMilliseconds} ms: '
@@ -968,6 +971,19 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   }
 
   String _toPressureString() => 'queue pressure: ${_pushQueue.length}, command pressure: ${_commands.length}';
+
+  StreamRequest _checkSlowPush(StreamRequestCompleted result, int limit) {
+    final request = result.request;
+    final metric = _metrics['write'].now(request.created);
+    if (metric.duration.inMilliseconds > limit) {
+      _logger.warning(
+        'SLOW PUSH: ${result.request.tag} '
+        ' took ${metric.duration.inMilliseconds} ms',
+      );
+    }
+    _metrics['push'] = metric;
+    return request;
+  }
 
   /// Check if repository has a active snapshot
   bool get hasSnapshot => _snapshot != null;
@@ -1717,7 +1733,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         _printDebug('connection: ${store.connection.host}:${store.connection.port}');
         _printDebug('repository: $this');
         _printDebug('stream: ${store.toInstanceStream(aggregate.uuid)}');
-        _printDebug('store.events.count: ${store.events.values.fold(0, (count, events) => count + events.length)}');
+        _printDebug('store.events.count: ${store.length}');
         _printDebug('store.number.instance: ${store.current(uuid: aggregate.uuid)}');
         _printDebug('expectedEventNumber: ${store.toExpectedVersion(store.toInstanceStream(aggregate.uuid)).value}');
         _printDebug('store.number.canonical: ${store.current()}');
@@ -1760,7 +1776,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         _printDebug('timestamp: ${DateTime.now().toIso8601String()}');
         _printDebug('repository: $this');
         _printDebug('connection: ${store.connection.host}:${store.connection.port}');
-        _printDebug('store.events.count: ${store.events.values.fold(0, (count, events) => count + events.length)}');
+        _printDebug('store.events.count: ${store.length}');
         _printDebug('store.number.instance: ${store.current(uuid: aggregate.uuid)}');
         _printDebug('store.number.canonical: ${store.current()}');
         _printDebug('aggregate.pending.count: ${aggregate.getLocalEvents().length}');
@@ -1805,8 +1821,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       _printDebug('timestamp: ${DateTime.now().toIso8601String()}');
       _printDebug('repository: $this');
       _printDebug('connection: ${store.connection.host}:${store.connection.port}');
-      _printDebug('store.events.count: ${store.events.values.fold(0, (count, events) => count + events.length)}');
-      _printDebug('store.events.items: ${store.events.values}');
+      _printDebug('store.events.count: ${store.length}');
       _printDebug('aggregate.uuid: ${aggregate.uuid}');
       _printDebug('aggregate.applied.count: ${aggregate.applied.length}');
       _printDebug('aggregate.applied.items: ${aggregate.applied}');
@@ -2095,7 +2110,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     try {
       store.pause();
       if (exists) {
-        _snapshot = await store.snapshots[suuid];
+        if (_snapshot?.uuid != next) {
+          _snapshot = await store.snapshots[suuid];
+        }
         // Remove missing
         _aggregates.removeWhere(
           (key, _) => !_snapshot.aggregates.containsKey(key),
@@ -2109,8 +2126,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
                 uuid,
                 Map.from(model.data),
               );
-              aggregate._reset(this);
-              return aggregate;
+              return aggregate.._reset(this);
             });
           }
         });
@@ -2183,7 +2199,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       },
       'number': number.value,
       'metrics': {
-        'events': store.events.length,
+        'events': store.length,
         'push': _metrics['push'].toMeta(),
       },
       if (queue) 'queue': _toQueueMeta(),

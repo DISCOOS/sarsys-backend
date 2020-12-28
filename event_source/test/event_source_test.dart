@@ -182,7 +182,7 @@ Future<List<DomainEvent>> _createMultipleEvents(FooRepository repo, String uuid)
 }
 
 Iterable<SourceEvent> _assertEventNumberStrictOrder(Repository repo, String uuid) {
-  final events = repo.store.events[uuid].toList();
+  final events = repo.store.aggregateMap[uuid].toList();
   for (var i = 0; i < events.length; i++) {
     expect(
       events[i].number.value,
@@ -199,7 +199,7 @@ Iterable<SourceEvent> _assertEventNumberStrictOrder(Repository repo, String uuid
 }
 
 void _assertUniqueEvents(Repository repo, Iterable<Event> events) {
-  final actual = repo.store.events.values.fold(
+  final actual = repo.store.aggregateMap.values.fold(
     <String>[],
     (uuids, items) => uuids..addAll(items.map((e) => e.uuid)),
   );

@@ -611,6 +611,8 @@ class ExpectedVersion {
 }
 
 class DurationMetric {
+  static const limit = 50;
+
   const DurationMetric()
       : count = 0,
         duration = Duration.zero,
@@ -642,7 +644,7 @@ class DurationMetric {
       duration: duration,
 
       /// Calculate iterative mean, see
-      ///http://www.heikohoffmann.de/htmlthesis/node134.html
+      /// http://www.heikohoffmann.de/htmlthesis/node134.html
       durationMean: durationMean +
           Duration(
             milliseconds: 1 ~/ (total) * (duration.inMilliseconds - durationMean.inMilliseconds),

@@ -152,8 +152,11 @@ class EventStore {
   /// Check if store is not empty
   bool get isNotEmpty => _events.isNotEmpty;
 
-  /// Get all events
-  Map<String, Set<SourceEvent>> get events => Map.from(_aggregates);
+  /// Map from [Event.uuid] to [AggregateRoot.uuid].
+  Map<String, String> get eventMap => Map.unmodifiable(_events);
+
+  /// Map from [AggregateRoot.uuid] to set of [Event.uuid]s
+  Map<String, Set<SourceEvent>> get aggregateMap => Map.unmodifiable(_aggregates);
 
   /// [Map] of events for each aggregate root sourced from stream.
   ///
@@ -1663,7 +1666,7 @@ class EventStoreSubscriptionController<T extends Repository> {
             'repository: ${_repository.runtimeType}',
             'repository.empty: ${_repository.isEmpty}',
             'isInstanceStream: ${store.useInstanceStreams}',
-            'store.events.count: ${store.events.values.fold(0, (count, events) => count + events.length)}',
+            'store.events.count: ${store.length}',
           ])
         ]),
       );
@@ -1691,7 +1694,7 @@ class EventStoreSubscriptionController<T extends Repository> {
       'repository: ${_repository.runtimeType}',
       'repository.empty: ${_repository.isEmpty}',
       'isInstanceStream: ${store.useInstanceStreams}',
-      'store.events.count: ${store.events.values.fold(0, (count, events) => count + events.length)}',
+      'store.events.count: ${store.length}',
     ]);
 
     if (aggregate != null) {
@@ -2176,24 +2179,26 @@ class EventStoreConnection {
     _assertState();
     final tic = DateTime.now();
     return _checkSlowRead(
-        FeedResult.from(
-          stream: result.stream,
-          number: result.number,
-          embedded: result.embedded,
-          direction: result.direction,
-          response: await client.get(
-            _toUri(
-              result.direction,
-              result.atomFeed,
-              result.embedded,
-            ),
-            headers: {
-              'Authorization': credentials.header,
-              'Accept': 'application/vnd.eventstore.atom+json',
-            },
+      FeedResult.from(
+        stream: result.stream,
+        number: result.number,
+        embedded: result.embedded,
+        direction: result.direction,
+        response: await client.get(
+          _toUri(
+            result.direction,
+            result.atomFeed,
+            result.embedded,
           ),
+          headers: {
+            'Authorization': credentials.header,
+            'Accept': 'application/vnd.eventstore.atom+json',
+          },
         ),
-        tic);
+      ),
+      tic,
+      DurationMetric.limit,
+    );
   }
 
   String _toUri(Direction direction, AtomFeed atomFeed, bool embed) {
@@ -2303,6 +2308,7 @@ class EventStoreConnection {
           response: response,
         ),
         tic,
+        DurationMetric.limit,
       );
     }
     _logger.fine(
@@ -2328,6 +2334,7 @@ class EventStoreConnection {
           response: redirected,
         ),
         tic,
+        DurationMetric.limit,
       );
     } catch (e, stackTrace) {
       _logger.warning(
@@ -2353,10 +2360,10 @@ class EventStoreConnection {
     'write': DurationMetric.zero,
   };
 
-  FeedResult _checkSlowRead(FeedResult feed, DateTime tic) {
+  FeedResult _checkSlowRead(FeedResult feed, DateTime tic, int limit) {
     if (feed?.isOK == true) {
       final metric = _metrics['read'].now(tic);
-      if (metric.duration.inMilliseconds > 50) {
+      if (metric.duration.inMilliseconds > limit) {
         _logger.warning(
           'SLOW READ: Reading ${feed.atomFeed.entries.length} '
           'from ${feed.stream}@${feed.number} in direction ${enumName(feed.direction)} '
@@ -2368,10 +2375,10 @@ class EventStoreConnection {
     return feed;
   }
 
-  WriteResult _checkSlowWrite(WriteResult write, DateTime tic) {
+  WriteResult _checkSlowWrite(WriteResult write, DateTime tic, int limit) {
     if (write?.isCreated == true) {
       final metric = _metrics['write'].now(tic);
-      if (metric.duration.inMilliseconds > 50) {
+      if (metric.duration.inMilliseconds > limit) {
         _logger.warning(
           'SLOW WRITE: Writing ${write.events.length} '
           'to ${write.stream} took ${metric.duration.inMilliseconds} ms',
@@ -2779,6 +2786,7 @@ class _EventStreamController {
           feed = connection._checkSlowRead(
             await _readNext(),
             tic,
+            DurationMetric.limit,
           );
         }
       } while (feed != null && feed.isOK && !(feed.headOfStream || feed.isEmpty));
