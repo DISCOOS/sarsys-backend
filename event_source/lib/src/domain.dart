@@ -974,11 +974,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   StreamRequest _checkSlowPush(StreamRequestCompleted result, int limit) {
     final request = result.request;
-    final metric = _metrics['write'].now(request.created);
+    final metric = _metrics['push'].now(request.created);
     if (metric.duration.inMilliseconds > limit) {
       _logger.warning(
-        'SLOW PUSH: ${result.request.tag} '
-        ' took ${metric.duration.inMilliseconds} ms',
+        'SLOW PUSH: ${(result.request.tag as Transaction).toTagAsString()} '
+        'took ${metric.duration.inMilliseconds} ms',
       );
     }
     _metrics['push'] = metric;
@@ -1053,22 +1053,88 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   Completer<EventNumber> _unlock;
 
-  /// Save snapshot of current states
-  SnapshotModel save() {
-    if (!isLocked && store.snapshots?.isReady == true) {
-      if (store.snapshots.last == null || store.snapshots.last.number.value < number.value) {
-        try {
-          lock();
-          // Only save if more events have been added
-          final candidate = store.snapshots.save(this);
-          _snapshot = _assertSnapshot(candidate);
-        } finally {
-          unlock();
+  /// Load snapshots and replay from given [suuid]
+  /// (defaults to last snapshot if exists)
+  Future<SnapshotModel> load({String suuid, String path}) async {
+    if (store.snapshots != null) {
+      try {
+        // Stop subscriptions
+        // from catching up
+        store.pause();
+        final prev = _snapshot?.uuid;
+        await store.snapshots.load(path: path);
+        final next = suuid ?? store.snapshots.last?.uuid;
+        if (_shouldReset(prev, next)) {
+          await store.reset(
+            this,
+            suuid: next,
+          );
         }
+      } finally {
+        store.resume();
       }
     }
     return _snapshot;
   }
+
+  bool _shouldReset(String prev, String next) => next != null && (prev == null || prev != next);
+
+  /// Replay events into this [Repository].
+  ///
+  Future<int> replay({String suuid, List<String> uuids = const []}) async {
+    try {
+      store.pause();
+      final events = await store.replay<T>(
+        this,
+        suuid: suuid,
+        uuids: uuids,
+      );
+      if (uuids.isEmpty) {
+        if (events == 0) {
+          logger.info("Stream '${store.canonicalStream}' is empty");
+        } else {
+          logger.info('Repository loaded with ${_aggregates.length} aggregates');
+        }
+      }
+      return events;
+    } finally {
+      store.resume();
+    }
+  }
+
+  /// Save snapshot of current states
+  SnapshotModel save() {
+    if (isSaveable) {
+      try {
+        lock();
+        final candidate = _assertSnapshot(
+          store.snapshots.save(this),
+        );
+        if (_shouldReset(_snapshot?.uuid, candidate.uuid)) {
+          _snapshot = candidate;
+          store.purge(this);
+        }
+      } catch (e) {
+        print(e);
+      } finally {
+        unlock();
+      }
+    }
+    return _snapshot;
+  }
+
+  /// Check if save is possible.
+  ///
+  /// Is only possible if and only if
+  /// 1) not [isLocked], and
+  /// 2) not [isChanged], and
+  /// 3) snapshots storage will save
+  ///
+  bool get isSaveable =>
+      // Locked or changed repo can not be saved (prevents concurrent writes)
+      !(isLocked || isChanged) &&
+      // Snapshots storage will save
+      store.snapshots?.willSave(this) == true;
 
   SnapshotModel _assertSnapshot(SnapshotModel model) {
     if (isReady) {
@@ -1095,6 +1161,131 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     }
     return model;
   }
+
+  /// Reset current state to snapshot given
+  /// by [suuid]. If [uuids] is given, only
+  /// aggregates matching these are reset
+  /// to snapshot. If no snapshot exists,
+  /// nothing is changed by this method.
+  ///
+  Future<bool> reset({
+    String suuid,
+    List<String> uuids = const [],
+  }) async {
+    // Ensure snapshot is selected if possible (default is last)
+    final next = suuid ?? _snapshot?.uuid ?? store.snapshots?.last?.uuid;
+    final exists = store.snapshots?.contains(next) == true;
+    try {
+      store.pause();
+      if (exists) {
+        if (_shouldReset(_snapshot?.uuid, next)) {
+          _snapshot = await store.snapshots[suuid];
+        }
+        // Remove missing
+        _aggregates.removeWhere(
+          (key, _) => !_snapshot.aggregates.containsKey(key),
+        );
+        // Update existing and add missing
+        _snapshot.aggregates.forEach((uuid, model) {
+          if (uuids.isEmpty || uuids.contains(uuid)) {
+            _aggregates.update(uuid, (a) => a.._reset(this), ifAbsent: () {
+              final aggregate = create(
+                _processors,
+                uuid,
+                Map.from(model.data),
+              );
+              return aggregate.._reset(this);
+            });
+          }
+        });
+        logger.info(
+          uuids.isEmpty
+              ? 'Reset to snapshot ${_snapshot.uuid}@${snapshot.number.value}'
+              : 'Reset aggregates $uuids to snapshot ${_snapshot.uuid}@${snapshot.number.value}',
+        );
+      } else {
+        _snapshot = null;
+        _aggregates.values.where((a) => uuids.isEmpty || uuids.contains(a.uuid)).forEach(
+              (a) => a._reset(this),
+            );
+      }
+      return _snapshot != null;
+    } finally {
+      // At this point, subscriptions
+      // will resume from base given
+      // by snapshot above
+      store.resume();
+    }
+  }
+
+  /// Purge events before given snapshot.
+  /// Returns true if events was purged, false otherwise.
+  Map<String, List<DomainEvent>> purge({
+    List<String> uuids = const [],
+  }) {
+    final events = <String, List<DomainEvent>>{};
+    try {
+      store.pause();
+      if (hasSnapshot) {
+        // Update existing and add missing
+        _snapshot.aggregates.forEach((uuid, model) {
+          if (uuids.isEmpty || uuids.contains(uuid)) {
+            _aggregates.update(uuid, (a) {
+              events[a.uuid] = a._purge(this);
+              return a;
+            }, ifAbsent: () {
+              final a = create(
+                _processors,
+                uuid,
+                Map.from(model.data),
+              );
+              events[a.uuid] = a._purge(this);
+              return a;
+            });
+          }
+        });
+        final count = events.values.fold<int>(0, (count, list) => count += list.length);
+        logger.info(
+          uuids.isEmpty
+              ? 'Purged $count events before snapshot '
+                  '${_snapshot.uuid}@${snapshot.number.value}'
+              : 'Purged $count events before snapshot '
+                  '${_snapshot.uuid}@${snapshot.number.value} from aggregates $uuids',
+        );
+      }
+      return events;
+    } finally {
+      // At this point, subscriptions
+      // will resume from base given
+      // by snapshot above
+      store.resume();
+    }
+  }
+
+  /// Subscribe this [source] to compete for changes from [store]
+  EventStoreSubscriptionController compete({
+    int consume = 20,
+    ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
+    Duration maxBackoffTime = const Duration(seconds: 10),
+  }) =>
+      store.compete(
+        this,
+        consume: consume,
+        strategy: strategy,
+        maxBackoffTime: maxBackoffTime,
+      );
+
+  /// Subscribe this [source] to receive all changes from [store]
+  EventStoreSubscriptionController subscribe({
+    Duration maxBackoffTime = const Duration(seconds: 10),
+  }) =>
+      store.subscribe(
+        this,
+        maxBackoffTime: maxBackoffTime,
+      );
+
+  /// Called after [build()] is completed.
+  void willStartProcessingEvents() => {};
 
   /// Replace current aggregate data with given.
   /// If [data] is given, it will replace current.
@@ -1130,75 +1321,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
     return prev;
   }
-
-  /// Load snapshots and reset to given [suuid] (defaults to last if exists)
-  Future<SnapshotModel> load({String path, bool replay = true}) async {
-    if (store.snapshots != null) {
-      try {
-        // Stop subscriptions
-        // from catching up
-        store.pause();
-        await store.snapshots.load(path: path);
-        final suuid = store.snapshots.last?.uuid;
-        if (replay) {
-          await this.replay(suuid: suuid);
-        } else {
-          await reset(suuid: store.snapshots.last?.uuid);
-        }
-      } finally {
-        store.resume();
-      }
-    }
-    return _snapshot;
-  }
-
-  /// Replay events into this [Repository].
-  ///
-  Future<int> replay({String suuid, List<String> uuids = const []}) async {
-    try {
-      store.pause();
-      final events = await store.replay<T>(
-        this,
-        suuid: suuid,
-        uuids: uuids,
-      );
-      if (uuids.isEmpty) {
-        if (events == 0) {
-          logger.info("Stream '${store.canonicalStream}' is empty");
-        } else {
-          logger.info('Repository loaded with ${_aggregates.length} aggregates');
-        }
-      }
-      return events;
-    } finally {
-      store.resume();
-    }
-  }
-
-  /// Subscribe this [source] to compete for changes from [store]
-  EventStoreSubscriptionController compete({
-    int consume = 20,
-    ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
-    Duration maxBackoffTime = const Duration(seconds: 10),
-  }) =>
-      store.compete(
-        this,
-        consume: consume,
-        strategy: strategy,
-        maxBackoffTime: maxBackoffTime,
-      );
-
-  /// Subscribe this [source] to receive all changes from [store]
-  EventStoreSubscriptionController subscribe({
-    Duration maxBackoffTime = const Duration(seconds: 10),
-  }) =>
-      store.subscribe(
-        this,
-        maxBackoffTime: maxBackoffTime,
-      );
-
-  /// Called after [build()] is completed.
-  void willStartProcessingEvents() => {};
 
   /// Get domain event from given [event]
   DomainEvent toDomainEvent(Event event) {
@@ -2094,62 +2216,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     ]);
   }
 
-  /// Reset current state to snapshot given
-  /// by [suuid]. If [uuids] is given, only
-  /// aggregates matching these are reset
-  /// to snapshot. If no snapshot exists,
-  /// nothing is changed by this method.
-  ///
-  Future<bool> reset({
-    String suuid,
-    List<String> uuids = const [],
-  }) async {
-    // Ensure snapshot is selected if possible (default is last)
-    final next = suuid ?? _snapshot?.uuid ?? store.snapshots?.last?.uuid;
-    final exists = store.snapshots?.contains(next) == true;
-    try {
-      store.pause();
-      if (exists) {
-        if (_snapshot?.uuid != next) {
-          _snapshot = await store.snapshots[suuid];
-        }
-        // Remove missing
-        _aggregates.removeWhere(
-          (key, _) => !_snapshot.aggregates.containsKey(key),
-        );
-        // Update existing and add missing
-        _snapshot.aggregates.forEach((uuid, model) {
-          if (uuids.isEmpty || uuids.contains(uuid)) {
-            _aggregates.update(uuid, (a) => a.._reset(this), ifAbsent: () {
-              final aggregate = create(
-                _processors,
-                uuid,
-                Map.from(model.data),
-              );
-              return aggregate.._reset(this);
-            });
-          }
-        });
-        logger.info(
-          uuids.isEmpty
-              ? 'Reset to snapshot ${_snapshot.uuid}@${snapshot.number.value}'
-              : 'Reset aggregates $uuids to snapshot ${_snapshot.uuid}@${snapshot.number.value}',
-        );
-      } else {
-        _snapshot = null;
-        _aggregates.values.where((a) => uuids.isEmpty || uuids.contains(a.uuid)).forEach(
-              (a) => a._reset(this),
-            );
-      }
-      return _snapshot != null;
-    } finally {
-      // At this point, subscriptions
-      // will resume from base given
-      // by snapshot above
-      store.resume();
-    }
-  }
-
   /// Check if repository is disposed
   bool get isDisposed => _isDisposed;
   bool _isDisposed = false;
@@ -2685,6 +2751,32 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
           isLocal: false,
         ));
     return this;
+  }
+
+  /// Purge events before current snapshot
+  List<DomainEvent> _purge(Repository repo) {
+    final events = <DomainEvent>[];
+    if (repo.hasSnapshot) {
+      final snapshot = repo.snapshot.aggregates[uuid];
+      final baseNumber = snapshot.number.toNumber();
+      _applied.removeWhere((uuid, e) {
+        if (e.number < baseNumber) {
+          events.add(e);
+          return true;
+        }
+        return false;
+      });
+      _base.clear();
+      _head.clear();
+      _headIndex = -1;
+      _baseIndex = -1;
+      // TODO: Analyze if skipped should be purged
+      // final uuids = events.map((e) => e.uuid).toList();
+      // _skipped.removeWhere(
+      //   (uuid) => uuids.contains(uuid),
+      // );
+    }
+    return events;
   }
 
   /// Reset to initial state
@@ -3294,12 +3386,12 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         'aggregate.number: ${number.value}',
         'aggregate.pending: ${_localEvents.length}',
         'aggregate.modification: $modifications',
-        'aggregate.head.uuid: ${headEvent.uuid}',
-        'aggregate.head.number: ${headEvent.number}',
-        'aggregate.base.uuid: ${baseEvent.uuid}',
-        'aggregate.base.number: ${baseEvent.number}',
-        'aggregate.last.uuid: ${lastEvent.uuid}',
-        'aggregate.last.number: ${lastEvent.number}',
+        'aggregate.head.uuid: ${headEvent?.uuid}',
+        'aggregate.head.number: ${headEvent?.number}',
+        'aggregate.base.uuid: ${baseEvent?.uuid}',
+        'aggregate.base.number: ${baseEvent?.number}',
+        'aggregate.last.uuid: ${lastEvent?.uuid}',
+        'aggregate.last.number: ${lastEvent?.number}',
       ]);
       throw EventNumberNotStrictMonotone(
         uuid: uuid,

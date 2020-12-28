@@ -22,10 +22,12 @@ class Storage {
   Storage(
     this.type, {
     this.prefix,
-    this.keep = 20,
+    int keep = 20,
     this.automatic = true,
-    this.threshold = 1000,
-  }) : logger = Logger('Storage') {
+    int threshold = 1000,
+  })  : keep = keep ?? 10,
+        threshold = threshold ?? 1000,
+        logger = Logger('Storage') {
     _eventSubscriptions.add(_saveQueue.onEvent().listen(
           (e) => _onQueueEvent('Save', e),
         ));
@@ -84,7 +86,7 @@ class Storage {
   /// Check if storage is empty.
   ///
   /// If [isReady] is [true], then [isEmpty] is always [true]
-  bool get isEmpty => !isReady || _states.isEmpty;
+  bool get isEmpty => !isReady || _last == null && _states.isEmpty;
 
   /// Get [SnapshotModel] from [uuid]
   Future<SnapshotModel> operator [](String uuid) => get(uuid);
@@ -94,7 +96,9 @@ class Storage {
 
   /// Get all (key,value)-pairs as unmodifiable map
   Future<Map<String, SnapshotModel>> get map async {
-    final map = <String, SnapshotModel>{};
+    final map = <String, SnapshotModel>{
+      if (isReady && _last != null) _last.uuid: _last,
+    };
     if (isReady) {
       for (var uuid in _states.keys) {
         final state = await _states.get(uuid);
@@ -109,7 +113,9 @@ class Storage {
 
   /// Get all values as unmodifiable list
   Future<Iterable<SnapshotModel>> get values async {
-    final values = <SnapshotModel>[];
+    final values = <SnapshotModel>{
+      if (isReady && _last != null) _last,
+    };
     if (isReady) {
       for (var uuid in _states.keys) {
         final state = await _states.get(uuid);
@@ -120,7 +126,8 @@ class Storage {
   }
 
   /// Check if key exists
-  bool contains(String uuid) => isReady ? _states.keys.contains(uuid) : false;
+  bool contains(String uuid) =>
+      isReady ? _isNotNull(uuid) && (_last?.uuid == uuid || _states.keys.contains(uuid)) : false;
 
   /// Get [SnapshotModel] with the lowest event number
   String get first {
@@ -142,6 +149,36 @@ class Storage {
         model.uuid: model.number.value,
       });
     }
+  }
+
+  Future<String> _popLast(Object error, StackTrace stackTrace) async {
+    if (_last != null && _sorted.isNotEmpty) {
+      final prev = _last;
+      // TODO: Handle potential race-condition with next snapshot save
+      // This will only happen when save is called with to high frequency
+      if (_sorted.remove(prev.uuid) != null && _sorted.isNotEmpty) {
+        _last = await get(_sorted.keys.last);
+        if (_last != null) {
+          logger.network(
+            _toMethod('Removed snapshot ${prev.uuid} of ${prev.type}@${prev.number}', [
+              'reason: $error',
+              _toObject('next', [
+                'uuid: ${_last.uuid}',
+                'type: ${_last.type}',
+                'number: ${_last.number}',
+                if (_last.isPartial)
+                  _toObject('partial', [
+                    'missing: ${_last.missing}',
+                  ]),
+              ]),
+            ]),
+            error,
+            stackTrace,
+          );
+        }
+      }
+    }
+    return _last?.uuid;
   }
 
   /// Get [EventNumber] of [SnapshotModel] with given [uuid]
@@ -226,6 +263,9 @@ class Storage {
   /// Get [SnapshotModel] from [uuid]
   Future<SnapshotModel> get(String uuid) async {
     if (contains(uuid)) {
+      if (uuid == _last?.uuid) {
+        return _last;
+      }
       final state = await getState(uuid);
       return state.value;
     }
@@ -233,8 +273,20 @@ class Storage {
   }
 
   /// Get [StorageState] from [uuid]
-  Future<StorageState> getState(String uuid) =>
-      isReady && _isNotNull(uuid) && contains(uuid) ? _states?.get(uuid) : null;
+  Future<StorageState> getState(String uuid) {
+    if (isReady && _isNotNull(uuid) && contains(uuid)) {
+      if (_last?.uuid == uuid) {
+        return Future.value(
+          StorageState(
+            value: _last,
+          ),
+        );
+      }
+      return _states?.get(uuid);
+    }
+    return null;
+  }
+
   bool _isNotNull(String uuid) => uuid != null;
 
   /// Get number of [save] requests waiting to be executed
@@ -317,43 +369,60 @@ class Storage {
       error,
       stackTrace,
     );
+    _popLast(
+      error,
+      stackTrace,
+    );
   }
 
   String _toPressureString() => 'queue pressure: $pressure';
 
-  /// Save [StorageState] for given
-  /// [repo] if [Repository.number]
-  /// is larger then [last].
+  /// Check if snapshot of repository will be saved.
+  /// if [isReady] is false, [save] does nothing.
+  /// if [isChanged] is false, [save] does nothing.
+  /// If [automatic] is false, [save] will always update [last].
+  /// If [automatic] is true, [save] will only update [last] if [isExceeded] returns true.
+  bool willSave(Repository repo) => isReady && isChanged(repo) && (!(automatic ?? true) || isExceeded(repo));
+
+  /// Check if given [repo] has changed from [last] snapshot
+  bool isChanged(Repository repo) => repo.number.value > (_last?.number?.value ?? -1);
+
+  /// Check if number of events has exceeded [threshold]
+  bool isExceeded(Repository repo) => threshold is num && (repo.number.value - (last?.number?.value ?? 0) >= threshold);
+
+  /// Save [StorageState] for given [repo].
+  ///
+  /// Will only update [last] if [willSave] returns true.
+  ///
   SnapshotModel save(Repository repo) {
     var model = repo.snapshot;
-    if (isReady) {
-      if (isEmpty || !repo.hasSnapshot || last.number.value < repo.number.value) {
-        final candidate = toSnapshot(repo);
-        final tag = 'snapshot ${candidate.uuid} ${candidate.isPartial ? '(partial) of' : 'of'} '
-            '${candidate.type}@${candidate.number.value} '
-            'with ${candidate.aggregates.length} aggregates';
-        final key = '${candidate.number}';
-        final added = _saveQueue.add(StreamRequest<SnapshotModel>(
-          key: key,
-          tag: tag,
-          fail: true,
-          execute: () => _save(
-            repo,
-            candidate,
-            tag,
-          ),
-        ));
-        // Prevent repeated adds
-        if (added) {
-          _setLast(candidate);
-        }
-        logger.fine(
-          added
-              ? 'Scheduled save: $tag (queue pressure: ${_saveQueue.length})'
-              : 'Waiting on save already scheduled: $tag (queue pressure: ${_saveQueue.length})',
-        );
-        model = candidate;
+    if (willSave(repo)) {
+      // TODO: Detect to high snapshot save frequency
+      final candidate = toSnapshot(repo);
+      final tag = 'snapshot ${candidate.uuid} ${candidate.isPartial ? '(partial) of' : 'of'} '
+          '${candidate.type}@${candidate.number.value} '
+          'with ${candidate.aggregates.length} aggregates';
+      final key = '${candidate.number}';
+      final added = _saveQueue.add(StreamRequest<SnapshotModel>(
+        key: key,
+        tag: tag,
+        fail: true,
+        execute: () => _save(
+          repo,
+          candidate,
+          tag,
+        ),
+      ));
+      // Prevent repeated adds
+      if (added) {
+        _setLast(candidate);
       }
+      logger.fine(
+        added
+            ? 'Scheduled save: $tag (queue pressure: ${_saveQueue.length})'
+            : 'Waiting on save already scheduled: $tag (queue pressure: ${_saveQueue.length})',
+      );
+      model = candidate;
     }
     return model;
   }
@@ -607,3 +676,6 @@ class StorageIsDisposedException extends StorageException {
   StorageIsDisposedException(this.storage) : super('${storage.runtimeType} is disposed');
   final Storage storage;
 }
+
+String _toMethod(String name, List<String> args) => '$name(\n  ${args.join(',\n  ')})';
+String _toObject(String name, List<String> args) => '$name: {\n  ${args.join(',\n  ')}}';

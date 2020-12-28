@@ -205,6 +205,7 @@ class EventStore {
   Storage _snapshots;
 
   /// Current snapshot
+  SnapshotModel get snapshot => _snapshot;
   SnapshotModel _snapshot;
 
   /// Current event number for [canonicalStream]
@@ -353,6 +354,8 @@ class EventStore {
     }
   }
 
+  /// Reset repository to remote state.
+  /// This will all local changes.
   Future<Map<String, EventNumber>> reset(
     Repository repo, {
     String suuid,
@@ -366,12 +369,44 @@ class EventStore {
     _snapshot = repo.snapshot;
     final existing = hasSnapshot ? _snapshot.aggregates.keys : _aggregates.keys;
     final keep = uuids.isNotEmpty ? uuids : existing;
-    final aggregates = existing.toList()..retainWhere((uuid) => keep.contains(uuid));
+    final base = existing.toList()..retainWhere((uuid) => keep.contains(uuid));
 
-    for (var uuid in aggregates) {
+    _purge(repo, base, numbers, remote: false);
+
+    return numbers;
+  }
+
+  /// Purge events sourced before current [Repository.snapshot],
+  /// and will set [snapshot] to [Repository.snapshot]. Returns
+  /// purged events per [AggregateRoot.uuid].
+  Map<String, EventNumber> purge(
+    Repository repo, {
+    List<String> uuids = const [],
+  }) {
+    final numbers = <String, EventNumber>{};
+    if (repo.hasSnapshot && _snapshot?.uuid != repo.snapshot.uuid) {
+      _snapshot = repo.snapshot;
+      final existing = _snapshot.aggregates.keys.toList();
+      final keep = uuids.isNotEmpty ? uuids : repo.snapshot.aggregates.keys;
+      final base = existing..retainWhere((uuid) => keep.contains(uuid));
+      repo.purge(uuids: uuids);
+      _purge(repo, base, numbers, remote: false);
+    }
+    return numbers;
+  }
+
+  void _purge(
+    Repository repo,
+    Iterable<String> base,
+    Map<String, EventNumber> numbers, {
+    @required bool remote,
+  }) {
+    final hasSnapshot = repo.hasSnapshot;
+    for (var uuid in base) {
       // Remove all events for given aggregate
       // ignore: prefer_collection_literals
       final events = _aggregates[uuid] ?? LinkedHashSet<SourceEvent>();
+
       // Find all events before snapshot
       final before = events;
       for (var event in before) {
@@ -381,14 +416,18 @@ class EventStore {
       events.clear();
       final stream = toInstanceStream(uuid);
       if (hasSnapshot) {
-        final event = repo.get(uuid).baseEvent;
-        assert(event.remote, 'must be remote');
-        events.add(event.toSourceEvent(
-          streamId: stream,
-          number: event.number,
-          uuidFieldName: repo.uuidFieldName,
-        ));
-        _events[event.uuid] = uuid;
+        final aggregate = repo.get(uuid);
+        for (var e in aggregate.applied) {
+          if (remote) {
+            assert(e.remote, 'must be remote');
+          }
+          events.add(e.toSourceEvent(
+            streamId: stream,
+            number: e.number,
+            uuidFieldName: repo.uuidFieldName,
+          ));
+          _events[e.uuid] = uuid;
+        }
       }
 
       // Register aggregate in store (needed
@@ -402,7 +441,6 @@ class EventStore {
       );
       numbers[uuid] = offset;
     }
-    return numbers;
   }
 
   EventNumber _toStreamOffset(
@@ -560,17 +598,18 @@ class EventStore {
     return count;
   }
 
-  /// Save a snapshot when locally
-  /// stored events exceed
-  /// [snapshots.threshold]
+  /// Save a snapshot when locally stored events exceeds [snapshots.threshold].
   ///
-  void snapshotWhen(Repository repo) {
-    if (snapshots?.isReady == true && snapshots?.automatic == true && snapshots?.threshold is num) {
-      final last = EventNumber(snapshots.last?.number?.value ?? -1);
-      if (repo.number.value - last.value >= snapshots.threshold) {
-        repo.save();
-      }
+  /// Will only save if [Storage.automatic] is true.
+  ///
+  /// Returns [true] if snapshot is saved, [false] otherwise.
+  ///
+  bool snapshotWhen(Repository repo) {
+    final willSave = repo.isSaveable;
+    if (repo.isSaveable && repo.store.snapshots.automatic == true) {
+      repo.save();
     }
+    return willSave;
   }
 
   Iterable<SourceEvent> _updateAll(
@@ -1754,7 +1793,9 @@ class EventStoreSubscriptionController<T extends Repository> {
       );
 
       // Attempt to catchup on affected aggregate
-      await repository.catchup(uuids: [error.uuid]);
+      await repository.catchup(
+        uuids: [error.uuid],
+      );
 
       // Only resume on success
       resume();

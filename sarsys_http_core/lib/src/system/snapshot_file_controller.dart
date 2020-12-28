@@ -274,7 +274,10 @@ class SnapshotFileController extends ResourceController {
     final snapshots = repo.store.snapshots;
     final path = _toHiveFilePath(snapshots, 'hive');
     final size = File(path).statSync().size;
-    await repo.load();
+    final snapshot = await repo.load();
+    if (snapshot != null) {
+      await repo.replay();
+    }
     // Crash recovery has been
     // performed if file size has
     // changed (Hive changes it)
