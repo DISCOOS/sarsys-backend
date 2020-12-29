@@ -180,6 +180,49 @@ Future main() async {
     expect(foo.skipped, contains(eventId));
   });
 
+  test('Repository catchup should handle patch errors by skipping events', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
+    final uuid = Uuid().v4();
+    final foo = repo.get(uuid, data: {'property11': 'value11'});
+    final data1 = foo.data;
+    await repo.push(foo);
+
+    // Stop ALL catchup subscription
+    harness.pause();
+
+    // Perform remote modification on data not found locally
+    final stream = harness.server().getStream(repo.store.aggregate);
+    final data2 = {
+      'property12': ['value12', 'value13', 'value14']
+    };
+    final data3 = {
+      'property12': ['value13', 'value14', 'value15']
+    };
+    final eventId = Uuid().v4();
+    stream.append(
+      '${stream.instanceStream}-0',
+      [
+        TestStream.asSourceEvent<FooUpdated>(
+          uuid,
+          data2,
+          data3,
+          eventId: eventId,
+          number: EventNumber(1),
+        ),
+      ],
+    );
+
+    // Act - resume catchup
+    await repo.store.catchup(repo);
+
+    // Assert - patches in event 2 is skipped
+    expect(foo.number.value, equals(1));
+    expect(foo.data, equals(data1));
+    expect(foo.skipped, contains(eventId));
+  });
+
   test('Repository should recover from ES error on push', () async {
     // Arrange
     final repo = harness.get<FooRepository>();
@@ -1244,50 +1287,56 @@ Future main() async {
     _assertUniqueEvents(repo1, events2);
   });
 
-  test('Repository should resolve concurrent remote modification on command execute', () async {
-    // Arrange
-    final repo = harness.get<FooRepository>();
-    final stream = harness.server().getStream(repo.store.aggregate);
-    await repo.readyAsync();
+  test(
+    'Repository should resolve concurrent remote modification on command execute',
+    () async {
+      // Arrange
+      final repo = harness.get<FooRepository>();
+      final stream = harness.server().getStream(repo.store.aggregate);
+      await repo.readyAsync();
 
-    // Catch any events raised
-    // before waiting on all
-    // events to be seen
-    final seen = <Event>[];
-    repo.store.asStream().where((e) => e.remote).listen((event) {
-      seen.add(event);
-    });
+      // Catch any events raised
+      // before waiting on all
+      // events to be seen
+      final seen = <Event>[];
+      repo.store.asStream().where((e) => e.remote).listen((event) {
+        seen.add(event);
+      });
 
-    // Act - Simulate concurrent modification by manually updating remote stream
-    final uuid = Uuid().v4();
-    final foo = repo.get(uuid, data: {'property1': 'value1'});
-    await repo.push(foo);
-    stream.append('${stream.instanceStream}-0', [
-      TestStream.asSourceEvent<FooUpdated>(
-        uuid,
-        {'property1': 'value1'},
-        {
-          'property1': 'value1',
-          'property2': 'value2',
-          'property3': 'value3',
-        },
-      )
-    ]);
+      // Act - Simulate concurrent modification by manually updating remote stream
+      final uuid = Uuid().v4();
+      final foo = repo.get(uuid, data: {'property1': 'value1'});
+      await repo.push(foo);
+      stream.append('${stream.instanceStream}-0', [
+        TestStream.asSourceEvent<FooUpdated>(
+          uuid,
+          {'property1': 'value1'},
+          {
+            'property1': 'value1',
+            'property2': 'value2',
+            'property3': 'value3',
+          },
+        )
+      ]);
 
-    // Act
-    await repo.execute(UpdateFoo({'uuid': uuid, 'property3': 'value3'}));
+      // Act
+      await repo.execute(UpdateFoo({'uuid': uuid, 'property3': 'value3'}));
 
-    // Assert conflict resolved
-    expect(repo.count(), equals(1));
-    expect(foo.data, containsPair('property1', 'value1'));
-    expect(foo.data, containsPair('property2', 'value2'));
-    expect(foo.data, containsPair('property3', 'value3'));
-    expect(foo.hasConflicts, isFalse);
+      // Assert conflict resolved
+      expect(repo.count(), equals(1));
+      expect(foo.data, containsPair('property1', 'value1'));
+      expect(foo.data, containsPair('property2', 'value2'));
+      expect(foo.data, containsPair('property3', 'value3'));
+      expect(foo.hasConflicts, isFalse);
 
-    // Wait until event is remote
-    await repo.store.asStream().where((e) => e.remote).take(2 - seen.length).toList();
-    expect(repo.number.value, equals(2));
-  });
+      // Wait until event is remote
+      await takeRemote(repo.store.asStream(), 2 - seen.length, distinct: true);
+      expect(repo.number.value, equals(2));
+    },
+    // TODO: Fix timeout on takeRemote
+    retry: 1,
+    timeout: Timeout(Duration(seconds: 3)),
+  );
 
   test('Repository should enforce strict order of concurrent create aggregate operations ', () async {
     // Arrange

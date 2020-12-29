@@ -547,7 +547,7 @@ class EventStore {
     );
 
     logger.fine(
-      _toObject('_catchUp', [
+      _toMethod('_catchUp', [
         'stream: $stream',
         'number.offset: $offset',
         'number.actual: $actual',
@@ -555,46 +555,71 @@ class EventStore {
       ]),
     );
 
-    final events = await connection.readEventsAsStream(
+    final events = connection.readEventsAsStream(
       stream: stream,
       number: actual,
       master: master,
     );
-    if (isDisposed) return 0;
 
     // Process results as they arrive
-    final subscription = events.listen((result) {
-      if (!isDisposed && result.isOK) {
-        // Group events by aggregate uuid
-        final eventsPerAggregate = groupBy<SourceEvent, String>(
-          result.events,
-          (event) => repo.toAggregateUuid(event),
+    final subscription = events.listen(
+      (result) => count = _onResult(result, repo, count),
+      onError: (Object error, StackTrace stackTrace) {
+        logger.network(
+          _toMethod('_catchup', [
+            _toObject('Failed to process events from $stream@$actual', [
+              'cause: unknown',
+              'error: $error',
+              _toObject('debug', [
+                'connection: ${connection.host}:${connection.port}',
+                'repository: ${repo.runtimeType}',
+                'repository.empty: ${repo.isEmpty}',
+                'isInstanceStream: $useInstanceStreams',
+                'store.events.count: $length',
+              ])
+            ]),
+          ]),
+          error,
+          stackTrace,
         );
+      },
+      cancelOnError: true,
+    );
 
-        // Apply events to aggregates
-        eventsPerAggregate.forEach(
-          (uuid, events) {
-            final domainEvents = _applyAll(
-              repo,
-              uuid,
-              events,
-            );
-            // Publish remotely created events.
-            // Handlers can determine events with
-            // local origin using the local field
-            // in each Event
-            publish(domainEvents);
-          },
-        );
-
-        count += result.events.length;
-
-        // Free up memory
-        snapshotWhen(repo);
-      }
-    });
     await events.length;
     await subscription.cancel();
+    return count;
+  }
+
+  int _onResult(ReadResult result, Repository repo, int count) {
+    if (!isDisposed && result.isOK) {
+      // Group events by aggregate uuid
+      final eventsPerAggregate = groupBy<SourceEvent, String>(
+        result.events,
+        (event) => repo.toAggregateUuid(event),
+      );
+
+      // Apply events to aggregates
+      eventsPerAggregate.forEach(
+        (uuid, events) {
+          final domainEvents = _applyAll(
+            repo,
+            uuid,
+            events,
+          );
+          // Publish remotely created events.
+          // Handlers can determine events with
+          // local origin using the local field
+          // in each Event
+          publish(domainEvents);
+        },
+      );
+
+      count += result.events.length;
+
+      // Free up memory
+      snapshotWhen(repo);
+    }
     return count;
   }
 
@@ -692,7 +717,46 @@ class EventStore {
 
     // Commit remote changes to existing aggregate?
     if (exists) {
-      domainEvents.forEach(aggregate.apply);
+      for (var event in domainEvents) {
+        try {
+          aggregate.apply(event);
+        } on JsonPatchError catch (error, stackTrace) {
+          // Apply it safely by skip patching
+          aggregate.apply(
+            event,
+            skip: true,
+          );
+          final stream = toInstanceStream(uuid);
+          logger.warning(
+            _toMethod('_applyAll', [
+              _toObject('Failed to process ${event.type}@${event.number} from $stream', [
+                'resolution: skipped',
+                'cause: Failed to apply patches from stream $stream',
+                'error: $error',
+                _toObject('debug', [
+                  'connection: ${connection.host}:${connection.port}',
+                  'event.type: ${event.type}',
+                  'event.uuid: ${event.uuid}',
+                  'event.number: ${event.number}',
+                  _toObject(
+                    'event.patches',
+                    event.patches.map((p) => '$p').toList(),
+                  ),
+                  'aggregate.uuid: $uuid',
+                  'aggregate.type: ${repo.aggregateType}',
+                  'aggregate.number: ${aggregate?.number}',
+                  'repository: ${repo.runtimeType}',
+                  'repository.empty: ${repo.isEmpty}',
+                  'isInstanceStream: ${useInstanceStreams}',
+                  'store.events.count: ${length}',
+                ]),
+              ]),
+            ]),
+            error,
+            stackTrace,
+          );
+        }
+      }
       if (!aggregate.hasConflicts) {
         aggregate.commit();
       }
@@ -1330,9 +1394,11 @@ class EventStore {
     }
     _paused++;
     if (logger.level <= Level.FINE) {
+      final trace = Trace.current(1);
+      final callee = trace.frames.first;
       logger.fine(_toMethod('pause', [
         'paused: $_paused',
-        // 'stackTrace: ${Trace.format(StackTrace.current)}',
+        'callee: ${callee}',
       ]));
     }
     return numbers;
@@ -1378,9 +1444,11 @@ class EventStore {
       }
     }
     if (logger.level <= Level.FINE) {
+      final trace = Trace.current(1);
+      final callee = trace.frames.first;
       logger.fine(_toMethod('resume', [
         'paused: $_paused',
-        // 'stackTrace: ${Trace.format(StackTrace.current)}',
+        'callee: ${callee}',
       ]));
     }
     return numbers;
@@ -1482,8 +1550,8 @@ class EventStoreSubscriptionController<T extends Repository> {
   /// Maximum backoff duration between reconnect attempts
   final Duration maxBackoffTime;
 
-  /// Cancelled when store is disposed
-  StreamSubscription<SourceEvent> _subscription;
+  /// [EventHandler] instance
+  EventHandler<SourceEvent> _handler;
 
   /// Reconnect count. Uses in exponential backoff calculation
   int reconnects = 0;
@@ -1532,7 +1600,7 @@ class EventStoreSubscriptionController<T extends Repository> {
     @required String stream,
     EventNumber number = EventNumber.first,
   }) {
-    _subscription?.cancel();
+    _handler?.cancel();
     _group = null;
     _processed = 0;
     _consume = null;
@@ -1540,21 +1608,16 @@ class EventStoreSubscriptionController<T extends Repository> {
     _offset = number;
     _competing = false;
     _repository = repository;
-    _subscription = repository.store.connection
-        .subscribe(
-          stream: stream,
-          number: number,
-        )
-        .listen(
-          (event) => _onEvent(event),
-          onDone: () => onDone(repository),
-          onError: (error, StackTrace stackTrace) => onError(
-            repository,
-            error,
-            stackTrace,
-          ),
-        );
-    logger.fine('${repository.runtimeType} > Subscribed to $stream@$number');
+
+    // Handle events from stream
+    _listen(repository.store.connection.subscribe(
+      stream: stream,
+      number: number,
+    ));
+
+    logger.fine(
+      '${repository.runtimeType} > Subscribed to $stream@$number',
+    );
     return this;
   }
 
@@ -1569,7 +1632,7 @@ class EventStoreSubscriptionController<T extends Repository> {
     EventNumber number = EventNumber.first,
     ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
   }) {
-    _subscription?.cancel();
+    _handler?.cancel();
     _competing = true;
     _group = group;
     _processed = 0;
@@ -1577,27 +1640,52 @@ class EventStoreSubscriptionController<T extends Repository> {
     _consume = consume;
     _strategy = strategy;
     _repository = repository;
-    _subscription = repository.store.connection
-        .compete(
-          stream: stream,
-          group: group,
-          number: number,
-          consume: consume,
-          strategy: strategy,
-        )
-        .listen(
-          (event) => _onEvent(event),
-          onDone: () => onDone(repository),
-          onError: (error, StackTrace stackTrace) => onError(
-            repository,
-            error,
-            stackTrace,
-          ),
-        );
+
+    // Handle events from stream
+    _listen(repository.store.connection.compete(
+      stream: stream,
+      group: group,
+      number: number,
+      consume: consume,
+      strategy: strategy,
+    ));
+
     logger.fine(
       '${repository.runtimeType} > Competing from $stream@$number',
     );
     return this;
+  }
+
+  void _listen(Stream<SourceEvent> events) async {
+    assert(
+      _handler?.isCancelled != false,
+      'Handler must be cancelled',
+    );
+
+    _handler = EventHandler<SourceEvent>(logger);
+    _handler.handle(
+      _repository,
+      events,
+      onEvent: (SourceEvent event) {
+        _alive(_repository, event);
+        onEvent(_repository, event);
+      },
+      onPause: () => _timer?.cancel(),
+      onDone: () => onDone(_repository),
+      onFatal: () async {
+        // Was unable to handle error
+        await cancel();
+
+        // Cleanup
+        final type = repository.runtimeType;
+        repository.store._controllers.remove(type);
+      },
+      onError: (error, StackTrace stackTrace) => onError(
+        _repository,
+        error,
+        stackTrace,
+      ),
+    );
   }
 
   Future _retry() async {
@@ -1615,7 +1703,7 @@ class EventStoreSubscriptionController<T extends Repository> {
   }
 
   Future _restart() async {
-    await _subscription?.cancel();
+    await _handler?.cancel();
     if (_competing) {
       final controller = await _repository.store.compete(
         repository,
@@ -1623,247 +1711,14 @@ class EventStoreSubscriptionController<T extends Repository> {
         strategy: _strategy,
         maxBackoffTime: maxBackoffTime,
       );
-      _subscription = controller._subscription;
+      _handler = controller._handler;
     } else {
       final controller = await repository.store.subscribe(
         repository,
         maxBackoffTime: maxBackoffTime,
       );
-      _subscription = controller._subscription;
+      _handler = controller._handler;
     }
-  }
-
-  void _onEvent(SourceEvent event) {
-    try {
-      if (!isPaused) {
-        _alive(_repository, event);
-        onEvent(_repository, event);
-      }
-    } on JsonPatchError catch (error, stackTrace) {
-      _handleJsonPatchError(
-        event,
-        error,
-        Trace.from(stackTrace),
-      );
-    } on EventNumberNotStrictMonotone catch (error, stackTrace) {
-      // Fault-tolerant handling of this
-      // situation if it happens. If not handled,
-      // every successive event will throw a
-      // EventNumberNotStrictMonotone eventually
-      // leading to a partial snapshot being
-      // stored. Although this exception should
-      // never happen, regressions might lead to
-      // it happen anyway, which should be logged
-      // and handled as follows:
-
-      // ----------------------------------------
-      // 1. Pause immediately to ensure no more
-      // events are processed (method below is
-      // async and pausing will therefore happen
-      // later if called inside that method).
-      // Subscription is resumed when catchup
-      // is completed.
-      pause();
-
-      // ----------------------------------------
-      // 2. Attempt to catchup on affected
-      // aggregate only. If it fails, this
-      // subscription is cancelled and removed,
-      // effectively stopping repository from
-      // catchup automatically. This will
-      // gracefully degrade to manuel catchup
-      // on conflict, increasing write time.
-      _handleEventNumberNotStrictMonotone(
-        error,
-        Trace.from(stackTrace),
-      );
-    } catch (error, stackTrace) {
-      final store = _repository.store;
-      final uuid = _repository.toAggregateUuid(event);
-      final stream = _repository.store.canonicalStream;
-      final aggregate = _repository.get(uuid, createNew: false);
-      _onFatal(
-        event,
-        error: error,
-        stream: stream,
-        stackTrace: stackTrace,
-        message: _toObject('Failed to process $event from $stream', [
-          'cause: unknown',
-          'error: $error',
-          _toObject('debug', [
-            'connection: ${store.connection.host}:${store.connection.port}',
-            'event.type: ${event.type}',
-            'event.uuid: ${event.uuid}',
-            'event.number: ${event.number}',
-            _toObject(
-              'event.patches',
-              event.patches.map((p) => '$p').toList(),
-            ),
-            'aggregate.uuid: $uuid',
-            'aggregate.type: ${_repository.aggregateType}',
-            'aggregate.number: ${aggregate?.number}',
-            'repository: ${_repository.runtimeType}',
-            'repository.empty: ${_repository.isEmpty}',
-            'isInstanceStream: ${store.useInstanceStreams}',
-            'store.events.count: ${store.length}',
-          ])
-        ]),
-      );
-    }
-  }
-
-  void _handleJsonPatchError(SourceEvent event, JsonPatchError error, Trace stackTrace) {
-    final store = _repository.store;
-    final uuid = _repository.toAggregateUuid(event);
-    final stream = _repository.store.canonicalStream;
-    final aggregate = _repository.get(uuid, createNew: false);
-
-    final debug = _toObject('debug', [
-      'connection: ${store.connection.host}:${store.connection.port}',
-      'event.type: ${event.type}',
-      'event.uuid: ${event.uuid}',
-      'event.number: ${event.number}',
-      _toObject(
-        'event.patches',
-        event.patches.map((p) => '$p').toList(),
-      ),
-      'aggregate.uuid: $uuid',
-      'aggregate.type: ${_repository.aggregateType}',
-      'aggregate.number: ${aggregate?.number}',
-      'repository: ${_repository.runtimeType}',
-      'repository.empty: ${_repository.isEmpty}',
-      'isInstanceStream: ${store.useInstanceStreams}',
-      'store.events.count: ${store.length}',
-    ]);
-
-    if (aggregate != null) {
-      // This implies that event exists in store
-      if (store.containsEvent(event)) {
-        // Apply it safely by skip patching
-        aggregate.apply(
-          _repository.toDomainEvent(event),
-          skip: true,
-        );
-        logger.warning(
-          _toMethod('_handleJsonPatchError', [
-            'resolution: skipped',
-            'cause: Failed to apply patches from stream $stream',
-            'error: $error',
-            debug,
-          ]),
-          error,
-          stackTrace,
-        );
-      } else {
-        // Notify
-        _onFatal(
-          event,
-          error: error,
-          stream: stream,
-          stackTrace: stackTrace,
-          message: _toObject('Failed to process $event from $stream', [
-            'resolution: none',
-            _toObject('cause', [
-              'Failed to apply patches from stream $stream',
-              'Failed to add event to skipped because event does not exist in store',
-            ]),
-            'error: $error',
-            debug,
-          ]),
-        );
-      }
-    }
-  }
-
-  void _handleEventNumberNotStrictMonotone(EventNumberNotStrictMonotone error, Trace stackTrace) async {
-    try {
-      logger.severe(
-        _toMethod('_handleEventNumberNotStrictMonotone', [
-          _toObject('Attempting catchup on', [
-            _toObject('${repository.aggregateType}', [
-              'uuid: ${error.uuid}',
-              'delta: ${error.delta}',
-              'actual: ${error.actual}',
-              'expected: ${error.expected}',
-            ]),
-          ]),
-        ]),
-        error,
-        stackTrace,
-      );
-
-      // Attempt to catchup on affected aggregate
-      await repository.catchup(
-        uuids: [error.uuid],
-      );
-
-      // Only resume on success
-      resume();
-
-      final aggregate = repository.get(error.uuid);
-
-      logger.severe(
-        _toMethod('_handleEventNumberNotStrictMonotone', [
-          _toObject('Catchup succeed on', [
-            _toObject('${repository.aggregateType}', [
-              'uuid: ${aggregate?.uuid}',
-              'after: ${aggregate?.number}',
-              'before: ${error.actual}',
-              'expected: ${error.expected}',
-            ]),
-          ]),
-        ]),
-        error,
-        stackTrace,
-      );
-    } catch (e, next) {
-      logger.severe(
-        _toMethod('_handleEventNumberNotStrictMonotone', [
-          _toObject('Failed catchup, degrading to manual catchup on conflicts', [
-            _toObject('${repository.aggregateType}', [
-              'uuid: ${error.uuid}',
-              'delta: ${error.delta}',
-              'actual: ${error.actual}',
-              'expected: ${error.expected}',
-            ]),
-            _toObject('cause', [
-              'error: $error',
-              'stackTrace: ${Trace.format(StackTrace.current)}',
-            ]),
-          ])
-        ]),
-        e,
-        next,
-      );
-
-      // Was unable to handle error, cancel subscription
-      await cancel();
-
-      // Cleanup
-      final type = repository.runtimeType;
-      repository.store._controllers.remove(type);
-    }
-  }
-
-  void _onFatal(
-    SourceEvent event, {
-    Object error,
-    String stream,
-    String message,
-    StackTrace stackTrace,
-  }) {
-    // Concatenate additional error information
-    message = _toMethod('_onFatal', [
-      'message: $message',
-      'error: $error',
-      'stacktrace: ${Trace.format(stackTrace)}',
-    ]);
-
-    logger.network(
-      message,
-      error,
-      stackTrace,
-    );
   }
 
   int toNextReconnectMillis() {
@@ -1901,17 +1756,16 @@ class EventStoreSubscriptionController<T extends Repository> {
   SourceEvent get lastEvent => _lastEvent;
   SourceEvent _lastEvent;
 
-  /// Check if subscription is paused
-  bool get isPaused => _subscription?.isPaused == true;
+  /// Check if underlying subscription is paused
+  bool get isPaused => _handler?.isPaused == true;
 
   EventNumber pause() {
-    _timer?.cancel();
-    _subscription?.pause();
+    _handler?.pause();
     return current;
   }
 
   EventNumber resume() {
-    _subscription?.resume();
+    _handler?.resume();
     return current;
   }
 
@@ -1919,11 +1773,335 @@ class EventStoreSubscriptionController<T extends Repository> {
     _timer?.cancel();
     _repository = null;
     _isCancelled = true;
-    return _subscription?.cancel();
+    return _handler?.cancel();
   }
 
   bool get isCancelled => _isCancelled;
   bool _isCancelled = false;
+}
+
+class EventHandler<T extends Event> {
+  EventHandler(this.logger);
+
+  final Logger logger;
+
+  void Function() _onPause;
+  void Function() _onResume;
+  Future Function(T event) _onFatal;
+
+  /// Underlying stream subscription
+  StreamSubscription<T> _subscription;
+
+  /// Check if underlying subscription is paused
+  bool get isPaused => _subscription.isPaused == true;
+
+  /// Check if underlying subscription is cancelled.
+  bool get isCancelled => _isCancelled;
+  bool _isCancelled = false;
+
+  /// Request that the stream pauses events until further notice.
+  void pause() {
+    _subscription.pause();
+    if (_onPause != null) {
+      _onPause();
+    }
+  }
+
+  /// Resume after a pause.
+  void resume() {
+    _subscription.resume();
+    if (_onResume != null) {
+      _onResume();
+    }
+  }
+
+  /// Cancels the underlying subscription.
+  Future cancel() async {
+    _isCancelled = true;
+    return _subscription.cancel();
+  }
+
+  void _checkState() {
+    assert(!_isCancelled, 'underlying subscription is cancelled');
+  }
+
+  void handle(
+    Repository repo,
+    Stream<T> stream, {
+    @required Function(T event) onEvent,
+    void Function() onDone,
+    void Function() onPause,
+    void Function() onResume,
+    Future Function() onFatal,
+    void Function(Object error, StackTrace stackTrace) onError,
+  }) {
+    _checkState();
+    _onPause = onPause;
+    _onResume = onResume;
+    _onFatal = _onFatal;
+    _subscription = stream.listen(
+      (event) {
+        _checkState();
+        if (!isPaused) {
+          _onEvent(
+            onEvent,
+            event,
+            repo,
+          );
+        }
+      },
+      onDone: onDone,
+      onError: onError,
+      cancelOnError: false,
+    );
+  }
+
+  Future _onEvent(
+    Function(T event) onEvent,
+    T event,
+    Repository repo,
+  ) async {
+    try {
+      onEvent(event);
+    } on JsonPatchError catch (error, stackTrace) {
+      _handleJsonPatchError(
+        event,
+        repo,
+        error,
+        Trace.from(stackTrace),
+      );
+    } on EventNumberNotStrictMonotone catch (error, stackTrace) {
+      // Fault-tolerant handling of this
+      // situation if it happens. If not handled,
+      // every successive event will throw a
+      // EventNumberNotStrictMonotone eventually
+      // leading to a partial snapshot being
+      // stored. Although this exception should
+      // never happen, regressions might lead to
+      // it happen anyway, which should be logged
+      // and handled as follows:
+
+      // ----------------------------------------
+      // 1. Pause immediately to ensure no more
+      // events are processed (_handleEvent-
+      // NumberNotStrictMonotone is async and
+      // pausing will therefore happen later
+      // if called inside that method).
+      // Subscription is resumed when catchup
+      // is completed.
+      pause();
+
+      // ----------------------------------------
+      // 2. Attempt to catchup on affected
+      // aggregate only. If it fails, this
+      // subscription is cancelled and removed,
+      // effectively stopping repository from
+      // catchup automatically. This will
+      // gracefully degrade to manuel catchup
+      // on conflict, increasing write time.
+      _handleEventNumberNotStrictMonotone(
+        event,
+        repo,
+        error,
+        Trace.from(stackTrace),
+      );
+    } catch (error, stackTrace) {
+      final store = repo.store;
+      final uuid = repo.toAggregateUuid(event);
+      final stream = repo.store.canonicalStream;
+      final aggregate = repo.get(uuid, createNew: false);
+      _handleFatal(
+        event,
+        error: error,
+        stream: stream,
+        stackTrace: stackTrace,
+        message: _toObject('Failed to process ${event.type}@${event.number} from $stream', [
+          'cause: unknown',
+          'error: $error',
+          _toObject('debug', [
+            'connection: ${store.connection.host}:${store.connection.port}',
+            'event.type: ${event.type}',
+            'event.uuid: ${event.uuid}',
+            'event.number: ${event.number}',
+            _toObject(
+              'event.patches',
+              event.patches.map((p) => '$p').toList(),
+            ),
+            'aggregate.uuid: $uuid',
+            'aggregate.type: ${repo.aggregateType}',
+            'aggregate.number: ${aggregate?.number}',
+            'repository: ${repo.runtimeType}',
+            'repository.empty: ${repo.isEmpty}',
+            'isInstanceStream: ${store.useInstanceStreams}',
+            'store.events.count: ${store.length}',
+          ])
+        ]),
+      );
+    }
+  }
+
+  void _handleJsonPatchError(
+    T event,
+    Repository repo,
+    JsonPatchError error,
+    Trace stackTrace,
+  ) {
+    final store = repo.store;
+    final uuid = repo.toAggregateUuid(event);
+    final stream = repo.store.canonicalStream;
+    final aggregate = repo.get(uuid, createNew: false);
+
+    final debug = _toObject('debug', [
+      'connection: ${store.connection.host}:${store.connection.port}',
+      'event.type: ${event.type}',
+      'event.uuid: ${event.uuid}',
+      'event.number: ${event.number}',
+      _toObject(
+        'event.patches',
+        event.patches.map((p) => '$p').toList(),
+      ),
+      'aggregate.uuid: $uuid',
+      'aggregate.type: ${repo.aggregateType}',
+      'aggregate.number: ${aggregate?.number}',
+      'repository: ${repo.runtimeType}',
+      'repository.empty: ${repo.isEmpty}',
+      'isInstanceStream: ${store.useInstanceStreams}',
+      'store.events.count: ${store.length}',
+    ]);
+
+    if (aggregate != null) {
+      // This implies that event exists in store
+      if (store.containsEvent(event)) {
+        // Apply it safely by skip patching
+        aggregate.apply(
+          repo.toDomainEvent(event),
+          skip: true,
+        );
+        logger.warning(
+          _toMethod('_handleJsonPatchError', [
+            'resolution: skipped',
+            'cause: Failed to apply patches from stream $stream',
+            'error: $error',
+            debug,
+          ]),
+          error,
+          stackTrace,
+        );
+      } else {
+        // Notify
+        _handleFatal(
+          event,
+          error: error,
+          stream: stream,
+          stackTrace: stackTrace,
+          message: _toObject('Failed to process ${event.type}@${event.number} from $stream', [
+            'resolution: none',
+            _toObject('cause', [
+              'Failed to apply patches from stream $stream',
+              'Failed to add event to skipped because event does not exist in store',
+            ]),
+            'error: $error',
+            debug,
+          ]),
+        );
+      }
+    }
+  }
+
+  void _handleEventNumberNotStrictMonotone(
+    T event,
+    Repository repo,
+    EventNumberNotStrictMonotone error,
+    Trace stackTrace,
+  ) async {
+    try {
+      logger.severe(
+        _toMethod('_handleEventNumberNotStrictMonotone', [
+          _toObject('Attempting catchup on', [
+            _toObject('${repo.aggregateType}', [
+              'uuid: ${error.uuid}',
+              'delta: ${error.delta}',
+              'actual: ${error.actual}',
+              'expected: ${error.expected}',
+            ]),
+          ]),
+        ]),
+        error,
+        stackTrace,
+      );
+
+      // Attempt to catchup on affected aggregate
+      await repo.catchup(
+        uuids: [error.uuid],
+      );
+
+      // Only resume on success
+      resume();
+
+      final aggregate = repo.get(error.uuid);
+
+      logger.severe(
+        _toMethod('_handleEventNumberNotStrictMonotone', [
+          _toObject('Catchup succeed on', [
+            _toObject('${repo.aggregateType}', [
+              'uuid: ${aggregate?.uuid}',
+              'after: ${aggregate?.number}',
+              'before: ${error.actual}',
+              'expected: ${error.expected}',
+            ]),
+          ]),
+        ]),
+        error,
+        stackTrace,
+      );
+    } catch (e, next) {
+      _handleFatal(
+        event,
+        message: _toMethod('_handleEventNumberNotStrictMonotone', [
+          _toObject('Failed catchup, degrading to manual catchup on conflicts', [
+            _toObject('${repo.aggregateType}', [
+              'uuid: ${error.uuid}',
+              'delta: ${error.delta}',
+              'actual: ${error.actual}',
+              'expected: ${error.expected}',
+            ]),
+            _toObject('cause', [
+              'error: $error',
+              'stackTrace: ${Trace.format(StackTrace.current)}',
+            ]),
+          ])
+        ]),
+        error: e,
+        stackTrace: next,
+      );
+    }
+  }
+
+  void _handleFatal(
+    T event, {
+    @required Object error,
+    String stream,
+    String message,
+    StackTrace stackTrace,
+  }) {
+    // Concatenate additional error information
+    message = _toMethod('_onFatal', [
+      'stream: $stream',
+      'message: $message',
+      'error: $error',
+      'stacktrace: ${Trace.format(stackTrace)}',
+    ]);
+
+    logger.network(
+      message,
+      error,
+      stackTrace,
+    );
+
+    if (_onFatal != null) {
+      _onFatal(event);
+    }
+  }
 }
 
 // TODO: Add delete operation to EventStoreConnection

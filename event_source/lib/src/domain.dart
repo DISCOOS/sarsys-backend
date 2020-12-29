@@ -1002,8 +1002,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   int lock() {
     _locks++;
     if (logger.level <= Level.FINE) {
+      final trace = Trace.current(1);
+      final callee = trace.frames.first;
       logger.fine(_toMethod('lock', [
         'locks: $_locks',
+        'callee: ${callee}',
         // 'stackTrace: ${Trace.format(StackTrace.current)}',
       ]));
     }
@@ -1030,9 +1033,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       }
     }
     if (logger.level <= Level.FINE) {
+      final trace = Trace.current(1);
+      final callee = trace.frames.first;
       logger.fine(_toMethod('unlock', [
         'locks: $_locks',
-        // 'stackTrace: ${Trace.format(StackTrace.current)}',
+        'callee: ${callee}',
       ]));
     }
     return !isLocked;
@@ -1114,8 +1119,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           _snapshot = candidate;
           store.purge(this);
         }
-      } catch (e) {
-        print(e);
       } finally {
         unlock();
       }
@@ -2441,7 +2444,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// using [toData].
   ///
   Map<String, dynamic> get base {
-    return Map.from(_toBase());
+    return Map.unmodifiable(_toBase());
   }
 
   Map<String, dynamic> _toBase() {
@@ -2487,7 +2490,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// using [toData].
   ///
   Map<String, dynamic> get head {
-    return Map.from(_toHead());
+    return Map.unmodifiable(_toHead());
   }
 
   Map<String, dynamic> _toHead() {
@@ -2499,7 +2502,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
       // Cleanup in case of large state
       _head.clear();
       _headIndex = _baseIndex;
-      return Map.from(_base);
+      return _base;
     }
 
     if (take > 0) {
@@ -2525,7 +2528,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// You can calculate any previous [data]
   /// using [toData].
   ///
-  Map<String, dynamic> get data => Map.from(_data);
+  Map<String, dynamic> get data => Map.unmodifiable(_data);
 
   final Map<String, dynamic> _data = {};
 
