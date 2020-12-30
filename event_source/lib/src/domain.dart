@@ -2568,14 +2568,28 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   // Apply events to base from given offset
   Map<String, dynamic> _toData(Map<String, dynamic> base, int skip, int take) {
     // Apply events added since last call that have patches
-    final added = _applied.values.skip(skip).take(take).where((e) => e.patches.isNotEmpty);
+    final added = _applied.values
+        .skip(skip)
+        .take(take)
+        .where((e) => e.patches.isNotEmpty)
+        // Only include events that are not skipped
+        .where((e) => !_skipped.contains(e.uuid));
+
     if (added.isNotEmpty) {
       base = added.fold(
         base,
-        (previous, event) => JsonUtils.apply(
-          previous,
-          event.patches,
-        ),
+        (previous, event) {
+          try {
+            return JsonUtils.apply(
+              previous,
+              event.patches,
+            );
+          } on JsonPatchError {
+            // TODO: Add logging
+            _skipped.add(event.uuid);
+            return previous;
+          }
+        },
       );
     }
     return base;
@@ -2769,15 +2783,12 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         }
         return false;
       });
-      _base.clear();
-      _head.clear();
-      _headIndex = -1;
-      _baseIndex = -1;
-      // TODO: Analyze if skipped should be purged
-      // final uuids = events.map((e) => e.uuid).toList();
-      // _skipped.removeWhere(
-      //   (uuid) => uuids.contains(uuid),
-      // );
+      _baseIndex = _applied.length - 1;
+      _headIndex = _baseIndex;
+      final uuids = events.map((e) => e.uuid).toList();
+      _skipped.removeWhere(
+        (uuid) => uuids.contains(uuid),
+      );
     }
     return events;
   }
@@ -2833,6 +2844,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
           }
           _baseIndex = 0;
           _headIndex = 0;
+          _base.addAll(_data);
         }
       }
     }

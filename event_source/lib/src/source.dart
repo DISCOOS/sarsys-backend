@@ -583,7 +583,7 @@ class EventStore {
           stackTrace,
         );
       },
-      cancelOnError: true,
+      cancelOnError: false,
     );
 
     await events.length;
@@ -631,7 +631,7 @@ class EventStore {
   ///
   bool snapshotWhen(Repository repo) {
     final willSave = repo.isSaveable;
-    if (repo.isSaveable && repo.store.snapshots.automatic == true) {
+    if (willSave && repo.store.snapshots.automatic == true) {
       repo.save();
     }
     return willSave;
@@ -753,7 +753,7 @@ class EventStore {
               ]),
             ]),
             error,
-            stackTrace,
+            Trace.from(stackTrace),
           );
         }
       }
@@ -3076,7 +3076,12 @@ class _EventStreamController {
       );
     } else {
       logger.fine(
-        'Failed to read from $_stream@${_current}, listening for $_current',
+        _toMethod('Failed to read from $_stream@${_current}, listening for $_current', [
+          _toObject('result', [
+            'status: ${result.statusCode}',
+            'reason: ${result.reasonPhrase}',
+          ]),
+        ]),
       );
     }
     // Notify when all actions are done
