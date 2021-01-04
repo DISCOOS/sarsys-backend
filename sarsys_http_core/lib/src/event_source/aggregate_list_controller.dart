@@ -85,6 +85,8 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       return gatewayTimeout(
         body: 'Repository $aggregateType was unable to process request ${e.request.tag}',
       );
+    } on AggregateCordoned catch (e) {
+      return locked(body: e.message);
     } on SocketException catch (e) {
       return serviceUnavailable(
         body: 'Eventstore unavailable: $e',
@@ -168,6 +170,8 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       return gatewayTimeout(
         body: 'Repository $aggregateType was unable to process request ${e.request.tag}',
       );
+    } on AggregateCordoned catch (e) {
+      return locked(body: e.message);
     } on SocketException catch (e) {
       return serviceUnavailable(
         body: 'Eventstore unavailable: $e',
@@ -247,6 +251,8 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       return gatewayTimeout(
         body: 'Repository $aggregateType was unable to process request ${e.request.tag}',
       );
+    } on AggregateCordoned catch (e) {
+      return locked(body: e.message);
     } on SocketException catch (e) {
       return serviceUnavailable(
         body: 'Eventstore unavailable: $e',
@@ -326,6 +332,8 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       return gatewayTimeout(
         body: 'Repository $aggregateType was unable to process request ${e.request.tag}',
       );
+    } on AggregateCordoned catch (e) {
+      return locked(body: e.message);
     } on SocketException catch (e) {
       return serviceUnavailable(
         body: 'Eventstore unavailable: $e',

@@ -891,6 +891,11 @@ class SarSysAppServerChannel extends ApplicationChannel {
             "or that the Range header value, though syntactically correct, doesn't make sense.",
           ))
       ..register(
+          "426",
+          APIResponse(
+            "Source or destination resource of a method is locked. Indicates that resource is read-only.",
+          ))
+      ..register(
           "429",
           APIResponse(
             "Too Many Requests. Indicates the user has sent too many requests in a given amount of time "

@@ -34,6 +34,13 @@ Response requestedRangeNotSatisfiable({Map<String, dynamic> headers, dynamic bod
       {},
     );
 
+/// Represents a 423 response.
+Response locked({Map<String, dynamic> headers, dynamic body}) => Response(
+      HttpStatus.locked,
+      headers,
+      {},
+    );
+
 /// Represents a 429 response.
 Response tooManyRequests({int retryAfter = 30, Map<String, dynamic> headers, dynamic body}) => Response(
       HttpStatus.tooManyRequests,

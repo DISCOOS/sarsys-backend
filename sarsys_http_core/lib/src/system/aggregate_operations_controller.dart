@@ -60,6 +60,7 @@ class AggregateOperationsController extends SystemOperationsBaseController {
         aggregate.toMeta(
           data: data,
           items: items,
+          store: repository.store,
         )..addAll({'transaction': trx?.toMeta(data: data, items: items) ?? {}}),
       );
     } on InvalidOperation catch (e) {
@@ -133,6 +134,8 @@ class AggregateOperationsController extends SystemOperationsBaseController {
       return gatewayTimeout(
         body: 'Repository was unable to process request ${e.request.tag}',
       );
+    } on AggregateCordoned catch (e) {
+      return locked(body: e.message);
     } on SocketException catch (e) {
       return serviceUnavailable(body: 'Eventstore unavailable: $e');
     } on SchemaException catch (e) {
@@ -145,32 +148,36 @@ class AggregateOperationsController extends SystemOperationsBaseController {
   }
 
   Response _doReplace(
-      Map<String, dynamic> body,
-      Repository<Command<DomainEvent>, AggregateRoot<DomainEvent, DomainEvent>> repository,
-      String uuid,
-      bool expandData,
-      bool expandItems) {
+      Map<String, dynamic> body, Repository repository, String uuid, bool expandData, bool expandItems) {
     final data = body.mapAt<String, dynamic>(
       'params/data',
     );
     final patches = body.listAt<Map<String, dynamic>>(
       'params/patches',
     );
+
+    // Ensure that operation succ
+    if (repository.exists(uuid)) {
+      repository.store.untaint(uuid);
+      repository.store.uncordon(uuid);
+    }
+
     final old = repository.replace(
       uuid,
       data: data,
+      strict: false,
       patches: patches,
     );
     return Response.ok(
       old.toMeta(
         data: expandData,
         items: expandItems,
+        store: repository.store,
       ),
     );
   }
 
-  Future<Response> _doCatchup(Repository<Command<DomainEvent>, AggregateRoot<DomainEvent, DomainEvent>> repository,
-      String uuid, bool expandData, bool expandItems) async {
+  Future<Response> _doCatchup(Repository repository, String uuid, bool expandData, bool expandItems) async {
     await repository.catchup(
       uuids: [uuid],
     );
@@ -178,12 +185,12 @@ class AggregateOperationsController extends SystemOperationsBaseController {
       repository.get(uuid).toMeta(
             data: expandData,
             items: expandItems,
+            store: repository.store,
           ),
     );
   }
 
-  Future<Response> _doReplay(Repository<Command<DomainEvent>, AggregateRoot<DomainEvent, DomainEvent>> repository,
-      String uuid, bool expandData, bool expandItems) async {
+  Future<Response> _doReplay(Repository repository, String uuid, bool expandData, bool expandItems) async {
     await repository.replay(
       uuids: [uuid],
     );
