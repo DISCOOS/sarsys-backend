@@ -905,7 +905,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       await store.snapshots.load(path: path);
       _snapshot = store.snapshots.last;
     }
-    final count = await replay();
+    final count = await replay(
+      // Handle errors
+      strict: false,
+    );
     _storeSubscriptionController = await subscribe();
     if (!isRebuild) {
       willStartProcessingEvents();

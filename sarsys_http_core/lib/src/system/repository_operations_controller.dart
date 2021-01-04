@@ -125,6 +125,7 @@ class RepositoryOperationsController extends SystemOperationsBaseController {
     );
     await repository.catchup(
       uuids: uuids,
+      strict: false,
     );
   }
 
@@ -136,6 +137,7 @@ class RepositoryOperationsController extends SystemOperationsBaseController {
     );
     await repository.replay(
       uuids: uuids,
+      strict: false,
     );
   }
 

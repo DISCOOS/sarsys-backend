@@ -180,6 +180,7 @@ class AggregateOperationsController extends SystemOperationsBaseController {
   Future<Response> _doCatchup(Repository repository, String uuid, bool expandData, bool expandItems) async {
     await repository.catchup(
       uuids: [uuid],
+      strict: false,
     );
     return Response.ok(
       repository.get(uuid).toMeta(
@@ -193,6 +194,7 @@ class AggregateOperationsController extends SystemOperationsBaseController {
   Future<Response> _doReplay(Repository repository, String uuid, bool expandData, bool expandItems) async {
     await repository.replay(
       uuids: [uuid],
+      strict: false,
     );
     return Response.ok(
       repository.get(uuid).toMeta(
