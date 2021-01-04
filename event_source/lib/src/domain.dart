@@ -129,7 +129,7 @@ class RepositoryManager {
 
   /// Prepare projections required by repositories that uses instance streams
   ///
-  /// Throws an [ProjectionNotAvailable] if one
+  /// Throws an [ProjectionNotAvailableException] if one
   /// or more [EventStore.useInstanceStreams] are
   /// true and system projection
   /// [$by_category](https://eventstore.org/docs/projections/system-projections/index.html?tabs=tabid-5#by-category)
@@ -181,7 +181,7 @@ class RepositoryManager {
         );
       } else {
         completer.completeError(
-          ProjectionNotAvailable(_toObject('Failed to prepare projections $backlog', [
+          ProjectionNotAvailableException(_toObject('Failed to prepare projections $backlog', [
             'error: $e',
             'stackTrace: ${Trace.format(stackTrace)}',
           ])),
@@ -221,7 +221,7 @@ class RepositoryManager {
     // Give up?
     if (result.isRunning == false) {
       logger.severe('Projections are required but could not be enabled');
-      throw ProjectionNotAvailable(
+      throw ProjectionNotAvailableException(
         "EventStore projection '$projection' not ${result.isOK ? 'running' : 'found'}",
       );
     } else {
@@ -293,7 +293,7 @@ class RepositoryManager {
         );
       } else {
         completer.completeError(
-          ProjectionNotAvailable(
+          ProjectionNotAvailableException(
             'Failed to build repositories ${backlog.map((repo) => repo.aggregateType)} '
             'with error: $e, '
             'stackTrace: ${Trace.format(stackTrace)}',
@@ -877,7 +877,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   bool exists(String uuid) => contains(uuid) && !get(uuid).isDeleted;
 
   /// Check if given aggregate root exists (may need to be loaded from store)
-  bool contains(String uuid) => _aggregates.containsKey(uuid) || store.contains(uuid);
+  bool contains(String uuid) =>
+      _aggregates.containsKey(uuid) || store.contains(uuid) || hasSnapshot && snapshot.contains(uuid);
 
   /// Used in [dispose] to close open subscriptions
   StreamSubscription _pushQueueSubscription;
@@ -1060,7 +1061,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Load snapshots and replay from given [suuid]
   /// (defaults to last snapshot if exists)
-  Future<SnapshotModel> load({String suuid, String path}) async {
+  Future<SnapshotModel> load({
+    String suuid,
+    String path,
+    bool strict = true,
+  }) async {
     if (store.snapshots != null) {
       try {
         // Stop subscriptions
@@ -1073,6 +1078,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           await store.reset(
             this,
             suuid: next,
+            strict: strict,
           );
         }
       } finally {
@@ -1086,13 +1092,18 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Replay events into this [Repository].
   ///
-  Future<int> replay({String suuid, List<String> uuids = const []}) async {
+  Future<int> replay({
+    String suuid,
+    bool strict = true,
+    List<String> uuids = const [],
+  }) async {
     try {
       store.pause();
       final events = await store.replay<T>(
         this,
         suuid: suuid,
         uuids: uuids,
+        strict: strict,
       );
       if (uuids.isEmpty) {
         if (events == 0) {
@@ -1117,7 +1128,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         );
         if (_shouldReset(_snapshot?.uuid, candidate.uuid)) {
           _snapshot = candidate;
-          store.purge(this);
+          store.purge(
+            this,
+            strict: false,
+          );
         }
       } finally {
         unlock();
@@ -1297,10 +1311,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Returns previous aggregate.
   T replace(
     String uuid, {
+    bool strict = true,
     Map<String, dynamic> data,
     Iterable<Map<String, dynamic>> patches,
   }) {
-    final prev = _assertExists(uuid);
+    final prev = _assertWrite(_assertExists(uuid));
 
     // Recreate from last known state
     _aggregates.remove(uuid);
@@ -1313,7 +1328,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       });
 
     // Get event, skipping any
-    final next = _get(uuid, data: json, fail: false);
+    final next = get(uuid, data: json, strict: strict);
 
     // Initialize head, base and data
     next._setBase(json);
@@ -1326,7 +1341,12 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   }
 
   /// Get domain event from given [event]
-  DomainEvent toDomainEvent(Event event) {
+  ///
+  /// When [strict] is true, this method
+  /// throws an [EventNumberNotStrictMonotone]
+  /// exception if events are not .
+  ///
+  DomainEvent toDomainEvent(Event event, {bool strict = true}) {
     assert(event != null, 'event can not be null');
     final process = _processors['${event.type}'];
     if (process != null) {
@@ -1341,10 +1361,22 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         return applied;
       }
 
-      // Get previous if exists in event, or
-      // use aggregate head (remote events
-      // applied only)
-      final previous = event.mapAt<String, dynamic>('previous') ?? aggregate?.head ?? {};
+      Map<String, dynamic> previous;
+      try {
+        // Get previous if exists in event, or
+        // use aggregate head (remote events
+        // applied only). Accessing aggregate?.head
+        // will throw if event number is not strict
+        // monotone increasing. During error handling,
+        // argument 'fail' is set to false to ensure
+        // event is generated regardless of event
+        // number evaluation.
+        previous = event.mapAt<String, dynamic>('previous', defaultMap: aggregate?.head ?? {});
+      } on EventNumberNotStrictMonotone {
+        if (strict) {
+          rethrow;
+        }
+      }
 
       // Prepare REQUIRED fields
       final patches = event.listAt<Map<String, dynamic>>('patches');
@@ -1431,12 +1463,14 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Force a catch-up against head of [EventStore.canonicalStream]
   Future<int> catchup({
+    bool strict = true,
     bool master = false,
     List<String> uuids = const [],
   }) =>
       store.catchup(
         this,
         uuids: uuids,
+        strict: strict,
         master: master,
       );
 
@@ -1623,16 +1657,17 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         remaining.addAll(list.skip(1));
         break;
       case Action.update:
-        aggregate = get(command.uuid);
+        aggregate = _assertWrite(get(command.uuid));
         remaining.addAll(list);
         break;
       case Action.delete:
-        aggregate = get(command.uuid);
+        aggregate = _assertWrite(get(command.uuid));
         changes.add(aggregate.delete(
           timestamp: command.created,
         ));
         return aggregate;
     }
+
     for (var data in remaining) {
       changes.add(aggregate.patch(
         data,
@@ -1645,7 +1680,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   T _applyEntityData(EntityCommand command, List<DomainEvent> changes) {
     final next = _asEntityData(command);
-    final aggregate = get(command.uuid);
+    final aggregate = _assertWrite(get(command.uuid));
     if (!contains(command.uuid)) {
       changes.addAll(aggregate.getLocalEvents());
     }
@@ -1694,6 +1729,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// This failure is not recoverable.
   ///
   /// Throws [WriteFailed] for all other failures. This failure is not recoverable.
+  ///
   Future<Iterable<DomainEvent>> push(
     T aggregate, {
     int maxAttempts = 10,
@@ -1815,7 +1851,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       );
     }
 
-    _assertExists(uuid);
+    _assertWrite(
+      _assertExists(uuid),
+    );
 
     final transaction = _assertCanModify(
       uuid,
@@ -1873,7 +1911,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       // in one operation, regardless of the
       // number of events that it contains.
       final changes = await store.push(
-        aggregate.uuid,
+        _assertWrite(aggregate).uuid,
         // Will throw ConcurrentWriteOperation
         // if changed after transaction was started
         transaction.changes,
@@ -2021,8 +2059,16 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     aggregate?._reset(this, toHead: exists);
 
     if (exists) {
-      // Catchup to remote head
-      aggregate._catchup(this);
+      // Catchup to head of remote event stream
+      // for given aggregate- Setting strict to
+      // false ensures that events that throws
+      // exceptions JsonPatchError and
+      // EventNumberNotStrictMonotone are skipped
+      // and exceptions themselves are consumed.
+      aggregate._catchup(
+        this,
+        strict: false,
+      );
     } else {
       // Aggregate only exists
       // locally, remove it
@@ -2050,6 +2096,16 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     return get(uuid);
   }
 
+  T _assertWrite(T aggregate) {
+    if (store.isCordoned(aggregate.uuid)) {
+      throw AggregateCordoned(
+        aggregate,
+        store.cordoned[aggregate.uuid],
+      );
+    }
+    return aggregate;
+  }
+
   /// Complete transaction for given [aggregate]
   Transaction _completeTrx(
     String uuid, {
@@ -2072,30 +2128,41 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     return trx;
   }
 
-  /// Get aggregate with given id.
+  /// Get aggregate with given [uuid].
   ///
   /// Will by default create a new aggregate if not found by
   /// applying a left fold from [SourceEvent] to [DomainEvent].
   /// Each [DomainEvent] is then processed by applying changes
   /// to [AggregateRoot.data] in accordance to the business value
   /// of to each [DomainEvent].
+  ///
+  /// If repository [contains] no aggregate with given [uuid]
+  /// and [createNew] is true, a new instance is created with
+  /// given [uuid]. Otherwise null is returned.
+  ///
+  /// if [strict] is true, this method will throw
+  /// [JsonPatchError] when applying [Event.patches]
+  /// that can not be patched with [data],
+  /// and [EventNumberNotStrictMonotone] when applying
+  /// events with [Event.number]s not strict monotone
+  /// increasing (every number must increase with +1).
+  ///
+  /// If [strict] is false, events are applied without
+  /// patching and added to [AggregateRoot.skipped].
+  /// On first [JsonPatchError] the aggregate [EventStore.isTainted].
+  /// On first [EventNumberNotStrictMonotone] and second
+  /// [JsonPatchError] the aggregate [EventStore.isCordoned].
+  /// Cordoned [AggregateRoot] are read-only and any attempt to
+  /// [push] changes will throw an [AggregateCordoned] exception.
+  ///
+  /// If repository [contains] no aggregate with given [uuid]
+  /// this method will throw [JsonPatchError] regardless of [strict].
+  /// This ensures that aggregates can not be created intentionally
+  /// with an error.
+  ///
   T get(
     String uuid, {
-    bool createNew = true,
-    Map<String, dynamic> data = const {},
-    List<Map<String, dynamic>> patches = const [],
-  }) {
-    return _get(
-      uuid,
-      createNew: createNew,
-      data: data,
-      patches: patches,
-    );
-  }
-
-  T _get(
-    String uuid, {
-    bool fail = true,
+    bool strict = true,
     bool createNew = true,
     Map<String, dynamic> data = const {},
     List<Map<String, dynamic>> patches = const [],
@@ -2104,24 +2171,38 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     if (aggregate == null && createNew) {
       aggregate = _aggregates.putIfAbsent(
         uuid,
-        () => create(
-          _processors,
-          uuid,
-          JsonPatch.apply(data ?? {}, patches) as Map<String, dynamic>,
-        ),
+        () {
+          try {
+            return create(
+              _processors,
+              uuid,
+              JsonUtils.apply(data ?? {}, patches),
+            );
+          } catch (error) {
+            // If aggregate have no remote events,
+            // always fail (never allow local creation
+            // of aggregate that throws an JsonPatchError)
+            if (strict || !contains(uuid) || !ErrorHandler.isHandling(error)) {
+              rethrow;
+            }
+          }
+          return create(
+            _processors,
+            uuid,
+            (data ?? {}),
+          );
+        },
       );
       // Only replay if history or
       // snapshot exist for given uuid,
       // otherwise keep the event from
       // construction of this aggregate
       if (store.contains(uuid) || hasSnapshot && snapshot.contains(uuid)) {
-        aggregate._replay(
-          this,
-          fail: fail,
-        );
+        aggregate._replay(this, strict: strict);
       }
+      return aggregate;
     }
-    return aggregate;
+    return aggregate?._catchup(this, strict: strict) as T;
   }
 
   /// Get all aggregate roots.
@@ -2261,14 +2342,16 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   }) async {
     return {
       'type': '$aggregateType',
-      'aggregates': <String, dynamic>{
-        'count': count(),
-        'changed': _aggregates.values.where((aggregate) => aggregate.isChanged).length,
-        'transactions': _transactions.length,
-      },
       'number': number.value,
       'metrics': {
         'events': store.length,
+        'aggregates': {
+          'count': count(),
+          'changed': _aggregates.values.where((aggregate) => aggregate.isChanged).length,
+          'tainted': {'count': store.tainted.length, if (items) 'items': store.tainted},
+          'cordoned': {'count': store.cordoned.length, if (items) 'items': store.cordoned},
+        },
+        'transactions': _transactions.length,
         'push': _metrics['push'].toMeta(),
       },
       if (queue) 'queue': _toQueueMeta(),
@@ -2395,19 +2478,22 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// Field name in [Message.data] for [EntityObject.id].
   final String entityIdFieldName;
 
-  /// Get event number of [DomainEvent] applied last
+  /// Get event number of [DomainEvent] applied last.
+  /// Same as calling
+  /// ```dart
+  ///  baseEvent?.number ?? EventNumber.none;
+  /// ```
   EventNumber get number {
-    if (applied.isNotEmpty) {
-      return EventNumber(
-        applied.last.number.value,
-      );
-    }
-    if (_snapshot == null) {
-      return EventNumber.none;
-    }
-    return EventNumber(
-      _snapshot.number.value,
-    );
+    return baseEvent?.number ?? EventNumber.none;
+    // if (applied.isNotEmpty) {
+    //   return applied.last.number;
+    // }
+    // if (_snapshot == null) {
+    //   return EventNumber.none;
+    // }
+    // return EventNumber(
+    //   _snapshot.number.value,
+    // );
   }
 
   /// Get [EventNumber] of next [DomainEvent].
@@ -2528,7 +2614,12 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// You can calculate any previous [data]
   /// using [toData].
   ///
-  Map<String, dynamic> get data => Map.unmodifiable(_data);
+  Map<String, dynamic> get data {
+    if (_data[uuidFieldName] != uuid) {
+      _data[uuidFieldName] = uuid;
+    }
+    return Map.unmodifiable(_data);
+  }
 
   final Map<String, dynamic> _data = {};
 
@@ -2728,7 +2819,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
 
   /// Load events from history.
   @protected
-  AggregateRoot _replay(Repository repo, {bool fail = true}) {
+  AggregateRoot _replay(Repository repo, {@required bool strict}) {
     final events = repo.store.get(uuid);
     _reset(repo);
     final offset = number;
@@ -2736,19 +2827,29 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
       try {
         _apply(
           // Must use this method to ensure previous
-          repo.toDomainEvent(event),
+          repo.toDomainEvent(
+            event,
+            // strict: strict,
+          ),
+          // skip: !strict,
           isLocal: false,
         );
-      } on JsonPatchError {
-        if (fail) {
+      } catch (error, stackTrace) {
+        final isFatal = strict ||
+            ErrorHandler<SourceEvent>(repo.logger).handle(
+              event,
+              skip: true,
+              repo: repo,
+              error: error,
+              aggregate: this,
+              stackTrace: stackTrace,
+              message: 'Replay of ${event.type}@${event.number} '
+                  'from ${repo.store.toInstanceStream(uuid)} '
+                  'on ${repo.aggregateType} $uuid failed',
+            );
+        if (isFatal) {
           rethrow;
         }
-        _apply(
-          repo.toDomainEvent(event),
-          // Skip patch with
-          skip: true,
-          isLocal: false,
-        );
       }
     });
 
@@ -2757,16 +2858,40 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
 
   /// Catchup to head of remote event stream.
   @protected
-  AggregateRoot _catchup(Repository repo) {
+  AggregateRoot _catchup(Repository repo, {@required bool strict}) {
     // Get events applied since last _apply or _catchup
     final added = repo.store.get(uuid).skip(_applied.length);
     final offset = number;
     // Only catchup from current event number
-    added?.where((event) => event.number >= offset)?.forEach((event) => _apply(
+    added?.where((event) => event.remote && event.number >= offset)?.forEach((event) {
+      try {
+        _apply(
           // Must use this method to ensure previous
-          repo.toDomainEvent(event),
+          repo.toDomainEvent(
+            event,
+            // strict: strict,
+          ),
+          // skip: !strict,
           isLocal: false,
-        ));
+        );
+      } catch (error, stackTrace) {
+        final isFatal = strict ||
+            ErrorHandler<SourceEvent>(repo.logger).handle(
+              event,
+              skip: true,
+              repo: repo,
+              error: error,
+              aggregate: this,
+              stackTrace: stackTrace,
+              message: 'Catchup to ${event.type}@${event.number} '
+                  'from ${repo.store.toInstanceStream(uuid)} '
+                  'on ${repo.aggregateType} $uuid failed',
+            );
+        if (isFatal) {
+          rethrow;
+        }
+      }
+    });
     return this;
   }
 
@@ -2795,18 +2920,20 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
 
   /// Reset to initial state
   void _reset(Repository repo, {bool toHead = false}) {
-    _base.clear();
     _data.clear();
     _mine.clear();
     _yours.clear();
     _conflicts.clear();
     _localEvents.clear();
     _remoteEvents.clear();
-    if (toHead) {
-      _baseIndex = _headIndex;
-      _base.addAll(_head);
-      _data.addAll(_head);
-      _head.clear();
+    if (!isNew && toHead) {
+      if (_head.isNotEmpty) {
+        _setBase(_head);
+        _head.clear();
+      }
+      _baseIndex = _applied.length - 1;
+      _headIndex = _baseIndex;
+      _data.addAll(_base);
       if (_baseIndex >= 0) {
         _setModifier(
           _applied.values.elementAt(_baseIndex),
@@ -2814,6 +2941,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
       }
     } else {
       _head.clear();
+      _base.clear();
       _applied.clear();
       _skipped.clear();
       _headIndex = -1;
@@ -3004,8 +3132,6 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
           uuidFieldName,
           index: index,
           patches: patches,
-          // previous: previous,
-          // changed: JsonPatch.apply(_data, patches),
         ),
       );
 
@@ -3065,9 +3191,13 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// can not be modified locally before
   /// the conflict is resolved. Calling this
   /// method when the aggregate has [hasConflicts]
-  /// will throw an [InvalidOperation].
+  /// will throw an [ConflictNotReconcilable].
   ///
-  DomainEvent apply(DomainEvent event, {bool skip = false}) => _apply(
+  DomainEvent apply(
+    DomainEvent event, {
+    bool skip = false,
+  }) =>
+      _apply(
         event,
         skip: skip,
         isLocal: false,
@@ -3138,11 +3268,22 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// an conflict, it is added to list of [_remoteEvents]
   /// and [data] is not changed.
   ///
+  /// If [skip] is false (default), this method will throw
+  /// [JsonPatchError] when applying [Event.patches]
+  /// that can not be patched with [data],
+  /// and [EventNumberNotStrictMonotone] when applying
+  /// events with [Event.number]s not strict monotone
+  /// increasing (every number must increase with +1).
+  ///
+  /// If [skip] is true, event is added to [skipped] and
+  /// patches are not applied.
+  ///
   @protected
   DomainEvent _apply(
     DomainEvent event, {
     @required bool isLocal,
     bool skip = false,
+    // bool strict = true,
   }) {
     _assertUuid(event);
 
@@ -3156,9 +3297,13 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
 
     // Already applied?
     if (_applied.containsKey(euuid)) {
-      _assertEqualNumber(terse, _applied[euuid].number);
+      if (!skip) {
+        _assertEqualNumber(terse, _applied[euuid].number);
+      }
       _applied[euuid] = terse;
-      if (event == createdBy || event == changedBy) {
+      if (skip) {
+        _skipped.add(event.uuid);
+      } else if (event == createdBy || event == changedBy) {
         _setModifier(terse);
       }
       return event;
@@ -3166,11 +3311,13 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
 
     // Apply change to data
     if (isLocal) {
+      assert(!skip, 'local changes can not be skipped');
       // Local change only
       _assertNoConflicts();
       // Never skip local changes
       _patch(
         terse,
+        skip: skip,
         isLocal: true,
       );
     } else if (!skip && isChanged) {
@@ -3192,28 +3339,33 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     DomainEvent event, {
     @required bool isLocal,
     bool skip = false,
+    bool strict = true,
   }) {
     assert(event.isTerse, 'only terse events are applied');
 
-    // Applying events in order
-    // is REQUIRED for this to
-    // work! This assertion
-    // will detect if this
-    // requirement is violated
-    _assertStrictMonotone(event, isLocal: isLocal);
+    if (!skip) {
+      if (strict) {
+        // Applying events in order
+        // is REQUIRED for this to
+        // work! This assertion
+        // will detect if this
+        // requirement is violated
+        _assertStrictMonotone(event, isLocal: isLocal);
+      }
 
-    // Set timestamps
-    _setModifier(event);
+      // Set timestamps
+      _setModifier(event);
 
-    // Deletion does not update data.
-    // Add event to list of skipped events if skipped
-    if (!(skip || event.isDeleted)) {
-      _setData(
-        JsonUtils.apply(
-          data,
-          event.patches,
-        ),
-      );
+      // Deletion does not update data.
+      // Add event to list of skipped events if skipped
+      if (!event.isDeleted) {
+        _setData(
+          JsonUtils.apply(
+            data,
+            event.patches,
+          ),
+        );
+      }
     }
 
     if (isLocal) {
@@ -3325,6 +3477,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   }
 
   Map<String, dynamic> _verifyData(Map<String, dynamic> prev, Map<String, dynamic> next) {
+    // TODO: Implement data verification
     return next;
   }
 
@@ -3352,14 +3505,12 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   void _assertEqualNumber(DomainEvent event, EventNumber expected) {
     final delta = expected.value - event.number.value;
     if (delta != 0) {
-      final message = _toObject('Event number not equal to current', [
-        'aggregate.uuid: $uuid',
-        'aggregate.type: $runtimeType',
-        'event.type: ${event.type}',
-        'event.number.expected: $expected',
-        'event.number.actual: ${event.number.value}'
-      ]);
-      throw InvalidOperation(message);
+      throw EventNumberNotEqual(
+        uuid: uuid,
+        uuidFieldName: uuidFieldName,
+        event: event,
+        expected: expected,
+      );
     }
   }
 
@@ -3388,30 +3539,10 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     }
     final delta = expected - actual;
     if (delta != 0) {
-      final message = _toObject('Event number not strict monotone increasing', [
-        'event.mode: $mode',
-        'event.type: ${event.type}',
-        'event.uuid: ${event.uuid}',
-        'event.applied: ${isApplied(event)}',
-        'event.number.expected: $expected',
-        'event.number.actual: $actual',
-        'event.number.delta: $delta',
-        'aggregate.uuid: $uuid',
-        'aggregate.type: $runtimeType',
-        'aggregate.number: ${number.value}',
-        'aggregate.pending: ${_localEvents.length}',
-        'aggregate.modification: $modifications',
-        'aggregate.head.uuid: ${headEvent?.uuid}',
-        'aggregate.head.number: ${headEvent?.number}',
-        'aggregate.base.uuid: ${baseEvent?.uuid}',
-        'aggregate.base.number: ${baseEvent?.number}',
-        'aggregate.last.uuid: ${lastEvent?.uuid}',
-        'aggregate.last.number: ${lastEvent?.number}',
-      ]);
       throw EventNumberNotStrictMonotone(
         uuid: uuid,
+        mode: mode,
         event: event,
-        message: message,
         uuidFieldName: uuidFieldName,
         expected: EventNumber(expected),
       );
@@ -3440,6 +3571,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   Map<String, dynamic> toMeta({
     bool data = false,
     bool items = false,
+    EventStore store,
   }) {
     return <String, dynamic>{
       'uuid': uuid,
@@ -3455,6 +3587,8 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         'timestamp': changedWhen.toIso8601String(),
       },
       'modifications': modifications,
+      if (store?.isTainted(uuid) == true) 'tainted': store?.tainted[uuid],
+      if (store?.isCordoned(uuid) == true) 'cordoned': store?.cordoned[uuid],
       'applied': <String, dynamic>{
         'count': _applied?.length,
         if (items)
@@ -3793,8 +3927,15 @@ class ThreeWayMerge extends MergeStrategy {
       // the transaction. Aggregate will merge
       // remote concurrent modification and
       // register any conflicts with remote
-      // events that it caught up to
-      aggregate._catchup(repository);
+      // events that it caught up to. Setting
+      // strict to false ensures that events that
+      // throws exceptions JsonPatchError and
+      // EventNumberNotStrictMonotone are skipped
+      // and exceptions themselves consumed.
+      aggregate._catchup(
+        repository,
+        strict: false,
+      );
     }
 
     return aggregate;

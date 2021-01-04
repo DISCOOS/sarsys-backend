@@ -625,6 +625,7 @@ class TestStream {
     List<Map<String, dynamic>> list, {
     int offset,
     bool notify = true,
+    bool increment = true,
   }) {
     // Prepare
     final events = _toEventsFromPath(path);
@@ -645,7 +646,7 @@ class TestStream {
         event.elementAt<String>('eventId'),
         event
           ..addAll({
-            'eventNumber': ++i,
+            'eventNumber': increment ? ++i : (event.elementAt<int>('eventNumber') ?? ++i),
           }),
       );
     }));

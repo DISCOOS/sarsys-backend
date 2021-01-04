@@ -64,15 +64,15 @@ class Message {
   T elementAt<T>(String path) => data.elementAt(path);
 
   /// Get [List] of type [T] at given path
-  List<T> listAt<T>(String path) {
+  List<T> listAt<T>(String path, {List<T> defaultList}) {
     final list = data.elementAt(path);
-    return list == null ? null : List<T>.from(list as List);
+    return list == null ? defaultList : List<T>.from(list as List);
   }
 
   /// Get [Map] with keys of type [S] and values of type [T] at given path
-  Map<S, T> mapAt<S, T>(String path) {
+  Map<S, T> mapAt<S, T>(String path, {Map<S, T> defaultMap}) {
     final map = data.elementAt(path);
-    return map == null ? null : Map<S, T>.from(map as Map);
+    return map == null ? defaultMap : Map<S, T>.from(map as Map);
   }
 
   @override

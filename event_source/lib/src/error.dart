@@ -23,19 +23,49 @@ class InvalidOperation extends EventSourceException {
   const InvalidOperation(String message) : super(message);
 }
 
-/// Thrown when an invalid operation is attempted
-class EventNumberNotStrictMonotone extends InvalidOperation {
-  const EventNumberNotStrictMonotone({
-    @required String message,
+/// Thrown when an [AggregateRoot] is [EventStore.isCordoned]
+class AggregateCordoned extends InvalidOperation {
+  const AggregateCordoned(this.aggregate, this.cause) : super(null);
+
+  final Object cause;
+  final AggregateRoot aggregate;
+
+  @override
+  String get message => '${aggregate.runtimeType} ${aggregate.uuid} is cordoned';
+}
+
+/// Thrown when an
+class EventNumberNotEqual extends InvalidOperation {
+  const EventNumberNotEqual({
     @required this.uuid,
     @required this.event,
     @required this.expected,
     @required this.uuidFieldName,
-  }) : super(message);
+  }) : super('Event number not equal to current');
 
   /// Aggregate uuid
   final String uuid;
   final Event event;
+  final String uuidFieldName;
+  final EventNumber expected;
+  EventNumber get actual => event.number;
+  int get delta => actual.value - expected.value;
+}
+
+/// Thrown when an invalid operation is attempted
+class EventNumberNotStrictMonotone extends InvalidOperation {
+  const EventNumberNotStrictMonotone({
+    @required this.uuid,
+    @required this.mode,
+    @required this.event,
+    @required this.expected,
+    @required this.uuidFieldName,
+  }) : super('Event number not strict monotone increasing');
+
+  /// Aggregate uuid
+  final String uuid;
+  final Event event;
+  final String mode;
   final String uuidFieldName;
   final EventNumber expected;
   EventNumber get actual => event.number;
@@ -51,22 +81,8 @@ class CommandTimeout extends EventSourceException implements TimeoutException {
 }
 
 /// Thrown when an required projection is not available
-class ProjectionNotAvailable extends InvalidOperation {
-  const ProjectionNotAvailable(String message) : super(message);
-}
-
-/// Thrown when an error has occurred
-class RepositoryError extends Error {
-  RepositoryError(this.error, [this.stackTrace]) : super();
-  final Object error;
-
-  @override
-  final StackTrace stackTrace;
-
-  @override
-  String toString() {
-    return '$runtimeType{error: $error, stackTrace: ${stackTrace == null ? null : Trace.format(stackTrace)}}';
-  }
+class ProjectionNotAvailableException extends InvalidOperation {
+  const ProjectionNotAvailableException(String message) : super(message);
 }
 
 /// Thrown when an maximum pressure in repository is exceeded
@@ -178,7 +194,7 @@ class ConflictNotReconcilable extends InvalidOperation {
 
   @override
   String toString() {
-    return '$runtimeType{message: $message, local: $mine, remote: $yours}';
+    return '$runtimeType{message: $message, local: ${mine.length}, remote: ${yours.length}}';
   }
 }
 
@@ -218,4 +234,18 @@ class FeedFailed extends EventSourceException {
 /// Thrown when an stream [Event] subscription failed
 class SubscriptionFailed extends EventSourceException {
   const SubscriptionFailed(String message) : super(message);
+}
+
+/// Thrown when an error has occurred
+class RepositoryError extends Error {
+  RepositoryError(this.error, [this.stackTrace]) : super();
+  final Object error;
+
+  @override
+  final StackTrace stackTrace;
+
+  @override
+  String toString() {
+    return '$runtimeType{error: $error, stackTrace: ${stackTrace == null ? null : Trace.format(stackTrace)}}';
+  }
 }

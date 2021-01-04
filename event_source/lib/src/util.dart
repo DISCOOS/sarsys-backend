@@ -74,7 +74,7 @@ class JsonUtils {
   }
 
   static Map<String, dynamic> apply(Map<String, dynamic> data, List<Map<String, dynamic>> patches) => data == null
-      ? null
+      ? <String, dynamic>{}
       : JsonPatch.apply(
           data,
           patches,

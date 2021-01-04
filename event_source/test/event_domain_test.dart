@@ -134,7 +134,7 @@ Future main() async {
     );
   });
 
-  test('Repository subscription should handle patch errors by skipping events', () async {
+  test('Repository subscription should handle JsonPatchError', () async {
     // Arrange
     final repo = harness.get<FooRepository>();
     await repo.readyAsync();
@@ -178,9 +178,10 @@ Future main() async {
     expect(foo.number.value, equals(1));
     expect(foo.data, equals(data1));
     expect(foo.skipped, contains(eventId));
+    expect(repo.store.isTainted(uuid), isTrue);
   });
 
-  test('Repository catchup should handle patch errors by skipping events', () async {
+  test('Repository catchup should throw JsonPatchError', () async {
     // Arrange
     final repo = harness.get<FooRepository>();
     await repo.readyAsync();
@@ -215,12 +216,396 @@ Future main() async {
     );
 
     // Act - resume catchup
-    await repo.store.catchup(repo);
+    await expectLater(
+      repo.catchup(strict: true),
+      throwsA(isA<JsonPatchError>()),
+      reason: 'should throw a JsonPatchError',
+    );
+
+    // Assert - patches in event 2 is skipped
+    expect(foo.number.value, equals(0));
+    expect(foo.data, equals(data1));
+    expect(foo.skipped, isNot(contains(eventId)));
+    expect(repo.store.isTainted(uuid), isFalse);
+    expect(repo.store.isCordoned(uuid), isFalse);
+  });
+
+  test('Repository catchup should handle JsonPatchError', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
+    final uuid = Uuid().v4();
+    final foo = repo.get(uuid, data: {'property11': 'value11'});
+    final data1 = foo.data;
+    await repo.push(foo);
+
+    // Stop ALL catchup subscription
+    harness.pause();
+
+    // Perform remote modification on data not found locally
+    final stream = harness.server().getStream(repo.store.aggregate);
+    final data2 = {
+      'property12': ['value12', 'value13', 'value14']
+    };
+    final data3 = {
+      'property12': ['value13', 'value14', 'value15']
+    };
+    final eventId = Uuid().v4();
+    stream.append(
+      '${stream.instanceStream}-0',
+      [
+        TestStream.asSourceEvent<FooUpdated>(
+          uuid,
+          data2,
+          data3,
+          eventId: eventId,
+          number: EventNumber(1),
+        ),
+      ],
+    );
+
+    // Act - resume catchup
+    await repo.store.catchup(repo, strict: false);
 
     // Assert - patches in event 2 is skipped
     expect(foo.number.value, equals(1));
     expect(foo.data, equals(data1));
     expect(foo.skipped, contains(eventId));
+    expect(repo.store.isTainted(uuid), isTrue);
+  });
+
+  test('Repository replay should throw JsonPatchError', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
+    final uuid = Uuid().v4();
+    final foo = repo.get(uuid, data: {'property11': 'value11'});
+    final data1 = foo.data;
+    await repo.push(foo);
+
+    // Stop ALL catchup subscription
+    harness.pause();
+
+    // Perform remote modification on data not found locally
+    final stream = harness.server().getStream(repo.store.aggregate);
+    final data2 = {
+      'property12': ['value12', 'value13', 'value14']
+    };
+    final data3 = {
+      'property12': ['value13', 'value14', 'value15']
+    };
+    final eventId = Uuid().v4();
+    stream.append(
+      '${stream.instanceStream}-0',
+      [
+        TestStream.asSourceEvent<FooUpdated>(
+          uuid,
+          data2,
+          data3,
+          eventId: eventId,
+          number: EventNumber(1),
+        ),
+      ],
+    );
+
+    // Act - resume catchup
+    await expectLater(
+      repo.replay(strict: true),
+      throwsA(isA<JsonPatchError>()),
+      reason: 'should throw a JsonPatchError',
+    );
+
+    // Assert - patches in event 2 is skipped
+    expect(foo.number.value, equals(0));
+    expect(foo.data, equals(data1));
+    expect(foo.skipped, isNot(contains(eventId)));
+    expect(repo.store.isTainted(uuid), isFalse);
+    expect(repo.store.isCordoned(uuid), isFalse);
+  });
+
+  test('Repository replay should handle JsonPatchError', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
+    final uuid = Uuid().v4();
+    final foo = repo.get(uuid, data: {'property11': 'value11'});
+    final data1 = foo.data;
+    await repo.push(foo);
+
+    // Stop ALL catchup subscription
+    harness.pause();
+
+    // Perform remote modification on data not found locally
+    final stream = harness.server().getStream(repo.store.aggregate);
+    final data2 = {
+      'property12': ['value12', 'value13', 'value14']
+    };
+    final data3 = {
+      'property12': ['value13', 'value14', 'value15']
+    };
+    final eventId = Uuid().v4();
+    stream.append(
+      '${stream.instanceStream}-0',
+      [
+        TestStream.asSourceEvent<FooUpdated>(
+          uuid,
+          data2,
+          data3,
+          eventId: eventId,
+          number: EventNumber(1),
+        ),
+      ],
+    );
+
+    // Act - resume catchup
+    await repo.store.replay(repo, strict: false);
+
+    // Assert - patches in event 2 is skipped
+    expect(foo.number.value, equals(1));
+    expect(foo.data, equals(data1));
+    expect(foo.skipped, contains(eventId));
+    expect(repo.store.isTainted(uuid), isTrue);
+  });
+
+  test('Repository subscription should handle EventNumberNotStrictMonotone', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
+    final uuid = Uuid().v4();
+    final foo = repo.get(uuid, data: {'property11': 'value11'});
+    final data1 = foo.data;
+    await repo.push(foo);
+
+    // Stop catchup subscription
+    repo.store.pause();
+
+    // Perform remote modification on data not found locally
+    final stream = harness.server().getStream(repo.store.aggregate);
+    final data2 = {
+      'uuid': uuid,
+      'property11': 'value11',
+      'property12': ['value12', 'value13', 'value14']
+    };
+    final eventId = Uuid().v4();
+    stream.append(
+      '${stream.instanceStream}-0',
+      [
+        TestStream.asSourceEvent<FooUpdated>(
+          uuid,
+          data1,
+          data2,
+          eventId: eventId,
+          // Expected is 1
+          number: EventNumber(2),
+        ),
+      ],
+      increment: false,
+    );
+
+    // Act - resume catchup
+    repo.store.resume();
+
+    // Wait for catchup to complete
+    await Future.delayed(Duration(milliseconds: 400));
+
+    // Assert - patches in event 2 is skipped
+    expect(foo.number.value, equals(2));
+    expect(foo.data, equals(data1));
+    expect(foo.skipped, contains(eventId));
+    expect(repo.store.isTainted(uuid), isFalse);
+    expect(repo.store.isCordoned(uuid), isTrue);
+  });
+
+  test('Repository catchup should throw EventNumberNotStrictMonotone', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
+    final uuid = Uuid().v4();
+    final foo = repo.get(uuid, data: {'property11': 'value11'});
+    final data1 = foo.data;
+    await repo.push(foo);
+
+    // Stop catchup subscription
+    repo.store.pause();
+
+    // Perform remote modification on data not found locally
+    final stream = harness.server().getStream(repo.store.aggregate);
+    final data2 = {
+      'uuid': uuid,
+      'property11': 'value11',
+      'property12': ['value12', 'value13', 'value14']
+    };
+    final eventId = Uuid().v4();
+    stream.append(
+      '${stream.instanceStream}-0',
+      [
+        TestStream.asSourceEvent<FooUpdated>(
+          uuid,
+          data1,
+          data2,
+          eventId: eventId,
+          // Expected is 1
+          number: EventNumber(2),
+        ),
+      ],
+      increment: false,
+    );
+
+    // Act - resume catchup
+    await expectLater(
+      repo.catchup(strict: true),
+      throwsA(isA<EventNumberNotStrictMonotone>()),
+      reason: 'should throw a EventNumberNotStrictMonotone',
+    );
+
+    // Assert - patches in event 2 is skipped
+    expect(foo.number.value, equals(0));
+    expect(foo.data, equals(data1));
+    expect(foo.skipped, isNot(contains(eventId)));
+    expect(repo.store.isTainted(uuid), isFalse);
+    expect(repo.store.isCordoned(uuid), isFalse);
+  });
+
+  test('Repository catchup should handle EventNumberNotStrictMonotone', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
+    final uuid = Uuid().v4();
+    final foo = repo.get(uuid, data: {'property11': 'value11'});
+    final data1 = foo.data;
+    await repo.push(foo);
+
+    // Stop catchup subscription
+    repo.store.pause();
+
+    // Perform remote modification on data not found locally
+    final stream = harness.server().getStream(repo.store.aggregate);
+    final data2 = {
+      'uuid': uuid,
+      'property11': 'value11',
+      'property12': ['value12', 'value13', 'value14']
+    };
+    final eventId = Uuid().v4();
+    stream.append(
+      '${stream.instanceStream}-0',
+      [
+        TestStream.asSourceEvent<FooUpdated>(
+          uuid,
+          data1,
+          data2,
+          eventId: eventId,
+          // Expected is 1
+          number: EventNumber(2),
+        ),
+      ],
+      increment: false,
+    );
+
+    // Act - resume catchup
+    await repo.catchup(strict: false);
+
+    // Assert - patches in event 2 is skipped
+    expect(foo.number.value, equals(2));
+    expect(foo.data, equals(data1));
+    expect(foo.skipped, contains(eventId));
+    expect(repo.store.isTainted(uuid), isFalse);
+    expect(repo.store.isCordoned(uuid), isTrue);
+  });
+
+  test('Repository should replay throw EventNumberNotStrictMonotone', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
+    final uuid = Uuid().v4();
+    final foo = repo.get(uuid, data: {'property11': 'value11'});
+    final data1 = foo.data;
+    await repo.push(foo);
+
+    // Stop catchup subscription
+    repo.store.pause();
+
+    // Perform remote modification on data not found locally
+    final stream = harness.server().getStream(repo.store.aggregate);
+    final data2 = {
+      'uuid': uuid,
+      'property11': 'value11',
+      'property12': ['value12', 'value13', 'value14']
+    };
+    final eventId = Uuid().v4();
+    stream.append(
+      '${stream.instanceStream}-0',
+      [
+        TestStream.asSourceEvent<FooUpdated>(
+          uuid,
+          data1,
+          data2,
+          eventId: eventId,
+          // Expected is 1
+          number: EventNumber(2),
+        ),
+      ],
+      increment: false,
+    );
+
+    // Act - resume catchup
+    await expectLater(
+      repo.replay(strict: true),
+      throwsA(isA<EventNumberNotStrictMonotone>()),
+      reason: 'should throw a EventNumberNotStrictMonotone',
+    );
+
+    // Assert - patches in event 2 is skipped
+    expect(foo.number.value, equals(0));
+    expect(foo.data, equals(data1));
+    expect(foo.skipped, isNot(contains(eventId)));
+    expect(repo.store.isTainted(uuid), isFalse);
+    expect(repo.store.isCordoned(uuid), isFalse);
+  });
+
+  test('Repository replay should handle EventNumberNotStrictMonotone', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
+    final uuid = Uuid().v4();
+    final foo = repo.get(uuid, data: {'property11': 'value11'});
+    final data1 = foo.data;
+    await repo.push(foo);
+
+    // Stop catchup subscription
+    repo.store.pause();
+
+    // Perform remote modification on data not found locally
+    final stream = harness.server().getStream(repo.store.aggregate);
+    final data2 = {
+      'uuid': uuid,
+      'property11': 'value11',
+      'property12': ['value12', 'value13', 'value14']
+    };
+    final eventId = Uuid().v4();
+    stream.append(
+      '${stream.instanceStream}-0',
+      [
+        TestStream.asSourceEvent<FooUpdated>(
+          uuid,
+          data1,
+          data2,
+          eventId: eventId,
+          // Expected is 1
+          number: EventNumber(2),
+        ),
+      ],
+      increment: false,
+    );
+
+    // Act - resume catchup
+    await repo.replay(strict: false);
+
+    // Assert - patches in event 2 is skipped
+    expect(foo.number.value, equals(2));
+    expect(foo.data, equals(data1));
+    expect(foo.skipped, contains(eventId));
+    expect(repo.store.isTainted(uuid), isFalse);
+    expect(repo.store.isCordoned(uuid), isTrue);
   });
 
   test('Repository should recover from ES error on push', () async {
@@ -675,7 +1060,11 @@ Future main() async {
 
     // Act
     final data2 = {'uuid': 'any', 'parameter2': 'value2'};
-    final prev = repo.replace(uuid, data: data2);
+    final prev = repo.replace(
+      uuid,
+      data: data2,
+      strict: false,
+    );
 
     // Assert
     expect(
@@ -1024,15 +1413,18 @@ Future main() async {
       final uuid = Uuid().v4();
       final foo = repo.get(uuid, data: {'property1': 'value1'});
       await repo.push(foo);
+      final data1 = foo.data;
+      final data2 = {
+        'uuid': uuid,
+        'property1': 'value1',
+        'property2': 'value2',
+        'property3': 'remote',
+      };
       stream.append('${stream.instanceStream}-0', [
         TestStream.asSourceEvent<FooUpdated>(
           uuid,
           {'property1': 'value1'},
-          {
-            'property1': 'value1',
-            'property2': 'value2',
-            'property3': 'remote',
-          },
+          data2,
         )
       ]);
       foo.patch({'property3': 'local'}, emits: FooUpdated);
@@ -1043,12 +1435,10 @@ Future main() async {
         throwsA(isA<ConflictNotReconcilable>()),
       );
 
-      // Assert conflict unresolved
+      // Assert rollback to remote state
       expect(repo.count(), equals(1));
-      expect(foo.data, containsPair('uuid', uuid));
-      expect(foo.data, containsPair('property1', 'value1'));
-      expect(foo.data, containsPair('property2', 'value2'));
-      expect(foo.data, containsPair('property3', 'remote'));
+      expect(foo.data, isNot(equals(data1)));
+      expect(foo.data, equals(data2));
     },
     // TODO: Fix missing rollback
     retry: 1,

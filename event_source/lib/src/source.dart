@@ -236,7 +236,9 @@ class EventStore {
           } else if (_snapshot != null) {
             // Store is reset to snapshot
             // with no events applied yet
-            return EventNumber(_snapshot.aggregates[uuid].number.value);
+            return EventNumber(
+              _snapshot.aggregates[uuid].number.value,
+            );
           }
         }
         return EventNumber.none;
@@ -264,8 +266,9 @@ class EventStore {
   Future<int> replay<T extends AggregateRoot>(
     Repository<Command, T> repo, {
     String suuid,
-    List<String> uuids,
+    bool strict = true,
     bool master = false,
+    List<String> uuids = const [],
   }) async {
     final startTime = DateTime.now();
 
@@ -284,6 +287,7 @@ class EventStore {
       final offsets = await reset(
         repo,
         uuids: uuids,
+        strict: strict,
         // Always replay from last snapshot if not given
         suuid: suuid ?? snapshots?.last?.uuid,
       );
@@ -306,6 +310,7 @@ class EventStore {
           final events = await _catchup(
             repo,
             offset: offset,
+            strict: strict,
             stream: stream,
           );
           logger.info(
@@ -329,9 +334,10 @@ class EventStore {
         // Fetch all events from canonical stream
         final events = await _catchup(
           repo,
+          strict: strict,
           master: master,
-          stream: canonicalStream,
           offset: offset,
+          stream: canonicalStream,
         );
         logger.info(
           "Replayed $events events from stream '${canonicalStream}' with offset ${offset.value} $snapshot "
@@ -360,6 +366,7 @@ class EventStore {
   Future<Map<String, EventNumber>> reset(
     Repository repo, {
     String suuid,
+    bool strict = true,
     List<String> uuids = const [],
   }) async {
     final numbers = <String, EventNumber>{};
@@ -372,7 +379,18 @@ class EventStore {
     final keep = uuids.isNotEmpty ? uuids : existing;
     final base = existing.toList()..retainWhere((uuid) => keep.contains(uuid));
 
-    _purge(repo, base, numbers, remote: false);
+    _purge(
+      repo,
+      base,
+      numbers,
+      remote: false,
+      strict: strict,
+    );
+
+    for (var uuid in base) {
+      _tainted.remove(uuid);
+      _cordoned.remove(uuid);
+    }
 
     return numbers;
   }
@@ -382,6 +400,7 @@ class EventStore {
   /// purged events per [AggregateRoot.uuid].
   Map<String, EventNumber> purge(
     Repository repo, {
+    bool strict = true,
     List<String> uuids = const [],
   }) {
     final numbers = <String, EventNumber>{};
@@ -391,7 +410,13 @@ class EventStore {
       final keep = uuids.isNotEmpty ? uuids : repo.snapshot.aggregates.keys;
       final base = existing..retainWhere((uuid) => keep.contains(uuid));
       repo.purge(uuids: uuids);
-      _purge(repo, base, numbers, remote: false);
+      _purge(
+        repo,
+        base,
+        numbers,
+        remote: false,
+        strict: strict,
+      );
     }
     return numbers;
   }
@@ -401,6 +426,7 @@ class EventStore {
     Iterable<String> base,
     Map<String, EventNumber> numbers, {
     @required bool remote,
+    @required bool strict,
   }) {
     final hasSnapshot = repo.hasSnapshot;
     for (var uuid in base) {
@@ -417,7 +443,10 @@ class EventStore {
       events.clear();
       final stream = toInstanceStream(uuid);
       if (hasSnapshot) {
-        final aggregate = repo.get(uuid);
+        final aggregate = repo.get(
+          uuid,
+          strict: strict,
+        );
         for (var e in aggregate.applied) {
           if (remote) {
             assert(e.remote, 'must be remote');
@@ -467,11 +496,13 @@ class EventStore {
   void taint(Repository repo, String uuid, Object reason) {
     _assertRepository(repo);
     _tainted[uuid] = reason;
-    logger.severe(_toMethod('taint', [
-      _toObject('Tainted ${repo.aggregateType} $uuid', [
-        'reason: $reason',
-      ])
+    logger.severe(_toMethod('Tainted ${repo.aggregateType} $uuid', [
+      'reason: $reason',
     ]));
+  }
+
+  bool untaint(String uuid) {
+    return _tainted.remove(uuid) != null;
   }
 
   /// Cordoned aggregates.
@@ -499,11 +530,13 @@ class EventStore {
     _assertRepository(repo);
     _cordoned[uuid] = reason;
     _tainted.remove(uuid);
-    logger.severe(_toMethod('cordon', [
-      _toObject('Cordoned ${repo.aggregateType} $uuid', [
-        'reason: $reason',
-      ])
+    logger.severe(_toMethod('Cordoned ${repo.aggregateType} $uuid', [
+      'reason: $reason',
     ]));
+  }
+
+  bool uncordon(String uuid) {
+    return _cordoned.remove(uuid) != null;
   }
 
   EventNumber _toStreamOffset(
@@ -519,7 +552,14 @@ class EventStore {
   }) {
     final uuid = toAggregateUuid(stream);
     if (uuid != null) {
-      final head = repo.get(uuid, createNew: false)?.headEvent;
+      final head = repo
+          .get(
+            uuid,
+            // Do not fail! Error handling will skip events automatically
+            strict: false,
+            createNew: false,
+          )
+          ?.headEvent;
       if (head != null) {
         return head.number;
       }
@@ -535,16 +575,13 @@ class EventStore {
   ///
   Future<int> catchup(
     Repository repo, {
+    bool strict = true,
     bool master = false,
     List<String> uuids = const [],
   }) async {
     try {
       var count = 0;
-      final streams = useInstanceStreams && uuids.isNotEmpty
-          // Catchup to given instance streams only
-          ? uuids.map((uuid) => toInstanceStream(uuid))
-          // Catchup to all streams
-          : [canonicalStream];
+      final streams = _toStreams(uuids);
 
       logger.info(
         "Catchup events on ${uuids.isEmpty ? 'all' : uuids.length} ${repo.aggregateType}s",
@@ -562,6 +599,7 @@ class EventStore {
           repo,
           offset: next,
           stream: stream,
+          strict: strict,
           master: master,
         );
         if (_isDisposed) break;
@@ -583,6 +621,14 @@ class EventStore {
     }
   }
 
+  Iterable<String> _toStreams(List<String> uuids) {
+    return useInstanceStreams && uuids.isNotEmpty
+        // Catchup to given instance streams only
+        ? uuids.map((uuid) => toInstanceStream(uuid))
+        // Catchup to all streams
+        : [canonicalStream];
+  }
+
   /// Flag controlling async handling of events.
   /// If [true], this store is either disposed
   /// or paused.
@@ -593,6 +639,7 @@ class EventStore {
   ///
   Future<int> _catchup(
     Repository repo, {
+    @required bool strict,
     @required String stream,
     @required EventNumber offset,
     bool master = false,
@@ -625,36 +672,61 @@ class EventStore {
     );
 
     // Process results as they arrive
+    final completer = Completer();
     final subscription = events.listen(
-      (result) => count = _onResult(result, repo, count),
+      (result) {
+        try {
+          count = _onResult(
+            result,
+            repo,
+            count,
+            strict: strict,
+          );
+        } catch (error, stackTrace) {
+          completer.completeError(error, stackTrace);
+        }
+      },
+      // Handle errors from connection
       onError: (Object error, StackTrace stackTrace) {
+        completer.completeError(error, stackTrace);
         logger.network(
-          _toMethod('_catchup', [
-            _toObject('Failed to process events from $stream@$actual', [
-              'cause: unknown',
-              'error: $error',
-              _toObject('debug', [
-                'connection: ${connection.host}:${connection.port}',
-                'repository: ${repo.runtimeType}',
-                'repository.empty: ${repo.isEmpty}',
-                'isInstanceStream: $useInstanceStreams',
-                'store.events.count: $length',
-              ])
-            ]),
+          _toMethod('Failed to process events from $stream@$actual', [
+            'cause: unknown',
+            'error: $error',
+            _toObject('debug', [
+              'connection: ${connection.host}:${connection.port}',
+              'repository: ${repo.runtimeType}',
+              'repository.empty: ${repo.isEmpty}',
+              'isInstanceStream: $useInstanceStreams',
+              'store.events.count: $length',
+            ])
           ]),
           error,
           stackTrace,
         );
       },
-      cancelOnError: false,
+      cancelOnError: true,
+      onDone: () {
+        if (!completer.isCompleted) {
+          completer.complete();
+        }
+      },
     );
 
-    await events.length;
-    await subscription.cancel();
+    try {
+      await completer.future;
+    } finally {
+      await subscription.cancel();
+    }
     return count;
   }
 
-  int _onResult(ReadResult result, Repository repo, int count) {
+  int _onResult(
+    ReadResult result,
+    Repository repo,
+    int count, {
+    @required bool strict,
+  }) {
     if (!isDisposed && result.isOK) {
       // Group events by aggregate uuid
       final eventsPerAggregate = groupBy<SourceEvent, String>(
@@ -669,6 +741,7 @@ class EventStore {
             repo,
             uuid,
             events,
+            strict: strict,
           );
           // Publish remotely created events.
           // Handlers can determine events with
@@ -700,128 +773,96 @@ class EventStore {
     return willSave;
   }
 
-  Iterable<SourceEvent> _updateAll(
+  void _updateAll(
     String uuid,
     String uuidFieldName,
-    Iterable<SourceEvent> events,
-  ) {
-    if (events.isNotEmpty) {
-      if (useInstanceStreams) {
-        var idx = 0;
-        final stream = toInstanceStream(uuid);
-        final offset = current(stream: stream);
-        // Event numbers in instance streams SHOULD ALWAYS
-        // be sorted in an ordered monotone incrementing
-        // manner. This check ensures that if and only if
-        // the assumption is violated, an InvalidOperation
-        // exception is thrown. This ensures that previous
-        // next states can be calculated safely without any
-        // risk of applying patches out-of-order, removing the
-        // need to store these states in each event. Do not
-        // evaluate events that exist locally only by skipping
-        // to first event with number bigger then offset.
-        events.skipWhile((e) => e.number <= offset).fold<EventNumber>(
-              offset,
-              (previous, next) => _assertStrictMonotone(
-                uuid: uuid,
-                next: next,
-                index: idx++,
-                stream: stream,
-                previous: previous,
-                uuidFieldName: uuidFieldName,
-              ),
-            );
-      }
-    }
-    // Snapshots will add aggregates with
-    // zero events. This is needed for
-    // correct calculation of event number
-    // in canonical stream (position if
-    // projection when instance streams are
-    // used).
-    _aggregates.update(
+    Iterable<SourceEvent> events, {
+    @required bool strict,
+  }) {
+    var idx = 0;
+    final stream = toInstanceStream(uuid);
+    final offset = current(stream: stream);
+    var previous = offset;
+
+    final sourced = _aggregates.putIfAbsent(
       uuid,
-      (current) {
-        for (var e in events) {
-          // Already added?
-          if (!current.add(e)) {
-            if (e.remote) {
-              final prev = current.lookup(e);
-              // Workaround for LinkedHashSet
-              // will not change when equal
-              // event is added (equality is
-              // made on type and uuid only)
-              prev.remote = true;
-            }
+      () => LinkedHashSet<SourceEvent>(),
+    );
+
+    for (var event in events) {
+      if (strict) {
+        // Only check local events. If
+        // event is remote, we should
+        // skip it instead later when
+        // applying to aggregate.
+        if (event.local) {
+          // Event numbers in instance streams SHOULD ALWAYS
+          // be sorted in an ordered monotone incrementing
+          // manner. This check ensures that if and only if
+          // the assumption is violated, an InvalidOperation
+          // exception is thrown. This ensures that previous
+          // next states can be calculated safely without any
+          // risk of applying patches out-of-order, removing the
+          // need to store these states in each event. Do not
+          // evaluate events that exist locally only by skipping
+          // to first event with number bigger then offset.
+          if (event.number <= offset) {
+            previous = _assertStrictMonotone(
+              uuid: uuid,
+              next: event,
+              index: idx++,
+              stream: stream,
+              previous: previous,
+              uuidFieldName: uuidFieldName,
+            );
           }
         }
-        return current;
-      },
-      ifAbsent: () => LinkedHashSet.of(events),
-    );
-    events.forEach(
-      (e) => _events[e.uuid] = uuid,
-    );
-    return events;
+      }
+
+      // Already added?
+      if (!sourced.add(event)) {
+        if (event.remote) {
+          final prev = sourced.lookup(event);
+          // Workaround for LinkedHashSet
+          // will not change when equal
+          // event is added (equality is
+          // made on type and uuid only)
+          prev.remote = true;
+        }
+      }
+
+      // Only update if absent to preserve insertion order
+      _events.putIfAbsent(event.uuid, () => uuid);
+    }
   }
 
   Iterable<DomainEvent> _applyAll(
     Repository repo,
     String uuid,
-    List<SourceEvent> events,
-  ) {
-    final unseen = _updateAll(uuid, repo.uuidFieldName, events);
-    final exists = repo.contains(uuid);
-    final aggregate = repo.get(uuid);
-
-    final domainEvents = unseen.map(
-      repo.toDomainEvent,
+    List<SourceEvent> events, {
+    @required bool strict,
+  }) {
+    // IMPORTANT: Append to store before applying to repository!
+    // This ensures that the event added to an aggregate during
+    // construction is overwritten with the remote event actual
+    // received here.
+    _updateAll(
+      uuid,
+      repo.uuidFieldName,
+      events,
+      strict: strict,
     );
 
-    // Commit remote changes to existing aggregate?
-    if (exists) {
-      for (var event in domainEvents) {
-        try {
-          aggregate.apply(event);
-        } on JsonPatchError catch (error, stackTrace) {
-          ErrorHandler<DomainEvent>(logger).handleJsonPatchError(
-            event,
-            repo: repo,
-            error: error,
-            stackTrace: Trace.from(stackTrace),
-          );
-        } on EventNumberNotStrictMonotone catch (error, stackTrace) {
-          ErrorHandler<DomainEvent>(logger).handleEventNumberNotStrictMonotone(
-            event,
-            repo: repo,
-            error: error,
-            onPause: pause,
-            onResume: resume,
-            stackTrace: Trace.from(stackTrace),
-          );
-        } catch (error, stackTrace) {
-          final uuid = repo.toAggregateUuid(event);
-          final stream = repo.store.canonicalStream;
-          final aggregate = repo.get(uuid, createNew: false);
-          ErrorHandler<DomainEvent>(logger).handleFatal(
-            event,
-            repo: repo,
-            error: error,
-            stackTrace: stackTrace,
-            message: _toObject('Failed to process ${event.type}@${event.number} from $stream', [
-              'cause: unknown',
-              'error: $error',
-              ErrorHandler.toDebug(event, repo, aggregate),
-            ]),
-          );
-        }
-      }
-      if (!aggregate.hasConflicts) {
-        aggregate.commit();
-      }
-    }
+    // Will replay or catchup
+    final aggregate = repo.get(
+      uuid,
+      strict: strict,
+    );
+    final applied = aggregate.applied;
 
-    return domainEvents;
+    return applied.skip(
+      applied.length - events.length,
+    );
   }
 
   /// Check if events for [AggregateRoot] with given [uuid] exists
@@ -849,6 +890,7 @@ class EventStore {
           uuidFieldName: uuidFieldName,
           stream: toInstanceStream(uuid),
         ),
+        strict: true,
       );
     }
     return changes;
@@ -1158,7 +1200,12 @@ class EventStore {
       // This ensures that the event added to an aggregate during
       // construction is overwritten with the remote event actual
       // received here.
-      _updateAll(uuid, repo.uuidFieldName, [event]);
+      _updateAll(
+        uuid,
+        repo.uuidFieldName,
+        [event],
+        strict: true,
+      );
 
       // Event is already applied to aggregate?
       final isApplied = _isApplied(uuid, event, repo);
@@ -1171,8 +1218,8 @@ class EventStore {
       }
 
       if (logger.level <= Level.FINE) {
-        final aggregate = repo.get(uuid);
-        final applied = aggregate.applied.where((e) => e.uuid == event.uuid).firstOrNull;
+        final aggregate = repo.get(uuid, createNew: false, strict: false);
+        final applied = aggregate?.applied?.where((e) => e.uuid == event.uuid)?.firstOrNull;
         logger.fine(
           _toMethod('_onSubscriptionEvent', [
             _toObject('${repo.runtimeType}', [
@@ -1199,7 +1246,7 @@ class EventStore {
 
   bool _isSourced(String uuid, SourceEvent event) => _aggregates.containsKey(uuid) && _aggregates[uuid].contains(event);
   bool _isApplied(String uuid, SourceEvent event, Repository repo) =>
-      repo.contains(uuid) && repo.get(uuid).isApplied(event);
+      repo.contains(uuid) && repo.get(uuid, strict: false).isApplied(event);
 
   /// Replace event with local 'created' value
   ///
@@ -1392,38 +1439,13 @@ class EventStore {
     final expected = next.number.value;
     final delta = expected - previous.value;
     if (delta != 1) {
-      final stackTrace = StackTrace.current;
-      final message = _toObject('Event number not strict monotone increasing', [
-        'uuid: $uuid',
-        'stream: $stream',
-        'delta: $delta',
-        'event.prev.number: $previous',
-        'event.next.number: ${next.number}',
-        'event.next.index: $index',
-        'event.next.uuid: ${next.uuid}',
-        'event.next.type: ${next.type}',
-      ]);
-      final error = EventNumberNotStrictMonotone(
+      throw EventNumberNotStrictMonotone(
         uuid: uuid,
         event: next,
-        message: message,
         uuidFieldName: uuidFieldName,
         expected: EventNumber(expected),
+        mode: next.remote ? 'remote' : 'applied',
       );
-
-      logger.severe(
-        _toMethod('_assertCurrentVersion', [
-          _toObject('${error.runtimeType}', [
-            'debug: ${toDebugString(stream)}',
-            'error: ${error.message}',
-            'stackTrace: ${Trace.format(stackTrace)}',
-          ])
-        ]),
-        error,
-        Trace.from(stackTrace),
-      );
-
-      throw error;
     }
     return next.number;
   }
@@ -1722,7 +1744,7 @@ class EventStoreSubscriptionController<T extends Repository> {
     );
 
     _handler = EventHandler<SourceEvent>(logger);
-    _handler.handle(
+    _handler.listen(
       _repository,
       events,
       onEvent: (SourceEvent event) {
@@ -1731,7 +1753,7 @@ class EventStoreSubscriptionController<T extends Repository> {
       },
       onPause: () => _timer?.cancel(),
       onDone: () => onDone(_repository),
-      onFatal: () async {
+      onFatal: (event) async {
         // Was unable to handle error
         await cancel();
 
@@ -1884,20 +1906,21 @@ class EventHandler<T extends Event> {
     assert(!_isCancelled, 'underlying subscription is cancelled');
   }
 
-  void handle(
+  /// Handle [Event] of type [T] from stream
+  void listen(
     Repository repo,
     Stream<T> stream, {
     @required Function(T event) onEvent,
     void Function() onDone,
     void Function() onPause,
     void Function() onResume,
-    Future Function() onFatal,
+    Future Function(T event) onFatal,
     void Function(Object error, StackTrace stackTrace) onError,
   }) {
     _checkState();
     _onPause = onPause;
+    _onFatal = onFatal;
     _onResume = onResume;
-    _onFatal = _onFatal;
     _subscription = stream.listen(
       (event) {
         _checkState();
@@ -1922,54 +1945,24 @@ class EventHandler<T extends Event> {
   ) async {
     try {
       onEvent(event);
-    } on JsonPatchError catch (error, stackTrace) {
-      ErrorHandler.from(this).handleJsonPatchError(
-        event,
-        repo: repo,
-        error: error,
-        stackTrace: Trace.from(stackTrace),
-      );
-    } on EventNumberNotStrictMonotone catch (error, stackTrace) {
-      ErrorHandler.from(this).handleEventNumberNotStrictMonotone(
-        event,
-        repo: repo,
-        error: error,
-        onPause: pause,
-        onResume: resume,
-        stackTrace: Trace.from(stackTrace),
-      );
     } catch (error, stackTrace) {
-      final store = repo.store;
       final uuid = repo.toAggregateUuid(event);
-      final stream = repo.store.canonicalStream;
-      final aggregate = repo.get(uuid, createNew: false);
-      ErrorHandler.from(this).handleFatal(
+      final stream = repo.store.toInstanceStream(uuid);
+      final message = 'Failed to process ${event.type}@${event.number} from $stream';
+      final aggregate = repo.get(uuid, strict: false);
+
+      final isFatal = ErrorHandler(logger).handle(
         event,
+        skip: true,
         repo: repo,
         error: error,
+        message: message,
+        aggregate: aggregate,
         stackTrace: stackTrace,
-        message: _toObject('Failed to process ${event.type}@${event.number} from $stream', [
-          'cause: unknown',
-          'error: $error',
-          _toObject('debug', [
-            'connection: ${store.connection.host}:${store.connection.port}',
-            'event.type: ${event.type}',
-            'event.uuid: ${event.uuid}',
-            'event.number: ${event.number}',
-            _toObject(
-              'event.patches',
-              event.patches.map((p) => '$p').toList(),
-            ),
-            'aggregate.uuid: $uuid',
-            'aggregate.type: ${repo.aggregateType}',
-            'aggregate.number: ${aggregate?.number}',
-            'repository: ${repo.runtimeType}',
-            'repository.empty: ${repo.isEmpty}',
-            'isInstanceStream: ${store.useInstanceStreams}',
-            'store.events.count: ${store.length}',
-          ])
-        ]),
       );
+      if (isFatal) {
+        rethrow;
+      }
     }
   }
 }
@@ -1985,25 +1978,73 @@ class ErrorHandler<T extends Event> {
         onFatal: handler._onFatal,
       );
 
+  final Logger logger;
   final Future Function(T event) _onFatal;
 
-  final Logger logger;
-
-  void handleEventNumberNotStrictMonotone(
+  bool handle(
     T event, {
+    @required bool skip,
+    @required Object error,
+    @required String message,
     @required Repository repo,
-    @required Trace stackTrace,
-    @required void Function() onPause,
-    @required void Function() onResume,
-    @required EventNumberNotStrictMonotone error,
+    @required StackTrace stackTrace,
+    @required AggregateRoot aggregate,
   }) {
-    final uuid = error.uuid;
-    final store = repo.store;
-    final stream = store.toInstanceStream(uuid);
-    final aggregate = repo.get(error.uuid, createNew: false);
+    switch (error.runtimeType) {
+      case JsonPatchError:
+        handleJsonPatchError(
+          event,
+          repo: repo,
+          skip: skip,
+          message: message,
+          aggregate: aggregate,
+          error: error as JsonPatchError,
+          stackTrace: Trace.from(stackTrace),
+        );
+        return false;
+      case EventNumberNotEqual:
+        handleEventNumberNotEqual(
+          event,
+          repo: repo,
+          skip: skip,
+          message: message,
+          aggregate: aggregate,
+          stackTrace: Trace.from(stackTrace),
+          error: error as EventNumberNotEqual,
+        );
+        return false;
+      case EventNumberNotStrictMonotone:
+        handleEventNumberNotStrictMonotone(
+          event,
+          repo: repo,
+          skip: skip,
+          message: message,
+          aggregate: aggregate,
+          stackTrace: Trace.from(stackTrace),
+          error: error as EventNumberNotStrictMonotone,
+        );
+        return false;
+      default:
+        handleFatal(
+          event,
+          repo: repo,
+          error: error,
+          message: message,
+          stackTrace: stackTrace,
+        );
+        return true;
+    }
+  }
 
-    // Fault-tolerant handling of this situation.
-    //
+  void handleEventNumberNotEqual(
+    T event, {
+    @required bool skip,
+    @required String message,
+    @required Repository repo,
+    @required StackTrace stackTrace,
+    @required AggregateRoot aggregate,
+    @required EventNumberNotEqual error,
+  }) {
     // If not handled, every successive event will
     // throw a EventNumberNotStrictMonotone
     // eventually leading to a partial snapshot
@@ -2012,180 +2053,234 @@ class ErrorHandler<T extends Event> {
     // it happen anyway, which should be logged
     // and handled as follows:
 
-    // ----------------------------------------
-    // 1. Pause immediately to ensure no more
-    // events are processed (_handleEvent-
-    // NumberNotStrictMonotone is async and
-    // pausing will therefore happen later
-    // if called inside that method).
-    // Subscription is resumed when catchup
-    // is completed.
-    onPause();
+    // ------------------------------------------------
+    // 1. On first event: cordon, skip and continue
+    // 2. On second event+: skip and continue
+    //
+    // When aggregate is cordoned, catchup is
+    // disabled and aggregate is put in read-only
+    // mode until reset or replay is preformed.
 
-    // ----------------------------------------
-    // 2. Attempt to catchup on affected
-    // aggregate only. If it fails, any
-    // subscription is cancelled and removed,
-    // effectively stopping repository from
-    // catchup automatically. This will
-    // gracefully degrade to manuel catchup
-    // on conflict, increasing write time.
+    // TODO: Implement recovery from handleEventNumberNotEqual
 
-    if (aggregate != null) {
-      // This is a fatal error
-      handleFatal(
-        event,
-        repo: repo,
-        message: _toMethod('handleEventNumberNotStrictMonotone', [
-          _toObject('${repo.aggregateType} not found in repository', [
-            _toObject('${repo.aggregateType}', [
-              'uuid: ${error.uuid}',
-              'delta: ${error.delta}',
-              'actual: ${error.actual}',
-              'expected: ${error.expected}',
-            ]),
-            _toObject('cause', [
-              'error: $error',
-              'stackTrace: ${Trace.format(StackTrace.current)}',
-            ]),
-          ]),
-          toDebug(event, repo, aggregate),
-        ]),
-        error: error,
-        stackTrace: stackTrace,
-      );
-      return;
-    }
+    final uuid = repo.toAggregateUuid(event);
 
-    if (!store.contains(uuid)) {
-      // This is a fatal error
-      handleFatal(
-        event,
-        repo: repo,
-        message: _toMethod('handleEventNumberNotStrictMonotone', [
-          _toObject('Event ${error.event.type} not found in store', [
-            _toObject('${repo.aggregateType}', [
-              'uuid: ${error.uuid}',
-              'delta: ${error.delta}',
-              'actual: ${error.actual}',
-              'expected: ${error.expected}',
-            ]),
-            _toObject('cause', [
-              'error: $error',
-              'stackTrace: ${Trace.format(StackTrace.current)}',
-            ]),
-          ]),
-          toDebug(event, repo, aggregate),
-        ]),
-        error: error,
-        stackTrace: stackTrace,
-      );
-      return;
-    }
-
-    if (store.isCordoned(uuid)) {
-      // Apply it safely by skip patching
-      aggregate.apply(
-        event is DomainEvent ? event : repo.toDomainEvent(event),
-        skip: true,
-      );
-      logger.fine(_toMethod('handleEventNumberNotStrictMonotone', [
-        'resolution: event skipped (${repo.aggregateType} $uuid was cordoned)',
-        'cause: Failed to apply event from stream $stream',
-        'error: $error',
-        toDebug(event, repo, aggregate),
-      ]));
-      return;
-    }
-
-    if (store.isTainted(uuid)) {
-      // Apply it safely by skip patching
-      aggregate.apply(
-        event is DomainEvent ? event : repo.toDomainEvent(event),
-        skip: true,
-      );
-      final message = _toMethod('handleEventNumberNotStrictMonotone', [
-        'resolution: event skipped',
-        'cause: Failed to apply event from stream $stream',
-        'error: $error',
-        toDebug(event, repo, aggregate),
-      ]);
-      store.cordon(repo, uuid, message);
-    }
-
-    _attemptReplay(
+    _handle(
       event,
-      repo,
-      aggregate,
-      onResume,
-      error,
-      stackTrace,
+      repo: repo,
+      skip: skip,
+      fatal: true,
+      error: error,
+      aggregate: aggregate,
+      stackTrace: Trace.from(stackTrace),
+      object: _toObject('${repo.aggregateType}', [
+        'uuid: ${error.uuid}',
+        _toObject('number', [
+          'delta: ${error.delta}',
+          'actual: ${error.actual}',
+          'expected: ${error.expected}',
+        ])
+      ]),
+      cause: 'Failed to apply ${event.type}@${event.number} on ${repo.aggregateType} $uuid',
     );
   }
 
-  Future<bool> _attemptReplay(
+  void handleEventNumberNotStrictMonotone(
+    T event, {
+    @required bool skip,
+    @required String message,
+    @required Repository repo,
+    @required StackTrace stackTrace,
+    @required AggregateRoot aggregate,
+    @required EventNumberNotStrictMonotone error,
+  }) {
+    // If not handled, every successive event will
+    // throw a EventNumberNotStrictMonotone
+    // eventually leading to a partial snapshot
+    // being stored. Although this exception should
+    // never happen, regressions might lead to
+    // it happen anyway, which should be logged
+    // and handled as follows:
+
+    // ------------------------------------------------
+    // 1. On first event: cordon, skip and continue
+    // 2. On second event+: skip and continue
+    //
+    // When aggregate is cordoned, catchup is
+    // disabled and aggregate is put in read-only
+    // mode until reset or replay is preformed.
+
+    // TODO: Implement recovery from EventNumberNotStrictMonotone
+
+    final uuid = repo.toAggregateUuid(event);
+
+    _handle(
+      event,
+      repo: repo,
+      skip: skip,
+      fatal: true,
+      error: error,
+      aggregate: aggregate,
+      stackTrace: Trace.from(stackTrace),
+      object: _toObject('${repo.aggregateType}', [
+        'uuid: ${error.uuid}',
+        _toObject('number', [
+          'delta: ${error.delta}',
+          'actual: ${error.actual}',
+          'expected: ${error.expected}',
+        ])
+      ]),
+      cause: 'Failed to apply ${event.type}@${event.number} on ${repo.aggregateType} $uuid',
+    );
+  }
+
+  void handleJsonPatchError(
+    T event, {
+    @required bool skip,
+    @required String message,
+    @required Repository repo,
+    @required JsonPatchError error,
+    @required StackTrace stackTrace,
+    @required AggregateRoot aggregate,
+  }) {
+    // If not handled, every successive event will
+    // throw a JsonPatchError eventually leading to
+    // a partial snapshot being stored. Although this
+    // exception should never happen, regressions
+    // might lead to it happen anyway, which should
+    // be logged and handled as follows:
+
+    // ------------------------------------------------
+    // 1. On first event: taint, skip and continue
+    // 2. On second event: cordon, skip and continue
+    // 3. On third event+: skip and continue
+    //
+    // When aggregate is cordoned, catchup is
+    // disabled and aggregate is put in read-only
+    // mode until reset or replay is preformed.
+
+    // TODO: Implement recovery from JsonPatchError
+
+    _handle(
+      event,
+      repo: repo,
+      skip: skip,
+      fatal: false,
+      error: error,
+      aggregate: aggregate,
+      stackTrace: Trace.from(stackTrace),
+      object: _toObject('${repo.aggregateType}', [
+        'uuid: ${aggregate.uuid}',
+      ]),
+      cause: 'Failed to apply ${event.type}@${event.number} '
+          'on ${repo.aggregateType} ${aggregate.uuid}',
+    );
+  }
+
+  void _handle(
+    T event, {
+    @required bool skip,
+    @required bool fatal,
+    @required Object error,
+    @required String cause,
+    @required String object,
+    @required Repository repo,
+    @required Trace stackTrace,
+    @required AggregateRoot aggregate,
+  }) {
+    final store = repo.store;
+    final uuid = aggregate.uuid;
+
+    if (_assertExists(event, cause, object, repo, aggregate, error, stackTrace)) {
+      // Should skip event only?
+      if (store.isCordoned(uuid)) {
+        // Apply it safely by skip patching?
+        if (skip) {
+          final message = _onSkip(
+            event,
+            repo,
+            aggregate,
+            _toMethod(cause, [
+              'resolution: event skipped',
+              'error: $error',
+            ]),
+          );
+          logger.fine(message);
+        }
+        return;
+      }
+
+      // Should cordon?
+      if (store.isTainted(uuid)) {
+        // Apply it safely by skip patching?
+        final message = skip
+            ? _onSkip(
+                event,
+                repo,
+                aggregate,
+                _toMethod(cause, [
+                  'resolution: event skipped',
+                  'error: $error',
+                ]),
+              )
+            : cause;
+        store.cordon(repo, uuid, message);
+        return;
+      }
+
+      // First error, skip? and taint
+      final message = skip
+          ? _onSkip(
+              event,
+              repo,
+              aggregate,
+              _toMethod(cause, [
+                'resolution: event skipped',
+                'error: $error',
+                toDebug(event, repo, aggregate),
+              ]),
+            )
+          : cause;
+
+      if (fatal) {
+        store.cordon(repo, uuid, message);
+      } else {
+        store.taint(repo, uuid, message);
+      }
+    }
+  }
+
+  String _onSkip(T event, Repository repo, AggregateRoot aggregate, String message) {
+    aggregate.apply(
+      event is DomainEvent
+          ? event
+          : repo.toDomainEvent(
+              event,
+              strict: false,
+            ),
+      skip: true,
+    );
+    return message;
+  }
+
+  bool _assertExists(
     T event,
+    String cause,
+    String object,
     Repository repo,
     AggregateRoot aggregate,
-    void Function() onResume,
-    EventNumberNotStrictMonotone error,
+    Object error,
     Trace stackTrace,
-  ) async {
-    try {
-      // Try to resolve by replaying events on
-      // aggregate from beginning or last snapshot
-
-      logger.warning(
-        _toMethod('handleEventNumberNotStrictMonotone', [
-          _toObject('Attempting replay on', [
-            _toObject('${repo.aggregateType}', [
-              'uuid: ${error.uuid}',
-              'delta: ${error.delta}',
-              'actual: ${error.actual}',
-              'expected: ${error.expected}',
-            ]),
-          ]),
-        ]),
-        error,
-        stackTrace,
-      );
-
-      // Attempt to catchup on affected aggregate
-      await repo.replay(
-        uuids: [error.uuid],
-      );
-
-      // Only resume on success
-      onResume();
-
-      logger.warning(
-        _toMethod('handleEventNumberNotStrictMonotone', [
-          _toObject('Replay succeed on', [
-            _toObject('${repo.aggregateType}', [
-              'uuid: ${aggregate?.uuid}',
-              'after: ${aggregate?.number}',
-              'before: ${error.actual}',
-              'expected: ${error.expected}',
-            ]),
-          ]),
-        ]),
-        error,
-        stackTrace,
-      );
-
-      return true;
-    } catch (e, next) {
+  ) {
+    if (aggregate == null) {
+      final uuid = repo.toAggregateUuid(event);
+      // This is a fatal error
       handleFatal(
         event,
         repo: repo,
-        message: _toMethod('handleEventNumberNotStrictMonotone', [
-          _toObject('Failed catchup, degrading to manual catchup on conflicts', [
-            _toObject('${repo.aggregateType}', [
-              'uuid: ${error.uuid}',
-              'delta: ${error.delta}',
-              'actual: ${error.actual}',
-              'expected: ${error.expected}',
-            ]),
+        message: _toMethod(cause, [
+          _toObject('${repo.aggregateType} $uuid not found in repository', [
+            object,
             _toObject('cause', [
               'error: $error',
               'stackTrace: ${Trace.format(StackTrace.current)}',
@@ -2193,12 +2288,36 @@ class ErrorHandler<T extends Event> {
           ]),
           toDebug(event, repo, aggregate),
         ]),
-        error: e,
-        stackTrace: next,
+        error: error,
+        stackTrace: stackTrace,
       );
+      return false;
     }
-    return false;
+
+    if (!repo.store.contains(aggregate.uuid)) {
+      // This is a fatal error
+      handleFatal(
+        event,
+        repo: repo,
+        message: _toMethod(cause, [
+          _toObject('Event ${event.type} not found in store', [
+            object,
+            _toObject('cause', [
+              'error: $error',
+              'stackTrace: ${Trace.format(StackTrace.current)}',
+            ]),
+          ]),
+          toDebug(event, repo, aggregate),
+        ]),
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return false;
+    }
+    return true;
   }
+
+  static bool isHandling(Object error) => error is JsonPatchError || error is EventNumberNotStrictMonotone;
 
   static String toDebug(Event event, Repository repo, AggregateRoot aggregate) {
     final uuid = aggregate?.uuid;
@@ -2221,64 +2340,6 @@ class ErrorHandler<T extends Event> {
     ]);
   }
 
-  void handleJsonPatchError(
-    T event, {
-    @required Repository repo,
-    @required Trace stackTrace,
-    @required JsonPatchError error,
-  }) {
-    final store = repo.store;
-    final uuid = repo.toAggregateUuid(event);
-    final stream = repo.store.toInstanceStream(uuid);
-    final aggregate = repo.get(uuid, createNew: false);
-
-    if (aggregate != null) {
-      // This implies that event exists in store
-      if (store.containsEvent(event)) {
-        // Apply it safely by skip patching
-        aggregate.apply(
-          repo.toDomainEvent(event),
-          skip: true,
-        );
-        if (repo.store.isTainted(uuid)) {
-          final message = _toMethod('handleJsonPatchError', [
-            'resolution: event skipped',
-            'cause: Failed to apply patches from stream $stream',
-            'error: $error',
-            toDebug(event, repo, aggregate),
-          ]);
-          repo.store.cordon(repo, uuid, message);
-        } else {
-          final message = _toMethod('handleJsonPatchError', [
-            'resolution: event skipped',
-            'cause: Failed to apply patches from stream $stream',
-            'error: $error',
-            toDebug(event, repo, aggregate),
-          ]);
-          repo.store.taint(repo, uuid, message);
-        }
-        return;
-      }
-    }
-
-    // Notify
-    handleFatal(
-      event,
-      repo: repo,
-      error: error,
-      stackTrace: stackTrace,
-      message: _toObject('Failed to process ${event.type}@${event.number} from $stream', [
-        'resolution: cordoned ${repo.aggregateType} $uuid',
-        _toObject('cause', [
-          'Failed to apply patches from stream $stream',
-          'Failed to add event to skipped because event does not exist in store',
-        ]),
-        'error: $error',
-        toDebug(event, repo, aggregate),
-      ]),
-    );
-  }
-
   void handleFatal(
     T event, {
     @required Object error,
@@ -2291,20 +2352,22 @@ class ErrorHandler<T extends Event> {
     final stream = repo.store.toInstanceStream(uuid);
 
     // Concatenate additional error information
-    message = _toMethod('handleFatal', [
+    message = _toMethod(message, [
+      'event: ${event.type}@${event.number}',
       'stream: $stream',
-      'message: $message',
-      'error: $error',
-      'stacktrace: ${Trace.format(stackTrace)}',
+      'resolution: cordon ${repo.aggregateType} $uuid',
+      _toObject('cause', [
+        'error: $error',
+        'stacktrace: ${Trace.format(stackTrace)}',
+      ]),
+      toDebug(
+        event,
+        repo,
+        repo.get(uuid, createNew: false, strict: false),
+      ),
     ]);
 
     store.cordon(repo, uuid, message);
-
-    logger.network(
-      message,
-      error,
-      stackTrace,
-    );
 
     if (_onFatal != null) {
       _onFatal(event);
