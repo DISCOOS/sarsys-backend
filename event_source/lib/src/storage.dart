@@ -23,10 +23,11 @@ class Storage {
     this.type, {
     this.prefix,
     int keep = 20,
-    this.automatic = true,
+    bool automatic = true,
     int threshold = 1000,
-  })  : keep = keep ?? 10,
-        threshold = threshold ?? 1000,
+  })  : _keep = keep ?? 10,
+        _automatic = automatic ?? true,
+        _threshold = threshold ?? 1000,
         logger = Logger('Storage') {
     _eventSubscriptions.add(_saveQueue.onEvent().listen(
           (e) => _onQueueEvent('Save', e),
@@ -36,7 +37,7 @@ class Storage {
   /// Create storage for given [AggregateRoot] type [T]
   static Storage fromType<T extends AggregateRoot>({
     String prefix,
-    int keep = 20,
+    int keep = 10,
     int threshold = 1000,
     bool automatic = true,
   }) =>
@@ -44,8 +45,8 @@ class Storage {
         typeOf<T>(),
         keep: keep,
         prefix: prefix,
-        automatic: automatic,
         threshold: threshold,
+        automatic: automatic,
       );
 
   /// Logger instance
@@ -58,17 +59,32 @@ class Storage {
   final String prefix;
 
   /// Only save automatically if enabled
-  bool automatic;
+  bool get automatic => _automatic;
+  bool _automatic;
+  set automatic(bool value) {
+    _automatic = value ?? false;
+  }
+
+  /// Only save manual if enabled
+  bool get manual => !automatic;
 
   /// Number of snapshot to keep.
   /// When exceeded [first] is
   /// deleted automatically.
-  int keep;
+  int get keep => _keep;
+  int _keep;
+  set keep(int value) {
+    _keep = value ?? 10;
+  }
 
   /// Maximum number events
   /// applied to repository before
   /// snapshot is saved automatically.
-  int threshold;
+  int get threshold => _threshold;
+  int _threshold;
+  set threshold(int value) {
+    _threshold = value ?? 1000;
+  }
 
   /// Check if storage is operational
   bool get isReady => _isReady();
@@ -382,13 +398,21 @@ class Storage {
   /// if [isChanged] is false, [save] does nothing.
   /// If [automatic] is false, [save] will always update [last].
   /// If [automatic] is true, [save] will only update [last] if [isExceeded] returns true.
-  bool willSave(Repository repo) => isReady && isChanged(repo) && (!(automatic ?? true) || isExceeded(repo));
+  bool willSave(Repository repo) => isReady && (manual && isChanged(repo) || automatic && isExceeded(repo));
 
   /// Check if given [repo] has changed from [last] snapshot
-  bool isChanged(Repository repo) => repo.number.value > (_last?.number?.value ?? -1);
+  bool isChanged(Repository repo) =>
+      isReady &&
+      (repo.number.value > (_last?.number?.value ?? -1) ||
+          _last != null &&
+              repo.aggregates.any((a) => a.number.value > (_last.aggregates[a.uuid]?.number?.value ?? -1)));
 
   /// Check if number of events has exceeded [threshold]
-  bool isExceeded(Repository repo) => threshold is num && (repo.number.value - (last?.number?.value ?? 0) >= threshold);
+  bool isExceeded(Repository repo) =>
+      isReady &&
+      (repo.number.value - (_last?.number?.value ?? 0) >= threshold ||
+          _last != null &&
+              repo.aggregates.any((a) => a.number.value - (_last.aggregates[a.uuid]?.number?.value ?? 0) >= threshold));
 
   /// Save [StorageState] for given [repo].
   ///
