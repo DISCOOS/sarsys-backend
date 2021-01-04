@@ -859,10 +859,7 @@ class EventStore {
       strict: strict,
     );
     final applied = aggregate.applied;
-
-    return applied.skip(
-      applied.length - events.length,
-    );
+    return applied.where((e) => events.contains(e));
   }
 
   /// Check if events for [AggregateRoot] with given [uuid] exists
