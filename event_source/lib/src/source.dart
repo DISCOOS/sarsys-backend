@@ -314,7 +314,7 @@ class EventStore {
             stream: stream,
           );
           logger.info(
-            "Replayed $events events from stream '$stream' with offset ${offset.value} $snapshot "
+            "Replayed $events events from stream '$stream' with offset ${offset.value} $snapshot"
             'in ${DateTime.now().difference(tic).inMilliseconds} ms',
           );
           count += events;
@@ -340,7 +340,7 @@ class EventStore {
           stream: canonicalStream,
         );
         logger.info(
-          "Replayed $events events from stream '${canonicalStream}' with offset ${offset.value} $snapshot "
+          "Replayed $events events from stream '${canonicalStream}' with offset ${offset.value} $snapshot"
           'in ${DateTime.now().difference(tic).inMilliseconds} ms',
         );
 
@@ -656,8 +656,10 @@ class EventStore {
       max(offset.value, current(stream: stream).value),
     );
 
+    final uuid = toAggregateUuid(stream);
     logger.fine(
       _toMethod('_catchUp', [
+        'uuid: $uuid',
         'stream: $stream',
         'number.offset: $offset',
         'number.actual: $actual',
@@ -916,9 +918,10 @@ class EventStore {
   }
 
   /// Get [AggregateRoot.uuid] from instance stream.
+  ///
   /// If not found, [null] is returned.
+  ///
   String toAggregateUuid(String stream) {
-    assert(useInstanceStreams, 'only allowed when instance streams are used');
     final parts = stream.split('-');
     final index = int.tryParse(parts.last);
     if (index == null || index >= _aggregates.length) {

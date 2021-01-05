@@ -426,7 +426,7 @@ class Transaction<S extends Command, T extends AggregateRoot> {
 
   /// Get [aggregate] of type [T] from [repository].
   /// Returns null if not exist
-  T get aggregate => repository.get(uuid, createNew: false);
+  T get aggregate => repository.get(uuid, createNew: false, strict: false);
 
   /// Check if transaction allows modification of [aggregate]
   bool get isModifiable => !isStarted;
@@ -874,7 +874,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Check given aggregate root exists.
   /// An aggregate exists IFF it repository contains it and is not deleted
-  bool exists(String uuid) => contains(uuid) && !get(uuid).isDeleted;
+  bool exists(String uuid) => contains(uuid) && !get(uuid, strict: false).isDeleted;
 
   /// Check if given aggregate root exists (may need to be loaded from store)
   bool contains(String uuid) =>
@@ -1324,23 +1324,27 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     _aggregates.remove(uuid);
 
     // Replace data with given
-    final json = Map<String, dynamic>.from(data ?? JsonPatch.apply(prev.data ?? {}, patches) as Map)
-      ..addAll({
-        // Overwrite any 'uuid' in given data or patch
-        'uuid': uuid,
-      });
+    try {
+      final json = Map<String, dynamic>.from(data ?? JsonPatch.apply(prev.data ?? {}, patches) as Map)
+        ..addAll({
+          // Overwrite any 'uuid' in given data or patch
+          'uuid': uuid,
+        });
 
-    // Get event, skipping any
-    final next = get(uuid, data: json, strict: strict);
+      // Get event, skipping any
+      final next = get(uuid, data: json, strict: strict);
 
-    // Initialize head, base and data
-    next._setBase(json);
-    next._head.clear();
-    next._baseIndex = next._applied.length - 1;
-    next._headIndex = next._baseIndex;
-    next._setData(json);
-
-    return prev;
+      // Initialize head, base and data
+      next._setBase(json);
+      next._head.clear();
+      next._baseIndex = next._applied.length - 1;
+      next._headIndex = next._baseIndex;
+      next._setData(json);
+      return next;
+    } on Exception {
+      _aggregates[uuid] = prev;
+      rethrow;
+    }
   }
 
   /// Get domain event from given [event]
@@ -1655,16 +1659,16 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     final list = _asAggregateData(command);
     switch (command.action) {
       case Action.create:
-        aggregate = get(command.uuid, data: list.first);
+        aggregate = get(command.uuid, data: list.first, strict: false);
         changes.addAll(aggregate.getLocalEvents());
         remaining.addAll(list.skip(1));
         break;
       case Action.update:
-        aggregate = _assertWrite(get(command.uuid));
+        aggregate = _assertWrite(get(command.uuid, strict: false));
         remaining.addAll(list);
         break;
       case Action.delete:
-        aggregate = _assertWrite(get(command.uuid));
+        aggregate = _assertWrite(get(command.uuid, strict: false));
         changes.add(aggregate.delete(
           timestamp: command.created,
         ));
@@ -1683,7 +1687,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   T _applyEntityData(EntityCommand command, List<DomainEvent> changes) {
     final next = _asEntityData(command);
-    final aggregate = _assertWrite(get(command.uuid));
+    final aggregate = _assertWrite(get(command.uuid, strict: false));
     if (!contains(command.uuid)) {
       changes.addAll(aggregate.getLocalEvents());
     }
@@ -2096,7 +2100,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       );
     }
     // Will fetch from store
-    return get(uuid);
+    return get(uuid, strict: false);
   }
 
   T _assertWrite(T aggregate) {
@@ -2192,7 +2196,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           return create(
             _processors,
             uuid,
-            (data ?? {}),
+            data ?? {},
           );
         },
       );

@@ -156,7 +156,7 @@ class AggregateOperationsController extends SystemOperationsBaseController {
       'params/patches',
     );
 
-    // Ensure that operation succ
+    // Ensure that operation success
     if (repository.exists(uuid)) {
       repository.store.untaint(uuid);
       repository.store.uncordon(uuid);

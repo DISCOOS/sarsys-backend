@@ -1054,30 +1054,19 @@ Future main() async {
 
     final uuid = Uuid().v4();
     final data1 = {'uuid': uuid, 'parameter1': 'value1'};
-    final foo = repo.get(uuid, data: data1);
-    await repo.push(foo);
+    final prev = repo.get(uuid, data: data1);
+    await repo.push(prev);
     await repo.store.asStream().where((e) => e.remote).first;
 
     // Act
     final data2 = {'uuid': 'any', 'parameter2': 'value2'};
-    final prev = repo.replace(
+    final next = repo.replace(
       uuid,
       data: data2,
       strict: false,
     );
 
     // Assert
-    expect(
-      prev.headEvent,
-      equals(foo.headEvent),
-    );
-    expect(
-      prev.baseEvent,
-      equals(foo.baseEvent),
-    );
-
-    final next = repo.get(uuid);
-    expect(prev.data, data1);
     expect(next.data, data2..addAll({'uuid': uuid}));
     expect(prev.number, next.number);
     expect(prev.skipped, next.skipped);
