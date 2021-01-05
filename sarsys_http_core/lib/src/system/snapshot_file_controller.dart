@@ -187,7 +187,7 @@ class SnapshotFileController extends ResourceController {
 
       // Fetch all parts
       final content = await parts.first.toList();
-      final name = '${repo.aggregateType}-upload-${DateTime.now().millisecondsSinceEpoch}.hive';
+      final name = '${repo.aggregateType.toLowerCase()}-upload-${DateTime.now().millisecondsSinceEpoch}.hive';
       final path = '${Directory.systemTemp.path}/$name';
       final file = File(path);
 
@@ -274,9 +274,13 @@ class SnapshotFileController extends ResourceController {
     final snapshots = repo.store.snapshots;
     final path = _toHiveFilePath(snapshots, 'hive');
     final size = File(path).statSync().size;
-    final snapshot = await repo.load();
+    final snapshot = await repo.load(
+      strict: false,
+    );
     if (snapshot != null) {
-      await repo.replay();
+      await repo.replay(
+        strict: false,
+      );
     }
     // Crash recovery has been
     // performed if file size has

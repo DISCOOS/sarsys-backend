@@ -234,7 +234,7 @@ class Storage {
       final filename = basenameWithoutExtension(file.path);
       final box = await Hive.openBox<StorageState>(
         filename,
-        path: file.parent.path,
+        path: file.parent.resolveSymbolicLinksSync(),
       );
       final isValid = allowEmpty || box.keys.isNotEmpty;
       await box.close();
@@ -248,6 +248,10 @@ class Storage {
   /// Returns keys in sorted order from first to last
   @visibleForOverriding
   Future<Iterable<String>> load({String path}) async {
+    if (isReady) {
+      await _states?.close();
+      assert(!_states.isOpen);
+    }
     _states = await Hive.openLazyBox<StorageState>(
       filename,
       path: path,
