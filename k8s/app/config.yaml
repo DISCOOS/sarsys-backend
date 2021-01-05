@@ -8,6 +8,7 @@ data:
   DEBUG: "true"
   PREFIX: "test"
   TENANT: "discoos"
+  MAX_BODY_SIZE: "100"
   LOG_LEVEL: "FINE"
   LOG_SENTRY_LEVEL: "severe"
   LOG_SENTRY_DSN: "https://4a2d024141404d2cb0cf334132621665@sentry.io/5182599"

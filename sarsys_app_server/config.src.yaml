@@ -1,6 +1,7 @@
 debug: true
 prefix: test
 tenant: discoos
+maxBodySize: 10
 data:
   enabled: false
 auth:

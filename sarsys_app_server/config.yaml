@@ -1,7 +1,7 @@
 debug: $DEBUG
 prefix: $PREFIX
 tenant: $TENANT
-
+maxBodySize: $MAX_BODY_SIZE
 data:
   enabled: $DATA_ENABLED
   path: $DATA_PATH

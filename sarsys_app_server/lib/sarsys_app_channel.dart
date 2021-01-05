@@ -464,6 +464,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
   void _loadConfig() {
     // Parse from config file, given by --config to main.dart or default config.yaml
     config = SarSysConfig(options.configurationFilePath);
+    RequestBody.maxSize = 1024 * 1024 * config.maxBodySize;
     logger.onRecord.listen(
       (record) => printRecord(
         record,

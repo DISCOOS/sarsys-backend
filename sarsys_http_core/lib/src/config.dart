@@ -8,6 +8,9 @@ class SarSysConfig extends Configuration {
   /// Tenant name
   String tenant;
 
+  /// The maximum size of a request body. Default is 10MB
+  int maxBodySize = 10;
+
   /// [EventStore](www.eventstore.org) config values
   AuthConfig auth;
 
