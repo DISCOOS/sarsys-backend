@@ -76,24 +76,25 @@ Future main() async {
     final repo = harness.channel.manager.get<DeviceRepository>();
     repo.store.cordon(repo, uuid, 'test');
 
+    final data1 = {'parameter1': 'value1'};
     final request = harness.agent.post(
       "/api/aggregates/device/$uuid?expand=data",
       body: {
         'action': 'replace',
         'params': {
-          'data': {'parameter1': 'value1'}
+          'data': data1,
         }
       },
       headers: {'x-if-match-pod': 'bar'},
     );
     final previous = expectResponse(await request, 200);
-    final data1 = await previous.body.decode();
+    final body2 = await previous.body.decode();
 
     // Assert previous and next data
-    expect(data1['data'], equals(body));
+    expect(body2['data'], equals(data1..addAll({'uuid': uuid})));
     final next = expectResponse(await harness.agent.get("/api/devices/$uuid"), 200);
-    final data2 = await next.body.decode();
-    expect(data2['data'], equals({'uuid': uuid, 'parameter1': 'value1'}));
+    final body3 = await next.body.decode();
+    expect(body3['data'], equals(data1..addAll({'uuid': uuid})));
   });
 
   test("POST /api/aggregates/device/{uuid} returns status code 200 for action 'catchup' aggregate", () async {

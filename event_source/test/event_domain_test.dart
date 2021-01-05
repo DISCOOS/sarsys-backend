@@ -2425,7 +2425,7 @@ Future _testShouldBuildFromLastSnapshot(
   // -----------------------------------
   // Assert repo1
   // -----------------------------------
-  expect(count1, equals(partial ? 2 : 0), reason: 'Should replay 0 events');
+  expect(count1, equals(partial ? 2 : 0), reason: 'Should replay ${partial ? 2 : 0} events');
   expect(repo1.snapshot, isNotNull, reason: 'Should have a snapshot');
   expect(repo1.snapshot.uuid, equals(suuid2), reason: 'Should have snapshot $suuid2');
   expect(repo1.number, repo1.store.current(), reason: 'Should be equal');
@@ -2462,7 +2462,7 @@ Future _testShouldBuildFromLastSnapshot(
   // -----------------------------------
   // Assert repo2
   // -----------------------------------
-  expect(count2, equals(partial ? 2 : 0), reason: 'Should replay 0 events');
+  expect(count2, equals(partial ? 2 : 0), reason: 'Should replay ${partial ? 2 : 0} events');
   expect(repo2.snapshot, isNotNull, reason: 'Should have a snapshot');
   expect(repo2.snapshot.uuid, equals(suuid2), reason: 'Should have snapshot $suuid2');
   expect(repo2.number, repo2.store.current(), reason: 'Should be equal');

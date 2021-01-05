@@ -859,6 +859,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Map of aggregate roots
   final Map<String, T> _aggregates = {};
 
+  Iterable<String> get uuids => List.unmodifiable(_aggregates.keys);
   Iterable<T> get aggregates => List.unmodifiable(_aggregates.values);
 
   /// Get number of aggregates
@@ -888,7 +889,10 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Build repository from [store].
   /// Returns number of events processed.
-  Future<int> build({String path}) async {
+  Future<int> build({
+    String path,
+    bool master = false,
+  }) async {
     final isRebuild = _isReady;
     if (isRebuild) {
       _isReady = false;
@@ -903,18 +907,75 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         );
     if (store.snapshots != null) {
       await store.snapshots.load(path: path);
-      _snapshot = store.snapshots.last;
+      await store.reset(this);
+      if (_snapshot != null) {
+        await repair(master: master);
+      }
     }
+
     final count = await replay(
       // Handle errors
       strict: false,
     );
+
     _storeSubscriptionController = await subscribe();
+
     if (!isRebuild) {
       willStartProcessingEvents();
     }
+
     _isReady = true;
+
     return count;
+  }
+
+  Future<int> repair({bool master = false}) async {
+    final analysis = await store.analyze(
+      this,
+      master: master,
+    );
+    if (analysis.isNotEmpty) {
+      // Wrong aggregate order?
+      if (analysis.values.any((a) => a.isWrongStream)) {
+        _reorder(analysis.values);
+      }
+    }
+    return analysis.length;
+  }
+
+  void _reorder(Iterable<AnalyzeResult> results) {
+    if (isNotEmpty) {
+      // Get correct uuid to stream mappings
+      final streams = results.fold<Map<String, String>>(<String, String>{}, (uuids, result) {
+        // Map unexpected uuid to analyzed stream
+        uuids[result.streams.keys.first] = result.stream;
+        return uuids;
+      });
+
+      // Get correct order of uuids
+      final ordered = sortMapValues<String, String>(
+        streams,
+        // streams ids have structure {prefix}:{aggregate}-{number}
+        compare: (s1, s2) {
+          final id1 = int.parse(s1.split('-').last);
+          final id2 = int.parse(s2.split('-').last);
+          return id1 - id2;
+        },
+      );
+
+      // Reorder aggregates
+      final unknown = _aggregates.keys.where((uuid) => !streams.containsKey(uuid)).toList();
+      if (unknown.isNotEmpty) {
+        throw AggregateNotFound('Aggregates not found: $unknown');
+      }
+      final next = LinkedHashMap<String, T>(); // ignore: prefer_collection_literals
+      for (var uuid in ordered.keys) {
+        next[uuid] = _aggregates[uuid];
+      }
+      _aggregates.clear();
+      _aggregates.addAll(next);
+      store.reorder(ordered.keys);
+    }
   }
 
   void _onQueueEvent(StreamEvent event) {
@@ -1199,7 +1260,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       store.pause();
       if (exists) {
         if (_shouldReset(_snapshot?.uuid, next)) {
-          _snapshot = await store.snapshots[suuid];
+          _snapshot = await store.snapshots[next];
         }
         // Remove missing
         _aggregates.removeWhere(

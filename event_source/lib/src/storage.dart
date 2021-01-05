@@ -477,7 +477,7 @@ class Storage {
       // Always keep 1 snapshot
       final count = length - max<int>(keep ?? 1, 1);
       if (count > 0) {
-        final delete = _sorted.keys.take(count);
+        final delete = _sorted.keys.take(count).toList();
         for (var uuid in delete) {
           if (contains(uuid)) {
             await _states.delete(
