@@ -98,6 +98,28 @@ Future main() async {
     expect(data, isNotNull);
   });
 
+  test("POST /api/repositories/device returns status code 200 for action 'repair' repository", () async {
+    // Arrange
+    final uuid = Uuid().v4();
+    final body = createDevice(uuid);
+    expectResponse(await harness.agent.post("/api/devices", body: body), 201, body: null);
+
+    final request = harness.agent.post(
+      "/api/repositories/device",
+      body: {
+        'action': 'repair',
+        'params': {
+          'master': true,
+        }
+      },
+      headers: {'x-if-match-pod': 'bar'},
+    );
+    final response = expectResponse(await request, 200);
+    final data = await response.body.decode();
+
+    expect(data, isNotNull);
+  });
+
   test("POST /api/repositories/device returns status code 200 for action 'catchup' repository", () async {
     // Arrange
     final uuid = Uuid().v4();

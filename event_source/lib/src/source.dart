@@ -552,9 +552,9 @@ class EventStore {
   }) async {
     _assertRepo(repo);
     const pageSize = 5;
+    final tic = DateTime.now();
     final analysis = <String, AnalyzeResult>{};
     for (var uuid in _aggregates.keys) {
-      final tic = DateTime.now();
       final stream = toInstanceStream(uuid);
 
       // Read page of events
@@ -575,14 +575,28 @@ class EventStore {
 
         logger.log(
           analysis[uuid].isValid ? Level.FINE : Level.WARNING,
-          'Analyzed ${result.events.length} events '
-          'in ${DateTime.now().difference(tic).inMilliseconds} ms: '
+          'Analyzed ${result.events.length} events: '
           '${analysis[uuid].toSummaryText()}',
         );
       }
 
       if (_isDisposed) break;
     }
+
+    final wrong = analysis.values.where((a) => a.isWrongStream).length;
+    final multiple = analysis.values.where((a) => a.isMultipleAggregates).length;
+    final invalid = wrong > 0 || multiple > 0;
+    final message = 'Analyzed ${analysis.length} aggregates '
+        'in ${DateTime.now().difference(tic).inMilliseconds} ms';
+    if (invalid) {
+      logger.warning(_toMethod(message, [
+        'has $wrong aggregates with wrong stream',
+        'has $multiple streams with multiple aggregates',
+      ]));
+    } else {
+      logger.info(message);
+    }
+
     return analysis;
   }
 
@@ -1749,7 +1763,7 @@ class AnalyzeResult {
   bool get isEmpty => !isNotFound && streams.isEmpty;
   bool get isValid => !isEmpty && uuid == streams.keys.firstOrNull;
   bool get isWrongStream => isInvalid && !isEmpty && streams.length == 1;
-  bool get isMultipleStreams => isInvalid && !isEmpty && streams.length > 1;
+  bool get isMultipleAggregates => isInvalid && !isEmpty && streams.length > 1;
 
   String toSummaryText() {
     if (isValid) {

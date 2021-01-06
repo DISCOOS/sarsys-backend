@@ -933,7 +933,12 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     return count;
   }
 
-  Future<int> repair({bool master = false}) async {
+  Future<Map<String, AnalyzeResult>> analyze({bool master = false}) => store.analyze(
+        this,
+        master: master,
+      );
+
+  Future<Map<String, AnalyzeResult>> repair({bool master = false}) async {
     final analysis = await store.analyze(
       this,
       master: master,
@@ -944,7 +949,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         _reorder(analysis.values);
       }
     }
-    return analysis.length;
+    return analysis;
   }
 
   void _reorder(Iterable<AnalyzeResult> results) {
