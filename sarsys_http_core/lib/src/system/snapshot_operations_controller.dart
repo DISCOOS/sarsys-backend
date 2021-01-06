@@ -54,8 +54,8 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
 
       return Response.ok(
         await snapshots.toMeta(
+          repository.snapshot?.uuid,
           type: repository.aggregateType,
-          uuid: repository.snapshot?.uuid,
           data: shouldExpand(expand, 'data'),
           items: shouldExpand(expand, 'items'),
         ),
@@ -142,7 +142,7 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
         ? Response.noContent()
         : Response.ok(
             await snapshots.toMeta(
-              uuid: next,
+              next,
               current: repository.number,
               type: repository.aggregateType,
               data: shouldExpand(expand, 'data'),
@@ -167,32 +167,28 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
   @override
   APISchemaObject documentMeta(APIDocumentContext context) {
     return APISchemaObject.object({
-      'snapshot': APISchemaObject.object({
-        'last': APISchemaObject.boolean()
-          ..description = 'True if snapshot is the last saved'
-          ..isReadOnly = true,
-        'uuid': documentUUID()
-          ..description = 'Globally unique Snapshot id'
-          ..isReadOnly = true,
-        'number': APISchemaObject.integer()
-          ..description = 'Snapshot event number '
-              '(or position in projection if using instance-streams)'
-          ..isReadOnly = true,
-        'timestamp': APISchemaObject.string()
-          ..description = 'When snapshot was saved'
-          ..format = 'date-time',
-        'unsaved': APISchemaObject.integer()
-          ..description = 'Number of unsaved events'
-          ..isReadOnly = true,
-        'partial': APISchemaObject.object({
-          'missing': APISchemaObject.integer()
-            ..description = 'Number of missing events in snapshot'
-            ..isReadOnly = true,
-        })
-          ..description = 'Snapshot contains partial state if defined'
+      'last': APISchemaObject.boolean()
+        ..description = 'True if snapshot is the last saved'
+        ..isReadOnly = true,
+      'uuid': documentUUID()
+        ..description = 'Globally unique Snapshot id'
+        ..isReadOnly = true,
+      'number': APISchemaObject.integer()
+        ..description = 'Snapshot event number '
+            '(or position in projection if using instance-streams)'
+        ..isReadOnly = true,
+      'timestamp': APISchemaObject.string()
+        ..description = 'When snapshot was saved'
+        ..format = 'date-time',
+      'unsaved': APISchemaObject.integer()
+        ..description = 'Number of unsaved events'
+        ..isReadOnly = true,
+      'partial': APISchemaObject.object({
+        'missing': APISchemaObject.integer()
+          ..description = 'Number of missing events in snapshot'
           ..isReadOnly = true,
       })
-        ..description = 'Snapshot metadata'
+        ..description = 'Snapshot contains partial state if defined'
         ..isReadOnly = true,
       'config': APISchemaObject.object({
         'keep': APISchemaObject.integer()

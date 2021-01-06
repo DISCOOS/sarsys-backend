@@ -2571,7 +2571,7 @@ class EventStoreConnection {
     String uri, {
     bool master = false,
   }) =>
-      '${(master ?? requireMaster) ? baseUrl : (masterUrl ?? baseUrl)}/$uri';
+      '${(master ?? requireMaster) ? (masterUrl ?? baseUrl) : baseUrl}/$uri';
 
   /// Get atom feed from stream
   Future<FeedResult> getFeed({

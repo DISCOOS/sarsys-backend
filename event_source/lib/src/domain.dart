@@ -2429,11 +2429,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       if (queue) 'queue': _toQueueMeta(),
       if (snapshot && hasSnapshot)
         'snapshot': await store.snapshots.toMeta(
+          _snapshot.uuid,
           data: data,
           items: items,
           current: number,
           type: aggregateType,
-          uuid: _snapshot.uuid,
         ),
       if (connection) 'connection': store.connection.toMeta(),
       if (subscriptions) 'subscriptions': _toSubscriptionMeta(),

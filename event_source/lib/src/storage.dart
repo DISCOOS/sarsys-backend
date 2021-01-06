@@ -518,29 +518,21 @@ class Storage {
   }
 
   /// Get metadata for snapshot with given [uuid]
-  Future<Map<String, dynamic>> toMeta({
+  Future<Map<String, dynamic>> toMeta(
+    String uuid, {
     Type type,
-    String uuid,
     EventNumber current,
     bool data = false,
     bool items = false,
   }) async {
     final snapshot = await get(uuid);
-    final withNumber = current != null;
     final withSnapshot = snapshot != null;
+    final withNumber = withSnapshot && current != null;
     return {
-      if (withSnapshot)
-        'snapshot': {
-          'last': last?.uuid == uuid,
-          'uuid': snapshot.uuid,
-          'number': snapshot.number.value,
-          'timestamp': snapshot.timestamp?.toIso8601String(),
-          if (withNumber) 'unsaved': current.value - snapshot.number.value,
-          if (snapshot.isPartial)
-            'partial': {
-              'missing': snapshot.missing,
-            },
-        },
+      'last': last?.uuid == uuid,
+      'uuid': uuid,
+      'number': snapshot?.number?.value,
+      'timestamp': snapshot?.timestamp?.toIso8601String(),
       'config': {
         'keep': keep,
         'automatic': automatic,
@@ -548,6 +540,11 @@ class Storage {
       },
       'metrics': {
         'snapshots': length,
+        if (withNumber) 'unsaved': current.value - snapshot.number.value,
+        if (snapshot?.isPartial == true)
+          'partial': {
+            'missing': snapshot.missing,
+          },
         'save': _metrics['save'].toMeta(),
       },
       if (withSnapshot)

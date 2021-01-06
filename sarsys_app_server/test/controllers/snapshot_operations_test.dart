@@ -78,8 +78,8 @@ Future main() async {
     expect(data.elementAt('config/keep'), 100);
     expect(data.elementAt('config/threshold'), 1000);
     expect(data.elementAt('config/automatic'), isFalse);
-    expect(data.elementAt('snapshot/uuid'), isNotNull);
-    expect(data.elementAt('snapshot/uuid'), isNot(equals(snapshot.uuid)));
+    expect(data.elementAt('uuid'), isNotNull);
+    expect(data.elementAt('uuid'), isNot(equals(snapshot.uuid)));
   });
 }
 
