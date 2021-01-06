@@ -2547,7 +2547,7 @@ class EventStoreConnection {
     this.requireMaster = false,
     this.enforceAddress = true,
     this.credentials = UserCredentials.defaultCredentials,
-    Duration connectionTimeout = const Duration(seconds: 10),
+    Duration connectionTimeout = const Duration(seconds: 5),
   })  : _logger = Logger('EventStoreConnection[port:$port]'),
         client = IOClient(
           HttpClient()..connectionTimeout = connectionTimeout,
@@ -2571,7 +2571,7 @@ class EventStoreConnection {
     String uri, {
     bool master = false,
   }) =>
-      '${(master ?? false) ? baseUrl : (masterUrl ?? baseUrl)}/$uri';
+      '${(master ?? requireMaster) ? baseUrl : (masterUrl ?? baseUrl)}/$uri';
 
   /// Get atom feed from stream
   Future<FeedResult> getFeed({
@@ -2592,7 +2592,7 @@ class EventStoreConnection {
         direction: direction,
         pageSize: pageSize ?? this.pageSize,
       )}',
-      master: master,
+      master: master ?? requireMaster,
     );
     _logger.finer('getFeed: REQUEST $url');
 
@@ -2961,7 +2961,10 @@ class EventStoreConnection {
         ),
       },
     );
-    final url = _toStreamUri(stream);
+    final url = toURL(
+      'streams/$stream',
+      master: requireMaster,
+    );
     final body = json.encode(data.toList());
     final headers = {
       'Authorization': credentials.header,
@@ -3063,8 +3066,6 @@ class EventStoreConnection {
     }
     return write;
   }
-
-  String _toStreamUri(String stream) => '$baseUrl/streams/$stream';
 
   String _toSourceEvent(
     Event event, {
