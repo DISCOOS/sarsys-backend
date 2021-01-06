@@ -72,14 +72,14 @@ Future main() async {
       }
     });
     final response = expectResponse(await request, 200);
-    final data = await response.body.decode();
+    final data = await response.body.decode() as Map;
 
     expect(data, isNotNull);
-    expect(data['keep'], 100);
-    expect(data['threshold'], 1000);
-    expect(data['automatic'], isFalse);
-    expect(data['uuid'], isNotNull);
-    expect(data['uuid'], isNot(equals(snapshot.uuid)));
+    expect(data.elementAt('config/keep'), 100);
+    expect(data.elementAt('config/threshold'), 1000);
+    expect(data.elementAt('config/automatic'), isFalse);
+    expect(data.elementAt('snapshot/uuid'), isNotNull);
+    expect(data.elementAt('snapshot/uuid'), isNot(equals(snapshot.uuid)));
   });
 }
 

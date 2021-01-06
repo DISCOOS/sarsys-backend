@@ -78,13 +78,13 @@ Future main() async {
     final response = await request.send();
     final data = jsonDecode(
       await response.stream.bytesToString(),
-    );
+    ) as Map;
 
     // Assert
     expect(response.statusCode, 200);
     expect(data, isNotNull);
-    expect(data['uuid'], isNotEmpty);
-    expect(data['uuid'], equals(snapshot.uuid));
+    expect(data.elementAt('snapshot/uuid'), isNotEmpty);
+    expect(data.elementAt('snapshot/uuid'), equals(snapshot.uuid));
   });
 
   test("POST /api/snapshots/device/upload invalid file returns status code 400", () async {

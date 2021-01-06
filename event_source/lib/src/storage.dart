@@ -526,17 +526,28 @@ class Storage {
     bool items = false,
   }) async {
     final snapshot = await get(uuid);
+    final withNumber = current != null;
     final withSnapshot = snapshot != null;
-    final withNumber = withSnapshot && current != null;
     return {
-      if (withSnapshot) 'uuid': snapshot.uuid,
-      if (withSnapshot) 'number': snapshot.number.value,
-      'keep': keep,
-      'automatic': automatic,
-      if (withNumber) 'unsaved': current.value - snapshot.number.value,
-      'threshold': threshold,
-      if (withSnapshot && snapshot.isPartial) 'partial': {'missing': snapshot.missing},
+      if (withSnapshot)
+        'snapshot': {
+          'last': last?.uuid == uuid,
+          'uuid': snapshot.uuid,
+          'number': snapshot.number.value,
+          'timestamp': snapshot.timestamp?.toIso8601String(),
+          if (withNumber) 'unsaved': current.value - snapshot.number.value,
+          if (snapshot.isPartial)
+            'partial': {
+              'missing': snapshot.missing,
+            },
+        },
+      'config': {
+        'keep': keep,
+        'automatic': automatic,
+        'threshold': threshold,
+      },
       'metrics': {
+        'snapshots': length,
         'save': _metrics['save'].toMeta(),
       },
       if (withSnapshot)

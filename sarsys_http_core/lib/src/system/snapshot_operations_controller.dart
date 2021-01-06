@@ -18,6 +18,7 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
           ],
           actions: [
             'save',
+            'configure',
           ],
           config: config,
           context: context,
@@ -156,40 +157,63 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
 
   @override
   Map<String, APISchemaObject> documentCommandParams(APIDocumentContext context) => {
-        'keep': APISchemaObject.integer()..description = 'Number of snapshots to keep (oldest are deleted)',
-        'threshold': APISchemaObject.integer()..description = 'Snapshot threshold',
+        'force': APISchemaObject.boolean()..description = '[save] ]Control flag forcing save',
+        'keep': APISchemaObject.integer()..description = '[configure] Number of snapshots to keep (oldest are deleted)',
+        'threshold': APISchemaObject.integer()..description = '[configure] Snapshot threshold',
         'automatic': APISchemaObject.boolean()
-          ..description = 'Control flag for automatic snapshots when threshold is reached',
+          ..description = '[configure] Control flag for automatic snapshots when threshold is reached',
       };
 
   @override
   APISchemaObject documentMeta(APIDocumentContext context) {
     return APISchemaObject.object({
-      'uuid': documentUUID()
-        ..description = 'Globally unique Snapshot id'
-        ..isReadOnly = true,
-      'number': APISchemaObject.integer()
-        ..description = 'Snapshot event number '
-            '(or position in projection if using instance-streams)'
-        ..isReadOnly = true,
-      'keep': APISchemaObject.integer()
-        ..description = 'Number of snapshots to keep until deleting oldest'
-        ..isReadOnly = true,
-      'unsaved': APISchemaObject.integer()
-        ..description = 'Number of unsaved events'
-        ..isReadOnly = true,
-      'threshold': APISchemaObject.integer()
-        ..description = 'Number of unsaved events before saving to next snapshot'
-        ..isReadOnly = true,
-      'automatic': APISchemaObject.integer()
-        ..description = 'Control flag for automatic snapshots when threshold is reached'
-        ..isReadOnly = true,
-      'partial': APISchemaObject.object({
-        'missing': APISchemaObject.integer()
-          ..description = 'Number of missing events in snapshot'
+      'snapshot': APISchemaObject.object({
+        'last': APISchemaObject.boolean()
+          ..description = 'True if snapshot is the last saved'
+          ..isReadOnly = true,
+        'uuid': documentUUID()
+          ..description = 'Globally unique Snapshot id'
+          ..isReadOnly = true,
+        'number': APISchemaObject.integer()
+          ..description = 'Snapshot event number '
+              '(or position in projection if using instance-streams)'
+          ..isReadOnly = true,
+        'timestamp': APISchemaObject.string()
+          ..description = 'When snapshot was saved'
+          ..format = 'date-time',
+        'unsaved': APISchemaObject.integer()
+          ..description = 'Number of unsaved events'
+          ..isReadOnly = true,
+        'partial': APISchemaObject.object({
+          'missing': APISchemaObject.integer()
+            ..description = 'Number of missing events in snapshot'
+            ..isReadOnly = true,
+        })
+          ..description = 'Snapshot contains partial state if defined'
           ..isReadOnly = true,
       })
-        ..description = 'Snapshot contains partial state if defined'
+        ..description = 'Snapshot metadata'
+        ..isReadOnly = true,
+      'config': APISchemaObject.object({
+        'keep': APISchemaObject.integer()
+          ..description = 'Number of snapshots to keep until deleting oldest'
+          ..isReadOnly = true,
+        'threshold': APISchemaObject.integer()
+          ..description = 'Number of unsaved events before saving to next snapshot'
+          ..isReadOnly = true,
+        'automatic': APISchemaObject.integer()
+          ..description = 'Control flag for automatic snapshots when threshold is reached'
+          ..isReadOnly = true,
+      })
+        ..description = 'Snapshots configuration'
+        ..isReadOnly = true,
+      'metrics': APISchemaObject.object({
+        'snapshots': APISchemaObject.integer()
+          ..description = 'Number of snapshots'
+          ..isReadOnly = true,
+        'save': documentMetric('Save'),
+      })
+        ..description = 'Snapshot metrics'
         ..isReadOnly = true,
       'aggregates': APISchemaObject.object({
         'count': APISchemaObject.integer()

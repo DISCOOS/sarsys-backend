@@ -17,9 +17,10 @@ class SnapshotModel extends Equatable {
     @required this.uuid,
     @required this.type,
     @required this.number,
-    this.timestamp,
+    DateTime timestamp,
     LinkedHashMap<String, AggregateRootModel> aggregates,
-  })  : _missing = _checkPartial(number, aggregates),
+  })  : timestamp = timestamp ?? DateTime.now(),
+        _missing = _checkPartial(number, aggregates),
         // ignore: prefer_collection_literals
         aggregates = aggregates ?? LinkedHashMap<String, AggregateRootModel>();
 
@@ -90,7 +91,7 @@ class SnapshotModel extends Equatable {
       );
 
   @override
-  List<Object> get props => [aggregates, timestamp, number];
+  List<Object> get props => [type, timestamp, number, aggregates];
 
   /// Factory constructor for creating a new `SnapshotModel` instance
   factory SnapshotModel.fromJson(Map<String, dynamic> json) => _$SnapshotModelFromJson(json);

@@ -273,28 +273,12 @@ class RepositoryOperationsController extends SystemOperationsBaseController {
   APISchemaObject _documentConnection(APIDocumentContext context) {
     return APISchemaObject.object({
       'metrics': APISchemaObject.object({
-        'read': _documentMetric('Read'),
-        'write': _documentMetric('Write'),
+        'read': documentMetric('Read'),
+        'write': documentMetric('Write'),
       })
         ..description = 'Connection metrics'
         ..isReadOnly = true,
     });
-  }
-
-  APISchemaObject _documentMetric(String name) {
-    return APISchemaObject.object({
-      'count': APISchemaObject.integer()
-        ..description = 'Number of measurements'
-        ..isReadOnly = true,
-      'duration': APISchemaObject.integer()
-        ..description = 'Last $name time in ms'
-        ..isReadOnly = true,
-      'durationAverage': APISchemaObject.integer()
-        ..description = '$name time average'
-        ..isReadOnly = true,
-    })
-      ..description = '$name metrics'
-      ..isReadOnly = true;
   }
 
   APISchemaObject _documentSubscriptions(APIDocumentContext context) {
