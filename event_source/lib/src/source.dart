@@ -2563,6 +2563,16 @@ class EventStoreConnection {
 
   final Logger _logger;
 
+  String get baseUrl => '$host:$port';
+  String get masterUrl => _masterUrl;
+  String _masterUrl;
+
+  String toURL(
+    String uri, {
+    bool master = false,
+  }) =>
+      '${(master ?? false) ? baseUrl : (masterUrl ?? baseUrl)}/$uri';
+
   /// Get atom feed from stream
   Future<FeedResult> getFeed({
     @required String stream,
@@ -2575,12 +2585,15 @@ class EventStoreConnection {
   }) async {
     _assertState();
     final actual = number.isNone ? EventNumber.first : number;
-    final url = '$host:$port/streams/$stream${_toFeedUri(
-      embed: embed,
-      number: actual,
-      direction: direction,
-      pageSize: pageSize ?? this.pageSize,
-    )}';
+    final url = toURL(
+      'streams/$stream${_toFeedUri(
+        embed: embed,
+        number: actual,
+        direction: direction,
+        pageSize: pageSize ?? this.pageSize,
+      )}',
+      master: master,
+    );
     _logger.finer('getFeed: REQUEST $url');
 
     final headers = {
@@ -2611,13 +2624,14 @@ class EventStoreConnection {
       'Redirect read to master ${response.headers['location']}',
     );
     try {
+      final url = _setMasterUrl(response);
       final redirected = await client.get(
-        response.headers['location'],
+        url,
         headers: headers,
       );
       if (redirected.statusCode != 200) {
         _logger.warning(
-          'Redirect read from master ${response.headers['location']} '
+          'Redirect read from master $url '
           'failed with ${redirected.statusCode} ${redirected.reasonPhrase}',
         );
       }
@@ -2636,6 +2650,13 @@ class EventStoreConnection {
       );
       rethrow;
     }
+  }
+
+  String _setMasterUrl(Response response) {
+    final location = response.headers['location'];
+    final url = Uri.parse(location);
+    _masterUrl = '${url.host}:${url.port}';
+    return location;
   }
 
   String _toFeedUri({EventNumber number, Direction direction, int pageSize, bool embed}) {
@@ -3034,7 +3055,7 @@ class EventStoreConnection {
       final metric = _metrics['write'].now(tic);
       if (metric.duration.inMilliseconds > limit) {
         _logger.warning(
-          'SLOW WRITE: Writing ${write.events.length} '
+          'SLOW WRITE: Writing ${write.events.length} events '
           'to ${write.stream} took ${metric.duration.inMilliseconds} ms',
         );
       }
@@ -3043,7 +3064,7 @@ class EventStoreConnection {
     return write;
   }
 
-  String _toStreamUri(String stream) => '$host:$port/streams/$stream';
+  String _toStreamUri(String stream) => '$baseUrl/streams/$stream';
 
   String _toSourceEvent(
     Event event, {
@@ -3175,7 +3196,9 @@ class EventStoreConnection {
     Duration timeout = const Duration(seconds: 1),
     ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
   }) async {
-    final url = _mapUrlTo('$host:$port/subscriptions/$stream/$group');
+    final url = _mapUrlTo(
+      toURL('subscriptions/$stream/$group'),
+    );
     final result = await client.put(url,
         headers: {
           'Authorization': credentials.header,
@@ -3198,7 +3221,9 @@ class EventStoreConnection {
   }
 
   Future<Response> _getSubscriptionGroup(String stream, String group, int count, bool embed) {
-    var url = _mapUrlTo('$host:$port/subscriptions/$stream/$group/$count');
+    var url = _mapUrlTo(
+      toURL('subscriptions/$stream/$group/$count'),
+    );
     if (embed) {
       url = '$url?embed=body';
     }
@@ -3268,7 +3293,7 @@ class EventStoreConnection {
     final answer = nack ? 'nack' : 'ack';
     final ids = events.map((event) => event.uuid).join(',');
     final nackAction = nack ? '?action=${enumName(action)}' : '';
-    final url = '$host:$port/subscriptions/$stream/$group/$answer?ids=$ids$nackAction';
+    final url = toURL('subscriptions/$stream/$group/$answer?ids=$ids$nackAction');
     final result = await client.post(
       url,
       headers: {
@@ -3288,7 +3313,7 @@ class EventStoreConnection {
     @required String name,
     @required ProjectionCommand command,
   }) async {
-    final url = '$host:$port/projection/$name/command/${enumName(command)}';
+    final url = toURL('projection/$name/command/${enumName(command)}');
     final result = await client.post(
       url,
       headers: {
@@ -3307,7 +3332,7 @@ class EventStoreConnection {
     @required String name,
   }) async {
     final result = await client.get(
-      '$host:$port/projection/$name',
+      toURL('projection/$name'),
       headers: {
         'Authorization': credentials.header,
         'Accept': 'application/json',
