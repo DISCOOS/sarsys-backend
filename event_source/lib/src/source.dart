@@ -2620,18 +2620,18 @@ class EventStoreConnection {
         direction: direction,
       );
     }
-    _logger.fine(
-      'Redirect read to master ${response.headers['location']}',
-    );
     try {
-      final url = _setMasterUrl(response);
+      final masterUrl = _setMasterUrl(response);
+      _logger.fine(
+        'Redirect read to master $masterUrl',
+      );
       final redirected = await client.get(
-        url,
+        masterUrl,
         headers: headers,
       );
       if (redirected.statusCode != 200) {
         _logger.warning(
-          'Redirect read from master $url '
+          'Redirect read from master $masterUrl '
           'failed with ${redirected.statusCode} ${redirected.reasonPhrase}',
         );
       }
@@ -2654,8 +2654,8 @@ class EventStoreConnection {
 
   String _setMasterUrl(Response response) {
     final location = response.headers['location'];
-    final url = Uri.parse(location);
-    _masterUrl = '${url.host}:${url.port}';
+    final uri = Uri.parse(location);
+    _masterUrl = '${uri.scheme}://${uri.host}:${uri.port}';
     return location;
   }
 
@@ -2798,6 +2798,7 @@ class EventStoreConnection {
   Future<ReadResult> readAllEvents({
     @required String stream,
     bool embed = false,
+    bool master = false,
     EventNumber number = EventNumber.first,
     Direction direction = Direction.forward,
   }) async {
@@ -2806,6 +2807,7 @@ class EventStoreConnection {
       embed: embed,
       stream: stream,
       number: number,
+      master: master,
       direction: direction,
     );
 
@@ -2989,18 +2991,19 @@ class EventStoreConnection {
         DurationMetric.limit,
       );
     }
-    _logger.fine(
-      'Redirect write to master ${response.headers['location']}',
-    );
     try {
+      final masterUrl = _setMasterUrl(response);
+      _logger.fine(
+        'Redirect write to master $masterUrl',
+      );
       final redirected = await client.post(
-        response.headers['location'],
+        masterUrl,
         headers: headers,
         body: body,
       );
       if (redirected.statusCode != 201) {
         _logger.warning(
-          'Redirect write to master ${response.headers['location']} '
+          'Redirect write to master $masterUrl '
           'failed with ${redirected.statusCode} ${redirected.reasonPhrase}',
         );
       }

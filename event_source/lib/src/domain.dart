@@ -170,10 +170,14 @@ class RepositoryManager {
       _timer?.cancel();
       _timer = null;
       completer.complete();
-    } on Exception catch (e, stackTrace) {
+    } on Exception catch (error, stackTrace) {
       if (attempt < max) {
         final wait = toNextTimeout(attempt++, maxBackoffTime, exponent: 8);
-        logger.info('Wait ${wait}ms before retrying prepare again (attempt: $attempt)');
+        logger.warning(
+          'Wait ${wait}ms before retrying prepare again (attempt: $attempt)',
+          error,
+          stackTrace,
+        );
         _timer?.cancel();
         _timer = Timer(
           Duration(milliseconds: wait),
@@ -182,7 +186,7 @@ class RepositoryManager {
       } else {
         completer.completeError(
           ProjectionNotAvailableException(_toObject('Failed to prepare projections $backlog', [
-            'error: $e',
+            'error: $error',
             'stackTrace: ${Trace.format(stackTrace)}',
           ])),
           StackTrace.current,
