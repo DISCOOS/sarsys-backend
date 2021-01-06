@@ -1187,12 +1187,15 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   }
 
   /// Save snapshot of current states
-  SnapshotModel save() {
-    if (isSaveable) {
+  SnapshotModel save({bool force = false}) {
+    if (force || isSaveable) {
       try {
         lock();
         final candidate = _assertSnapshot(
-          store.snapshots.save(this),
+          store.snapshots.save(
+            this,
+            force: force,
+          ),
         );
         if (_shouldReset(_snapshot?.uuid, candidate.uuid)) {
           _snapshot = candidate;

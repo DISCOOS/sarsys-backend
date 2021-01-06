@@ -86,6 +86,12 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
       }
       final command = assertCommand(body);
       switch (command) {
+        case 'configure':
+          return _doConfigure(
+            repository,
+            body,
+            expand,
+          );
         case 'save':
           return _doSave(
             repository,
@@ -104,7 +110,7 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
     }
   }
 
-  Future<Response> _doSave(
+  Future<Response> _doConfigure(
     Repository repository,
     Map<String, dynamic> body,
     String expand,
@@ -128,27 +134,64 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
       'params/keep',
       defaultValue: snapshots.keep,
     );
+
+    // Configure
     snapshots
       ..keep = keep
       ..automatic = automatic
       ..threshold = threshold;
+
     logger.info(
       'Snapshots configured: automatic: $automatic, keep: $keep, threshold, $threshold',
     );
+    return Response.ok(
+      await snapshots.toMeta(
+        repository.snapshot?.uuid,
+        current: repository.number,
+        type: repository.aggregateType,
+        data: shouldExpand(expand, 'data'),
+        items: shouldExpand(expand, 'items'),
+      ),
+    );
+  }
+
+  Future<Response> _doSave(
+    Repository repository,
+    Map<String, dynamic> body,
+    String expand,
+  ) async {
+    final snapshots = repository.store.snapshots;
+    if (snapshots == null) {
+      return Response.badRequest(
+        body: 'Snapshots not activated',
+      );
+    }
+
+    final force = body.elementAt<bool>(
+      'params/force',
+      defaultValue: false,
+    );
     final prev = repository.snapshot?.uuid;
-    final next = repository.save().uuid;
+    final next = repository.save(force: force).uuid;
+    if (prev == next) {
+      logger.info(
+        'Snapshot not saved (force was $force)',
+      );
+      return Response.noContent();
+    }
     await repository.store.snapshots.onIdle;
-    return prev == next
-        ? Response.noContent()
-        : Response.ok(
-            await snapshots.toMeta(
-              next,
-              current: repository.number,
-              type: repository.aggregateType,
-              data: shouldExpand(expand, 'data'),
-              items: shouldExpand(expand, 'items'),
-            ),
-          );
+    logger.info(
+      'Snapshot saved (force was $force)',
+    );
+    return Response.ok(
+      await snapshots.toMeta(
+        next,
+        current: repository.number,
+        type: repository.aggregateType,
+        data: shouldExpand(expand, 'data'),
+        items: shouldExpand(expand, 'items'),
+      ),
+    );
   }
 
   //////////////////////////////////
@@ -167,11 +210,11 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
   @override
   APISchemaObject documentMeta(APIDocumentContext context) {
     return APISchemaObject.object({
-      'last': APISchemaObject.boolean()
-        ..description = 'True if snapshot is the last saved'
+      'last': documentUUID()
+        ..description = 'Uuid of snapshot last saved'
         ..isReadOnly = true,
       'uuid': documentUUID()
-        ..description = 'Globally unique Snapshot id'
+        ..description = 'Snapshot uuid'
         ..isReadOnly = true,
       'number': APISchemaObject.integer()
         ..description = 'Snapshot event number '

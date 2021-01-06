@@ -422,9 +422,9 @@ class Storage {
   ///
   /// Will only update [last] if [willSave] returns true.
   ///
-  SnapshotModel save(Repository repo) {
+  SnapshotModel save(Repository repo, {bool force = false}) {
     var model = repo.snapshot;
-    if (willSave(repo)) {
+    if (force || willSave(repo)) {
       // TODO: Detect to high snapshot save frequency
       final candidate = toSnapshot(repo);
       final tag = 'snapshot ${candidate.uuid} ${candidate.isPartial ? '(partial) of' : 'of'} '
@@ -529,8 +529,8 @@ class Storage {
     final withSnapshot = snapshot != null;
     final withNumber = withSnapshot && current != null;
     return {
-      'last': last?.uuid == uuid,
       'uuid': uuid,
+      'last': last?.uuid,
       'number': snapshot?.number?.value,
       'timestamp': snapshot?.timestamp?.toIso8601String(),
       'config': {
