@@ -1531,7 +1531,7 @@ class EventStore {
         message: reason,
         current: current(stream: stream),
       );
-      logger.severe(
+      logger.network(
         _toMethod('_assertCurrentVersion', [
           _toObject('${error.runtimeType}', [
             'debug: ${toDebugString(stream)}',
@@ -2346,8 +2346,7 @@ class ErrorHandler<T extends Event> {
       object: _toObject('${repo.aggregateType}', [
         'uuid: ${aggregate.uuid}',
       ]),
-      cause: 'Failed to apply ${event.type}@${event.number} '
-          'on ${repo.aggregateType} ${aggregate.uuid}',
+      cause: 'Failed to apply ${event.type}@${event.number} on ${repo.aggregateType} ${aggregate.uuid}',
     );
   }
 
@@ -2377,6 +2376,7 @@ class ErrorHandler<T extends Event> {
             _toMethod(cause, [
               'resolution: event skipped',
               'error: $error',
+              'object: $object',
             ]),
           );
           logger.fine(message);
@@ -2395,6 +2395,7 @@ class ErrorHandler<T extends Event> {
                 _toMethod(cause, [
                   'resolution: event skipped',
                   'error: $error',
+                  'object: $object',
                 ]),
               )
             : cause;
@@ -2411,6 +2412,7 @@ class ErrorHandler<T extends Event> {
               _toMethod(cause, [
                 'resolution: event skipped',
                 'error: $error',
+                'object: $object',
                 toDebug(event, repo, aggregate),
               ]),
             )
@@ -3661,7 +3663,7 @@ enum SubscriptionAction {
 class _EventStoreSubscriptionControllerImpl {
   _EventStoreSubscriptionControllerImpl(this.connection) : logger = connection._logger {
     _readQueue.catchError((e, stackTrace) {
-      logger.severe(
+      logger.network(
         'Processing fetch requests failed with: $e',
         e,
         Trace.from(stackTrace),

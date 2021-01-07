@@ -2055,7 +2055,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     } on WrongExpectedEventVersion {
       return await _reconcile(transaction);
     } catch (error, stackTrace) {
-      logger.severe(
+      logger.network(
         _toMethod('_push', [
           _toObject('Failed to push ${aggregate.runtimeType} ${aggregate.uuid}', [
             'debug: ${toDebugString(aggregate?.uuid)}',
@@ -2106,7 +2106,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         key: transaction.uuid,
       );
     } catch (error, stackTrace) {
-      logger.severe(
+      logger.network(
         _toMethod('_reconcile', [
           _toObject('Failed to reconcile before push of ${aggregate.runtimeType} ${aggregate.uuid}', [
             'debug: ${toDebugString(aggregate?.uuid)}',
@@ -4032,7 +4032,7 @@ abstract class MergeStrategy {
           'cause: $cause',
           'stacktrace: ${Trace.format(stackTrace)}',
         ]);
-    repository.logger.severe(
+    repository.logger.network(
       error,
       cause,
       Trace.from(stackTrace),
