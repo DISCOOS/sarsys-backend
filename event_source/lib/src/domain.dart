@@ -2584,15 +2584,6 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// ```
   EventNumber get number {
     return baseEvent?.number ?? EventNumber.none;
-    // if (applied.isNotEmpty) {
-    //   return applied.last.number;
-    // }
-    // if (_snapshot == null) {
-    //   return EventNumber.none;
-    // }
-    // return EventNumber(
-    //   _snapshot.number.value,
-    // );
   }
 
   /// Get [EventNumber] of next [DomainEvent].
@@ -3630,11 +3621,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
       expected = getApplied(event.uuid).number.value;
     } else {
       mode = 'remote';
-      expected = (headEvent?.number ?? number).value;
-      if (headEvent != event) {
-        // Next event should only increase with 1
-      }
-      expected += 1;
+      expected = number.value + 1;
     }
     final delta = expected - actual;
     if (delta != 0) {
