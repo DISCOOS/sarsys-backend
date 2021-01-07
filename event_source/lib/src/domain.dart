@@ -1720,7 +1720,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       }
     } on TimeoutException {
       final reason = [
-        if (isLocked) 'locked',
+        if (isLocked) 'locked $_locks times',
         if (isMaximumPushPressure) 'maximum pressure',
       ].join(',');
       throw TimeoutException(
