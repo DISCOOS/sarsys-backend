@@ -441,6 +441,27 @@ class Transaction<S extends Command, T extends AggregateRoot> {
   /// Check if conflicts exists
   bool get hasConflicts => conflicting.isNotEmpty;
 
+  /// Check if transaction is open
+  bool get isOpen => !_isCompleted;
+
+  /// Check if transaction is completed
+  bool get isCompleted => _isCompleted;
+  bool _isCompleted = false;
+
+  /// Check if transaction has produced a result
+  bool get hasResult => _result != null;
+
+  /// Get result on success
+  Iterable<DomainEvent> get result => _result;
+  Iterable<DomainEvent> _result;
+
+  /// Check if transaction failed with an error
+  bool get hasFailed => _error != null;
+
+  /// Get error that transaction failed with
+  Object get error => _error;
+  Object _error;
+
   /// Changes currently being pushed.
   Iterable<DomainEvent> get changes {
     return isStarted ? _changes.toList() : aggregate.getLocalEvents();
@@ -554,10 +575,6 @@ class Transaction<S extends Command, T extends AggregateRoot> {
     );
   }
 
-  bool get isOpen => !_isCompleted;
-  bool get isCompleted => _isCompleted;
-  bool _isCompleted = false;
-
   void _complete({
     Object error,
     StackTrace stackTrace,
@@ -579,6 +596,7 @@ class Transaction<S extends Command, T extends AggregateRoot> {
           // triggering a partial rollback to remote state
           // applied above
           _assertNoConcurrentModifications();
+          _result = changes;
           _completer.complete(changes);
 
           // Publish locally created events.
@@ -591,6 +609,7 @@ class Transaction<S extends Command, T extends AggregateRoot> {
         _rollback(
           complete: false,
         );
+        _error = error;
         _completer.completeError(
           error,
           stackTrace,
@@ -632,7 +651,7 @@ class Transaction<S extends Command, T extends AggregateRoot> {
   void _assertCommitted(Iterable<DomainEvent> completed) {
     final uncommitted = _changes.where((e) => !completed.contains(e));
     if (uncommitted.isNotEmpty) {
-      throw StateError(
+      throw InvalidOperation(
         'Failed to commit ${uncommitted.length} events to aggregate ${aggregate.runtimeType} $uuid',
       );
     }
@@ -654,9 +673,9 @@ class Transaction<S extends Command, T extends AggregateRoot> {
   }
 
   void _assertRestart() {
+    _assertComplete();
     _assertTrx();
     _assertExists();
-    _assertComplete();
   }
 
   void _assertTrx() {
@@ -1947,7 +1966,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   T _assertTrx(Transaction transaction) {
     final aggregate = transaction.aggregate as T;
     if (!inTransaction(aggregate.uuid)) {
-      throw StateError(
+      throw InvalidOperation(
         'No transaction found for aggregate ${aggregateType} ${aggregate.uuid}',
       );
     }
@@ -3915,7 +3934,7 @@ abstract class MergeStrategy {
 
   final Duration maxBackoffTime;
 
-  Future<AggregateRoot> merge(Transaction transaction);
+  AggregateRoot merge(Transaction transaction);
 
   Future<Iterable<DomainEvent>> reconcile(Transaction transaction) {
     return _reconcileWithRetry(transaction, 1);
@@ -3938,7 +3957,7 @@ abstract class MergeStrategy {
 
       // Only merge if
       if (!aggregate.isNew) {
-        aggregate = await merge(transaction);
+        aggregate = merge(transaction);
       }
 
       // Check if any conflicts has occurred
@@ -3959,27 +3978,65 @@ abstract class MergeStrategy {
       );
 
       return next;
-    } on WrongExpectedEventVersion catch (error, stackTrace) {
+    } on WrongExpectedEventVersion catch (cause, stackTrace) {
       // Try again?
       if (attempt < transaction._maxAttempts) {
         return await _reconcileWithRetry(transaction, attempt + 1);
       }
-      repository.logger.severe(
-        _toMethod('_reconcileWithRetry', [
-          _toObject(
-              'Aborted automatic merge after ${transaction._maxAttempts} '
-              'retries on ${aggregate.runtimeType} ${aggregate.uuid}',
-              [
-                'debug: ${repository.toDebugString(aggregate?.uuid)}',
-                'error: $error',
-                'stacktrace: ${Trace.format(stackTrace)}',
-              ])
-        ]),
-        error,
-        Trace.from(stackTrace),
+      final message = _onFatal(
+        'Aborted reconcile',
+        transaction._maxAttempts,
+        transaction,
+        aggregate,
+        cause,
+        stackTrace,
       );
-      throw EventVersionReconciliationFailed(error, attempt);
+      // Should be handled as a '409 Conflict'
+      // (happens usually during high contention)
+      throw ConflictNotReconcilable.empty(message);
+    } on ConflictNotReconcilable {
+      rethrow;
+    } on InvalidOperation catch (cause, stackTrace) {
+      if (transaction.isOpen) {
+        final message = _onFatal(
+          'Reconcile failed',
+          attempt,
+          transaction,
+          aggregate,
+          cause,
+          stackTrace,
+        );
+        throw WriteFailed(message);
+      }
+      // Transaction was completed upstream
+      // by an timeout or error. Give up with
+      // result given (is probably null).
+      return transaction.result;
     }
+  }
+
+  String _onFatal(
+    String message,
+    int attempts,
+    Transaction transaction,
+    AggregateRoot aggregate,
+    InvalidOperation cause,
+    StackTrace stackTrace,
+  ) {
+    final error = _toMethod(
+        '$message after $attempts '
+        'retries on ${aggregate.runtimeType} ${aggregate.uuid}',
+        [
+          'debug: ${repository.toDebugString(aggregate?.uuid)}',
+          'cause: $cause',
+          'stacktrace: ${Trace.format(stackTrace)}',
+        ]);
+    repository.logger.severe(
+      error,
+      cause,
+      Trace.from(stackTrace),
+    );
+    return error;
   }
 
   Future onBackoff(int attempt) => Future.delayed(
@@ -3997,7 +4054,7 @@ class ThreeWayMerge extends MergeStrategy {
   ) : super(repository, maxBackoffTime);
 
   @override
-  Future<AggregateRoot> merge(Transaction transaction) async {
+  AggregateRoot merge(Transaction transaction) {
     final aggregate = transaction.aggregate;
 
     // Only merge if

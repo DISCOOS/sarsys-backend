@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:meta/meta.dart';
 import 'package:aqueduct/aqueduct.dart';
@@ -38,39 +37,6 @@ abstract class PolicyUtils {
       }
     }
     return events;
-  }
-
-  /// Wait for given rule result from stream of results
-  static Future<Response> withResponseWaitForRuleResults(
-    Repository repository,
-    Response response, {
-    @required Map<Type, int> expected,
-    bool fail = true,
-    bool Function(Response response) test,
-    List<int> statusCodes = const [
-      HttpStatus.ok,
-      HttpStatus.created,
-      HttpStatus.noContent,
-    ],
-    Duration timeout = const Duration(
-      milliseconds: defaultTimeout,
-    ),
-    Logger logger,
-  }) async {
-    if (statusCodes.contains(response.statusCode) && (test == null || test(response))) {
-      try {
-        await waitForRuleResults(
-          repository,
-          fail: fail,
-          logger: logger,
-          timeout: timeout,
-          expected: expected,
-        );
-      } on Exception catch (e) {
-        return Response.serverError(body: {'error': e});
-      }
-    }
-    return response;
   }
 
   /// Wait for given rule result from stream of results
