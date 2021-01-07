@@ -1340,19 +1340,23 @@ class EventStore {
         final applied = aggregate?.applied?.where((e) => e.uuid == event.uuid)?.firstOrNull;
         logger.fine(
           _toMethod('_onSubscriptionEvent', [
-            _toObject('${repo.runtimeType}', [
-              'event.type: ${event.type}',
-              'event.uuid: ${event.uuid}',
+            'stream: $stream',
+            _toObject('event', [
+              'type: ${event.type}',
+              'uuid: ${event.uuid}',
               'number: ${event.number}',
-              'event.sourced: ${_isSourced(uuid, event)}',
-              'event.applied: $isApplied',
-              'event.patches: ${applied?.patches?.length}',
-              'aggregate.uuid: ${aggregate.uuid}',
-              'aggregate.stream: $stream',
+              'sourced: ${_isSourced(uuid, event)}',
+              'applied: $isApplied',
+              'patches: ${event?.patches?.length}',
+            ]),
+            _toObject('aggregate', [
+              'type: ${aggregate.runtimeType}',
+              'uuid: ${aggregate.uuid}',
+              'number: $actual',
+              'patches: ${applied?.patches?.length}',
               'repository: ${repo.runtimeType}',
               'repository.isEmpty: $isEmpty',
               'repository.number.instance: $actual',
-              'isInstanceStream: $useInstanceStreams',
             ]),
           ]),
         );
@@ -1384,10 +1388,17 @@ class EventStore {
   ) {
     logger.fine(
       _toMethod('_onReplace', [
-        _toObject('${event.type}', [
-          'event.uuid: ${event.uuid}',
+        'stream: $stream',
+        _toObject('event', [
+          'type: ${event.type}',
+          'uuid: ${event.uuid}',
           'number: ${event.number}',
           'remove: ${_isSourced(uuid, event)}',
+        ]),
+        _toObject('aggregate', [
+          'type: ${repo.aggregateType}',
+          'uuid: ${uuid}',
+          'number: $actual',
         ]),
       ]),
     );
@@ -1425,10 +1436,17 @@ class EventStore {
     if (event.number > actual) {
       logger.fine(
         _toMethod('_onApply', [
-          _toObject('${event.type}', [
-            'event.uuid: ${event.uuid}',
+          'stream: $stream',
+          _toObject('event', [
+            'type: ${event.type}',
+            'uuid: ${event.uuid}',
             'number: ${event.number}',
             'remove: ${_isSourced(uuid, event)}',
+          ]),
+          _toObject('aggregate', [
+            'type: ${repo.aggregateType}',
+            'uuid: ${uuid}',
+            'number: $actual',
           ]),
         ]),
       );
@@ -2298,6 +2316,7 @@ class ErrorHandler<T extends Event> {
       stackTrace: Trace.from(stackTrace),
       object: _toObject('${repo.aggregateType}', [
         'uuid: ${error.uuid}',
+        'mode: ${error.mode}',
         _toObject('number', [
           'delta: ${error.delta}',
           'actual: ${error.actual}',
@@ -2374,9 +2393,10 @@ class ErrorHandler<T extends Event> {
             repo,
             aggregate,
             _toMethod(cause, [
-              'resolution: event skipped',
               'error: $error',
+              'resolution: event skipped',
               'object: $object',
+              'stackTrace: ${Trace.from(stackTrace)}',
             ]),
           );
           logger.fine(message);
@@ -2393,9 +2413,11 @@ class ErrorHandler<T extends Event> {
                 repo,
                 aggregate,
                 _toMethod(cause, [
-                  'resolution: event skipped',
                   'error: $error',
+                  'resolution: event skipped',
                   'object: $object',
+                  toDebug(event, repo, aggregate),
+                  'stackTrace: ${Trace.from(stackTrace)}',
                 ]),
               )
             : cause;
@@ -2410,10 +2432,11 @@ class ErrorHandler<T extends Event> {
               repo,
               aggregate,
               _toMethod(cause, [
-                'resolution: event skipped',
                 'error: $error',
+                'resolution: event skipped',
                 'object: $object',
                 toDebug(event, repo, aggregate),
+                'stackTrace: ${Trace.from(stackTrace)}',
               ]),
             )
           : cause;
