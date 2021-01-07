@@ -1090,17 +1090,16 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Check if writes are locked
   bool get isLocked => _locks > 0;
   int _locks = 0;
+  String _lockedLastBy;
 
   /// Lock writes until [unlock] is called
   int lock() {
     _locks++;
+    _lockedLastBy = '${Trace.current(1).frames.first}';
     if (logger.level <= Level.FINE) {
-      final trace = Trace.current(1);
-      final callee = trace.frames.first;
       logger.fine(_toMethod('lock', [
         'locks: $_locks',
-        'callee: ${callee}',
-        // 'stackTrace: ${Trace.format(StackTrace.current)}',
+        'callee: $_lockedLastBy',
       ]));
     }
     return _locks;
@@ -1720,11 +1719,14 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       }
     } on TimeoutException {
       final reason = [
-        if (isLocked) 'locked $_locks times',
+        if (isLocked)
+          _toObject('locked $_locks times', [
+            'lastBy: $_lockedLastBy',
+          ]),
         if (isMaximumPushPressure) 'maximum pressure',
-      ].join(',');
+      ].join(', ');
       throw TimeoutException(
-        'Timeout occurred because of: $reason',
+        'Timeout after ${timeout.inMilliseconds} ms occurred because of: $reason',
       );
     }
   }
