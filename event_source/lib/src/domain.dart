@@ -2110,7 +2110,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         _toMethod('_reconcile', [
           _toObject('Failed to reconcile before push of ${aggregate.runtimeType} ${aggregate.uuid}', [
             'debug: ${toDebugString(aggregate?.uuid)}',
-            'error: $error',
+            'cause: $error',
             'stacktrace: ${Trace.format(stackTrace)}',
           ]),
         ]),
@@ -2393,11 +2393,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       'canonicalStream: ${store.canonicalStream}}}',
       'aggregate.type: ${aggregate?.runtimeType}',
       'aggregate.uuid: ${aggregate?.uuid}',
-      'aggregate.data: ${aggregate?.data}',
       'aggregate.modifications: ${aggregate?.modifications}',
       'aggregate.applied.count: ${aggregate?.applied?.length}',
       'aggregate.pending.count: ${aggregate?.getLocalEvents()?.length}',
-      'aggregate.pending.items: ${aggregate?.getLocalEvents()}',
     ]);
   }
 
@@ -3954,6 +3952,7 @@ abstract class MergeStrategy {
       // Catchup to head of event stream
       await repository.store.catchup(
         repository,
+        strict: false,
         master: false,
       );
 

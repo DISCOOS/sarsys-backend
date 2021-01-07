@@ -265,7 +265,10 @@ Future main() async {
     );
 
     // Act - resume catchup
-    await repo.store.catchup(repo, strict: false);
+    await repo.store.catchup(
+      repo,
+      strict: false,
+    );
 
     // Assert - patches in event 2 is skipped
     expect(foo.number.value, equals(1));
