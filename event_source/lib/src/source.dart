@@ -1337,7 +1337,6 @@ class EventStore {
 
       if (logger.level <= Level.FINE) {
         final aggregate = repo.get(uuid, createNew: false, strict: false);
-        final applied = aggregate?.applied?.where((e) => e.uuid == event.uuid)?.firstOrNull;
         logger.fine(
           _toMethod('_onSubscriptionEvent', [
             'stream: $stream',
@@ -1353,10 +1352,8 @@ class EventStore {
               'type: ${aggregate.runtimeType}',
               'uuid: ${aggregate.uuid}',
               'number: $actual',
-              'patches: ${applied?.patches?.length}',
-              'repository: ${repo.runtimeType}',
-              'repository.isEmpty: $isEmpty',
-              'repository.number.instance: $actual',
+              'applied: ${aggregate?.applied?.length}',
+              'skipped: ${aggregate?.skipped?.length}',
             ]),
           ]),
         );
