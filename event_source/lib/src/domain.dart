@@ -2294,7 +2294,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
             // If aggregate have no remote events,
             // always fail (never allow local creation
             // of aggregate that throws an JsonPatchError)
-            if (strict || !contains(uuid) || !ErrorHandler.isHandling(error)) {
+            if (strict || !contains(uuid) || !SourceEventErrorHandler.isHandling(error)) {
               rethrow;
             }
           }
@@ -2939,7 +2939,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         );
       } catch (error, stackTrace) {
         final isFatal = strict ||
-            ErrorHandler<SourceEvent>(repo.logger).handle(
+            SourceEventErrorHandler(repo.logger).handle(
               event,
               skip: true,
               repo: repo,
@@ -2979,7 +2979,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         );
       } catch (error, stackTrace) {
         final isFatal = strict ||
-            ErrorHandler<SourceEvent>(repo.logger).handle(
+            SourceEventErrorHandler(repo.logger).handle(
               event,
               skip: true,
               repo: repo,

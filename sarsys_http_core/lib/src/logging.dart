@@ -40,6 +40,10 @@ class RemoteLogger {
         message: record.message,
         exception: record.error,
         stackTrace: record.stackTrace,
+        loggerName: record.loggerName,
+        tags: {
+          'pod_name': Platform.environment['POD_NAME'],
+        },
         level: _toSeverityLevel(record),
         release: Platform.environment['IMAGE'],
         serverName: Platform.environment['NODE_NAME'],

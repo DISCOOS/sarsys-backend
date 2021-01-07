@@ -683,7 +683,8 @@ class EventStore {
             'error: $error',
             _toObject('debug', [
               'connection: ${connection.host}:${connection.port}',
-              'isInstanceStream: $useInstanceStreams',
+              'stream: $stream',
+              'offset: ${offset.value}',
               'store.events.count: $length',
             ])
           ]),
@@ -1325,7 +1326,7 @@ class EventStore {
         strict: true,
       );
 
-      // Event is already applied to aggregate?
+      // Event is already applied to aggregate?x
       final isApplied = _isApplied(uuid, event, repo);
 
       if (isApplied) {
@@ -1545,8 +1546,8 @@ class EventStore {
       logger.network(
         _toMethod('_assertCurrentVersion', [
           _toObject('${error.runtimeType}', [
-            'debug: ${toDebugString(stream)}',
             'error: ${error.message}',
+            'debug: ${toDebugString(stream)}',
             'stackTrace: ${Trace.format(stackTrace)}',
           ])
         ]),
@@ -1714,9 +1715,9 @@ class EventStore {
     );
     return '$runtimeType: {\n'
         'aggregate.uuid: $uuid,\n'
-        'store.stream: $stream,\n'
-        'store.canonicalStream: $canonicalStream},\n'
+        'aggregate.stream: $stream,\n'
         'store.count: ${_aggregates.length},\n'
+        'store.canonicalStream: $canonicalStream},\n'
         '}';
   }
 
@@ -1816,8 +1817,8 @@ class EventStoreSubscriptionController<T extends Repository> {
   /// Maximum backoff duration between reconnect attempts
   final Duration maxBackoffTime;
 
-  /// [EventHandler] instance
-  EventHandler<SourceEvent> _handler;
+  /// [SourceEventHandler] instance
+  SourceEventHandler _handler;
 
   /// Reconnect count. Uses in exponential backoff calculation
   int reconnects = 0;
@@ -1928,7 +1929,7 @@ class EventStoreSubscriptionController<T extends Repository> {
       'Handler must be cancelled',
     );
 
-    _handler = EventHandler<SourceEvent>(logger);
+    _handler = SourceEventHandler(logger);
     _handler.listen(
       _repository,
       events,
@@ -2046,17 +2047,17 @@ class EventStoreSubscriptionController<T extends Repository> {
   bool _isCancelled = false;
 }
 
-class EventHandler<T extends Event> {
-  EventHandler(this.logger);
+class SourceEventHandler {
+  SourceEventHandler(this.logger);
 
   final Logger logger;
 
   void Function() _onPause;
   void Function() _onResume;
-  Future Function(T event) _onFatal;
+  Future Function(SourceEvent event) _onFatal;
 
   /// Underlying stream subscription
-  StreamSubscription<T> _subscription;
+  StreamSubscription<SourceEvent> _subscription;
 
   /// Check if underlying subscription is paused
   bool get isPaused => _subscription.isPaused == true;
@@ -2094,12 +2095,12 @@ class EventHandler<T extends Event> {
   /// Handle [Event] of type [T] from stream
   void listen(
     Repository repo,
-    Stream<T> stream, {
-    @required Function(T event) onEvent,
+    Stream<SourceEvent> stream, {
+    @required Function(SourceEvent event) onEvent,
     void Function() onDone,
     void Function() onPause,
     void Function() onResume,
-    Future Function(T event) onFatal,
+    Future Function(SourceEvent event) onFatal,
     void Function(Object error, StackTrace stackTrace) onError,
   }) {
     _checkState();
@@ -2124,8 +2125,8 @@ class EventHandler<T extends Event> {
   }
 
   Future _onEvent(
-    Function(T event) onEvent,
-    T event,
+    Function(SourceEvent event) onEvent,
+    SourceEvent event,
     Repository repo,
   ) async {
     try {
@@ -2136,7 +2137,7 @@ class EventHandler<T extends Event> {
       final message = 'Failed to process ${event.type}@${event.number} from $stream';
       final aggregate = repo.get(uuid, strict: false);
 
-      final isFatal = ErrorHandler(logger).handle(
+      final isFatal = SourceEventErrorHandler(logger).handle(
         event,
         skip: true,
         repo: repo,
@@ -2152,22 +2153,22 @@ class EventHandler<T extends Event> {
   }
 }
 
-class ErrorHandler<T extends Event> {
-  ErrorHandler(
+class SourceEventErrorHandler {
+  SourceEventErrorHandler(
     this.logger, {
-    Future Function(T event) onFatal,
+    Future Function(SourceEvent event) onFatal,
   }) : _onFatal = onFatal;
 
-  factory ErrorHandler.from(EventHandler<T> handler) => ErrorHandler<T>(
+  factory SourceEventErrorHandler.from(SourceEventHandler handler) => SourceEventErrorHandler(
         handler.logger,
         onFatal: handler._onFatal,
       );
 
   final Logger logger;
-  final Future Function(T event) _onFatal;
+  final Future Function(SourceEvent event) _onFatal;
 
   bool handle(
-    T event, {
+    SourceEvent event, {
     @required bool skip,
     @required Object error,
     @required String message,
@@ -2222,7 +2223,7 @@ class ErrorHandler<T extends Event> {
   }
 
   void handleEventNumberNotEqual(
-    T event, {
+    SourceEvent event, {
     @required bool skip,
     @required String message,
     @required Repository repo,
@@ -2271,7 +2272,7 @@ class ErrorHandler<T extends Event> {
   }
 
   void handleEventNumberNotStrictMonotone(
-    T event, {
+    SourceEvent event, {
     @required bool skip,
     @required String message,
     @required Repository repo,
@@ -2321,7 +2322,7 @@ class ErrorHandler<T extends Event> {
   }
 
   void handleJsonPatchError(
-    T event, {
+    SourceEvent event, {
     @required bool skip,
     @required String message,
     @required Repository repo,
@@ -2363,7 +2364,7 @@ class ErrorHandler<T extends Event> {
   }
 
   void _handle(
-    T event, {
+    SourceEvent event, {
     @required bool skip,
     @required bool fatal,
     @required Object error,
@@ -2409,7 +2410,7 @@ class ErrorHandler<T extends Event> {
                   'error: $error',
                   'resolution: event skipped',
                   'object: $object',
-                  toDebug(event, repo, aggregate),
+                  toDebugString(event, repo, aggregate),
                   'stackTrace: ${Trace.from(stackTrace)}',
                 ]),
               )
@@ -2428,7 +2429,7 @@ class ErrorHandler<T extends Event> {
                 'error: $error',
                 'resolution: event skipped',
                 'object: $object',
-                toDebug(event, repo, aggregate),
+                toDebugString(event, repo, aggregate),
                 'stackTrace: ${Trace.from(stackTrace)}',
               ]),
             )
@@ -2442,21 +2443,19 @@ class ErrorHandler<T extends Event> {
     }
   }
 
-  String _onSkip(T event, Repository repo, AggregateRoot aggregate, String message) {
+  String _onSkip(SourceEvent event, Repository repo, AggregateRoot aggregate, String message) {
     aggregate.apply(
-      event is DomainEvent
-          ? event
-          : repo.toDomainEvent(
-              event,
-              strict: false,
-            ),
+      repo.toDomainEvent(
+        event,
+        strict: false,
+      ),
       skip: true,
     );
     return message;
   }
 
   bool _assertExists(
-    T event,
+    SourceEvent event,
     String cause,
     String object,
     Repository repo,
@@ -2478,7 +2477,7 @@ class ErrorHandler<T extends Event> {
               'stackTrace: ${Trace.format(StackTrace.current)}',
             ]),
           ]),
-          toDebug(event, repo, aggregate),
+          toDebugString(event, repo, aggregate),
         ]),
         error: error,
         stackTrace: stackTrace,
@@ -2499,7 +2498,7 @@ class ErrorHandler<T extends Event> {
               'stackTrace: ${Trace.format(StackTrace.current)}',
             ]),
           ]),
-          toDebug(event, repo, aggregate),
+          toDebugString(event, repo, aggregate),
         ]),
         error: error,
         stackTrace: stackTrace,
@@ -2511,29 +2510,29 @@ class ErrorHandler<T extends Event> {
 
   static bool isHandling(Object error) => error is JsonPatchError || error is EventNumberNotStrictMonotone;
 
-  static String toDebug(Event event, Repository repo, AggregateRoot aggregate) {
+  static String toDebugString(SourceEvent event, Repository repo, AggregateRoot aggregate) {
     final uuid = aggregate?.uuid;
     return _toObject('debug', [
       'connection: ${repo.store.connection.host}:${repo.store.connection.port}',
       'event.type: ${event.type}',
       'event.uuid: ${event.uuid}',
       'event.number: ${event.number}',
+      'event.stream: ${event.streamId}',
       _toObject(
         'event.patches',
         event.patches.map((p) => '$p').toList(),
       ),
-      'aggregate.uuid: ${uuid ?? repo.toAggregateUuid(event)}',
       'aggregate.type: ${repo.aggregateType}',
+      'aggregate.uuid: ${uuid ?? repo.toAggregateUuid(event)}',
       'aggregate.number: ${aggregate?.number}',
-      'repository: ${repo.runtimeType}',
-      'repository.empty: ${repo.isEmpty}',
-      'isInstanceStream: ${repo.store.useInstanceStreams}',
+      'aggregate.stream: ${repo.store.toInstanceStream(uuid)}',
+      'store.stream: ${repo.store.canonicalStream}',
       'store.events.count: ${repo.store.length}',
     ]);
   }
 
   void handleFatal(
-    T event, {
+    SourceEvent event, {
     @required Object error,
     @required Repository repo,
     String message,
@@ -2552,7 +2551,7 @@ class ErrorHandler<T extends Event> {
         'error: $error',
         'stacktrace: ${Trace.format(stackTrace)}',
       ]),
-      toDebug(
+      toDebugString(
         event,
         repo,
         repo.get(uuid, createNew: false, strict: false),

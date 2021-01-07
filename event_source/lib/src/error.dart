@@ -61,11 +61,12 @@ class EventNumberNotStrictMonotone extends InvalidOperation {
     @required this.expected,
     @required this.uuidFieldName,
   }) : super('Event number not strict monotone increasing, '
+            'mode: $mode, '
             'expected: $expected, '
             'actual: ${event.number.value}, '
             'delta: ${event.number.value - expected.value}, '
-            'mode: $mode, '
-            'type: ${event.type}, '
+            'event.type: ${event.type}, '
+            'event.uuid: ${event.uuid}, '
             'aggregate.uuid: $uuid}');
 
   /// Aggregate uuid
