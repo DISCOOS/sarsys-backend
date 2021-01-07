@@ -1050,15 +1050,26 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   void _onQueueError(StreamRequest request, String message, Object error, [StackTrace stackTrace]) {
     final trx = request.tag as Transaction;
-    logger.fine(
-      '$message: ${trx.toTagAsString()} (${_toPressureString()})',
-    );
 
     if (trx.isOpen) {
+      logger.fine(
+        '$message: ${trx.toTagAsString()} (${_toPressureString()})',
+        error,
+        stackTrace,
+      );
       _completeTrx(
         trx.uuid,
         error: error,
         stackTrace: stackTrace,
+      );
+    } else {
+      logger.network(
+        _toMethod('_onQueueError', [
+          'error: transaction is on open',
+          '$message: ${trx.toTagAsString()} (${_toPressureString()})',
+        ]),
+        error,
+        stackTrace,
       );
     }
   }
@@ -2393,6 +2404,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       'canonicalStream: ${store.canonicalStream}}}',
       'aggregate.type: ${aggregate?.runtimeType}',
       'aggregate.uuid: ${aggregate?.uuid}',
+      'aggregate.tainted: ${store.isTainted(uuid)}',
+      'aggregate.cordoned: ${store.isCordoned(uuid)}',
       'aggregate.modifications: ${aggregate?.modifications}',
       'aggregate.applied.count: ${aggregate?.applied?.length}',
       'aggregate.pending.count: ${aggregate?.getLocalEvents()?.length}',
@@ -3583,7 +3596,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   void _assertNoConflicts() {
     if (hasConflicts) {
       throw ConflictNotReconcilable(
-        'Aggregate $runtimeType $uuid has ${_remoteEvents.length} unresolved conflicts',
+        '$runtimeType $uuid has ${_remoteEvents.length} unresolved conflicts',
         base: base,
         mine: mine,
         yours: yours,

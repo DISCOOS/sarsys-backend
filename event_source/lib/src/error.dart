@@ -54,13 +54,19 @@ class EventNumberNotEqual extends InvalidOperation {
 
 /// Thrown when an invalid operation is attempted
 class EventNumberNotStrictMonotone extends InvalidOperation {
-  const EventNumberNotStrictMonotone({
+  EventNumberNotStrictMonotone({
     @required this.uuid,
     @required this.mode,
     @required this.event,
     @required this.expected,
     @required this.uuidFieldName,
-  }) : super('Event number not strict monotone increasing');
+  }) : super('Event number not strict monotone increasing, '
+            'expected: $expected, '
+            'actual: ${event.number.value}, '
+            'delta: ${event.number.value - expected.value}, '
+            'mode: $mode, '
+            'type: ${event.type}, '
+            'aggregate.uuid: $uuid}');
 
   /// Aggregate uuid
   final String uuid;

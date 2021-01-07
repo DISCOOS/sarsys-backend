@@ -1340,20 +1340,20 @@ class EventStore {
         logger.fine(
           _toMethod('_onSubscriptionEvent', [
             'stream: $stream',
-            _toObject('event', [
-              'type: ${event.type}',
-              'uuid: ${event.uuid}',
-              'number: ${event.number}',
-              'sourced: ${_isSourced(uuid, event)}',
-              'applied: $isApplied',
-              'patches: ${event?.patches?.length}',
+            _toObject('${event.type}', [
+              'event.uuid: ${event.uuid}',
+              'event.number: ${event.number}',
+              'event.sourced: ${_isSourced(uuid, event)}',
+              'event.applied: $isApplied',
+              'event.patches: ${event?.patches?.length}',
             ]),
-            _toObject('aggregate', [
-              'type: ${aggregate.runtimeType}',
-              'uuid: ${aggregate.uuid}',
-              'number: $actual',
-              'applied: ${aggregate?.applied?.length}',
-              'skipped: ${aggregate?.skipped?.length}',
+            _toObject('${aggregate.runtimeType}', [
+              'aggregate.uuid: ${aggregate.uuid}',
+              'aggregate.number: $actual',
+              'aggregate.applied: ${aggregate?.applied?.length}',
+              'aggregate.skipped: ${aggregate?.skipped?.length}',
+              'aggregate.tainted: ${repo.store.isTainted(uuid)}',
+              'aggregate.cordoned: ${repo.store.isCordoned(uuid)}',
             ]),
           ]),
         );
@@ -1386,16 +1386,14 @@ class EventStore {
     logger.fine(
       _toMethod('_onReplace', [
         'stream: $stream',
-        _toObject('event', [
-          'type: ${event.type}',
-          'uuid: ${event.uuid}',
-          'number: ${event.number}',
-          'remove: ${_isSourced(uuid, event)}',
+        _toObject('${event.type}', [
+          'event.uuid: ${event.uuid}',
+          'event.number: ${event.number}',
+          'event.remote: ${_isSourced(uuid, event)}',
         ]),
-        _toObject('aggregate', [
-          'type: ${repo.aggregateType}',
-          'uuid: ${uuid}',
-          'number: $actual',
+        _toObject('${repo.aggregateType}', [
+          'aggregate.uuid: ${uuid}',
+          'aggregate.number: $actual',
         ]),
       ]),
     );
@@ -1434,16 +1432,14 @@ class EventStore {
       logger.fine(
         _toMethod('_onApply', [
           'stream: $stream',
-          _toObject('event', [
-            'type: ${event.type}',
-            'uuid: ${event.uuid}',
-            'number: ${event.number}',
-            'remove: ${_isSourced(uuid, event)}',
+          _toObject('${event.type}', [
+            'event.uuid: ${event.uuid}',
+            'event.number: ${event.number}',
+            'event.remote: ${_isSourced(uuid, event)}',
           ]),
-          _toObject('aggregate', [
-            'type: ${repo.aggregateType}',
-            'uuid: ${uuid}',
-            'number: $actual',
+          _toObject('${repo.aggregateType}', [
+            'aggregate.uuid: ${uuid}',
+            'aggregate.number: $actual',
           ]),
         ]),
       );
