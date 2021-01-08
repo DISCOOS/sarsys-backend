@@ -2044,13 +2044,9 @@ class EventStoreSubscriptionController<T extends Repository> {
 
   Future cancel() {
     _timer?.cancel();
+
     _repository = null;
     _isCancelled = true;
-
-    // Cleanup
-    repository.store._controllers.remove(
-      repository.runtimeType,
-    );
 
     return _handler?.cancel();
   }

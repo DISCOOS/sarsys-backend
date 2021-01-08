@@ -2065,6 +2065,23 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       );
     } on WrongExpectedEventVersion {
       return await _reconcile(transaction);
+    } on ConflictNotReconcilable catch (error, stackTrace) {
+      logger.info(
+        _toMethod('_push', [
+          _toObject('Failed to push ${aggregate.runtimeType} ${aggregate.uuid}', [
+            'debug: ${toDebugString(aggregate?.uuid)}',
+            'error: $error',
+            'stacktrace: ${Trace.format(stackTrace)}',
+          ]),
+        ]),
+        error,
+        Trace.from(stackTrace),
+      );
+      return StreamResult.fail(
+        error,
+        stackTrace,
+        tag: transaction,
+      );
     } catch (error, stackTrace) {
       logger.network(
         _toMethod('_push', [
@@ -2115,6 +2132,23 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         value: events,
         tag: transaction,
         key: transaction.uuid,
+      );
+    } on ConflictNotReconcilable catch (error, stackTrace) {
+      logger.warning(
+        _toMethod('_reconcile', [
+          _toObject('Failed to reconcile before push of ${aggregate.runtimeType} ${aggregate.uuid}', [
+            'debug: ${toDebugString(aggregate?.uuid)}',
+            'cause: $error',
+            'stacktrace: ${Trace.format(stackTrace)}',
+          ]),
+        ]),
+        error,
+        Trace.from(stackTrace),
+      );
+      return StreamResult.fail(
+        error,
+        stackTrace,
+        tag: transaction,
       );
     } catch (error, stackTrace) {
       logger.network(
