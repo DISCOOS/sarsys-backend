@@ -524,6 +524,7 @@ class Storage {
     EventNumber current,
     bool data = false,
     bool items = false,
+    bool metrics = true,
   }) async {
     final snapshot = await get(uuid);
     final withSnapshot = snapshot != null;
@@ -538,15 +539,16 @@ class Storage {
         'automatic': automatic,
         'threshold': threshold,
       },
-      'metrics': {
-        'snapshots': length,
-        if (withNumber) 'unsaved': current.value - snapshot.number.value,
-        if (snapshot?.isPartial == true)
-          'partial': {
-            'missing': snapshot.missing,
-          },
-        'save': _metrics['save'].toMeta(),
-      },
+      if (metrics)
+        'metrics': {
+          'snapshots': length,
+          if (withNumber) 'unsaved': current.value - snapshot.number.value,
+          if (snapshot?.isPartial == true)
+            'partial': {
+              'missing': snapshot.missing,
+            },
+          'save': _metrics['save'].toMeta(),
+        },
       if (withSnapshot)
         'aggregates': {
           'count': snapshot.aggregates.length,

@@ -838,12 +838,12 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Check if [catchup] is performed
   /// manually on conflicts.
-  bool get isManual => !isManual;
+  bool get isManual => !isAutomatic;
 
   /// Check if [catchup] is performed
   /// automatically with [subscribe] or
   /// [compete],
-  bool get isAutomatic => store.hasSubscription(this);
+  bool get isAutomatic => store.getSubscription(this).isOK == true;
 
   /// Wait for repository becoming ready
   Future<bool> readyAsync() async {
@@ -2448,6 +2448,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     bool data = true,
     bool queue = true,
     bool items = true,
+    bool metrics = true,
     bool snapshot = true,
     bool connection = true,
     bool subscriptions = true,
@@ -2455,24 +2456,29 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     return {
       'type': '$aggregateType',
       'number': number.value,
-      'metrics': {
-        'events': store.length,
-        'aggregates': {
-          'count': count(),
-          'changed': _aggregates.values.where((aggregate) => aggregate.isChanged).length,
-          'tainted': {'count': store.tainted.length, if (items) 'items': store.tainted},
-          'cordoned': {'count': store.cordoned.length, if (items) 'items': store.cordoned},
+      if (metrics)
+        'metrics': {
+          'events': store.length,
+          'aggregates': {
+            'count': count(),
+            'changed': _aggregates.values.where((aggregate) => aggregate.isChanged).length,
+            'tainted': {'count': store.tainted.length, if (items) 'items': store.tainted},
+            'cordoned': {'count': store.cordoned.length, if (items) 'items': store.cordoned},
+          },
+          'transactions': _transactions.length,
+          'push': _metrics['push'].toMeta(),
         },
-        'transactions': _transactions.length,
-        'push': _metrics['push'].toMeta(),
-      },
-      if (queue) 'queue': _toQueueMeta(),
+      if (queue)
+        'queue': _toQueueMeta(
+          metrics: metrics,
+        ),
       if (snapshot && hasSnapshot)
         'snapshot': await store.snapshots.toMeta(
           _snapshot.uuid,
           data: data,
           items: items,
           current: number,
+          metrics: metrics,
           type: aggregateType,
         ),
       if (connection) 'connection': store.connection.toMeta(),
@@ -2483,7 +2489,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   Map<String, Map<String, dynamic>> _toSubscriptionMeta() {
     return {
       'catchup': {
-        'isAutomatic': isAutomatic,
+        if (_storeSubscriptionController != null)
+          'type': _storeSubscriptionController.isCompeting ? 'compete' : 'subscribe',
+        'mode': isAutomatic ? 'automatic' : 'manual',
         'exists': store.hasSubscription(this),
         if (_storeSubscriptionController != null)
           'last': {
@@ -2500,7 +2508,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           'status': {
             'isPaused': _storeSubscriptionController.isPaused,
             'isCancelled': _storeSubscriptionController.isCancelled,
-            'isCompeting': _storeSubscriptionController?.isCompeting,
           }
       },
       'push': {
@@ -2510,7 +2517,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     };
   }
 
-  Map<String, Map<String, Object>> _toQueueMeta() {
+  Map<String, Map<String, Object>> _toQueueMeta({bool metrics = true}) {
     return {
       'pressure': {
         'push': _pushQueue.length,
@@ -2538,15 +2545,16 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
             'timestamp': '${_pushQueue.currentAt.toIso8601String()}',
           },
       },
-      'metrics': {
-        'queued': _pushQueue.length,
-        'started': _pushQueue.started,
-        'failures': _pushQueue.failures,
-        'timeouts': _pushQueue.timeouts,
-        'processed': _pushQueue.processed,
-        'cancelled': _pushQueue.cancelled,
-        'completed': _pushQueue.completed,
-      },
+      if (metrics)
+        'metrics': {
+          'queued': _pushQueue.length,
+          'started': _pushQueue.started,
+          'failures': _pushQueue.failures,
+          'timeouts': _pushQueue.timeouts,
+          'processed': _pushQueue.processed,
+          'cancelled': _pushQueue.cancelled,
+          'completed': _pushQueue.completed,
+        },
     };
   }
 }

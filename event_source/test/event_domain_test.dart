@@ -1519,6 +1519,7 @@ Future main() async {
 
       // Assert conflict unresolved
       expect(repo.count(), equals(1));
+      expect(repo.isAutomatic, isTrue);
       expect(repo.inTransaction(uuid), isFalse);
       expect(
         trx.isCompleted,

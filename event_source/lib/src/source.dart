@@ -1738,7 +1738,10 @@ class EventStore {
 
   /// Check if a [EventStoreSubscriptionController]
   /// exists for given [repository]
-  bool hasSubscription(Repository repository) => _controllers.containsKey(repository.runtimeType);
+  bool hasSubscription(Repository repository) => _controllers[repository.runtimeType]?.isOK != false;
+
+  /// Get [EventStoreSubscriptionController] for given [repository]
+  EventStoreSubscriptionController getSubscription(Repository repository) => _controllers[repository.runtimeType];
 }
 
 class AnalyzeResult {
@@ -1939,9 +1942,9 @@ class EventStoreSubscriptionController<T extends Repository> {
       },
       onPause: () => _timer?.cancel(),
       onDone: () => onDone(_repository),
-      onFatal: (event) async {
+      onFatal: (event) {
         // Was unable to handle error
-        await cancel();
+        cancel();
 
         // Cleanup
         final type = repository.runtimeType;
@@ -2043,6 +2046,7 @@ class EventStoreSubscriptionController<T extends Repository> {
     return _handler?.cancel();
   }
 
+  bool get isOK => !_isCancelled;
   bool get isCancelled => _isCancelled;
   bool _isCancelled = false;
 }
@@ -2054,7 +2058,7 @@ class SourceEventHandler {
 
   void Function() _onPause;
   void Function() _onResume;
-  Future Function(SourceEvent event) _onFatal;
+  void Function(SourceEvent event) _onFatal;
 
   /// Underlying stream subscription
   StreamSubscription<SourceEvent> _subscription;
@@ -2100,7 +2104,7 @@ class SourceEventHandler {
     void Function() onDone,
     void Function() onPause,
     void Function() onResume,
-    Future Function(SourceEvent event) onFatal,
+    void Function(SourceEvent event) onFatal,
     void Function(Object error, StackTrace stackTrace) onError,
   }) {
     _checkState();
@@ -2156,7 +2160,7 @@ class SourceEventHandler {
 class SourceEventErrorHandler {
   SourceEventErrorHandler(
     this.logger, {
-    Future Function(SourceEvent event) onFatal,
+    void Function(SourceEvent event) onFatal,
   }) : _onFatal = onFatal;
 
   factory SourceEventErrorHandler.from(SourceEventHandler handler) => SourceEventErrorHandler(
@@ -2165,7 +2169,7 @@ class SourceEventErrorHandler {
       );
 
   final Logger logger;
-  final Future Function(SourceEvent event) _onFatal;
+  final void Function(SourceEvent) _onFatal;
 
   bool handle(
     SourceEvent event, {
