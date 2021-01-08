@@ -1384,6 +1384,15 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     }
   }
 
+  /// Subscribe this [source] to receive all changes from [store]
+  EventStoreSubscriptionController subscribe({
+    Duration maxBackoffTime = const Duration(seconds: 10),
+  }) =>
+      store.subscribe(
+        this,
+        maxBackoffTime: maxBackoffTime,
+      );
+
   /// Subscribe this [source] to compete for changes from [store]
   EventStoreSubscriptionController compete({
     int consume = 20,
@@ -1394,15 +1403,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         this,
         consume: consume,
         strategy: strategy,
-        maxBackoffTime: maxBackoffTime,
-      );
-
-  /// Subscribe this [source] to receive all changes from [store]
-  EventStoreSubscriptionController subscribe({
-    Duration maxBackoffTime = const Duration(seconds: 10),
-  }) =>
-      store.subscribe(
-        this,
         maxBackoffTime: maxBackoffTime,
       );
 

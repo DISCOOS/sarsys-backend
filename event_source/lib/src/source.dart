@@ -1870,13 +1870,9 @@ class EventStoreSubscriptionController<T extends Repository> {
     @required String stream,
     EventNumber number = EventNumber.first,
   }) {
-    _handler?.cancel();
-    _group = null;
-    _processed = 0;
-    _consume = null;
-    _strategy = null;
+    _reset();
+
     _offset = number;
-    _competing = false;
     _repository = repository;
 
     // Handle events from stream
@@ -1902,11 +1898,11 @@ class EventStoreSubscriptionController<T extends Repository> {
     EventNumber number = EventNumber.first,
     ConsumerStrategy strategy = ConsumerStrategy.RoundRobin,
   }) {
-    _handler?.cancel();
-    _competing = true;
+    _reset();
+
     _group = group;
-    _processed = 0;
     _offset = number;
+    _competing = true;
     _consume = consume;
     _strategy = strategy;
     _repository = repository;
@@ -1924,6 +1920,17 @@ class EventStoreSubscriptionController<T extends Repository> {
       '${repository.runtimeType} > Competing from $stream@$number',
     );
     return this;
+  }
+
+  void _reset() {
+    cancel();
+    _timer?.cancel();
+    _handler?.cancel();
+    _group = null;
+    _processed = 0;
+    _consume = null;
+    _strategy = null;
+    _isCancelled = false;
   }
 
   void _listen(Stream<SourceEvent> events) async {
@@ -1945,10 +1952,6 @@ class EventStoreSubscriptionController<T extends Repository> {
       onFatal: (event) {
         // Was unable to handle error
         cancel();
-
-        // Cleanup
-        final type = repository.runtimeType;
-        repository.store._controllers.remove(type);
       },
       onError: (error, StackTrace stackTrace) => onError(
         _repository,
@@ -2043,6 +2046,12 @@ class EventStoreSubscriptionController<T extends Repository> {
     _timer?.cancel();
     _repository = null;
     _isCancelled = true;
+
+    // Cleanup
+    repository.store._controllers.remove(
+      repository.runtimeType,
+    );
+
     return _handler?.cancel();
   }
 
@@ -2367,6 +2376,40 @@ class SourceEventErrorHandler {
     );
   }
 
+  void handleFatal(
+    SourceEvent event, {
+    @required Object error,
+    @required Repository repo,
+    String message,
+    StackTrace stackTrace,
+  }) {
+    final store = repo.store;
+    final uuid = repo.toAggregateUuid(event);
+    final stream = repo.store.toInstanceStream(uuid);
+
+    // Concatenate additional error information
+    message = _toMethod(message, [
+      'event: ${event.type}@${event.number}',
+      'stream: $stream',
+      'resolution: cordon ${repo.aggregateType} $uuid',
+      _toObject('cause', [
+        'error: $error',
+        'stacktrace: ${Trace.format(stackTrace)}',
+      ]),
+      toDebugString(
+        event,
+        repo,
+        repo.get(uuid, createNew: false, strict: false),
+      ),
+    ]);
+
+    store.cordon(repo, uuid, message);
+
+    if (_onFatal != null) {
+      _onFatal(event);
+    }
+  }
+
   void _handle(
     SourceEvent event, {
     @required bool skip,
@@ -2530,43 +2573,12 @@ class SourceEventErrorHandler {
       'aggregate.uuid: ${uuid ?? repo.toAggregateUuid(event)}',
       'aggregate.number: ${aggregate?.number}',
       'aggregate.stream: ${repo.store.toInstanceStream(uuid)}',
+      'aggregate.applied: ${aggregate?.applied?.length}',
+      'aggregate.changed: ${aggregate?.getLocalEvents()?.length}',
+      'aggregate.modifications: ${aggregate?.modifications}',
       'store.stream: ${repo.store.canonicalStream}',
       'store.events.count: ${repo.store.length}',
     ]);
-  }
-
-  void handleFatal(
-    SourceEvent event, {
-    @required Object error,
-    @required Repository repo,
-    String message,
-    StackTrace stackTrace,
-  }) {
-    final store = repo.store;
-    final uuid = repo.toAggregateUuid(event);
-    final stream = repo.store.toInstanceStream(uuid);
-
-    // Concatenate additional error information
-    message = _toMethod(message, [
-      'event: ${event.type}@${event.number}',
-      'stream: $stream',
-      'resolution: cordon ${repo.aggregateType} $uuid',
-      _toObject('cause', [
-        'error: $error',
-        'stacktrace: ${Trace.format(stackTrace)}',
-      ]),
-      toDebugString(
-        event,
-        repo,
-        repo.get(uuid, createNew: false, strict: false),
-      ),
-    ]);
-
-    store.cordon(repo, uuid, message);
-
-    if (_onFatal != null) {
-      _onFatal(event);
-    }
   }
 }
 
