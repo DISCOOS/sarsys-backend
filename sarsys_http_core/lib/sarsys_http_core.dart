@@ -16,6 +16,7 @@ export 'src/auth/any.dart';
 export 'src/auth/auth.dart';
 export 'src/auth/oauth.dart';
 export 'src/config.dart';
+export 'src/extensions.dart';
 export 'src/event_source/controllers.dart';
 export 'src/event_source/mixins.dart';
 export 'src/event_source/policy.dart';

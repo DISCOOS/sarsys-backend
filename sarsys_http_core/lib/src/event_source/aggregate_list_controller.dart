@@ -102,6 +102,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
   Future<Iterable<DomainEvent>> doCreate(String fuuid, Map<String, dynamic> data) async {
     return await foreign.execute(
       onCreate(fuuid, data),
+      context: request.toContext(logger),
     );
   }
 
@@ -109,6 +110,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
   Future<Iterable<DomainEvent>> doCreated(U aggregate, String fuuid) async {
     return await primary.execute(
       onCreated(aggregate, fuuid),
+      context: request.toContext(logger),
     );
   }
 
@@ -130,7 +132,10 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
           body: '${foreignType}s not found: $notFound',
         );
       }
-      final trx = primary.getTransaction(uuid);
+      final trx = primary.getTransaction(
+        uuid,
+        context: request.toContext(logger),
+      );
       for (var fuuid in fuuids) {
         // Get updated parent aggregate
         await doAdd(primary.get(uuid), fuuid);
@@ -189,12 +194,18 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
 
   @visibleForOverriding
   Future<Iterable<DomainEvent>> doAdd(U aggregate, String fuuid) async {
-    return await primary.execute(onAdd(aggregate, fuuid));
+    return await primary.execute(
+      onAdd(aggregate, fuuid),
+      context: request.toContext(logger),
+    );
   }
 
   @visibleForOverriding
   Future<Iterable<DomainEvent>> doAdded(U aggregate, String fuuid) async {
-    return await foreign.execute(onAdded(aggregate, fuuid));
+    return await foreign.execute(
+      onAdded(aggregate, fuuid),
+      context: request.toContext(logger),
+    );
   }
 
   /// Add @Operation.put('uuid') to activate
@@ -211,7 +222,10 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       if (notFound.isNotEmpty) {
         return Response.notFound(body: '${foreignType}s not found: $notFound');
       }
-      final trx = primary.getTransaction(uuid);
+      final trx = primary.getTransaction(
+        uuid,
+        context: request.toContext(logger),
+      );
       for (var fuuid in fuuids) {
         // Get updated parent aggregate
         await doReplace(primary.get(uuid), fuuid);
@@ -270,12 +284,18 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
 
   @visibleForOverriding
   Future<Iterable<DomainEvent>> doReplace(U aggregate, String fuuid) async {
-    return await primary.execute(onReplace(aggregate, fuuid));
+    return await primary.execute(
+      onReplace(aggregate, fuuid),
+      context: request.toContext(logger),
+    );
   }
 
   @visibleForOverriding
   Future<Iterable<DomainEvent>> doReplaced(U aggregate, String fuuid) async {
-    return await foreign.execute(onReplaced(aggregate, fuuid));
+    return await foreign.execute(
+      onReplaced(aggregate, fuuid),
+      context: request.toContext(logger),
+    );
   }
 
   /// Add @Operation.delete('uuid') to activate
@@ -292,7 +312,10 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       if (notFound.isNotEmpty) {
         return Response.notFound(body: '${foreignType}s not found: $notFound');
       }
-      final trx = primary.getTransaction(uuid);
+      final trx = primary.getTransaction(
+        uuid,
+        context: request.toContext(logger),
+      );
       for (var fuuid in fuuids) {
         // Get updated parent aggregate
         await doRemove(primary.get(uuid), fuuid);
@@ -351,12 +374,18 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
 
   @visibleForOverriding
   Future<Iterable<DomainEvent>> doRemove(U aggregate, String fuuid) async {
-    return await primary.execute(onRemove(aggregate, fuuid));
+    return await primary.execute(
+      onRemove(aggregate, fuuid),
+      context: request.toContext(logger),
+    );
   }
 
   @visibleForOverriding
   Future<Iterable<DomainEvent>> doRemoved(U aggregate, String fuuid) async {
-    return await foreign.execute(onRemoved(aggregate, fuuid));
+    return await foreign.execute(
+      onRemoved(aggregate, fuuid),
+      context: request.toContext(logger),
+    );
   }
 
   Iterable<String> toFieldList(Map<String, dynamic> data) {

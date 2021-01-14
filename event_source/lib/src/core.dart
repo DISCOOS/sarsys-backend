@@ -604,7 +604,7 @@ class ExpectedVersion {
 
   @override
   String toString() {
-    return 'ExpectedVersion{value: $value}';
+    return '$value';
   }
 
   EventNumber toNumber() => EventNumber(value);

@@ -90,7 +90,9 @@ class RepositoryOperationsController extends SystemOperationsBaseController {
       final command = assertCommand(body);
       switch (command) {
         case 'rebuild':
-          await repo.build();
+          await repo.build(
+            context: request.toContext(logger),
+          );
           break;
         case 'repair':
           result = await _doRepair(body, repo);
@@ -144,6 +146,7 @@ class RepositoryOperationsController extends SystemOperationsBaseController {
     await repo.replay(
       uuids: uuids,
       strict: false,
+      context: request.toContext(logger),
     );
   }
 
@@ -152,14 +155,17 @@ class RepositoryOperationsController extends SystemOperationsBaseController {
       'params/master',
       defaultValue: false,
     );
+    final context = request.toContext(logger);
     final before = await repo.repair(
       master: master,
+      context: context,
     );
     return {
       'before': _toAnalysisMeta(before),
       'after': before.values.any((a) => a.isInvalid)
           ? await repo.analyze(
               master: master,
+              context: context,
             )
           : _toAnalysisMeta(before),
     };

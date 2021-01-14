@@ -27,6 +27,7 @@ class AffiliationPersonController extends AggregateController<AffiliationCommand
         if (current == null) {
           await persons.execute(
             CreatePerson(person),
+            context: request.toContext(logger),
           );
         } else if (current.data.elementAt('temporary') != temporary) {
           return conflict(

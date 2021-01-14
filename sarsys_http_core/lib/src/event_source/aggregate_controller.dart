@@ -97,6 +97,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     try {
       await repository.execute(
         onCreate(validate('$aggregateType', data)),
+        context: request.toContext(logger),
       );
       return Response.created(
         '${toLocation(request)}/${data[repository.uuidFieldName]}',
@@ -157,13 +158,21 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       }
       data[repository.uuidFieldName] = uuid;
       final events = <Event>[];
-      trx = repository.inTransaction(uuid) ? null : repository.getTransaction(uuid);
+      trx = repository.inTransaction(uuid)
+          ? null
+          : repository.getTransaction(
+              uuid,
+              context: request.toContext(logger),
+            );
       final commands = onUpdate(
         validate('$aggregateType', data, isPatch: true),
       );
       for (var command in commands) {
         events.addAll(
-          await repository.execute(command),
+          await repository.execute(
+            command,
+            context: request.toContext(logger),
+          ),
         );
       }
       if (trx != null) {
@@ -234,6 +243,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       aggregate[repository.uuidFieldName] = uuid;
       final events = await repository.execute(
         onDelete(aggregate),
+        context: request.toContext(logger),
       );
       return events.isEmpty ? Response.noContent() : Response.noContent();
     } on AggregateNotFound catch (e) {

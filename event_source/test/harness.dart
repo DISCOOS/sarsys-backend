@@ -122,13 +122,6 @@ class EventSourceHarness {
     return this;
   }
 
-  void _print(LogRecord rec) {
-    return print(
-      '${rec.time}: ${rec.level.name}: ${rec.loggerName}: '
-      '${rec.message} ${rec.error ?? ''} ${rec.stackTrace ?? ''}',
-    );
-  }
-
   Stream<LogRecord> get onRecord => _logger?.onRecord;
 
   final Map<Type, _RepositoryBuilder> _builders = {};
@@ -178,7 +171,9 @@ class EventSourceHarness {
     setUp(() async {
       _logger.info('---setUp---');
       _initHiveDir(hiveDir);
-      _printer = onRecord.listen(_print);
+      _printer = onRecord.listen(
+        (rec) => Context.printRecord(rec, debug: true),
+      );
       for (var entry in _servers.entries) {
         await _build(entry.key, entry.value);
       }

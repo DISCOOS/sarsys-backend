@@ -94,6 +94,6 @@ AggregateRootModel toAggregateRoot(AggregateRoot root) => AggregateRootModel(
       // Since only aggregates
       // confirmed to exist remotely
       // should be persisted, BaseEvent
-      // MUST exist!
+      // MUST exist (no null check required)
       number: EventNumberModel.from(root.baseEvent.number),
     );

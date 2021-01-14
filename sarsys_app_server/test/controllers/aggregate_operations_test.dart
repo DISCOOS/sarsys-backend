@@ -74,7 +74,7 @@ Future main() async {
     final body = createDevice(uuid);
     expectResponse(await harness.agent.post("/api/devices", body: body), 201, body: null);
     final repo = harness.channel.manager.get<DeviceRepository>();
-    repo.store.cordon(repo, uuid, 'test');
+    repo.store.cordon(repo, uuid, reason: 'test');
 
     final data1 = {'parameter1': 'value1'};
     final request = harness.agent.post(

@@ -22,7 +22,10 @@ class DevicePositionBatchController extends DevicePositionControllerBase {
       return Response.notFound(body: "$aggregateType $uuid not found");
     }
     try {
-      final trx = repository.getTransaction(uuid);
+      final trx = repository.getTransaction(
+        uuid,
+        context: request.toContext(logger),
+      );
       for (var position in data) {
         await trx.execute(
           onUpdate(uuid, valueType, {
