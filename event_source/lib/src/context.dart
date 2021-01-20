@@ -232,7 +232,7 @@ class Context {
         message: message,
         category: category,
         id: id,
-        data: sortMapValues(data
+        data: sortMapKeys(data
           ..addAll({
             'context.length': '$length',
             if (previous != null) 'context.previous': '$previous',
