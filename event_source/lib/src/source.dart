@@ -1057,8 +1057,8 @@ class EventStore {
   /// Check if events for [AggregateRoot] with given [uuid] exists
   bool contains(String uuid) => _aggregates.containsKey(uuid);
 
-  /// Get events for given [AggregateRoot.uuid]
-  Iterable<SourceEvent> get(String uuid) => List.from(_aggregates[uuid] ?? {});
+  /// Get unmodifiable list of events for given [AggregateRoot.uuid]
+  Iterable<SourceEvent> get(String uuid) => List.unmodifiable(_aggregates[uuid] ?? {});
 
   /// Commit applied events to store.
   Iterable<DomainEvent> _commit(
@@ -1400,10 +1400,18 @@ class EventStore {
     final stream = toInstanceStream(uuid);
 
     try {
-      // IMPORTANT: Append to store before applying to repository!
-      // This ensures that the event added to an aggregate during
-      // construction is overwritten with the remote event actual
-      // received here.
+      // Event is already applied to aggregate?
+      // Since catchup is performed on get, this
+      // test must be applied before event is added
+      // to eventstore.
+      final isApplied = repo.contains(uuid) && repo.get(uuid, strict: false, context: context).isApplied(event);
+
+      // IMPORTANT: Add to eventstore before
+      // applying to repository! This ensures
+      // that the local event added to an
+      // aggregate during construction is
+      // overwritten with the remote event
+      // actual received here.
       _updateAll(
         uuid,
         repo.uuidFieldName,
@@ -1412,13 +1420,9 @@ class EventStore {
         strict: true,
       );
 
-      // Event is already applied to aggregate?x
-      final isApplied = _isApplied(uuid, event, repo);
-
       if (isApplied) {
         _onReplace(context, repo, uuid, stream, event, actual);
       } else {
-        // This method is only
         _onApply(context, repo, uuid, stream, event, actual);
       }
 
@@ -1449,9 +1453,9 @@ class EventStore {
     }
   }
 
-  bool _isSourced(String uuid, SourceEvent event) => _aggregates.containsKey(uuid) && _aggregates[uuid].contains(event);
-  bool _isApplied(String uuid, SourceEvent event, Repository repo) =>
-      repo.contains(uuid) && repo.get(uuid, strict: false).isApplied(event);
+  bool _isSourced(String uuid, SourceEvent event) {
+    return _aggregates.containsKey(uuid) && _aggregates[uuid].contains(event);
+  }
 
   /// Replace event with local 'created' value
   ///
@@ -1475,7 +1479,7 @@ class EventStore {
       data: {
         'event.uuid': '${event.uuid}',
         'event.number': '${event.number}',
-        'event.remote': '${_isSourced(uuid, event)}',
+        'event.sourced': '${_isSourced(uuid, event)}',
         'aggregate.uuid': '$uuid',
         'aggregate.number': '$actual',
         'aggregate.stream': '$stream',
@@ -1520,7 +1524,7 @@ class EventStore {
         data: {
           'event.uuid': '${event.uuid}',
           'event.number': '${event.number}',
-          'event.remote': '${_isSourced(uuid, event)}',
+          'event.sourced': '${_isSourced(uuid, event)}',
           'aggregate.uuid': '$uuid',
           'aggregate.number': '$actual',
           'aggregate.stream': '$stream',
@@ -2233,24 +2237,14 @@ class SourceEventHandler {
   ) async {
     try {
       onEvent(event);
-    } catch (error, stackTrace) {
+    } catch (error) {
       final uuid = repo.toAggregateUuid(event);
-      final stream = repo.store.toInstanceStream(uuid);
-      final message = 'Failed to process ${event.type}@${event.number} from $stream';
-      final aggregate = repo.get(uuid, strict: false);
-
-      final isFatal = SourceEventErrorHandler(context).handle(
-        event,
-        skip: true,
-        repo: repo,
-        error: error,
-        message: message,
-        aggregate: aggregate,
-        stackTrace: stackTrace,
-      );
-      if (isFatal) {
-        rethrow;
+      if (SourceEventErrorHandler.isHandling(error)) {
+        // Use internal error handler
+        repo.get(uuid, strict: false);
+        return;
       }
+      rethrow;
     }
   }
 }

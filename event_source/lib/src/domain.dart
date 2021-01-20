@@ -2383,7 +2383,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
     if (exists) {
       // Catchup to head of remote event stream
-      // for given aggregate- Setting strict to
+      // for given aggregate. Setting strict to
       // false ensures that events that throws
       // exceptions JsonPatchError and
       // EventNumberNotStrictMonotone are skipped
@@ -2518,6 +2518,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           );
         },
       );
+
       // Only replay if history or
       // snapshot exist for given uuid,
       // otherwise keep the event from
@@ -2531,11 +2532,12 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       }
       return aggregate;
     }
-    return aggregate?._catchup(
+    aggregate?._catchup(
       this,
       strict: strict,
       context: context,
-    ) as T;
+    );
+    return aggregate;
   }
 
   /// Get all aggregate roots.
@@ -2930,6 +2932,10 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     // Calculate number of events trailing behind actual head of applied remote events
     final skip = _headIndex + 1;
     final take = _applied.values.skip(skip).takeWhile((e) => e.remote).length;
+
+    // Ensure base is up to date
+    _toBase();
+
     // Same as base?
     if (_headIndex + take == _baseIndex) {
       // Cleanup in case of large state
@@ -3166,7 +3172,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
 
   /// Load events from history.
   @protected
-  AggregateRoot _replay(Repository repo, {@required bool strict, Context context}) {
+  void _replay(Repository repo, {@required bool strict, Context context}) {
     final events = repo.store.get(uuid);
     _reset(repo);
     final offset = number;
@@ -3199,18 +3205,22 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         }
       }
     });
-
-    return this;
   }
 
   /// Catchup to head of remote event stream.
   @protected
-  AggregateRoot _catchup(Repository repo, {@required bool strict, Context context}) {
-    // Get events applied since last _apply or _catchup
-    final added = repo.store.get(uuid).skip(_applied.length);
+  void _catchup(Repository repo, {@required bool strict, Context context}) {
     final offset = number;
+
+    // Update head index
+    _toHead();
+    final remote = _headIndex + 1;
+
+    // Get events from current head
+    final events = repo.store.get(uuid).skip(remote);
+
     // Only catchup from current event number
-    added?.where((event) => event.remote && event.number >= offset)?.forEach((event) {
+    events?.where((event) => event.remote && event.number >= offset)?.forEach((event) {
       try {
         _apply(
           // Must use this method to ensure previous
@@ -3239,7 +3249,6 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         }
       }
     });
-    return this;
   }
 
   /// Purge events before current snapshot
