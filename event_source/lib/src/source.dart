@@ -474,9 +474,7 @@ class EventStore {
           strict: strict,
         );
         for (var e in aggregate.applied) {
-          if (remote) {
-            assert(e.remote, 'must be remote');
-          }
+          assert(!remote || remote && e.remote, 'must be remote');
           events.add(e.toSourceEvent(
             streamId: stream,
             number: e.number,
@@ -776,7 +774,8 @@ class EventStore {
       final head = repo
           .get(
             uuid,
-            // Do not fail! Error handling will skip events automatically
+            // Do not fail! Error handling
+            // will skip events automatically
             strict: false,
             createNew: false,
           )
@@ -1015,11 +1014,14 @@ class EventStore {
       if (!sourced.add(event)) {
         if (event.remote) {
           final prev = sourced.lookup(event);
-          // Workaround for LinkedHashSet
-          // will not change when equal
-          // event is added (equality is
-          // made on type and uuid only)
-          prev.remote = true;
+          if (prev.local) {
+            // Workaround for LinkedHashSet
+            // will not change when equal
+            // event is added (equality is
+            // made on type and uuid only)
+            prev.created = event.created;
+            prev.remote = true;
+          }
         }
       }
 
@@ -1404,7 +1406,7 @@ class EventStore {
       // Since catchup is performed on get, this
       // test must be applied before event is added
       // to eventstore.
-      final isApplied = repo.contains(uuid) && repo.get(uuid, strict: false, context: context).isApplied(event);
+      final isApplied = repo.isApplied(event);
 
       // IMPORTANT: Add to eventstore before
       // applying to repository! This ensures
@@ -1420,30 +1422,76 @@ class EventStore {
         strict: true,
       );
 
-      if (isApplied) {
-        _onReplace(context, repo, uuid, stream, event, actual);
-      } else {
-        _onApply(context, repo, uuid, stream, event, actual);
-      }
+      context.debug(
+        isApplied
+            ? 'Apply ${event.type}@${event.number} to ${repo.aggregateType} ${uuid}'
+            : 'Replace ${event.type}@${event.number} in ${repo.aggregateType} ${uuid}',
+        data: {
+          'aggregate.uuid': '$uuid',
+          'aggregate.stream': '$stream',
+          'event.uuid': '${event.uuid}',
+          'event.number': '${event.number}',
+          'event.remote': '${event.remote}',
+          'event.sourced': '${_isSourced(uuid, event)}',
+          'store.aggregate.number': '$actual',
+        },
+        category: 'EventStore._onSubscriptionEvent',
+      );
 
-      if (context.isLoggable(ContextLevel.debug)) {
-        final aggregate = repo.get(uuid, createNew: false, strict: false);
+      // Do not apply when subscriptions are suspended
+      final allowAnyUpdates = !isPaused;
+
+      // Do not apply event on aggregate
+      // if an transaction exists for it
+      final allowTrxUpdates = !repo.inTransaction(uuid);
+
+      if (isApplied || allowAnyUpdates && allowTrxUpdates) {
+        // Get domain event before applying it
+        // This ensures that event contains
+        // previous equals head before it
+        // is applied.
+        final domainEvent = repo.toDomainEvent(event);
+
+        // Catch up with stream
+        final aggregate = repo.get(uuid, context: context);
+
+        if (isApplied) {
+          // Field 'created' is not stable until it is
+          // written to EventStore. This method  will
+          // apply event to aggregate which in turn
+          // calls method _setModifiers in AggregateRoot,
+          // overwriting fields _createdBy and _changedBy
+          // ensuring that the local 'created' value is
+          // replaced with the stable value.
+          aggregate.apply(domainEvent);
+        }
+
+        // Publish remotely created events.
+        // Handlers can determine events with
+        // local origin with field 'local'.
+        // Deleted data is found in field 'previous'.
+        publish([domainEvent]);
 
         context.debug(
-          'Handled ${event.type}@${event.number} to ${repo.aggregateType} ${uuid}',
+          'Handled ${event.type}@${event.number} in ${repo.aggregateType} ${uuid}',
           data: {
+            'event.type': '${event.type}',
             'event.uuid': '${event.uuid}',
             'event.number': '${event.number}',
+            'event.remote': '${event.remote}',
             'event.sourced': '${_isSourced(uuid, event)}',
             'event.applied': '$isApplied',
             'event.patches': '${event?.patches?.length}',
+            'event.previous': '${domainEvent?.previous?.length}',
             'aggregate.uuid': '$uuid',
-            'aggregate.number': '$actual',
             'aggregate.stream': '$stream',
+            'aggregate.number': '${aggregate.number}',
             'aggregate.applied': '${aggregate?.applied?.length}',
             'aggregate.skipped': '${aggregate?.skipped?.length}',
             'aggregate.tainted': '${repo.store.isTainted(uuid)}',
             'aggregate.cordoned': '${repo.store.isCordoned(uuid)}',
+            'aggregate.modification': '${aggregate.modifications}',
+            'aggregate.snapshot.number': '${aggregate.snapshot?.number}',
           },
           category: 'EventStore._onSubscriptionEvent',
         );
@@ -1455,110 +1503,6 @@ class EventStore {
 
   bool _isSourced(String uuid, SourceEvent event) {
     return _aggregates.containsKey(uuid) && _aggregates[uuid].contains(event);
-  }
-
-  /// Replace event with local 'created' value
-  ///
-  /// Field 'created' is not stable until it is
-  /// written to EventStore. This method  will
-  /// apply event to aggregate which in turn
-  /// calls method _setModifiers in AggregateRoot,
-  /// overwriting fields _createdBy and _changedBy
-  /// ensuring that the local 'created' value is
-  /// replaced with the stable value.
-  void _onReplace(
-    Context context,
-    Repository repo,
-    String uuid,
-    String stream,
-    SourceEvent event,
-    EventNumber actual,
-  ) {
-    context.debug(
-      'Replace ${event.type}@${event.number} in ${repo.aggregateType} ${uuid}',
-      data: {
-        'event.uuid': '${event.uuid}',
-        'event.number': '${event.number}',
-        'event.sourced': '${_isSourced(uuid, event)}',
-        'aggregate.uuid': '$uuid',
-        'aggregate.number': '$actual',
-        'aggregate.stream': '$stream',
-      },
-      category: 'EventStore._onReplace',
-    );
-
-    // Catch up with stream
-    final aggregate = repo.get(uuid);
-    final domainEvent = repo.toDomainEvent(event);
-    aggregate.apply(domainEvent);
-
-    // Publish remotely created events.
-    // Handlers can determine events with
-    // remote origin using the local field
-    // in each Event
-    publish([domainEvent]);
-  }
-
-  /// Apply unseen event to [AggregateRoot] with given [uuid]
-  ///
-  /// If [Aggregate] is currently in a [Transaction] that
-  /// does not allow remote updates, or subscriptions
-  /// is [pause]ed, the event is added to [store] only to
-  /// be applied later. Events will be applied when
-  /// the [Transaction] completes or when subscriptions
-  /// are [resume]ed (if not transaction is open for
-  /// given [AggregateRoot]).
-  ///
-  void _onApply(
-    Context context,
-    Repository repo,
-    String uuid,
-    String stream,
-    SourceEvent event,
-    EventNumber actual,
-  ) {
-    // Only apply events with numbers bigger then current
-    if (event.number > actual) {
-      context.debug(
-        'Apply ${event.type}@${event.number} to ${repo.aggregateType} ${uuid}',
-        data: {
-          'event.uuid': '${event.uuid}',
-          'event.number': '${event.number}',
-          'event.sourced': '${_isSourced(uuid, event)}',
-          'aggregate.uuid': '$uuid',
-          'aggregate.number': '$actual',
-          'aggregate.stream': '$stream',
-        },
-        category: 'EventStore._onApply',
-      );
-
-      // Do not apply is subscriptions are suspended
-      final allowAnyUpdates = !isPaused;
-
-      // Do not apply if a transaction exists
-      final allowTrxUpdates = !repo.inTransaction(uuid);
-
-      if (allowAnyUpdates && allowTrxUpdates) {
-        // Catch up with stream
-        final exists = repo.contains(uuid);
-        final aggregate = repo.get(uuid, context: context);
-        final domainEvent = repo.toDomainEvent(event);
-        if (!aggregate.isApplied(event)) {
-          if (exists) {
-            aggregate.apply(domainEvent);
-          }
-          // Only commit if new
-          if (aggregate.isNew) {
-            aggregate.commit();
-          }
-        }
-        // Publish remotely created events.
-        // Handlers can determine events with
-        // local origin using the local field
-        // in each Event
-        publish([domainEvent]);
-      }
-    }
   }
 
   /// Handle subscription completed
@@ -3768,6 +3712,9 @@ class _EventStoreSubscriptionControllerImpl {
   /// await in it's callback method.
   final _readQueue = StreamRequestQueue<FeedResult>();
 
+  /// Get canonical stream name
+  String get canonicalStream => [stream, if (group != null) group].join('/');
+
   Stream<SourceEvent> pull({
     @required String stream,
     EventNumber number = EventNumber.last,
@@ -3847,7 +3794,7 @@ class _EventStoreSubscriptionControllerImpl {
     try {
       logger.fine(
         '${_isPaused ? 'Resumed' : 'Started'} '
-        '${_strategy == null ? 'pull' : enumName(_strategy)} subscription on stream: $stream',
+        '${_strategy == null ? 'pull' : enumName(_strategy)} subscription at $canonicalStream@$_current',
       );
       if (_isPaused) {
         _resume();
@@ -3875,11 +3822,11 @@ class _EventStoreSubscriptionControllerImpl {
         },
       );
       logger.fine(
-        'Listen for events in subscription $name starting from number $_current',
+        'Listen for events from $canonicalStream@$_current',
       );
     } catch (error, stackTrace) {
       _onFatal(
-        'Failed to start timer for subscription $name, error: $error',
+        'Failed to start timer for subscription at $canonicalStream@$_current, error: $error',
         error,
         stackTrace,
       );
@@ -3888,14 +3835,14 @@ class _EventStoreSubscriptionControllerImpl {
 
   void _onFatal(String message, Object error, StackTrace stackTrace) {
     _stopTimer();
+    logger.network(message, error, stackTrace);
     controller.addError(error, stackTrace);
   }
 
   void _pauseTimer() {
     _isPaused = true;
-
     logger.fine(
-      'Paused ${_strategy == null ? 'pull' : enumName(_strategy)} subscription timer for $name',
+      'Pausing ${_strategy == null ? 'pull' : enumName(_strategy)} subscription timer at $canonicalStream@$_current',
     );
     _timer?.cancel();
     _timer = null;
@@ -3903,7 +3850,7 @@ class _EventStoreSubscriptionControllerImpl {
 
   void _stopTimer() {
     logger.fine(
-      'Stop ${_strategy == null ? 'pull' : enumName(_strategy)} subscription timer for $name',
+      'Stopping ${_strategy == null ? 'pull' : enumName(_strategy)} subscription timer at $canonicalStream@$_current',
     );
     _timer?.cancel();
     _timer = null;
@@ -3911,30 +3858,38 @@ class _EventStoreSubscriptionControllerImpl {
 
   Future _catchup(StreamController<SourceEvent> controller) async {
     logger.fine(
-      'Subscription $name catching up from number $_number',
+      'Subscription is catching up from $canonicalStream@$_number',
     );
 
     FeedResult feed;
     var fetched = 0;
     do {
       feed = await _readNext();
-      fetched = fetched + (feed?.atomFeed?.entries?.length ?? 0);
-    } while (feed != null && feed.isOK && !(feed.headOfStream || feed.isEmpty));
+      fetched += (feed?.atomFeed?.entries?.length ?? 0);
+    } while (_shouldReadNext(feed));
 
-    if (_number < _current) {
-      // This should sum up for pull-subscriptions!
-      // If it doesn't something is wrong!
-      if (_strategy == null && (_number + fetched + (number.isNone ? 1 : 0)) != _current) {
-        throw StateError('$fetched events fetched does not match number change $_number > $_current');
-      }
+    if (_isPaused) {
       logger.fine(
-        'Subscription $name caught up from $_number to $_current',
+        'Paused ${_strategy == null ? 'pull' : enumName(_strategy)} subscription at $canonicalStream@$_current',
       );
+    } else {
+      if (_number < _current) {
+        // This should sum up for pull-subscriptions!
+        // If it doesn't something is wrong!
+        if (_strategy == null && (_number + fetched + (number.isNone ? 1 : 0)) != _current) {
+          throw StateError(
+            '$fetched events fetched from $canonicalStream@$_number does not match current $_current',
+          );
+        }
+        logger.fine(
+          'Subscription caught up from $canonicalStream @$_number to $_current',
+        );
+      }
     }
     return _current;
   }
 
-  String get name => [stream, if (group != null) group].join('/');
+  bool _shouldReadNext(FeedResult feed) => feed != null && feed.isOK && !(feed.headOfStream || feed.isEmpty);
 
   Future<FeedResult> _readNext() async {
     FeedResult feed;
@@ -3944,14 +3899,12 @@ class _EventStoreSubscriptionControllerImpl {
         await _readEventsInFeed(feed);
       }
       return _isPaused ? null : feed;
-    } catch (e, stackTrace) {
+    } catch (error, stackTrace) {
       // Only throw if running
       if (_timer != null && _timer.isActive) {
-        _stopTimer();
-        controller.addError(e, stackTrace);
-        logger.network(
-          'Failed to read next events for $name: $e: $stackTrace',
-          e,
+        _onFatal(
+          'Failed to read $pageSize next events from $canonicalStream@$_current: error: $error',
+          error,
           stackTrace,
         );
       }
@@ -3978,7 +3931,7 @@ class _EventStoreSubscriptionControllerImpl {
   Future _onResult(ReadResult result, FeedResult feed) async {
     final next = result.number + 1;
     logger.fine(
-      'Subscription $name caught up from $_current to ${result.number}, listening for $next',
+      'Subscription $canonicalStream caught up from $_current to ${result.number}, listening for $next',
     );
     _current = next;
 
@@ -4024,7 +3977,7 @@ class _EventStoreSubscriptionControllerImpl {
     final answer = await connection.writeSubscriptionAckAll(feed);
     if (answer.isAccepted == false) {
       throw SubscriptionFailed(
-        'Failed to accept events in for $name: '
+        'Failed to accept ${feed.atomFeed.entries.length} events at $canonicalStream@$_current: '
         '${answer.statusCode} ${answer.reasonPhrase}',
       );
     }

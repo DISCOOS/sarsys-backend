@@ -15,7 +15,7 @@ Future main() async {
   final harness = EventSourceHarness()
     ..withTenant()
     ..withPrefix()
-    ..withLogger(debug: false)
+    ..withLogger(debug: true)
     ..withStream(subscription, useInstanceStreams: false, useCanonicalName: false)
     ..withSubscription(subscription, group: group)
     ..withProjections(projections: ['\$by_category', '\$by_event_type'])
@@ -335,7 +335,7 @@ Future main() async {
 
     // Act - create device and add source after service has consumed TrackingCreated
     final duuid = await _createDevice(devices);
-    _addTrackingSource(
+    await _addTrackingSource(
       repo,
       tuuid,
       duuid,
@@ -381,7 +381,7 @@ Future main() async {
     );
 
     await service.dispose();
-  });
+  }, timeout: Timeout.factor(100));
 
   test('Tracking services should remove tracking on TrackingDeleted', () async {
     // Arrange

@@ -2271,6 +2271,7 @@ Future _testShouldBuildFromLastSnapshot(
   final event11 = Event(
     uuid: Uuid().v4(),
     data: {
+      'uuid': fuuid1,
       'patches': JsonPatch.diff({}, data11),
     },
     local: false,
@@ -2281,6 +2282,7 @@ Future _testShouldBuildFromLastSnapshot(
   final event12 = Event(
     uuid: Uuid().v4(),
     data: {
+      'uuid': fuuid1,
       'patches': JsonPatch.diff(data11, data12),
     },
     local: false,
@@ -2325,6 +2327,7 @@ Future _testShouldBuildFromLastSnapshot(
   final event21 = Event(
     uuid: Uuid().v4(),
     data: {
+      'uuid': fuuid2,
       'patches': JsonPatch.diff({}, data21),
     },
     local: false,
@@ -2335,6 +2338,7 @@ Future _testShouldBuildFromLastSnapshot(
   final event22 = Event(
     uuid: Uuid().v4(),
     data: {
+      'uuid': fuuid2,
       'patches': JsonPatch.diff(data21, data22),
     },
     local: false,
@@ -2553,13 +2557,13 @@ Future _assertCatchUp(FooRepository repo1, FooRepository repo2, FooRepository re
 
   // Push to repo 1
   final events = await repo1.push(foo1);
-  final domain1 = events.first;
 
   // Wait for repo 2 and 3 catching up
   await takeRemote(group.stream, 2, distinct: false);
   await group.close();
 
   // Get actual source events
+  final source1 = repo1.store.aggregateMap[uuid].last;
   final source2 = repo2.store.aggregateMap[uuid].last;
   final source3 = repo3.store.aggregateMap[uuid].last;
 
@@ -2568,6 +2572,7 @@ Future _assertCatchUp(FooRepository repo1, FooRepository repo2, FooRepository re
   final foo3 = repo3.get(uuid);
 
   // Get actual domain events
+  final domain1 = repo1.toDomainEvent(source1);
   final domain2 = repo2.toDomainEvent(source2);
   final domain3 = repo3.toDomainEvent(source3);
 
@@ -2580,12 +2585,11 @@ Future _assertCatchUp(FooRepository repo1, FooRepository repo2, FooRepository re
   expect([domain3], containsAll(events));
 
   // Assert change and state information critical for automatic merge resolution
-  expect(domain2.mapAt('changed'), equals(domain1.mapAt('changed')));
-  expect(domain2.mapAt('previous'), equals(domain1.mapAt('previous')));
   expect(domain2.listAt('patches'), equals(domain1.listAt('patches')));
-  expect(domain3.mapAt('changed'), equals(domain1.mapAt('changed')));
-  expect(domain3.mapAt('previous'), equals(domain1.mapAt('previous')));
+  expect(domain2.mapAt('previous'), equals(domain1.mapAt('previous')));
+
   expect(domain3.listAt('patches'), equals(domain1.listAt('patches')));
+  expect(domain3.mapAt('previous'), equals(domain1.mapAt('previous')));
 
   final check = repo1.get(uuid);
   expect(identical(check, foo1), isTrue);

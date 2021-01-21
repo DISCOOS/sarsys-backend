@@ -302,7 +302,7 @@ class Context {
 
     // Build log-line postfix
     final postfix = StringBuffer();
-    if (context != null) {
+    if (debug && context != null) {
       final event = context._causes.last;
       final category = '${prefix}${event.category}';
       event.data.forEach((key, value) {

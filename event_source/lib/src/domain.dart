@@ -835,12 +835,22 @@ class Transaction {
   @override
   String toString() {
     return Context.toObject('$runtimeType', [
-      'seqnum: $seqnum',
-      'changes: ${_changes.map((e) => '{${e.type}: ${e.uuid}')}}',
+      'trx.seqnum: $seqnum',
+      'trx.changes.length: ${_changes?.length ?? 0}',
+      if (_changes?.firstOrNull != null)
+        'trx.changes.first: ${_changes?.firstOrNull?.type}@${_changes?.firstOrNull?.number}',
+      if (_changes?.lastOrNull != null)
+        'trx.changes.last: ${_changes?.lastOrNull?.type}@${_changes?.lastOrNull?.number}',
       Context.toObject('aggregate', [
+        'type: ${aggregate?.runtimeType}',
         'uuid: ${uuid}',
+        'number: ${aggregate?.number}',
         'modifications: ${aggregate?.modifications}',
-        'changes: ${aggregate?._localEvents?.map((e) => '{${e.type}: ${e.uuid}}')}',
+        'changes.length: ${aggregate?._localEvents?.length ?? 0}',
+        if (aggregate?._localEvents?.firstOrNull != null)
+          'changes.first: ${aggregate?._localEvents?.firstOrNull?.type}@${aggregate?._localEvents?.firstOrNull?.number}',
+        if (aggregate?._localEvents?.lastOrNull != null)
+          'changes.last: ${aggregate?._localEvents?.lastOrNull?.type}@${aggregate?._localEvents?.lastOrNull?.number}',
       ]),
     ]);
   }
@@ -1011,16 +1021,6 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         path: path,
         context: context,
       );
-      await store.reset(
-        this,
-        context: context,
-      );
-      if (_snapshot != null) {
-        await repair(
-          master: master,
-          context: context,
-        );
-      }
     }
 
     final count = await replay(
@@ -1028,6 +1028,13 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       strict: false,
       context: context,
     );
+
+    if (_snapshot != null) {
+      await repair(
+        master: master,
+        context: context,
+      );
+    }
 
     _storeSubscriptionController = await subscribe(
       context: context,
@@ -1117,18 +1124,26 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         );
         break;
       case StreamRequestCompleted:
-        final request = _checkSlowPush(
-          event as StreamRequestCompleted,
-          DurationMetric.limit,
-        );
+        final completed = event as StreamRequestCompleted;
+        final request = completed.isError
+            ? completed.request
+            : _checkSlowPush(
+                completed,
+                DurationMetric.limit,
+              );
         final trx = request.tag as Transaction;
-        context.debug(
-          'Push request ${trx.hasFailed ? 'failed after' : 'completed in'} '
+        context.log(
+          completed.isError ? ContextLevel.error : ContextLevel.debug,
+          'Push request ${completed.isError ? 'failed after' : 'completed in'} '
           '${DateTime.now().difference(request.created).inMilliseconds} ms: '
           '${trx.toTagAsString()} (${_toPressureString()})',
           category: 'Repository._onQueueEvent',
+          error: completed.result.error,
+          stackTrace: completed.result.stackTrace,
           data: {
             'trx.changes': '${trx.changes.length}',
+            if (trx.changes.isNotEmpty) 'trx.changes.last': '${trx.changes.last.type}@${trx.changes.last.number}',
+            if (trx.changes.isNotEmpty) 'trx.changes.first': '${trx.changes.first.type}@${trx.changes.first.number}',
             'trx.concurrent': '${trx.concurrent.length}',
             'trx.conflicts': '${trx.conflicting.length}',
             'trx.results': '${trx.result?.length}',
@@ -1175,13 +1190,15 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         stackTrace: stackTrace,
         category: 'Repository._onQueueError',
         data: {
-          'changes': '${trx.changes.length}',
-          'concurrent': '${trx.concurrent.length}',
-          'conflicts': '${trx.conflicting.length}',
-          'results': '${trx.result?.length}',
-          'remaining': '${trx.remaining.length}',
-          'startedAt': '${Trace.from(trx.startedAt).frames.first}',
-          'startedBy': '${trx.startedBy}',
+          'trx.changes': '${trx.changes.length}',
+          if (trx.changes.isNotEmpty) 'trx.changes.last': '${trx.changes.last.type}@${trx.changes.last.number}',
+          if (trx.changes.isNotEmpty) 'trx.changes.first': '${trx.changes.first.type}@${trx.changes.first.number}',
+          'trx.concurrent': '${trx.concurrent.length}',
+          'trx.conflicts': '${trx.conflicting.length}',
+          'trx.results': '${trx.result?.length}',
+          'trx.remaining': '${trx.remaining.length}',
+          'trx.startedAt': '${Trace.from(trx.startedAt).frames.first}',
+          'trx.startedBy': '${trx.startedBy}',
           if (trx.hasFailed) 'error': '${trx.error}',
         },
       );
@@ -1192,19 +1209,21 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       );
     } else {
       context.error(
-        'Transaction is on open: ${trx.toTagAsString()} (${_toPressureString()})',
+        'Transaction was open: ${trx.toTagAsString()} (${_toPressureString()})',
         error: error,
         stackTrace: stackTrace,
         category: 'Repository._onQueueError',
         data: {
           'cause': message,
-          'changes': '${trx.changes.length}',
-          'concurrent': '${trx.concurrent.length}',
-          'conflicts': '${trx.conflicting.length}',
-          'results': '${trx.result?.length}',
-          'remaining': '${trx.remaining.length}',
-          'startedAt': '${Trace.from(trx.startedAt).frames.first}',
-          'startedBy': '${trx.startedBy}',
+          'trx.changes': '${trx.changes.length}',
+          if (trx.changes.isNotEmpty) 'trx.changes.last': '${trx.changes.last.type}@${trx.changes.last.number}',
+          if (trx.changes.isNotEmpty) 'trx.changes.first': '${trx.changes.first.type}@${trx.changes.first.number}',
+          'trx.concurrent': '${trx.concurrent.length}',
+          'trx.conflicts': '${trx.conflicting.length}',
+          'trx.results': '${trx.result?.length}',
+          'trx.remaining': '${trx.remaining.length}',
+          'trx.startedAt': '${Trace.from(trx.startedAt).frames.first}',
+          'trx.startedBy': '${trx.startedBy}',
           if (trx.hasFailed) 'error': '${trx.error}',
         },
       );
@@ -1626,13 +1645,19 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     }
   }
 
+  /// Check if event is applied to an aggregate
+  bool isApplied(Event event) {
+    final uuid = toAggregateUuid(event);
+    return _aggregates.containsKey(uuid) ? _aggregates[uuid].isApplied(event) : false;
+  }
+
   /// Get domain event from given [event]
   ///
   /// When [strict] is true, this method
   /// throws an [EventNumberNotStrictMonotone]
   /// exception if events are not .
   ///
-  DomainEvent toDomainEvent(Event event, {bool strict = true}) {
+  DomainEvent toDomainEvent(Event event, {bool strict = true, bool diff}) {
     assert(event != null, 'event can not be null');
     final process = _processors['${event.type}'];
     if (process != null) {
@@ -1640,30 +1665,42 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
       // Check if event is already applied
       final aggregate = _aggregates[uuid];
-      final applied = aggregate.getApplied(event.uuid);
+      final applied = aggregate?.getApplied(event.uuid);
+      var previous = applied?.previous;
 
-      // Only return if creation date is equal
-      if (applied?.created == event.created) {
+      // Ensure that diff is given.
+      // If not given, diff is calculated
+      // until aggregate has caught up with
+      // last known event in remote stream
+      diff ??= previous == null && aggregate?.isBehind == true;
+
+      // Remote events are stable,
+      // no need to convert again
+      // unless diff is requested!
+      if (!diff && applied?.remote == true) {
         return applied;
       }
 
-      Map<String, dynamic> previous;
-      try {
-        // Get previous if exists in event, or
-        // use aggregate head (remote events
-        // applied only). Accessing aggregate?.head
-        // will throw if event number is not strict
-        // monotone increasing. During error handling,
-        // argument 'fail' is set to false to ensure
-        // event is generated regardless of event
-        // number evaluation.
-        previous = event.mapAt<String, dynamic>(
-          'previous',
-          defaultMap: aggregate?.head ?? {},
-        );
-      } on EventNumberNotStrictMonotone {
-        if (strict) {
-          rethrow;
+      // If event
+      if (diff && previous == null) {
+        try {
+          // Get previous if exists in event, or
+          // use aggregate head (remote events
+          // applied only). Accessing aggregate?.head
+          // will throw if event number is not strict
+          // monotone increasing. During error handling,
+          // argument 'strict' is set to false to ensure
+          // event is generated regardless of event
+          // number evaluation.
+          final head = aggregate?.head ?? {};
+          previous = event.mapAt<String, dynamic>(
+            'previous',
+            defaultMap: head,
+          );
+        } on EventNumberNotStrictMonotone {
+          if (strict) {
+            rethrow;
+          }
         }
       }
 
@@ -1681,8 +1718,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
             uuid,
             uuidFieldName,
             patches: patches,
+            previous: previous,
             index: event.elementAt<int>('index'),
-            previous: applied?.previous ?? previous,
             deleted: event.elementAt<bool>('deleted') ?? aggregate?.isDeleted,
           ),
         ),
@@ -2845,6 +2882,24 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     return baseEvent?.number ?? EventNumber.none;
   }
 
+  /// Get number of events behind last known head of remote stream.
+  /// Same as calling
+  /// ```dart
+  ///  baseEvent.number.value - headEvent.number.value;
+  /// ```
+  int get behind {
+    return isBehind
+        // Calculate number of events behind
+        ? (baseEvent?.number ?? EventNumber.none).value - (headEvent?.number?.value ?? 0)
+        : 0;
+  }
+
+  /// Check if aggregate behind last known head of remote stream
+  bool get isBehind => !isRemote;
+
+  /// Check if aggregate has caught upt with last known head of remote stream
+  bool get isRemote => baseEvent?.number == headEvent?.number;
+
   /// Get [EventNumber] of next [DomainEvent].
   ///
   /// Since [EventNumber] is 0-based, next
@@ -2890,6 +2945,12 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
       final base = Map<String, dynamic>.from(
         _base.isEmpty ? _snapshot?.data ?? {} : _base,
       );
+
+      // Restore head
+      if (_baseIndex == _headIndex) {
+        _setHead(base);
+      }
+
       final next = _toData(base, skip, take);
       _setBase(next);
     }
@@ -3210,17 +3271,18 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// Catchup to head of remote event stream.
   @protected
   void _catchup(Repository repo, {@required bool strict, Context context}) {
-    final offset = number;
-
-    // Update head index
     _toHead();
-    final remote = _headIndex + 1;
 
-    // Get events from current head
+    // Start from offset from behind remote head
+    final offset = number - behind;
+
+    // Get events from local to remote head
+    final first = (snapshot?.number?.value ?? _applied.values.firstOrNull?.number?.value ?? 0);
+    final remote = max(offset.value - first, 0);
     final events = repo.store.get(uuid).skip(remote);
 
     // Only catchup from current event number
-    events?.where((event) => event.remote && event.number >= offset)?.forEach((event) {
+    events?.where((event) => event.remote && event.number > offset)?.forEach((event) {
       try {
         _apply(
           // Must use this method to ensure previous
@@ -3372,7 +3434,6 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     @required Type emits,
     int index,
     DateTime timestamp,
-    // Map<String, dynamic> previous,
   }) =>
       _change(
         data,
@@ -3380,7 +3441,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         timestamp,
         isNew,
         index: index,
-        // previous: previous ?? this.data,
+        previous: this.data,
       );
 
   DomainEvent _change(
@@ -3389,7 +3450,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     DateTime timestamp,
     bool isNew, {
     int index,
-    // Map<String, dynamic> previous,
+    Map<String, dynamic> previous,
   }) {
     // Remove all unsupported operations
     final patches = JsonUtils.diff(
@@ -3403,7 +3464,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
               index: index,
               patches: patches,
               timestamp: timestamp,
-              // previous: isNew ? {} : previous,
+              previous: isNew ? {} : previous,
             ),
             isLocal: true,
           )
@@ -3474,7 +3535,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     int index,
     Type emits,
     DateTime timestamp,
-    // Map<String, dynamic> previous,
+    Map<String, dynamic> previous,
     List<Map<String, dynamic>> patches = const [],
   }) =>
       _process(
@@ -3488,6 +3549,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
           uuidFieldName,
           index: index,
           patches: patches,
+          previous: previous,
         ),
       );
 
@@ -3645,14 +3707,10 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
 
     // Only store terse events
     final euuid = event.uuid;
-    final terse = event.isTerse
-        ? event
-        : _toDomainEvent(
-            event.terse(),
-          );
 
     // Already applied?
     if (_applied.containsKey(euuid)) {
+      final terse = _toSafe(event, force: true);
       if (!skip) {
         _assertEqualNumber(terse, _applied[euuid].number);
       }
@@ -3672,19 +3730,33 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
       _assertNoConflicts();
       // Never skip local changes
       _patch(
-        terse,
+        event,
         skip: skip,
         isLocal: true,
       );
     } else if (!skip && isChanged) {
       // Merge concurrent remote and local changes
-      _merge(terse);
+      _merge(event);
     } else {
       // Remote change only
       _patch(
-        terse,
+        event,
         skip: skip,
         isLocal: false,
+      );
+    }
+    return event;
+  }
+
+  DomainEvent _toSafe(DomainEvent event, {bool force = false}) {
+    if (event.isTerse) {
+      return event;
+    }
+    // Remote events should
+    // always be stored as terse
+    if (force || event.remote) {
+      return _toDomainEvent(
+        event.terse(),
       );
     }
     return event;
@@ -3697,7 +3769,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     bool skip = false,
     bool strict = true,
   }) {
-    assert(event.isTerse, 'only terse events are applied');
+    assert(!isApplied(event), 'Event ${event.type}@${event.number} already applied');
 
     if (!skip) {
       if (strict) {
@@ -3727,10 +3799,11 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     if (isLocal) {
       _localEvents.add(event);
     } else {
-      _applied[event.uuid] = event;
       if (skip) {
         _skipped.add(event.uuid);
       }
+      _applied[event.uuid] = _toSafe(event);
+
       // Rebase local event numbers
       _localEvents.forEach(
         (e) => e.number++,
@@ -3779,8 +3852,6 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     DomainEvent event,
     Iterable<String> conflicts,
   ) {
-    assert(event.isTerse, 'only terse events are applied');
-
     _remoteEvents.add(event);
     _yours.addAll(event.patches);
     _conflicts.addAll(conflicts);
@@ -3816,7 +3887,6 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   }
 
   void _setModifier(DomainEvent event) {
-    assert(event.isTerse, 'only terse events are applied');
     if (_createdBy == null || _createdBy == event) {
       _createdBy = event;
       _changedBy ??= event;
@@ -3840,8 +3910,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   void _assertUuid(DomainEvent event) {
     if (toAggregateUuid(event) != uuid) {
       throw InvalidOperation(
-        'Current aggregate has $uuid, '
-        'event $event contains uuid ${toAggregateUuid(event)}',
+        '${event.type} ${event.uuid} does not contain $runtimeType $uuid, found uuid ${toAggregateUuid(event)}',
       );
     }
   }
@@ -4185,6 +4254,8 @@ abstract class MergeStrategy {
 
   final Duration maxBackoffTime;
 
+  int _attempt = 0;
+
   AggregateRoot merge(Transaction transaction);
 
   Future<Iterable<DomainEvent>> reconcile(Transaction trx) {
@@ -4192,6 +4263,7 @@ abstract class MergeStrategy {
   }
 
   Future<Iterable<DomainEvent>> _reconcileWithRetry(Transaction trx, int attempt) async {
+    _attempt = attempt;
     trx.context.debug(
       'Attempt to reconcile ${trx.repo.aggregateType} ${trx.uuid} (attempt $attempt)',
       category: 'MergeStrategy._reconcileWithRetry',
@@ -4301,6 +4373,11 @@ abstract class MergeStrategy {
           ),
         ),
       );
+
+  @override
+  String toString() {
+    return '$runtimeType{_attempt: $_attempt}';
+  }
 }
 
 /// Implements a three-way merge algorithm of concurrent modifications

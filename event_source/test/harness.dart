@@ -104,9 +104,11 @@ class EventSourceHarness {
   }
 
   Logger _logger;
+  bool _debug = false;
   EventSourceHarness withLogger({bool debug = false}) {
     _logger = Logger('$runtimeType');
     if (debug) {
+      _debug = debug;
       Logger.root.level = Level.FINE;
     }
     return this;
@@ -172,7 +174,7 @@ class EventSourceHarness {
       _logger.info('---setUp---');
       _initHiveDir(hiveDir);
       _printer = onRecord.listen(
-        (rec) => Context.printRecord(rec, debug: true),
+        (rec) => Context.printRecord(rec, debug: _debug),
       );
       for (var entry in _servers.entries) {
         await _build(entry.key, entry.value);
@@ -188,7 +190,7 @@ class EventSourceHarness {
       }
       _logger.info('---tearDown---ok');
       await Hive.deleteFromDisk();
-      hiveDir.deleteSync();
+      await hiveDir.delete(recursive: true);
       return _printer.cancel();
     });
 

@@ -241,7 +241,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
   }
 
   /// Build map of all source uuids to its tracking uuids
-  void _onTrackingCreated(TrackingCreated event, {bool replay = false}) async {
+  Future _onTrackingCreated(TrackingCreated event, {bool replay = false}) async {
     final tuuid = repo.toAggregateUuid(event);
     if (!_managed.contains(tuuid)) {
       // Ensure that tracking is persisted to this instance?
@@ -259,6 +259,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
       await _removeTracking(tuuid);
       logger.info('Deleted stale tracking $tuuid');
     }
+    return Future.value();
   }
 
   Future _removeTracking(String tuuid) async {
@@ -271,12 +272,13 @@ class TrackingService extends MessageHandler<DomainEvent> {
   }
 
   /// Stop management and remove from service
-  void _onTrackingDeleted(TrackingDeleted event, {bool replay = false}) async {
+  Future _onTrackingDeleted(TrackingDeleted event, {bool replay = false}) async {
     final tuuid = repo.toAggregateUuid(event);
     if (_managed.contains(tuuid) && !replay) {
       await _removeTracking(tuuid);
       _addToStream([event], 'Removed tracking $tuuid from service', replay: replay);
     }
+    return Future.value();
   }
 
   /// Handles invariants
@@ -296,7 +298,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
   /// when the same source is added to multiple [Tracking]
   /// instances concurrently.
   ///
-  void _onTrackingSourceAdded(TrackingSourceAdded event) async {
+  Future _onTrackingSourceAdded(TrackingSourceAdded event) async {
     final tuuid = repo.toAggregateUuid(event);
     try {
       if (managed.contains(tuuid)) {
@@ -337,20 +339,21 @@ class TrackingService extends MessageHandler<DomainEvent> {
         repo.rollback(tuuid);
       }
     }
+    return Future.value();
   }
 
   /// If [TrackingSourceRemoved] was from a [Tracking] instance
   /// managed by this [TrackingService], the state of the
   /// associated track is changed to 'detached'
-  void _onTrackingSourceRemoved(TrackingSourceRemoved event) async {
-    return await _ensureDetached(event);
+  Future _onTrackingSourceRemoved(TrackingSourceRemoved event) {
+    return _ensureDetached(event);
   }
 
   /// If [PositionEvent.source] belongs to a track managed by this
   /// [TrackingService] new position is added to attached track
   /// and a new [Tracking.point] is calculated based on current
   /// aggregation parameters.
-  void _onDevicePositionChanged(DevicePositionChanged event) async {
+  Future _onDevicePositionChanged(DevicePositionChanged event) async {
     // Only process events with remote origin
     if (event.remote) {
       final duuid = repo.toAggregateUuid(event);
@@ -369,13 +372,14 @@ class TrackingService extends MessageHandler<DomainEvent> {
         }
       }
     }
+    return Future.value();
   }
 
   /// If [PositionEvent.source] belongs to a track managed by this
   /// [TrackingService] new position is added to attached track
   /// and a new [Tracking.point] is calculated based on current
   /// aggregation parameters.
-  void _onSourcePositionChanged(PositionEvent event) async {
+  Future _onSourcePositionChanged(PositionEvent event) async {
     final suuid = repo.toAggregateUuid(event);
     if (_sources.containsKey(suuid)) {
       final tuuids = _sources[suuid].where((tuuid) => managed.contains(tuuid));
@@ -383,6 +387,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
         await _addPosition(tuuid, event);
       }
     }
+    return Future.value();
   }
 
   /// Add position to track for given source
