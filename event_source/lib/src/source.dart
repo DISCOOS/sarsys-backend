@@ -85,7 +85,9 @@ class EventStore {
     this.prefix,
     this.useInstanceStreams = true,
   })  : _snapshots = snapshots,
-        _context = Context(Logger('EventStore[${toCanonical([prefix, aggregate])}][${connection.port}]'));
+        _context = Context(Logger(
+          'EventStore[${toCanonical([prefix, aggregate])}][${connection.port}]',
+        ));
 
   /// Get canonical stream name
   static String toCanonical(List<String> segments) => segments
@@ -217,7 +219,7 @@ class EventStore {
   SnapshotModel get snapshot => _snapshot;
   SnapshotModel _snapshot;
 
-  /// Current event number for [canonicalStream]
+  /// Get number of last event in stream
   ///
   /// If AggregateRoot [uuid] is given, the aggregate
   /// instance stream number is returned. This numbers
@@ -230,6 +232,30 @@ class EventStore {
   /// If stream does not exist, [EventNumber.none] is returned.
   ///
   EventNumber current({String stream, String uuid}) {
+    return _toNumber(stream, uuid, (events) => events.last.number);
+  }
+
+  /// Get number of first event in store
+  ///
+  /// If AggregateRoot [uuid] is given, the aggregate
+  /// instance stream number is returned. This numbers
+  /// is the same as for the [canonicalStream] if
+  /// [useInstanceStreams] is false.
+  ///
+  /// If [stream] is given, this takes precedence and
+  /// returns the event number for this stream.
+  ///
+  /// If stream does not exist, [EventNumber.none] is returned.
+  ///
+  EventNumber first({String stream, String uuid}) {
+    return _toNumber(stream, uuid, (events) => events.first.number);
+  }
+
+  EventNumber _toNumber(
+    String stream,
+    String uuid,
+    EventNumber Function(Iterable<SourceEvent>) lookup,
+  ) {
     if (stream != canonicalStream) {
       final isInstance = (uuid != null || stream != null);
       if (isInstance) {
@@ -240,7 +266,7 @@ class EventStore {
         }
         if (_aggregates.containsKey(uuid)) {
           if (_aggregates[uuid].isNotEmpty) {
-            return _aggregates[uuid].last.number;
+            return lookup(_aggregates[uuid]);
           } else if (_snapshot != null) {
             // Store is reset to snapshot
             // with no events applied yet
@@ -255,13 +281,9 @@ class EventStore {
     if (_snapshot == null) {
       return EventNumber.none + _events.keys.length;
     }
-    final number = EventNumber(_snapshot.number.value);
-    final offset = _events.keys.length - _snapshot.aggregates.length;
-    if (_snapshot.isPartial) {
-      // TODO: This is wrong. Need to store position in projection as well
-      return number - min(0, _snapshot.missing - offset);
-    }
-    return number + offset;
+    // Each aggregate snapshot event is added
+    // TODO: This is wrong. Need to store position in projection as well
+    return _snapshot.number.toNumber() + _events.keys.length - _snapshot.aggregates.length - _snapshot.missing;
   }
 
   /// Replay events on given [repo].
@@ -295,8 +317,8 @@ class EventStore {
 
       bus.replayStarted<T>();
 
-      // Clear current state
-      final offsets = await reset(
+      // Reset to
+      await reset(
         repo,
         uuids: uuids,
         strict: strict,
@@ -307,6 +329,9 @@ class EventStore {
       // Check state after reset
       final isPartial = repo.hasSnapshot && repo.snapshot.isPartial;
       final snapshot = repo.hasSnapshot ? (repo.snapshot.isPartial ? '(partial snapshot) ' : '(snapshot) ') : '';
+      if (isPartial) {
+        uuids += repo.snapshot.aggregates.keys.toList();
+      }
 
       context.info(
         "Replay events on ${uuids.isEmpty ? 'all' : uuids.length} ${repo.aggregateType}s $snapshot",
@@ -314,11 +339,13 @@ class EventStore {
       );
 
       // Catchup on instance streams first?
-      if ((isPartial || uuids.isNotEmpty) && useInstanceStreams) {
-        for (var uuid in offsets.keys) {
+      if (uuids.isNotEmpty && useInstanceStreams) {
+        for (var uuid in uuids) {
           if (_isDisposed) break;
           final tic = DateTime.now();
-          final offset = offsets[uuid];
+          final offset = repo.hasSnapshot
+              ? (repo.snapshot.aggregates[uuid]?.number?.toNumber() ?? EventNumber.none) + 1
+              : EventNumber.first;
           final stream = toInstanceStream(uuid);
           final events = await _catchup(
             repo,
@@ -336,15 +363,17 @@ class EventStore {
         }
       }
 
-      var streams = offsets.length;
+      var streams = uuids.length;
 
       if (!_isDisposed && uuids.isEmpty) {
         final tic = DateTime.now();
-        // Start from first event after snapshot
-        final offset = _toStreamOffset(
-          repo,
-          stream: canonicalStream,
-        );
+
+        // Start from first event after snapshot or from first event in stream
+        final offset = repo.hasSnapshot
+            // Adjust offset for missing events
+            // TODO: This is wrong. Need to store position in projection as well
+            ? repo.snapshot.number.toNumber() - repo.snapshot.missing + 1
+            : EventNumber.first;
 
         // Fetch all events from canonical stream
         final events = await _catchup(
@@ -380,7 +409,7 @@ class EventStore {
   }
 
   /// Reset repository to remote state.
-  /// This will all local changes.
+  /// This remove will all local changes.
   Future<Map<String, EventNumber>> reset(
     Repository repo, {
     String suuid,
@@ -431,11 +460,12 @@ class EventStore {
       final existing = _snapshot.aggregates.keys.toList();
       final keep = uuids.isNotEmpty ? uuids : repo.snapshot.aggregates.keys;
       final base = existing..retainWhere((uuid) => keep.contains(uuid));
-      repo.purge(
-        uuids: uuids,
-        context: context,
-      );
       context = _useContext(context);
+      // Purge events in store
+      // first to ensure that
+      // subscription offsets
+      // are calculated
+      // correctly later on
       _purge(
         repo,
         base,
@@ -443,58 +473,66 @@ class EventStore {
         remote: false,
         strict: strict,
       );
+      repo.purge(
+        uuids: uuids,
+        context: context,
+      );
     }
     return numbers;
   }
 
-  void _purge(
+  int _purge(
     Repository repo,
     Iterable<String> base,
     Map<String, EventNumber> numbers, {
     @required bool remote,
     @required bool strict,
   }) {
-    final hasSnapshot = repo.hasSnapshot;
+    var count = 0;
+    final snapshot = repo.snapshot;
     for (var uuid in base) {
-      // Remove all events for given aggregate
+      final stream = toInstanceStream(uuid);
+      // Remove events before
       // ignore: prefer_collection_literals
       final events = _aggregates[uuid] ?? LinkedHashSet<SourceEvent>();
-
-      // Find all events before snapshot
-      final before = events;
-      for (var event in before) {
-        _events.remove(event.uuid);
-      }
-
-      events.clear();
-      final stream = toInstanceStream(uuid);
-      if (hasSnapshot) {
-        final aggregate = repo.get(
-          uuid,
-          strict: strict,
-        );
-        for (var e in aggregate.applied) {
-          assert(!remote || remote && e.remote, 'must be remote');
-          events.add(e.toSourceEvent(
-            streamId: stream,
-            number: e.number,
-            uuidFieldName: repo.uuidFieldName,
-          ));
-          _events[e.uuid] = uuid;
+      if (snapshot != null) {
+        final aggregate = snapshot.aggregates[uuid];
+        final first = aggregate?.number?.toNumber();
+        if (first != null) {
+          // Remove all events before snapshot?
+          final before = events.where((e) => e.number < first).toList();
+          before.forEach((e) {
+            if (_events.remove(e.uuid) != null) {
+              count++;
+            }
+            events.remove(e);
+          });
+          if (events.isEmpty) {
+            final e = aggregate.deletedBy ?? aggregate.changedBy;
+            events.add(SourceEvent(
+              data: e.data,
+              type: e.type,
+              uuid: e.uuid,
+              local: e.local,
+              streamId: stream,
+              number: e.number,
+              created: e.created,
+            ));
+            _events[e.uuid] = uuid;
+          }
         }
       }
 
-      // Register aggregate in store (needed
-      // to calculate event number later)
+      // Ensure list of events exists
       _aggregates[uuid] = events;
 
-      // Start from first event (tail or snapshot)
       final offset = _toStreamOffset(
         repo,
         stream: stream,
       );
       numbers[uuid] = offset;
     }
+    return count;
   }
 
   /// Tainted aggregates.
@@ -882,11 +920,6 @@ class EventStore {
     assert(context != null, 'context must be given');
     assert(isPaused, 'subscriptions must be paused');
 
-    // Lower bound is last known event number in stream
-    final actual = EventNumber(
-      max(offset.value, current(stream: stream).value),
-    );
-
     final uuid = toAggregateUuid(stream);
     context.debug(
       'Catchup on events from $stream@$offset',
@@ -894,7 +927,6 @@ class EventStore {
         'stream.id': '$stream',
         'aggregate.uuid': '$uuid',
         'stream.number.offset': '$offset',
-        'stream.number.actual': '$actual',
         'stream.number.current': '${current(stream: stream)}',
       },
       category: 'EventStore._catchUp',
@@ -903,7 +935,7 @@ class EventStore {
     return _readAllEvents(
       stream,
       master: master,
-      offset: actual,
+      offset: offset,
       context: context,
       onResult: (result) => _onRead(
         context,
@@ -972,20 +1004,28 @@ class EventStore {
   }) {
     var idx = 0;
     final stream = toInstanceStream(uuid);
-    final offset = current(stream: stream);
-    var previous = offset;
+    final remote = current(stream: stream);
+    final offset = first(uuid: uuid);
+    var previous = remote;
 
     final sourced = _aggregates.putIfAbsent(
       uuid,
       () => LinkedHashSet<SourceEvent>(),
     );
 
-    for (var event in events) {
+    // Only apply events with event
+    // number equal to or higher than first
+    // event in store for each stream. This
+    // prevents events being added again
+    // during replay that was purged earlier
+    // on save.
+    //
+    for (var event in events.where((e) => e.number >= offset)) {
       if (strict) {
-        // Only check local events. If
-        // event is remote, we should
-        // skip it instead later when
-        // applying to aggregate.
+        // Only check local events (remote
+        // events are guaranteed to always have
+        // monotone increasing event numbers)
+        //
         if (event.local) {
           // Event numbers in instance streams SHOULD ALWAYS
           // be sorted in an ordered monotone incrementing
@@ -997,7 +1037,8 @@ class EventStore {
           // need to store these states in each event. Do not
           // evaluate events that exist locally only by skipping
           // to first event with number bigger then offset.
-          if (event.number <= offset) {
+          //
+          if (event.number <= remote) {
             previous = _assertStrictMonotone(
               uuid: uuid,
               next: event,

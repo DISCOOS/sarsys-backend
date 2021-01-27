@@ -289,11 +289,9 @@ class Context {
     // Build log-line prefix
     final buffer = StringBuffer();
     buffer.write('${record.time.toIso8601String()}: ${record.level.name}: ');
-    if (debug) {
-      buffer.write('${record.loggerName}: ');
-      if (Platform.environment.containsKey('POD_NAME')) {
-        buffer.write('${Platform.environment['POD_NAME']}: ');
-      }
+    buffer.write('${record.loggerName}: ');
+    if (Platform.environment.containsKey('POD_NAME')) {
+      buffer.write('${Platform.environment['POD_NAME']}: ');
     }
     if (context != null) {
       buffer.write('contextId: $contextId: ');
@@ -302,7 +300,7 @@ class Context {
 
     // Build log-line postfix
     final postfix = StringBuffer();
-    if (debug && context != null) {
+    if (context != null && debug) {
       final event = context._causes.last;
       final category = '${prefix}${event.category}';
       event.data.forEach((key, value) {

@@ -105,11 +105,11 @@ class EventSourceHarness {
 
   Logger _logger;
   bool _debug = false;
-  EventSourceHarness withLogger({bool debug = false}) {
+  EventSourceHarness withLogger({bool debug = false, Level level = Level.INFO}) {
     _logger = Logger('$runtimeType');
     if (debug) {
       _debug = debug;
-      Logger.root.level = Level.FINE;
+      Logger.root.level = level;
     }
     return this;
   }

@@ -884,7 +884,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           (type, process) => MapEntry('$type', process),
         )),
         maxBackoffTime = Duration(seconds: maxBackoffTimeSeconds) {
-    _context = Context(Logger('Repository[${typeOf<T>()}:$hashCode]'));
+    _context = Context(Logger(
+      'Repository[${typeOf<T>()}][${store.canonicalStream}][${store.connection.port}]',
+    ));
   }
 
   final EventStore store;
@@ -1380,14 +1382,14 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         context: context,
       );
       if (uuids.isEmpty) {
-        if (events == 0) {
+        if (_aggregates.isEmpty) {
           context.info(
-            "Stream '${store.canonicalStream}' is empty",
+            "Replayed 0 events on repository $aggregateType (stream '${store.canonicalStream}' is empty)",
             category: 'Repository.replay',
           );
         } else {
           context.info(
-            'Repository loaded with ${_aggregates.length} aggregates',
+            'Replayed $events events on repository $aggregateType',
             category: 'Repository.replay',
           );
         }
@@ -3277,7 +3279,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     final offset = number - behind;
 
     // Get events from local to remote head
-    final first = (snapshot?.number?.value ?? _applied.values.firstOrNull?.number?.value ?? 0);
+    final first = (_applied.values.firstOrNull?.number?.value ?? snapshot?.number?.value ?? 0);
     final remote = max(offset.value - first, 0);
     final events = repo.store.get(uuid).skip(remote);
 

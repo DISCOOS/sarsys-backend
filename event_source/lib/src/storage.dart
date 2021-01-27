@@ -29,7 +29,9 @@ class Storage {
   })  : _keep = keep ?? 10,
         _automatic = automatic ?? true,
         _threshold = threshold ?? 1000,
-        _context = Context(Logger('Storage')) {
+        _context = Context(
+          Logger('Storage[$type]'),
+        ) {
     _eventSubscriptions.add(_saveQueue.onEvent().listen(
           (e) => _onQueueEvent('Save', e),
         ));

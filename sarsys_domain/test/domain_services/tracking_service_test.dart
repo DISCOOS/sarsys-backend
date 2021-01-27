@@ -381,7 +381,7 @@ Future main() async {
     );
 
     await service.dispose();
-  }, timeout: Timeout.factor(100));
+  });
 
   test('Tracking services should remove tracking on TrackingDeleted', () async {
     // Arrange
