@@ -64,15 +64,15 @@ class Message {
   T elementAt<T>(String path) => data.elementAt(path);
 
   /// Get [List] of type [T] at given path
-  List<T> listAt<T>(String path) {
+  List<T> listAt<T>(String path, {List<T> defaultList}) {
     final list = data.elementAt(path);
-    return list == null ? null : List<T>.from(list as List);
+    return list == null ? defaultList : List<T>.from(list as List);
   }
 
   /// Get [Map] with keys of type [S] and values of type [T] at given path
-  Map<S, T> mapAt<S, T>(String path) {
+  Map<S, T> mapAt<S, T>(String path, {Map<S, T> defaultMap}) {
     final map = data.elementAt(path);
-    return map == null ? null : Map<S, T>.from(map as Map);
+    return map == null ? defaultMap : Map<S, T>.from(map as Map);
   }
 
   @override
@@ -608,6 +608,55 @@ class ExpectedVersion {
   }
 
   EventNumber toNumber() => EventNumber(value);
+}
+
+class DurationMetric {
+  static const limit = 50;
+
+  const DurationMetric()
+      : count = 0,
+        duration = Duration.zero,
+        durationMean = Duration.zero;
+
+  const DurationMetric._({
+    this.count = 0,
+    this.duration = Duration.zero,
+    this.durationMean = Duration.zero,
+  });
+
+  static const DurationMetric zero = DurationMetric._();
+
+  final int count;
+  final Duration duration;
+  final Duration durationMean;
+
+  /// Calculate metric from difference between [tic] and [DateTime.now()]
+  DurationMetric now(DateTime tic) => calc(DateTime.now().difference(tic));
+
+  /// Calculate metric from difference between [tic] and [toc]
+  DurationMetric from(DateTime tic, DateTime toc) => calc(toc.difference(tic));
+
+  /// Calculate metric.
+  DurationMetric calc(Duration duration) {
+    final total = count + 1;
+    return DurationMetric._(
+      count: total,
+      duration: duration,
+
+      /// Calculate iterative mean, see
+      /// http://www.heikohoffmann.de/htmlthesis/node134.html
+      durationMean: durationMean +
+          Duration(
+            milliseconds: 1 ~/ (total) * (duration.inMilliseconds - durationMean.inMilliseconds),
+          ),
+    );
+  }
+
+  Map<String, dynamic> toMeta() => {
+        'count': count,
+        'duration': '${duration.inMilliseconds} ms',
+        'durationMean': '${durationMean.inMilliseconds} ms',
+      };
 }
 
 /// Get enum value name

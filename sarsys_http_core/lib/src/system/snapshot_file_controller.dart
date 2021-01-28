@@ -1,4 +1,3 @@
-import 'package:hive/hive.dart';
 import 'package:mime/mime.dart';
 import 'package:filesize/filesize.dart';
 import 'package:sarsys_http_core/sarsys_http_core.dart';
@@ -144,21 +143,23 @@ class SnapshotFileController extends ResourceController {
   }
 
   Future<Response> onUpload(
-    Repository repository,
+    Repository repo,
     String expand,
   ) async {
-    final snapshots = repository.store.snapshots;
+    final snapshots = repo.store.snapshots;
     if (snapshots == null) {
       return Response.badRequest(
         body: 'Snapshots not activated',
       );
     }
 
-    // Prevent snapshots being
+    // Prevent writes and
+    // snapshots being
     // saved during upload
     final old = snapshots.automatic;
     snapshots.automatic = false;
-    repository.store.pause();
+    repo.lock();
+    repo.store.pause();
 
     // Take backup of hive files
     final postfix = '${DateTime.now().millisecondsSinceEpoch}';
@@ -166,6 +167,9 @@ class SnapshotFileController extends ResourceController {
     _backupFile(snapshots, postfix, 'lock');
 
     try {
+      // Wait for storage to become idle
+      await snapshots.onIdle;
+
       // Prepare for receiving data from client
       final boundary = request.raw.headers.contentType.parameters['boundary'];
       final transformer = MimeMultipartTransformer(boundary);
@@ -175,81 +179,109 @@ class SnapshotFileController extends ResourceController {
       final bodyStream = Stream.fromIterable([bodyBytes]);
       final parts = await transformer.bind(bodyStream).toList();
 
+      if (parts.length > 1) {
+        return Response.badRequest(
+          body: 'Unable to load snapshot data: Multiple parts not allowed',
+        );
+      }
+
       // Fetch all parts
-      for (var part in parts) {
-        final content = await part.toList();
+      final content = await parts.first.toList();
+      final name = '${repo.aggregateType.toLowerCase()}-upload-${DateTime.now().millisecondsSinceEpoch}.hive';
+      final path = '${Directory.systemTemp.path}/$name';
+      final file = File(path);
 
-        final name = _toFileName(part);
-        final path = '${Directory.systemTemp.path}/$name';
-        final file = File(path);
+      final length = content.length;
+      for (var i = 0; i < length; i++) {
+        final item = content[i];
+        logger.info('Snapshots uploading... ${(i ~/ length)}% (${filesize(item.length)})');
+        await file.writeAsBytes(item);
+      }
+      final size = file.statSync().size;
+      logger.info('Snapshots uploading... 100% (${filesize(size)})');
 
-        final length = content.length;
-        for (var i = 0; i < length; i++) {
-          final item = content[i];
-          logger.info('Snapshots uploading... ${(i ~/ length)}% (${filesize(item.length)})');
-          await file.writeAsBytes(item);
-        }
-        final size = file.statSync().size;
-        logger.info('Snapshots uploading... 100% (${filesize(size)})');
+      // Wait for storage to become idle
+      await snapshots.onIdle;
 
+      final isValid = await snapshots.validate(file);
+      if (isValid) {
         // Overwrite snapshots file
         await file.copy(hivePath);
         file.deleteSync();
+      } else {
+        return Response.badRequest(
+          body: 'Unable to load snapshot data: Invalid file',
+        );
       }
 
       // Attempt to reload
-      final reloaded = await _reload(repository);
+      final reloaded = await _reload(repo);
 
-      if (!reloaded) {
-        final restored = await _restore(
-          repository,
-          postfix,
-        );
-        if (!restored) {
-          return serverError(
-            request,
-            'Unable to restore from backup',
-            Trace.current(),
-          );
-        }
-        return Response.badRequest(
-          body: 'Was not able to load snapshot data',
-        );
-      }
-
-      return Response.ok(
-        snapshots.toMeta(
-          current: repository.number,
-          type: repository.aggregateType,
-          uuid: repository.snapshot?.uuid,
-          data: shouldExpand(expand, 'data'),
-          items: shouldExpand(expand, 'items'),
-        ),
-      );
-    } on HiveError catch (error, stackTrace) {
-      return serverError(
-        request,
-        error,
+      return reloaded
+          ? Response.ok(
+              await snapshots.toMeta(
+                repo.snapshot?.uuid,
+                current: repo.number,
+                type: repo.aggregateType,
+                data: shouldExpand(expand, 'data'),
+                items: shouldExpand(expand, 'items'),
+              ),
+            )
+          : _doRestore(
+              repo,
+              postfix,
+            );
+    } catch (error, stackTrace) {
+      return _doRestore(
+        repo,
+        postfix,
         stackTrace,
       );
     } finally {
       snapshots.automatic = old;
-      repository.store.resume();
+      repo.store.resume();
+      repo.lock();
+    }
+  }
+
+  Future<Response> _doRestore(Repository repo, String postfix, [StackTrace stackTrace]) async {
+    try {
+      await _restore(
+        repo,
+        postfix,
+      );
+      return Response.badRequest(
+        body: 'Unable to load snapshot data',
+      );
+    } catch (error, stackTrace) {
+      return serverError(
+        request,
+        'Unable to restore from backup: $error',
+        stackTrace == null ? Trace.current() : Trace.from(stackTrace),
+      );
     }
   }
 
   Future<bool> _restore(Repository repo, String postfix) {
-    _restoreFile(repo.store.snapshots, postfix, 'hive');
+    if (!_restoreFile(repo.store.snapshots, postfix, 'hive')) {
+      return Future.value(false);
+    }
     _restoreFile(repo.store.snapshots, postfix, 'lock');
     return _reload(repo);
   }
 
   Future<bool> _reload(Repository repo) async {
-    final path = _toHiveFilePath(repo.store.snapshots, 'hive');
+    final snapshots = repo.store.snapshots;
+    final path = _toHiveFilePath(snapshots, 'hive');
     final size = File(path).statSync().size;
-    await repo.store.snapshots.unload();
-    await repo.store.snapshots.load();
-    await repo.replay();
+    final snapshot = await repo.load(
+      strict: false,
+    );
+    if (snapshot != null) {
+      await repo.replay(
+        strict: false,
+      );
+    }
     // Crash recovery has been
     // performed if file size has
     // changed (Hive changes it)
@@ -271,28 +303,30 @@ class SnapshotFileController extends ResourceController {
     return hivePath;
   }
 
-  void _restoreFile(Storage snapshots, String postfix, String extension) {
+  bool _restoreFile(Storage snapshots, String postfix, String extension) {
     final hivePath = _toHiveFilePath(snapshots, extension);
     final backupPath = _toBackupFilePath(snapshots, postfix, extension);
     final backupFile = File(backupPath);
-    if (backupFile.existsSync()) {
+    final exists = backupFile.existsSync();
+    if (exists) {
       backupFile.copySync(hivePath);
       backupFile.deleteSync();
     }
+    return exists;
   }
 
-  String _toFileName(MimeMultipart part) {
-    // TODO: Validate mime content!
-
-    final tokens = part.headers['content-disposition'].split(';');
-    String name;
-    for (var i = 0; i < tokens.length; i++) {
-      if (tokens[i].contains('filename')) {
-        name = tokens[i].substring(tokens[i].indexOf('=') + 2, tokens[i].length - 1);
-      }
-    }
-    return name;
-  }
+  // String _toFileName(MimeMultipart part) {
+  //   // TODO: Validate mime content!
+  //
+  //   final tokens = part.headers['content-disposition'].split(';');
+  //   String name;
+  //   for (var i = 0; i < tokens.length; i++) {
+  //     if (tokens[i].contains('filename')) {
+  //       name = tokens[i].substring(tokens[i].indexOf('=') + 2, tokens[i].length - 1);
+  //     }
+  //   }
+  //   return name;
+  // }
 
   //////////////////////////////////
   // Documentation

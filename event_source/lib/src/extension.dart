@@ -100,11 +100,11 @@ extension IterableX<T> on Iterable<T> {
 }
 
 extension LoggerX on Logger {
-  static const CONNECTION_CLOSED = 'Connection closed before full header was received';
+  static const CONNECTION_CLOSED = 'connection closed before full header was received';
 
   /// Decide between [Level.WARNING] and [Level.SEVERE]
   void network(String message, Object error, StackTrace stackTrace) {
-    final level = '$error'.contains(CONNECTION_CLOSED) ? Level.WARNING : Level.SEVERE;
+    final level = '$error'.toLowerCase().contains(CONNECTION_CLOSED) ? Level.WARNING : Level.SEVERE;
     log(
       level,
       message,

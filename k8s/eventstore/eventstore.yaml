@@ -6,7 +6,7 @@ nodeSelector:
 resources:
   requests:
    cpu: 800m
-   memory: 2Mi
+   memory: 2Gi
   limits:
     cpu: 1600m
     memory: 3Gi

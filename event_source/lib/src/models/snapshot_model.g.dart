@@ -9,14 +9,13 @@ part of 'snapshot_model.dart';
 SnapshotModel _$SnapshotModelFromJson(Map json) {
   return SnapshotModel(
     uuid: json['uuid'] as String,
+    type: json['type'] as String,
     number: json['number'] == null
         ? null
         : EventNumberModel.fromJson((json['number'] as Map)?.map(
             (k, e) => MapEntry(k as String, e),
           )),
-    timestamp: json['timestamp'] == null
-        ? null
-        : DateTime.parse(json['timestamp'] as String),
+    timestamp: json['timestamp'] == null ? null : DateTime.parse(json['timestamp'] as String),
     aggregates: fromAggregateRootsJson(json['aggregates']),
   );
 }

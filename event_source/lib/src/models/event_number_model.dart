@@ -22,6 +22,8 @@ class EventNumberModel extends Equatable {
   /// Declare support for serialization to JSON
   Map<String, dynamic> toJson() => _$EventNumberModelToJson(this);
 
+  EventNumber toNumber() => value == null ? EventNumber.none : EventNumber(value);
+
   @override
   List<Object> get props => [value];
 }

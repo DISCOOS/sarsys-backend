@@ -51,33 +51,49 @@ LinkedHashMap<String, AggregateRootModel> fromAggregateRootsJson(dynamic aggrega
 LinkedHashMap<String, dynamic> toAggregateRootsJson(Map<String, AggregateRootModel> aggregates) =>
     toLinkedHashMapJson(aggregates.map((key, value) => MapEntry(key, value.toJson())));
 
-SnapshotModel toSnapshot(Repository repo, {DateTime timestamp}) => SnapshotModel(
+SnapshotModel toSnapshot(Repository repo, {DateTime timestamp}) =>
+    repo.snapshot?.copyWith(
+      repo,
       uuid: Uuid().v4(),
+      timestamp: timestamp,
+      type: '${repo.aggregateType}',
+    ) ??
+    SnapshotModel(
+      uuid: Uuid().v4(),
+      type: '${repo.aggregateType}',
       aggregates: toAggregateRoots(repo),
       timestamp: timestamp ?? DateTime.now(),
       number: EventNumberModel.from(repo.number),
     );
 
+/// Only aggregates with base is included
 LinkedHashMap<String, AggregateRootModel> toAggregateRoots(Repository repo) =>
-    LinkedHashMap.fromEntries(repo.aggregates.map(toAggregateRoot).map(
+    LinkedHashMap.fromEntries(repo.aggregates.where((a) => !a.isNew).map(toAggregateRoot).map(
           (a) => MapEntry(a.uuid, a),
         ));
 
 LinkedHashMap<String, AggregateRootModel> replaceAggregateRoot(
-  Map<String, AggregateRootModel> aggregates,
-  AggregateRoot root,
+  LinkedHashMap<String, AggregateRootModel> aggregates,
+  AggregateRoot aggregate,
 ) {
-  final model = toAggregateRoot(root);
-  final updated = LinkedHashMap<String, AggregateRootModel>.from(aggregates);
-  updated.update(root.uuid, (_) => model, ifAbsent: () => model);
-  return updated;
+  final prev = aggregates[aggregate.uuid];
+  if (prev == null || prev.number.value < aggregate.baseEvent.number.value) {
+    final model = toAggregateRoot(aggregate);
+    aggregates.update(aggregate.uuid, (_) => model, ifAbsent: () => model);
+  }
+  return aggregates;
 }
 
+/// Store remote state only!
 AggregateRootModel toAggregateRoot(AggregateRoot root) => AggregateRootModel(
       uuid: root.uuid,
-      data: root.data,
+      data: root.head,
       createdBy: root.createdBy,
-      changedBy: root.changedBy,
+      changedBy: root.baseEvent,
       deletedBy: root.deletedBy,
-      number: EventNumberModel.from(root.number),
+      // Since only aggregates
+      // confirmed to exist remotely
+      // should be persisted, BaseEvent
+      // MUST exist!
+      number: EventNumberModel.from(root.baseEvent.number),
     );

@@ -18,6 +18,7 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
           ],
           actions: [
             'save',
+            'configure',
           ],
           config: config,
           context: context,
@@ -52,9 +53,9 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
       }
 
       return Response.ok(
-        snapshots.toMeta(
+        await snapshots.toMeta(
+          repository.snapshot?.uuid,
           type: repository.aggregateType,
-          uuid: repository.snapshot?.uuid,
           data: shouldExpand(expand, 'data'),
           items: shouldExpand(expand, 'items'),
         ),
@@ -85,6 +86,12 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
       }
       final command = assertCommand(body);
       switch (command) {
+        case 'configure':
+          return _doConfigure(
+            repository,
+            body,
+            expand,
+          );
         case 'save':
           return _doSave(
             repository,
@@ -103,11 +110,11 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
     }
   }
 
-  Response _doSave(
+  Future<Response> _doConfigure(
     Repository repository,
     Map<String, dynamic> body,
     String expand,
-  ) {
+  ) async {
     final snapshots = repository.store.snapshots;
     if (snapshots == null) {
       return Response.badRequest(
@@ -127,26 +134,64 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
       'params/keep',
       defaultValue: snapshots.keep,
     );
+
+    // Configure
     snapshots
       ..keep = keep
       ..automatic = automatic
       ..threshold = threshold;
+
     logger.info(
       'Snapshots configured: automatic: $automatic, keep: $keep, threshold, $threshold',
     );
+    return Response.ok(
+      await snapshots.toMeta(
+        repository.snapshot?.uuid,
+        current: repository.number,
+        type: repository.aggregateType,
+        data: shouldExpand(expand, 'data'),
+        items: shouldExpand(expand, 'items'),
+      ),
+    );
+  }
+
+  Future<Response> _doSave(
+    Repository repository,
+    Map<String, dynamic> body,
+    String expand,
+  ) async {
+    final snapshots = repository.store.snapshots;
+    if (snapshots == null) {
+      return Response.badRequest(
+        body: 'Snapshots not activated',
+      );
+    }
+
+    final force = body.elementAt<bool>(
+      'params/force',
+      defaultValue: false,
+    );
     final prev = repository.snapshot?.uuid;
-    final next = repository.save().uuid;
-    return prev == next
-        ? Response.noContent()
-        : Response.ok(
-            snapshots.toMeta(
-              uuid: next,
-              current: repository.number,
-              type: repository.aggregateType,
-              data: shouldExpand(expand, 'data'),
-              items: shouldExpand(expand, 'items'),
-            ),
-          );
+    final next = repository.save(force: force).uuid;
+    if (prev == next) {
+      logger.info(
+        'Snapshot not saved (force was $force)',
+      );
+      return Response.noContent();
+    }
+    await repository.store.snapshots.onIdle;
+    logger.info(
+      'Snapshot saved (force was $force)',
+    );
+    return Response.ok(
+      await snapshots.toMeta(
+        next,
+        current: repository.number,
+        type: repository.aggregateType,
+        data: shouldExpand(expand, 'data'),
+        items: shouldExpand(expand, 'items'),
+      ),
+    );
   }
 
   //////////////////////////////////
@@ -155,33 +200,31 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
 
   @override
   Map<String, APISchemaObject> documentCommandParams(APIDocumentContext context) => {
-        'keep': APISchemaObject.integer()..description = 'Number of snapshots to keep (oldest are deleted)',
-        'threshold': APISchemaObject.integer()..description = 'Snapshot threshold',
+        'force': APISchemaObject.boolean()..description = '[save] ]Control flag forcing save',
+        'keep': APISchemaObject.integer()..description = '[configure] Number of snapshots to keep (oldest are deleted)',
+        'threshold': APISchemaObject.integer()..description = '[configure] Snapshot threshold',
         'automatic': APISchemaObject.boolean()
-          ..description = 'Control flag for automatic snapshots when threshold is reached',
+          ..description = '[configure] Control flag for automatic snapshots when threshold is reached',
       };
 
   @override
   APISchemaObject documentMeta(APIDocumentContext context) {
     return APISchemaObject.object({
+      'last': documentUUID()
+        ..description = 'Uuid of snapshot last saved'
+        ..isReadOnly = true,
       'uuid': documentUUID()
-        ..description = 'Globally unique Snapshot id'
+        ..description = 'Snapshot uuid'
         ..isReadOnly = true,
       'number': APISchemaObject.integer()
         ..description = 'Snapshot event number '
             '(or position in projection if using instance-streams)'
         ..isReadOnly = true,
-      'keep': APISchemaObject.integer()
-        ..description = 'Number of snapshots to keep until deleting oldest'
-        ..isReadOnly = true,
+      'timestamp': APISchemaObject.string()
+        ..description = 'When snapshot was saved'
+        ..format = 'date-time',
       'unsaved': APISchemaObject.integer()
         ..description = 'Number of unsaved events'
-        ..isReadOnly = true,
-      'threshold': APISchemaObject.integer()
-        ..description = 'Number of unsaved events before saving to next snapshot'
-        ..isReadOnly = true,
-      'automatic': APISchemaObject.integer()
-        ..description = 'Control flag for automatic snapshots when threshold is reached'
         ..isReadOnly = true,
       'partial': APISchemaObject.object({
         'missing': APISchemaObject.integer()
@@ -189,6 +232,27 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
           ..isReadOnly = true,
       })
         ..description = 'Snapshot contains partial state if defined'
+        ..isReadOnly = true,
+      'config': APISchemaObject.object({
+        'keep': APISchemaObject.integer()
+          ..description = 'Number of snapshots to keep until deleting oldest'
+          ..isReadOnly = true,
+        'threshold': APISchemaObject.integer()
+          ..description = 'Number of unsaved events before saving to next snapshot'
+          ..isReadOnly = true,
+        'automatic': APISchemaObject.integer()
+          ..description = 'Control flag for automatic snapshots when threshold is reached'
+          ..isReadOnly = true,
+      })
+        ..description = 'Snapshots configuration'
+        ..isReadOnly = true,
+      'metrics': APISchemaObject.object({
+        'snapshots': APISchemaObject.integer()
+          ..description = 'Number of snapshots'
+          ..isReadOnly = true,
+        'save': documentMetric('Save'),
+      })
+        ..description = 'Snapshot metrics'
         ..isReadOnly = true,
       'aggregates': APISchemaObject.object({
         'count': APISchemaObject.integer()

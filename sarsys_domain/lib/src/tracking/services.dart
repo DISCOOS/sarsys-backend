@@ -105,7 +105,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
   /// f.ex. using a StatefulSet in Kubernetes (files are
   /// kept between restarts of same logical instance)
   ///
-  Box<String> _box;
+  LazyBox<String> _box;
 
   /// Get remote [Event] stream.
   Stream<DomainEvent> asStream() {
@@ -154,18 +154,19 @@ class TrackingService extends MessageHandler<DomainEvent> {
   }
 
   Future _load(bool init) async {
-    _box = await Hive.openBox('$runtimeType');
+    _box = await Hive.lazyBox('$runtimeType');
     if (init) {
       await _box.clear();
-      _box.values;
     } else {
-      final futures = List<String>.from(_box.values ?? <String>[])
-          .map(
-            (json) => _fromJson(json),
-          )
-          .map(
-            (event) => _replayEvent(event),
-          );
+      final values = <TrackingCreated>[];
+      for (var tuuid in _box.keys) {
+        values.add(_fromJson(await _box.get(
+          tuuid,
+        )));
+      }
+      final futures = values.map(
+        (event) => _replayEvent(event),
+      );
       // Will not on each command
       // before executing the next
       await Future.wait(futures);

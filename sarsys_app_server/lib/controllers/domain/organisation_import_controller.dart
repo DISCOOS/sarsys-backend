@@ -80,6 +80,8 @@ class OrganisationImportController
       return gatewayTimeout(
         body: "Repository command queue was unable to process ${e.request.tag}",
       );
+    } on AggregateCordoned catch (e) {
+      return locked(body: e.message);
     } on SocketException catch (e) {
       return serviceUnavailable(body: "Eventstore unavailable: $e");
     } on InvalidOperation catch (e) {

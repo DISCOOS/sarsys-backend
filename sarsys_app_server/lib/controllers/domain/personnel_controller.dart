@@ -114,7 +114,7 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
   /// Merge [Personnel] with [Person]
   Map<String, dynamic> merge(Personnel aggregate) {
     final entry = toAggregateData(aggregate);
-    final personnel = entry.elementAt<Map<String, dynamic>>('data');
+    final personnel = entry.mapAt<String, dynamic>('data');
     final auuid = personnel.elementAt<String>('affiliation/uuid');
     if (auuid != null) {
       final affiliation = affiliations.get(auuid, createNew: false);

@@ -625,6 +625,7 @@ class TestStream {
     List<Map<String, dynamic>> list, {
     int offset,
     bool notify = true,
+    bool increment = true,
   }) {
     // Prepare
     final events = _toEventsFromPath(path);
@@ -645,7 +646,7 @@ class TestStream {
         event.elementAt<String>('eventId'),
         event
           ..addAll({
-            'eventNumber': ++i,
+            'eventNumber': increment ? ++i : (event.elementAt<int>('eventNumber') ?? ++i),
           }),
       );
     }));
@@ -861,6 +862,7 @@ class TestStream {
         // events in decreasing order
         paged.reversed,
         embedBody: _isEmbedBody(request),
+        headOfStream: offset >= events.length - count,
       );
       final body = data.toJson();
       body['entries'] = _toEntities(
@@ -949,6 +951,7 @@ class TestSubscription {
       consume: count,
       isSubscription: true,
       embedBody: _isEmbedBody(request),
+      headOfStream: offset >= events.length - count,
     );
     consumed.addEntries(
       events.map(
@@ -1046,6 +1049,7 @@ AtomFeed _toAtomFeed(
   String stream,
   int offset,
   Iterable<Map<String, dynamic>> events, {
+  @required bool headOfStream,
   int consume,
   String group,
   bool embedBody = false,
@@ -1060,8 +1064,8 @@ AtomFeed _toAtomFeed(
     updated: _lastUpdated(events),
     eTag: '26;-2060438500', // Dummy
     streamId: stream,
-    headOfStream: true,
     selfUrl: selfUrl,
+    headOfStream: headOfStream,
     links: [
       AtomLink(uri: selfUrl, relation: 'self'),
       if (!isSubscription) AtomLink(uri: '$selfUrl/head/backward/20', relation: 'first'),

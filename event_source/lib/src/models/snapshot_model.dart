@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:meta/meta.dart';
 import 'package:equatable/equatable.dart';
 import 'package:event_source/event_source.dart';
 import 'package:event_source/src/models/aggregate_root_model.dart';
@@ -13,13 +14,18 @@ part 'snapshot_model.g.dart';
 @JsonSerializable()
 class SnapshotModel extends Equatable {
   SnapshotModel({
-    this.uuid,
-    this.number,
-    this.timestamp,
+    @required this.uuid,
+    @required this.type,
+    @required this.number,
+    DateTime timestamp,
     LinkedHashMap<String, AggregateRootModel> aggregates,
-  })  : _missing = _checkPartial(number, aggregates),
+  })  : timestamp = timestamp ?? DateTime.now(),
+        _missing = _checkPartial(number, aggregates),
         // ignore: prefer_collection_literals
         aggregates = aggregates ?? LinkedHashMap<String, AggregateRootModel>();
+
+  /// Aggregate type
+  final String type;
 
   /// [SnapshotModel] uuid
   final String uuid;
@@ -69,15 +75,23 @@ class SnapshotModel extends Equatable {
   bool contains(String uuid) => aggregates.containsKey(uuid);
 
   /// Get updated snapshot model
-  SnapshotModel copyWith(Repository repo, {String uuid, AggregateRoot root}) => SnapshotModel(
+  SnapshotModel copyWith(
+    Repository repo, {
+    String uuid,
+    String type,
+    AggregateRoot root,
+    DateTime timestamp,
+  }) =>
+      SnapshotModel(
+        type: type ?? this.type,
         uuid: uuid ?? this.uuid,
-        timestamp: DateTime.now(),
+        timestamp: timestamp ?? DateTime.now(),
         number: EventNumberModel.from(repo.number),
         aggregates: root == null ? toAggregateRoots(repo) : replaceAggregateRoot(aggregates, root),
       );
 
   @override
-  List<Object> get props => [aggregates, timestamp, number];
+  List<Object> get props => [type, timestamp, number, aggregates];
 
   /// Factory constructor for creating a new `SnapshotModel` instance
   factory SnapshotModel.fromJson(Map<String, dynamic> json) => _$SnapshotModelFromJson(json);

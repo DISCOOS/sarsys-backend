@@ -464,6 +464,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
   void _loadConfig() {
     // Parse from config file, given by --config to main.dart or default config.yaml
     config = SarSysConfig(options.configurationFilePath);
+    RequestBody.maxSize = 1024 * 1024 * config.maxBodySize;
     logger.onRecord.listen(
       (record) => printRecord(
         record,
@@ -889,6 +890,11 @@ class SarSysAppServerChannel extends ApplicationChannel {
             "Range Not Satisfiable. Indicates that a server cannot serve the requested ranges. "
             "The most likely reason is that the document doesn't contain such ranges, "
             "or that the Range header value, though syntactically correct, doesn't make sense.",
+          ))
+      ..register(
+          "426",
+          APIResponse(
+            "Source or destination resource of a method is locked. Indicates that resource is read-only.",
           ))
       ..register(
           "429",

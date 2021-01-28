@@ -16,6 +16,7 @@ class RepositoryOperationsController extends SystemOperationsBaseController {
             'data',
             'queue',
             'items',
+            'metrics',
             'snapshot',
             'connection',
             'subscriptions',
@@ -51,10 +52,11 @@ class RepositoryOperationsController extends SystemOperationsBaseController {
         );
       }
       return Response.ok(
-        repository.toMeta(
+        await repository.toMeta(
           data: shouldExpand(expand, 'data'),
           queue: shouldExpand(expand, 'queue'),
           items: shouldExpand(expand, 'items'),
+          metrics: shouldExpand(expand, 'metrics'),
           snapshot: shouldExpand(expand, 'snapshot'),
           connection: shouldExpand(expand, 'connection'),
           subscriptions: shouldExpand(expand, 'subscriptions'),
@@ -78,37 +80,43 @@ class RepositoryOperationsController extends SystemOperationsBaseController {
       if (!shouldAccept()) {
         return requestedRangeNotSatisfiable();
       }
-      final repository = manager.getFromTypeName(type);
-      if (repository == null) {
+      final repo = manager.getFromTypeName(type);
+      if (repo == null) {
         return Response.notFound(
           body: 'Repository for type $type not found',
         );
       }
+      var result = <String, dynamic>{};
       final command = assertCommand(body);
       switch (command) {
         case 'rebuild':
-          await repository.build();
+          await repo.build();
+          break;
+        case 'repair':
+          result = await _doRepair(body, repo);
           break;
         case 'replay':
-          await _doReplay(body, repository);
+          await _doReplay(body, repo);
           break;
         case 'catchup':
-          await _doCatchup(body, repository);
+          await _doCatchup(body, repo);
           break;
         default:
           return Response.badRequest(
             body: "Command '$command' not found",
           );
       }
+      final meta = await repo.toMeta(
+        data: shouldExpand(expand, 'data'),
+        queue: shouldExpand(expand, 'queue'),
+        items: shouldExpand(expand, 'items'),
+        metrics: shouldExpand(expand, 'metrics'),
+        snapshot: shouldExpand(expand, 'snapshot'),
+        connection: shouldExpand(expand, 'connection'),
+        subscriptions: shouldExpand(expand, 'subscriptions'),
+      );
       return Response.ok(
-        repository.toMeta(
-          data: shouldExpand(expand, 'data'),
-          queue: shouldExpand(expand, 'queue'),
-          items: shouldExpand(expand, 'items'),
-          snapshot: shouldExpand(expand, 'snapshot'),
-          connection: shouldExpand(expand, 'connection'),
-          subscriptions: shouldExpand(expand, 'subscriptions'),
-        ),
+        meta..addAll(result),
       );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
@@ -117,26 +125,55 @@ class RepositoryOperationsController extends SystemOperationsBaseController {
     }
   }
 
-  Future _doCatchup(Map<String, dynamic> body,
-      Repository<Command<DomainEvent>, AggregateRoot<DomainEvent, DomainEvent>> repository) async {
+  Future _doCatchup(Map<String, dynamic> body, Repository repo) async {
     final uuids = body.listAt<String>(
       'params/uuids',
       defaultList: <String>[],
     );
-    await repository.catchup(
+    await repo.catchup(
       uuids: uuids,
+      strict: false,
     );
   }
 
-  Future _doReplay(Map<String, dynamic> body,
-      Repository<Command<DomainEvent>, AggregateRoot<DomainEvent, DomainEvent>> repository) async {
+  Future _doReplay(Map<String, dynamic> body, Repository repo) async {
     final uuids = body.listAt<String>(
       'params/uuids',
       defaultList: <String>[],
     );
-    await repository.replay(
+    await repo.replay(
       uuids: uuids,
+      strict: false,
     );
+  }
+
+  Future<Map<String, dynamic>> _doRepair(Map<String, dynamic> body, Repository repo) async {
+    final master = body.elementAt<bool>(
+      'params/master',
+      defaultValue: false,
+    );
+    final before = await repo.repair(
+      master: master,
+    );
+    return {
+      'before': _toAnalysisMeta(before),
+      'after': before.values.any((a) => a.isInvalid)
+          ? await repo.analyze(
+              master: master,
+            )
+          : _toAnalysisMeta(before),
+    };
+  }
+
+  Map<String, dynamic> _toAnalysisMeta(Map<String, AnalyzeResult> analysis) {
+    final wrong = analysis.values.where((a) => a.isWrongStream).length;
+    final multiple = analysis.values.where((a) => a.isMultipleAggregates).length;
+    return {
+      'wrong': wrong,
+      'multiple': multiple,
+      'count': analysis.length,
+      'summary': analysis.values.where((a) => a.isValid).map((a) => a.toSummaryText()).toList(),
+    };
   }
 
   //////////////////////////////////
@@ -271,28 +308,12 @@ class RepositoryOperationsController extends SystemOperationsBaseController {
   APISchemaObject _documentConnection(APIDocumentContext context) {
     return APISchemaObject.object({
       'metrics': APISchemaObject.object({
-        'read': _documentMetric('Read'),
-        'write': _documentMetric('Write'),
+        'read': documentMetric('Read'),
+        'write': documentMetric('Write'),
       })
         ..description = 'Connection metrics'
         ..isReadOnly = true,
     });
-  }
-
-  APISchemaObject _documentMetric(String name) {
-    return APISchemaObject.object({
-      'count': APISchemaObject.integer()
-        ..description = 'Number of measurements'
-        ..isReadOnly = true,
-      'duration': APISchemaObject.integer()
-        ..description = 'Last $name time in ms'
-        ..isReadOnly = true,
-      'durationAverage': APISchemaObject.integer()
-        ..description = '$name time average'
-        ..isReadOnly = true,
-    })
-      ..description = '$name metrics'
-      ..isReadOnly = true;
   }
 
   APISchemaObject _documentSubscriptions(APIDocumentContext context) {
@@ -320,7 +341,7 @@ class RepositoryOperationsController extends SystemOperationsBaseController {
         })
           ..description = 'Catchup subscription status'
           ..isReadOnly = true,
-        'stats': APISchemaObject.object({
+        'metrics': APISchemaObject.object({
           'processed': APISchemaObject.integer()
             ..description = 'Number of events processed'
             ..isReadOnly = true,

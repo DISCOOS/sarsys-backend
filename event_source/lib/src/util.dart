@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:json_patch/json_patch.dart';
 import 'extension.dart';
 
@@ -6,6 +8,19 @@ bool isEmptyOrNull(value) => emptyAsNull(value) == null;
 T emptyAsNull<T>(T value) => value is String
     ? (value.isNotEmpty == true ? value : null)
     : (value is Iterable ? (value.isNotEmpty == true ? value : null) : value);
+
+/// Sort map on values.
+Map<K, V> sortMapValues<K, V>(Map<K, V> map, {int Function(V a, V b) compare}) {
+  final keys = map.keys.toList(growable: false);
+  compare ??= (V a, V b) => '$a'.compareTo('$b');
+  keys.sort((k1, k2) => compare(map[k1], map[k2]));
+  // ignore: prefer_collection_literals
+  final sortedMap = LinkedHashMap<K, V>();
+  keys.forEach((k1) {
+    sortedMap[k1] = map[k1];
+  });
+  return sortedMap;
+}
 
 class JsonUtils {
   static const ops = ['add', 'remove', 'replace', 'move'];
@@ -59,7 +74,7 @@ class JsonUtils {
   }
 
   static Map<String, dynamic> apply(Map<String, dynamic> data, List<Map<String, dynamic>> patches) => data == null
-      ? null
+      ? <String, dynamic>{}
       : JsonPatch.apply(
           data,
           patches,
