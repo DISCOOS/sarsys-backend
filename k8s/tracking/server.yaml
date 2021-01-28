@@ -54,7 +54,7 @@ spec:
                 topologyKey: "kubernetes.io/hostname"
       containers:
         - name: sarsys-tracking-server
-          image: discoos/sarsys_app_server:latest
+          image: discoos/sarsys_tracking_server:latest
           # In development, setting `imagePullPolicy: Always` and using :latest tag is useful.
           imagePullPolicy: Always
           ports:
@@ -91,7 +91,7 @@ spec:
               memory: "2Gi"
           readinessProbe:
             httpGet:
-              path: /api/healthz
+              path: /api/healthz/ready
               port:  8083
               scheme: HTTP
             # EventStoreConnection has
@@ -105,7 +105,7 @@ spec:
             initialDelaySeconds: 120
           livenessProbe:
             httpGet:
-              path: /api/healthz
+              path: /api/healthz/alive
               port:  8083
               scheme: HTTP
             # EventStoreConnection has
@@ -117,7 +117,7 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 4
-            initialDelaySeconds: 120
+            initialDelaySeconds: 30
       securityContext:
         runAsNonRoot: true
         # Needed for write access to volume with non-root user 1000

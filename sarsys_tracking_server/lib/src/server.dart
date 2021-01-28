@@ -59,16 +59,34 @@ class SarSysTrackingServer {
 
     // This will bloc until stop is called
     await for (HttpRequest request in _http) {
-      if (isReady) {
-        request.response
-          ..statusCode = 200
-          ..write('OK');
-      } else {
-        request.response
-          ..statusCode = 503
-          ..write('Manager is not ready');
+      final handle = '${request.method.toUpperCase()} ${request.uri.path}';
+      switch (handle) {
+        case 'GET /api/healthz/alive':
+          _onHandleAlive(request);
+          break;
+        case 'GET /api/healthz/ready':
+          _onHandleReady(request);
+          break;
       }
       await request.response.close();
+    }
+  }
+
+  void _onHandleAlive(HttpRequest request) {
+    request.response
+      ..statusCode = 200
+      ..write('OK');
+  }
+
+  void _onHandleReady(HttpRequest request) {
+    if (isReady) {
+      request.response
+        ..statusCode = 200
+        ..write('OK');
+    } else {
+      request.response
+        ..statusCode = 503
+        ..write('Manager is not ready');
     }
   }
 
