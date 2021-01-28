@@ -27,14 +27,8 @@ class SarSysTrackingServer {
 
   /// Print [LogRecord] formatted
   static void printRecord(LogRecord rec, {bool debug = false, bool stdout = false}) {
-    final message = "${rec.time}: ${rec.level.name}: "
-        "${debug ? '${rec.loggerName}: ' : ''}"
-        "${debug && Platform.environment.containsKey('POD_NAME') ? '${Platform.environment['POD_NAME']}: ' : ''}"
-        "${rec.message}"
-        "${rec.error != null ? ':\nerror: ${rec.error}' : ''}"
-        "${rec.stackTrace != null ? ':\nstackTrace: ${rec.stackTrace}' : ''}";
     if (stdout) {
-      print(message);
+      Context.printRecord(rec, debug: debug);
     }
     _remoteLogger?.log(rec);
   }

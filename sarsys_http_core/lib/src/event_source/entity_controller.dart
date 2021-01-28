@@ -122,7 +122,10 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
         return Response.notFound(body: '$aggregateType $uuid does not exists');
       }
       final aggregate = repository.get(uuid);
-      await repository.execute(onCreate(uuid, entityType, validate(entityType, data)));
+      await repository.execute(
+        onCreate(uuid, entityType, validate(entityType, data)),
+        context: request.toContext(logger),
+      );
       return Response.created(
         '${toLocation(request)}/${data[entityIdFieldName ?? aggregate.entityIdFieldName]}',
       );
@@ -169,6 +172,7 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       data[entityIdFieldName ?? aggregate.entityIdFieldName] = id;
       final events = await repository.execute(
         onUpdate(uuid, entityType, validate(entityType, data, isPatch: true)),
+        context: request.toContext(logger),
       );
       return events.isEmpty ? Response.noContent() : Response.noContent();
     } on EntityExists catch (e) {
@@ -224,7 +228,10 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
       final aggregate = repository.get(uuid);
       final entity = data ?? {};
       entity[entityIdFieldName ?? aggregate.entityIdFieldName] = id;
-      final events = await repository.execute(onDelete(uuid, entityType, entity));
+      final events = await repository.execute(
+        onDelete(uuid, entityType, entity),
+        context: request.toContext(logger),
+      );
       return events.isEmpty ? Response.noContent() : Response.noContent();
     } on AggregateNotFound catch (e) {
       return Response.notFound(body: e.message);

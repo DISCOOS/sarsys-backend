@@ -1,6 +1,9 @@
+import 'dart:collection';
 import 'dart:io';
 
 import 'package:aqueduct/aqueduct.dart';
+import 'package:event_source/event_source.dart' show Context;
+import 'package:event_source/src/context.dart';
 import 'package:sentry/sentry.dart';
 
 import 'config.dart';
@@ -33,9 +36,22 @@ class RemoteLogger {
   void log(
     LogRecord record, {
     String transaction,
-    List<Breadcrumb> breadcrumbs,
   }) {
     if (record.level >= _level) {
+      final context = record.object is Context ? record.object as Context : null;
+      final breadcrumbs = context?.causes
+              ?.map((e) => Breadcrumb(
+                    e.message,
+                    e.timestamp,
+                    level: toLevel(e),
+                    category: e.category,
+                    data: LinkedHashMap.from({'context.id': e.id})..addAll(e.data),
+                  ))
+              ?.toList() ??
+          <Breadcrumb>[];
+      breadcrumbs.sort(
+        (b1, b2) => b1.timestamp.compareTo(b2.timestamp),
+      );
       final event = Event(
         message: record.message,
         exception: record.error,
@@ -62,7 +78,22 @@ class RemoteLogger {
     }
   }
 
-  SeverityLevel _toSeverityLevel(LogRecord record) {
+  static SeverityLevel toLevel(ContextEvent e) {
+    switch (e.level) {
+      case ContextLevel.debug:
+        return SeverityLevel.debug;
+      case ContextLevel.info:
+        return SeverityLevel.info;
+      case ContextLevel.warning:
+        return SeverityLevel.warning;
+      case ContextLevel.error:
+        return SeverityLevel.error;
+      default:
+        return SeverityLevel.fatal;
+    }
+  }
+
+  static SeverityLevel _toSeverityLevel(LogRecord record) {
     if (Level.SEVERE == record.level) {
       return SeverityLevel.fatal;
     } else if (Level.WARNING == record.level) {

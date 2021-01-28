@@ -85,15 +85,18 @@ LinkedHashMap<String, AggregateRootModel> replaceAggregateRoot(
 }
 
 /// Store remote state only!
-AggregateRootModel toAggregateRoot(AggregateRoot root) => AggregateRootModel(
-      uuid: root.uuid,
-      data: root.head,
-      createdBy: root.createdBy,
-      changedBy: root.baseEvent,
-      deletedBy: root.deletedBy,
-      // Since only aggregates
-      // confirmed to exist remotely
-      // should be persisted, BaseEvent
-      // MUST exist!
-      number: EventNumberModel.from(root.baseEvent.number),
-    );
+AggregateRootModel toAggregateRoot(AggregateRoot root) {
+  final baseEvent = root.baseEvent;
+  return AggregateRootModel(
+    uuid: root.uuid,
+    data: root.base,
+    changedBy: baseEvent,
+    createdBy: root.createdBy,
+    deletedBy: root.deletedBy,
+    // Since only aggregates
+    // confirmed to exist remotely
+    // should be persisted, BaseEvent
+    // MUST exist (no null check required)
+    number: EventNumberModel.from(baseEvent.number),
+  );
+}

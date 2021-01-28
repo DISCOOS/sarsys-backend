@@ -104,10 +104,12 @@ class EventSourceHarness {
   }
 
   Logger _logger;
-  EventSourceHarness withLogger({bool debug = false}) {
+  bool _debug = false;
+  EventSourceHarness withLogger({bool debug = false, Level level = Level.INFO}) {
     _logger = Logger('$runtimeType');
     if (debug) {
-      Logger.root.level = Level.FINE;
+      _debug = debug;
+      Logger.root.level = level;
     }
     return this;
   }
@@ -120,13 +122,6 @@ class EventSourceHarness {
     _threshold = threshold;
     _withSnapshots = true;
     return this;
-  }
-
-  void _print(LogRecord rec) {
-    return print(
-      '${rec.time}: ${rec.level.name}: ${rec.loggerName}: '
-      '${rec.message} ${rec.error ?? ''} ${rec.stackTrace ?? ''}',
-    );
   }
 
   Stream<LogRecord> get onRecord => _logger?.onRecord;
@@ -178,7 +173,9 @@ class EventSourceHarness {
     setUp(() async {
       _logger.info('---setUp---');
       _initHiveDir(hiveDir);
-      _printer = onRecord.listen(_print);
+      _printer = onRecord.listen(
+        (rec) => Context.printRecord(rec, debug: _debug),
+      );
       for (var entry in _servers.entries) {
         await _build(entry.key, entry.value);
       }
@@ -193,7 +190,7 @@ class EventSourceHarness {
       }
       _logger.info('---tearDown---ok');
       await Hive.deleteFromDisk();
-      hiveDir.deleteSync();
+      await hiveDir.delete(recursive: true);
       return _printer.cancel();
     });
 

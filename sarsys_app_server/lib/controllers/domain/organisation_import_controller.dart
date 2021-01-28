@@ -35,7 +35,10 @@ class OrganisationImportController
       }
       final list = _validate(uuid, data);
       final responses = <Response>[];
-      final trx = primary.getTransaction(uuid);
+      final trx = primary.getTransaction(
+        uuid,
+        context: request.toContext(logger),
+      );
       for (var div in list) {
         responses.addAll(await _importDivision(uuid, div));
       }
@@ -207,7 +210,10 @@ class OrganisationImportController
     final deps = div.elementAt('departments') ?? [];
     final duuid = div.elementAt('uuid') as String ?? Uuid().v4();
     try {
-      final trx = foreign.getTransaction(duuid);
+      final trx = foreign.getTransaction(
+        duuid,
+        context: request.toContext(logger),
+      );
       if (!foreign.contains(duuid)) {
         responses.add(await super.create(
           uuid,

@@ -5,7 +5,7 @@ import 'dart:math';
 
 import 'package:meta/meta.dart';
 import 'package:hive/hive.dart';
-import 'package:path/path.dart';
+import 'package:path/path.dart' hide Context;
 import 'package:logging/logging.dart';
 import 'package:stack_trace/stack_trace.dart';
 
@@ -14,6 +14,7 @@ import 'extension.dart';
 import 'domain.dart';
 import 'models/converters.dart';
 import 'models/snapshot_model.dart';
+import 'context.dart';
 import 'stream.dart';
 import 'util.dart';
 
@@ -28,7 +29,9 @@ class Storage {
   })  : _keep = keep ?? 10,
         _automatic = automatic ?? true,
         _threshold = threshold ?? 1000,
-        logger = Logger('Storage') {
+        _context = Context(
+          Logger('Storage[$type]'),
+        ) {
     _eventSubscriptions.add(_saveQueue.onEvent().listen(
           (e) => _onQueueEvent('Save', e),
         ));
@@ -49,8 +52,16 @@ class Storage {
         automatic: automatic,
       );
 
-  /// Logger instance
-  final Logger logger;
+  /// Get [Context] for runtime analysis
+  Context get context => _context;
+
+  Context _context;
+  Context _joinContext(Context context) {
+    if (_context == null || context == _context) {
+      return _context;
+    }
+    return _context = _context.join(context);
+  }
 
   /// Get [AggregateRoot] type stored
   final Type type;
@@ -175,21 +186,18 @@ class Storage {
       if (_sorted.remove(prev.uuid) != null && _sorted.isNotEmpty) {
         _last = await get(_sorted.keys.last);
         if (_last != null) {
-          logger.network(
-            _toMethod('Removed snapshot ${prev.uuid} of ${prev.type}@${prev.number}', [
-              'reason: $error',
-              _toObject('next', [
-                'uuid: ${_last.uuid}',
-                'type: ${_last.type}',
-                'number: ${_last.number}',
-                if (_last.isPartial)
-                  _toObject('partial', [
-                    'missing: ${_last.missing}',
-                  ]),
-              ]),
-            ]),
-            error,
-            stackTrace,
+          _context.error(
+            'Removed snapshot ${prev.uuid} of ${prev.type}@${prev.number}',
+            data: {
+              'reason': '$error',
+              'next.uuid': '${_last.uuid}',
+              'next.type': '${_last.type}',
+              'next.number': '${_last.number}',
+              if (_last.isPartial) 'next.partial.missing': '${_last.missing}',
+            },
+            category: 'Storage._popLast',
+            error: error,
+            stackTrace: stackTrace,
           );
         }
       }
@@ -247,7 +255,11 @@ class Storage {
   /// Reads [states] from storage.
   /// Returns keys in sorted order from first to last
   @visibleForOverriding
-  Future<Iterable<String>> load({String path}) async {
+  Future<Iterable<String>> load({
+    Context context,
+    String path,
+  }) async {
+    context = _joinContext(context);
     if (isReady) {
       await _states?.close();
       assert(!_states.isOpen);
@@ -332,8 +344,9 @@ class Storage {
     final request = result.request;
     final metric = _metrics['save'].now(request.created);
     if (metric.duration.inMilliseconds > limit) {
-      logger.warning(
+      _context.warning(
         'SLOW SAVE: Request ${request.tag} took ${metric.duration.inMilliseconds} ms',
+        category: 'Storage._checkSlowSave',
       );
     }
     _metrics['save'] = metric;
@@ -345,8 +358,9 @@ class Storage {
     switch (event.runtimeType) {
       case StreamRequestAdded:
         final request = (event as StreamRequestAdded).request;
-        logger.fine(
+        _context.debug(
           '$queue request added: ${request.tag} (${_toPressureString()})',
+          category: 'Storage._onQueueEvent',
         );
         break;
       case StreamRequestCompleted:
@@ -354,14 +368,18 @@ class Storage {
           event as StreamRequestCompleted,
           DurationMetric.limit,
         );
-        logger.fine(
+        _context.debug(
           '$queue request completed in '
           '${DateTime.now().difference(request.created).inMilliseconds} ms: '
           '${request.tag} (${_toPressureString()})',
+          category: 'Storage._onQueueEvent',
         );
         break;
       case StreamQueueIdle:
-        logger.fine('Save queue idle');
+        _context.debug(
+          'Save queue idle',
+          category: 'Storage._onQueueEvent',
+        );
         break;
       case StreamRequestTimeout:
         final failed = event as StreamRequestTimeout;
@@ -384,10 +402,11 @@ class Storage {
   }
 
   void _onQueueError(StreamRequest request, String message, Object error, [StackTrace stackTrace]) {
-    logger.network(
+    _context.error(
       '$message: ${request.tag} (${_toPressureString()})',
-      error,
-      stackTrace,
+      error: error,
+      stackTrace: stackTrace,
+      category: 'Storage._onQueueError',
     );
     _popLast(
       error,
@@ -422,8 +441,13 @@ class Storage {
   ///
   /// Will only update [last] if [willSave] returns true.
   ///
-  SnapshotModel save(Repository repo, {bool force = false}) {
+  SnapshotModel save(
+    Repository repo, {
+    Context context,
+    bool force = false,
+  }) {
     var model = repo.snapshot;
+    context = _joinContext(context);
     if (force || willSave(repo)) {
       // TODO: Detect to high snapshot save frequency
       final candidate = toSnapshot(repo);
@@ -445,10 +469,11 @@ class Storage {
       if (added) {
         _setLast(candidate);
       }
-      logger.fine(
+      context.debug(
         added
             ? 'Scheduled save: $tag (queue pressure: ${_saveQueue.length})'
             : 'Waiting on save already scheduled: $tag (queue pressure: ${_saveQueue.length})',
+        category: 'Storage.save',
       );
       model = candidate;
     }
@@ -461,10 +486,14 @@ class Storage {
         model.uuid,
         StorageState(value: model),
       );
-      logger.info(
+      _context.info(
         'Added $tag to storage',
+        category: 'Storage._save',
       );
-      await purge(repo);
+      await purge(
+        repo,
+        context: context,
+      );
       return StreamResult(
         tag: tag,
         value: model,
@@ -475,8 +504,12 @@ class Storage {
     );
   }
 
-  Future<Iterable<String>> purge(Repository repo) async {
+  Future<Iterable<String>> purge(
+    Repository repo, {
+    Context context,
+  }) async {
     final deleted = <String>[];
+    context = _joinContext(context);
     if (isReady) {
       // Always keep 1 snapshot
       final count = length - max<int>(keep ?? 1, 1);
@@ -487,9 +520,10 @@ class Storage {
             await _states.delete(
               first,
             );
-            logger.info(
+            context.info(
               'Deleted snapshot $first of '
               '${repo.runtimeType}@${_sorted[first]}',
+              category: 'Storage.purge',
             );
             _sorted.remove(first);
             deleted.add(uuid);
@@ -515,6 +549,10 @@ class Storage {
       (s) => s.cancel(),
     ));
     _eventSubscriptions.clear();
+    _context.debug(
+      'Disposed $runtimeType',
+      category: 'Storage.dispose',
+    );
   }
 
   /// Get metadata for snapshot with given [uuid]
@@ -714,6 +752,3 @@ class StorageIsDisposedException extends StorageException {
   StorageIsDisposedException(this.storage) : super('${storage.runtimeType} is disposed');
   final Storage storage;
 }
-
-String _toMethod(String name, List<String> args) => '$name(\n  ${args.join(',\n  ')})';
-String _toObject(String name, List<String> args) => '$name: {\n  ${args.join(',\n  ')}}';

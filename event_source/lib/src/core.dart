@@ -12,11 +12,12 @@ class Message {
   Message({
     @required this.uuid,
     @required bool local,
-    this.created,
+    DateTime created,
     String type,
     this.data,
   })  : _type = type,
-        _local = local;
+        _local = local,
+        _created = created ?? DateTime.now();
 
   /// Massage uuid
   ///
@@ -36,7 +37,7 @@ class Message {
   /// Is only allowed to set if [next]
   /// is true. This ensures that
   /// origin can be set after adding
-  /// it to a list which does
+  /// it to a [LinkedHashSet] which does
   /// not update when added again.
   ///
   set remote(bool next) {
@@ -46,10 +47,27 @@ class Message {
     _local = false;
   }
 
-  /// Message creation time
+  /// Get message creation time
   /// *NOTE*: Not stable until read from remote stream
   ///
-  final DateTime created;
+  DateTime get created => _created;
+  DateTime _created;
+
+  /// Set message creation time
+  ///
+  /// Is only allowed to set when
+  /// [local]. This ensures that
+  /// 'created' can be set after
+  /// adding it to a [LinkedHashSet]
+  /// which does not update when
+  /// added again.
+  ///
+  set created(DateTime next) {
+    if (remote) {
+      throw StateError('Not allowed to change when origin is remote');
+    }
+    _created = next;
+  }
 
   /// Message data
   ///
@@ -233,12 +251,12 @@ class DomainEvent extends Event {
       number: number,
       created: created,
       data: SourceEvent.toData(
-        data?.elementAt<String>('uuid'),
+        data.elementAt<String>('uuid'),
         uuidFieldName,
         patches: patches,
         deleted: isDeleted,
-        index: data?.elementAt<int>('index'),
-        previous: terse ? null : data?.mapAt<String, dynamic>('previous'),
+        index: data.elementAt<int>('index'),
+        previous: terse ? null : data.mapAt<String, dynamic>('previous'),
       ));
 
   SourceEvent toSourceEvent({
@@ -254,11 +272,11 @@ class DomainEvent extends Event {
         streamId: streamId,
         local: local ?? this.local,
         data: SourceEvent.toData(
-          data?.elementAt<String>('uuid'),
+          data.elementAt<String>('uuid'),
           uuidFieldName,
           patches: patches,
           deleted: isDeleted,
-          index: data?.elementAt<int>('index'),
+          index: data.elementAt<int>('index'),
         ),
         number: number ?? this.number,
       );
@@ -273,7 +291,6 @@ class DomainEvent extends Event {
   }) =>
       {
         uuidFieldName: uuid,
-        // 'changed': changed,
         'patches': patches,
         'deleted': deleted,
         if (index != null) 'index': index,
@@ -378,8 +395,8 @@ class SourceEvent extends Event {
         uuidFieldName: uuid,
         'patches': patches,
         'deleted': deleted,
-        'previous': previous,
         if (index != null) 'index': index,
+        if (previous != null) 'previous': previous,
       };
 }
 
@@ -604,7 +621,7 @@ class ExpectedVersion {
 
   @override
   String toString() {
-    return 'ExpectedVersion{value: $value}';
+    return '$value';
   }
 
   EventNumber toNumber() => EventNumber(value);

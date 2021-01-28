@@ -71,6 +71,7 @@ class OperationUnitController extends AggregateListController<UnitCommand, Unit,
       for (var puuid in _personnels) {
         await foreign.execute(
           AssignPersonnelToUnit(unit, puuid),
+          context: request.toContext(logger),
         );
       }
     }

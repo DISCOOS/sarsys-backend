@@ -3,6 +3,7 @@ import 'dart:collection';
 
 import 'package:meta/meta.dart';
 import 'package:hive/hive.dart';
+import 'package:logging/logging.dart';
 import 'package:json_patch/json_patch.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
@@ -23,7 +24,10 @@ Future main() async {
   final harness = EventSourceHarness()
     ..withTenant()
     ..withPrefix()
-    ..withLogger(debug: false)
+    ..withLogger(
+      debug: false,
+      level: Level.INFO,
+    )
     ..withSnapshot()
     ..withRepository<Foo>(
       (manager, store, instance) => FooRepository(store, instance),
@@ -1919,12 +1923,17 @@ Future main() async {
       // Arrange
       final events = 102;
       final snapshots = events ~/ 20;
+      final repo1 = harness.get<FooRepository>(port: 4000);
+      final repo2 = harness.get<FooRepository>(port: 4001);
+
+      // Suspend catchup
+      repo2.store.pause();
+
+      // Generates two foos = 102 events = 2 x (1 created + 50 updated)
       await _repositoryShouldCommitTransactionsOnPush(
         harness,
         withSnapshots: false,
       );
-      final repo1 = harness.get<FooRepository>(instance: 1);
-      final repo2 = harness.get<FooRepository>(instance: 2);
       expect(repo1.snapshot, isNull);
       expect(repo2.snapshot, isNull);
       repo1.store.snapshots
@@ -1941,7 +1950,7 @@ Future main() async {
 
       // Assert repo 1
       expect(repo1.snapshot, isNotNull);
-      expect(repo1.store.snapshots.length, snapshots); // (total 102 events and page size is 20 => 5 snapshots)
+      expect(repo1.store.snapshots.length, 1); // (replay of 102 events yields 1 snapshot from 102 > 10)
       expect(repo1.store.length, events - repo1.snapshot.number.value + 1);
 
       // Act on repo 2
@@ -2102,7 +2111,7 @@ Future main() async {
       equals(snapshots),
       reason: 'Should have $snapshots snapshots',
     );
-  }, timeout: Timeout.factor(100));
+  });
 
   test('Repository should delete snapshots automatically', () async {
     // Arrange
@@ -2136,14 +2145,81 @@ Future main() async {
     expect(repo.snapshot.number.value, equals(last), reason: 'Event number should be $last');
     expect(repo.store.snapshots.keys.length, equals(keep), reason: 'Should have $keep snapshots');
   });
+
+  test('Repository should resume subscription on save snapshot automatically', () async {
+    // Arrange
+    final repo1 = harness.get<FooRepository>(port: 4000, instance: 1);
+    final repo2 = harness.get<FooRepository>(port: 4001, instance: 1);
+    await repo1.readyAsync();
+    await repo2.readyAsync();
+    expect(repo1.snapshot, isNull, reason: 'Should have NO snapshot');
+    expect(repo2.snapshot, isNull, reason: 'Should have NO snapshot');
+
+    // Disable snapshots for all for manual control
+    repo1.store.snapshots.automatic == false;
+    repo2.store.snapshots.automatic == false;
+    harness.get<FooRepository>(port: 4000, instance: 2).store.snapshots.automatic == false;
+    harness.get<FooRepository>(port: 4001, instance: 2).store.snapshots.automatic == false;
+
+    // Arrange repo 1
+    final batch = 5;
+    final uuid1 = Uuid().v4();
+    final foo1 = repo1.get(uuid1);
+    await repo1.push(foo1);
+    for (var i = 1; i <= batch; i++) {
+      foo1.patch({'property1': 'value$i'}, emits: FooUpdated);
+      await repo1.push(foo1);
+    }
+    expect(foo1.data, containsPair('property1', 'value$batch'));
+    expect(repo1.number.value, equals(batch));
+
+    // Act - force snapshot save on repo 1
+    repo1.save(force: true);
+    await repo1.store.snapshots.onIdle;
+
+    expect(repo1.isLocked, isFalse);
+    expect(repo1.store.isPaused, isFalse);
+    expect(repo1.snapshot, isNotNull, reason: 'Should have snapshot');
+    expect(repo1.snapshot.number.value, equals(batch), reason: 'Should have snapshot number $batch');
+
+    final seen = <Event>[];
+    repo1.store.asStream().where((e) => e.remote).listen((event) {
+      seen.add(event);
+    });
+
+    // Act - updated repo 2
+    final uuid2 = Uuid().v4();
+    final foo2 = repo2.get(uuid2);
+    await repo2.push(foo2);
+    for (var i = 1; i <= batch; i++) {
+      foo2.patch({'property2': 'value$i'}, emits: FooUpdated);
+      await repo2.push(foo2);
+    }
+    expect(foo2.data, containsPair('property2', 'value$batch'));
+    expect(repo2.number.value, equals(2 * batch + 1));
+
+    // Assert - repo 1 is catching up
+    await repo1.store.asStream().where((e) => e.remote).take(6 - seen.length).toList();
+
+    // Assert - repo 1 number and snapshot
+    expect(repo1.number.value, equals(2 * batch + 1), reason: 'Should be at number ${2 * batch + 1}');
+    expect(repo1.snapshot, isNotNull, reason: 'Should have snapshot');
+    expect(repo1.snapshot.number.value, equals(batch), reason: 'Event number should be $batch');
+    expect(repo1.store.snapshots.keys.length, equals(1), reason: 'Should have 1 snapshots');
+  });
 }
 
 Future _repositoryShouldCommitTransactionsOnPush(
   EventSourceHarness harness, {
   @required bool withSnapshots,
 }) async {
-  final repo1 = harness.get<FooRepository>(instance: 1)..store.snapshots.automatic = withSnapshots;
-  final repo2 = harness.get<FooRepository>(instance: 2)..store.snapshots.automatic = withSnapshots;
+  final repo1 = harness.get<FooRepository>(port: 4000, instance: 1)..store.snapshots.automatic = withSnapshots;
+  final repo2 = harness.get<FooRepository>(port: 4000, instance: 2)..store.snapshots.automatic = withSnapshots;
+  harness.get<FooRepository>(port: 4001, instance: 1)..store.snapshots.automatic = withSnapshots;
+  harness.get<FooRepository>(port: 4001, instance: 2)..store.snapshots.automatic = withSnapshots;
+  harness.get<FooRepository>(port: 4002, instance: 1)..store.snapshots.automatic = withSnapshots;
+  harness.get<FooRepository>(port: 4002, instance: 2)..store.snapshots.automatic = withSnapshots;
+
   await repo1.readyAsync();
   await repo2.readyAsync();
 
@@ -2271,6 +2347,7 @@ Future _testShouldBuildFromLastSnapshot(
   final event11 = Event(
     uuid: Uuid().v4(),
     data: {
+      'uuid': fuuid1,
       'patches': JsonPatch.diff({}, data11),
     },
     local: false,
@@ -2281,6 +2358,7 @@ Future _testShouldBuildFromLastSnapshot(
   final event12 = Event(
     uuid: Uuid().v4(),
     data: {
+      'uuid': fuuid1,
       'patches': JsonPatch.diff(data11, data12),
     },
     local: false,
@@ -2325,6 +2403,7 @@ Future _testShouldBuildFromLastSnapshot(
   final event21 = Event(
     uuid: Uuid().v4(),
     data: {
+      'uuid': fuuid2,
       'patches': JsonPatch.diff({}, data21),
     },
     local: false,
@@ -2335,6 +2414,7 @@ Future _testShouldBuildFromLastSnapshot(
   final event22 = Event(
     uuid: Uuid().v4(),
     data: {
+      'uuid': fuuid2,
       'patches': JsonPatch.diff(data21, data22),
     },
     local: false,
@@ -2553,13 +2633,13 @@ Future _assertCatchUp(FooRepository repo1, FooRepository repo2, FooRepository re
 
   // Push to repo 1
   final events = await repo1.push(foo1);
-  final domain1 = events.first;
 
   // Wait for repo 2 and 3 catching up
   await takeRemote(group.stream, 2, distinct: false);
   await group.close();
 
   // Get actual source events
+  final source1 = repo1.store.aggregateMap[uuid].last;
   final source2 = repo2.store.aggregateMap[uuid].last;
   final source3 = repo3.store.aggregateMap[uuid].last;
 
@@ -2568,6 +2648,7 @@ Future _assertCatchUp(FooRepository repo1, FooRepository repo2, FooRepository re
   final foo3 = repo3.get(uuid);
 
   // Get actual domain events
+  final domain1 = repo1.toDomainEvent(source1);
   final domain2 = repo2.toDomainEvent(source2);
   final domain3 = repo3.toDomainEvent(source3);
 
@@ -2580,12 +2661,11 @@ Future _assertCatchUp(FooRepository repo1, FooRepository repo2, FooRepository re
   expect([domain3], containsAll(events));
 
   // Assert change and state information critical for automatic merge resolution
-  expect(domain2.mapAt('changed'), equals(domain1.mapAt('changed')));
-  expect(domain2.mapAt('previous'), equals(domain1.mapAt('previous')));
   expect(domain2.listAt('patches'), equals(domain1.listAt('patches')));
-  expect(domain3.mapAt('changed'), equals(domain1.mapAt('changed')));
-  expect(domain3.mapAt('previous'), equals(domain1.mapAt('previous')));
+  expect(domain2.mapAt('previous'), equals(domain1.mapAt('previous')));
+
   expect(domain3.listAt('patches'), equals(domain1.listAt('patches')));
+  expect(domain3.mapAt('previous'), equals(domain1.mapAt('previous')));
 
   final check = repo1.get(uuid);
   expect(identical(check, foo1), isTrue);

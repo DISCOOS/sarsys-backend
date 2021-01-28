@@ -1,4 +1,4 @@
-debug: true
+debug: false
 prefix: test
 tenant: discoos
 maxBodySize: 10
@@ -26,3 +26,6 @@ eventstore:
   requireMaster: false
 logging:
   level: INFO
+#  sentry:
+#    level: INFO
+#    dsn: https://4a2d024141404d2cb0cf334132621665@sentry.io/5182599

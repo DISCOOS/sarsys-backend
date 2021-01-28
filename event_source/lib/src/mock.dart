@@ -67,6 +67,7 @@ class EventStoreMockServer {
   Future open() async {
     _server = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
     _server.listen((request) async {
+      final tic = DateTime.now();
       final route = _router.values.firstWhere(
         (route) => route.isMatch(request),
         orElse: () => null,
@@ -80,11 +81,12 @@ class EventStoreMockServer {
         await route.handle(request);
       }
       if (!request.uri.path.contains('forward/')) {
+        final time = 'in ${DateTime.now().difference(tic).inMilliseconds} ms';
         _log(
           'Ports ${request.connectionInfo.remotePort} > ${request.connectionInfo.localPort}: '
           '${request.method} ${request.uri.path}'
           '${request.uri.queryParameters.isNotEmpty ? '?${request.uri.query}' : ''} '
-          '> ${request.response.statusCode} ${request.response.reasonPhrase}',
+          '> ${request.response.statusCode} ${request.response.reasonPhrase} $time',
         );
       }
       await request.response.flush();

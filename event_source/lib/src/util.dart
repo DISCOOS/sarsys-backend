@@ -9,6 +9,19 @@ T emptyAsNull<T>(T value) => value is String
     ? (value.isNotEmpty == true ? value : null)
     : (value is Iterable ? (value.isNotEmpty == true ? value : null) : value);
 
+/// Sort map on keys.
+Map<K, V> sortMapKeys<K, V>(Map<K, V> map, {int Function(K a, K b) compare}) {
+  final keys = map.keys.toList(growable: false);
+  compare ??= (K a, K b) => '$a'.compareTo('$b');
+  keys.sort((k1, k2) => compare(k1, k2));
+  // ignore: prefer_collection_literals
+  final sortedMap = LinkedHashMap<K, V>();
+  keys.forEach((k1) {
+    sortedMap[k1] = map[k1];
+  });
+  return sortedMap;
+}
+
 /// Sort map on values.
 Map<K, V> sortMapValues<K, V>(Map<K, V> map, {int Function(V a, V b) compare}) {
   final keys = map.keys.toList(growable: false);

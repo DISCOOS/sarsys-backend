@@ -175,6 +175,7 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
             isPatch: true,
           ),
         }),
+        context: request.toContext(logger),
       );
       return events.isEmpty ? Response.noContent() : Response.noContent();
     } on ConflictNotReconcilable catch (e) {

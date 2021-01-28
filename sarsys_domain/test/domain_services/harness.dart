@@ -80,19 +80,14 @@ class EventSourceHarness {
   }
 
   Logger _logger;
-  EventSourceHarness withLogger({bool debug = false}) {
+  bool _debug = false;
+  EventSourceHarness withLogger({bool debug = false, Level level = Level.INFO}) {
     _logger = Logger('$runtimeType');
     if (debug) {
-      Logger.root.level = Level.FINE;
+      _debug = debug;
+      Logger.root.level = level;
     }
     return this;
-  }
-
-  void _print(LogRecord rec) {
-    return print(
-      '${rec.time}: ${rec.level.name}: ${rec.loggerName}: '
-      '${rec.message} ${rec.error ?? ''} ${rec.stackTrace ?? ''}',
-    );
   }
 
   Stream<LogRecord> get onRecord => _logger?.onRecord;
@@ -140,7 +135,9 @@ class EventSourceHarness {
 
     setUp(() async {
       _initHiveDir(hiveDir);
-      _printer = onRecord.listen(_print);
+      _printer = onRecord.listen(
+        (rec) => Context.printRecord(rec, debug: _debug),
+      );
       for (var server in _servers.entries) {
         await _build(server.key, server.value);
       }

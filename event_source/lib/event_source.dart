@@ -1,8 +1,10 @@
 library event_source;
 
 export 'package:json_patch/json_patch.dart';
+export 'package:random_string/random_string.dart';
 
 export 'src/bus.dart';
+export 'src/context.dart';
 export 'src/core.dart';
 export 'src/domain.dart';
 export 'src/error.dart';

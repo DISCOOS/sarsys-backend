@@ -268,13 +268,15 @@ class StreamRequestQueue<V> {
       } else {
         _failures++;
       }
-      _handleError(
+      final _error = _handleError(
         isTimeout ? StreamRequestTimeoutException(this, request) : error,
         stackTrace ?? StackTrace.current,
         request: request,
       );
       final result = StreamResult(
         value: await _onFallback(request),
+        error: _error,
+        stackTrace: stackTrace,
       );
       if (!_onEventController.isClosed) {
         _onEventController.add(StreamRequestCompleted(
@@ -331,7 +333,7 @@ class StreamRequestQueue<V> {
   /// should return to [isIdle]
   /// state.
   ///
-  void _handleError(
+  Object _handleError(
     Object error,
     StackTrace stackTrace, {
     StreamRequest<V> request,
@@ -361,6 +363,7 @@ class StreamRequestQueue<V> {
         ));
       }
     }
+    return error;
   }
 
   /// Start processing requests.
@@ -456,6 +459,9 @@ class StreamRequestCompleted extends StreamEvent {
   StreamRequestCompleted(this.request, this.result);
   final StreamRequest request;
   final StreamResult result;
+  bool get isStop => result.isStop;
+  bool get isError => result.isError;
+  bool get isComplete => result.isComplete;
 }
 
 @Immutable()
