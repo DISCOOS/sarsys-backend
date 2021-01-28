@@ -153,7 +153,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
   }
 
   Future _load(bool init) async {
-    _box = await Hive.lazyBox('$runtimeType');
+    _box = await await Hive.openLazyBox<String>('$runtimeType');
     if (init) {
       await _box.clear();
     } else {

@@ -18,14 +18,14 @@ Future main() async {
     expect(harness.server.isReady, isTrue);
   });
 
-  test('api/healthz/alive returns 200 OK', () async {
-    final request = await client.get('localhost', 8083, 'api/healthz/alive');
+  test('GET /api/healthz/alive returns 200 OK', () async {
+    final request = await client.get('localhost', 8083, '/api/healthz/alive');
     final response = await request.close();
     expect(response.statusCode, 200);
   });
 
-  test('api/healthz/ready returns 200 OK', () async {
-    final request = await client.get('localhost', 8083, 'api/healthz/ready');
+  test('GET /api/healthz/ready returns 200 OK', () async {
+    final request = await client.get('localhost', 8083, '/api/healthz/ready');
     final response = await request.close();
     expect(response.statusCode, 200);
   });
