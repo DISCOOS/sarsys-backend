@@ -1,8 +1,25 @@
-.buildlog
+#IDEA
+.idea
+
+# Files and directories created by pub
+sarsys_app_server/.dart_tool/
+.packages
 .pub/
 build/
+
+# If you're building an application, you may want to check-in your pubspec.lock
+pubspec.lock
+
+# Directory created by dartdoc
+# If you don't generate documentation locally you can remove this line.
+doc/api/
+
+# Do not check in snapshots
+bin/main.snapshot
+
+# Aqueduct
+.buildlog
 packages
-.packages
 *.dart.js
 *.js_
 *.js.deps
@@ -10,5 +27,10 @@ packages
 workspace.xml
 Dart_Packages.xml
 .DS_Store
-.idea/
 *.aqueduct.pid
+
+# Project
+.data*
+
+# Test artifacts
+test/.hive
