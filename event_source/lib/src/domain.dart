@@ -947,15 +947,15 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     }
   }
 
-  /// Get current event number, see [EventStore.current].
+  /// Get current event number, see [EventStore.last].
   ///
   /// If reset is performed without replay,
   /// [EventNumber.none] is returned
-  /// regardless of [EventStore.current].
+  /// regardless of [EventStore.last].
   ///
   EventNumber get number {
     // TODO: Use event position from canonical stream
-    return _aggregates.values.where((a) => !a.isNew).isEmpty ? EventNumber.none : store.current();
+    return _aggregates.values.where((a) => !a.isNew).isEmpty ? EventNumber.none : store.last();
   }
 
   /// Maximum backoff duration between retries
@@ -1837,7 +1837,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   ///
   /// Throws an [InvalidOperation] exception if [prepare] on [command] fails.
   ///
-  /// Throws an [WrongExpectedEventVersion] if [EventStore.current] event number is not
+  /// Throws an [WrongExpectedEventVersion] if [EventStore.last] event number is not
   /// equal to the last event number in  [EventStore.canonicalStream]. This failure is
   /// recoverable when the store has caught up with [EventStore.canonicalStream]. Push
   /// will attempt to catchup to head of stream [maxAttempts] before giving up by
@@ -2050,7 +2050,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// partial writes and commits which will result in an [EventNumberMismatch]
   /// being thrown by the [EventStoreConnection].
   ///
-  /// Throws an [WrongExpectedEventVersion] if [EventStore.current] event number is not
+  /// Throws an [WrongExpectedEventVersion] if [EventStore.last] event number is not
   /// equal to the last event number in [EventStore.canonicalStream] after [maxAttempts]
   /// of catching up with [EventStore.canonicalStream].
   ///
@@ -2670,7 +2670,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       'aggregate.number.head': '${aggregate?.headEvent?.number}',
       'aggregate.number.base': '${aggregate?.baseEvent?.number}',
       'aggregate.number.actual': '${aggregate?.number}',
-      'aggregate.number.stored': '${store.current(uuid: uuid)}',
+      'aggregate.number.stored': '${store.last(uuid: uuid)}',
       'aggregate.modifications': '${aggregate?.modifications}',
       'aggregate.applied.count': '${aggregate?.applied?.length}',
       'aggregate.pending.count': '${aggregate?.getLocalEvents()?.length}',
@@ -2684,8 +2684,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         'repository.snapshot.aggregate.number': '${snapshot.aggregates[uuid]?.number}',
       'store.connection': '${store.connection.host}:${store.connection.port}',
       'store.events.count': '${store.length}',
-      'store.number.instance': '${store.current(uuid: uuid)}',
-      'store.number.canonical': '${store.current()}',
+      'store.number.instance': '${store.last(uuid: uuid)}',
+      'store.number.canonical': '${store.last()}',
     };
   }
 

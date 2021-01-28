@@ -202,6 +202,13 @@ class EventStore {
   SourceEvent getEvent(String uuid) =>
       _events.containsKey(uuid) ? _aggregates[_events[uuid]].where((e) => e.uuid == uuid).firstOrNull : null;
 
+  /// Get [Event] position in [canonicalStream]
+  int toPosition(Event event) {
+    final offset = _snapshot?.number?.position ?? 0;
+    final position = _events.keys.toList().indexOf(event.uuid);
+    return position > -1 ? offset + position + 1 : -1;
+  }
+
   /// Get snapshots [Storage] instance
   Storage get snapshots => _snapshots;
 
@@ -231,7 +238,7 @@ class EventStore {
   ///
   /// If stream does not exist, [EventNumber.none] is returned.
   ///
-  EventNumber current({String stream, String uuid}) {
+  EventNumber last({String stream, String uuid}) {
     return _toNumber(stream, uuid, (events) => events.last.number);
   }
 
@@ -281,9 +288,13 @@ class EventStore {
     if (_snapshot == null) {
       return EventNumber.none + _events.keys.length;
     }
-    // Each aggregate snapshot event is added
-    // TODO: This is wrong. Need to store position in projection as well
-    return _snapshot.number.toNumber() + _events.keys.length - _snapshot.aggregates.length - _snapshot.missing;
+    final first = _snapshot.isPartial
+        // Start from position of event in first partial snapshot
+        ? EventNumber(_snapshot.tail)
+        // Start from position of last event in snapshot
+        : _snapshot.number.toPosition();
+    // Adjust for each aggregate snapshot event
+    return first + _events.keys.length - _snapshot.aggregates.length;
   }
 
   /// Replay events on given [repo].
@@ -344,8 +355,12 @@ class EventStore {
           if (_isDisposed) break;
           final tic = DateTime.now();
           final offset = repo.hasSnapshot
+              // Start from next event in
+              // instance stream after
+              // event stored in snapshot
               ? (repo.snapshot.aggregates[uuid]?.number?.toNumber() ?? EventNumber.none) + 1
               : EventNumber.first;
+
           final stream = toInstanceStream(uuid);
           final events = await _catchup(
             repo,
@@ -368,11 +383,13 @@ class EventStore {
       if (!_isDisposed && uuids.isEmpty) {
         final tic = DateTime.now();
 
-        // Start from first event after snapshot or from first event in stream
         final offset = repo.hasSnapshot
-            // Adjust offset for missing events
-            // TODO: This is wrong. Need to store position in projection as well
-            ? repo.snapshot.number.toNumber() - repo.snapshot.missing + 1
+            ? repo.snapshot.isPartial
+                // Start from position of event in first partial snapshot
+                ? EventNumber(repo.snapshot.tail) + 1
+                // Start from position of last event in snapshot
+                : repo.snapshot.number.toPosition() + 1
+            // Start from first event in canonical stream
             : EventNumber.first;
 
         // Fetch all events from canonical stream
@@ -822,7 +839,7 @@ class EventStore {
         return head.number;
       }
     }
-    return current(stream: stream);
+    return last(stream: stream);
   }
 
   /// Catch up with streams.
@@ -854,7 +871,7 @@ class EventStore {
 
       // Catchup to given streams
       for (var stream in streams) {
-        final previous = current(stream: stream);
+        final previous = last(stream: stream);
         final offset = _toStreamOffset(repo, stream: stream);
         final events = await _catchup(
           repo,
@@ -865,7 +882,7 @@ class EventStore {
           context: context,
         );
         if (_isDisposed) break;
-        final next = current(stream: stream);
+        final next = last(stream: stream);
         if (events > 0) {
           context.info(
             'Caught up $events events from $stream@$offset to $stream@$next',
@@ -927,7 +944,7 @@ class EventStore {
         'stream.id': '$stream',
         'aggregate.uuid': '$uuid',
         'stream.number.offset': '$offset',
-        'stream.number.current': '${current(stream: stream)}',
+        'stream.number.current': '${last(stream: stream)}',
       },
       category: 'EventStore._catchUp',
     );
@@ -1004,7 +1021,7 @@ class EventStore {
   }) {
     var idx = 0;
     final stream = toInstanceStream(uuid);
-    final remote = current(stream: stream);
+    final remote = last(stream: stream);
     final offset = first(uuid: uuid);
     var previous = remote;
 
@@ -1205,7 +1222,7 @@ class EventStore {
     context = _useContext(context);
 
     final stream = toInstanceStream(uuid);
-    final offset = current(stream: stream);
+    final offset = last(stream: stream);
     final version = toExpectedVersion(stream);
 
     // Has a remote concurrent write occurred?
@@ -1311,7 +1328,7 @@ class EventStore {
   /// order).
   ///
   ExpectedVersion toExpectedVersion(String stream) {
-    final number = current(stream: stream) ?? EventNumber.none;
+    final number = last(stream: stream) ?? EventNumber.none;
     return number.isNone ? ExpectedVersion.none : ExpectedVersion.from(number);
   }
 
@@ -1439,7 +1456,7 @@ class EventStore {
     }
 
     final uuid = repo.toAggregateUuid(event);
-    final actual = current(uuid: uuid);
+    final actual = last(uuid: uuid);
     final stream = toInstanceStream(uuid);
 
     try {
@@ -1599,14 +1616,14 @@ class EventStore {
 
   /// Assert that current event number for [stream] is caught up with last known event
   void _assertCurrentVersion(Context context, String stream, EventNumber actual, {String reason = 'Catch up failed'}) {
-    final number = current(stream: stream);
+    final number = last(stream: stream);
     if (number != actual) {
       final stackTrace = StackTrace.current;
       final error = EventNumberMismatch(
         stream: stream,
         actual: actual,
         message: reason,
-        current: current(stream: stream),
+        current: last(stream: stream),
       );
       context.error(
         error.message,
@@ -1734,7 +1751,7 @@ class EventStore {
 
   bool _shouldRestart(EventStoreSubscriptionController controller) {
     final number = controller.current;
-    final actual = current();
+    final actual = last();
     final diff = actual.value - number.value;
     if (diff > 0) {
       context.debug(
@@ -2563,7 +2580,7 @@ class SourceEventErrorHandler {
       'aggregate.number.head': '${aggregate?.headEvent?.number}',
       'aggregate.number.base': '${aggregate?.baseEvent?.number}',
       'aggregate.number.actual': '${aggregate?.number}',
-      'aggregate.number.stored': '${repo.store.current(uuid: uuid)}',
+      'aggregate.number.stored': '${repo.store.last(uuid: uuid)}',
       'aggregate.modifications': '${aggregate?.modifications}',
       'aggregate.applied.count': '${aggregate?.applied?.length}',
       'aggregate.pending.count': '${aggregate?.getLocalEvents()?.length}',
@@ -2577,8 +2594,8 @@ class SourceEventErrorHandler {
         'repository.snapshot.aggregate.number': '${repo.snapshot.aggregates[uuid]?.number}',
       'store.connection': '${repo.store.connection.host}:${repo.store.connection.port}',
       'store.events.count': '${repo.store.length}',
-      'store.number.instance': '${repo.store.current(uuid: aggregate.uuid)}',
-      'store.number.canonical': '${repo.store.current()}',
+      'store.number.instance': '${repo.store.last(uuid: aggregate.uuid)}',
+      'store.number.canonical': '${repo.store.last()}',
     };
   }
 }

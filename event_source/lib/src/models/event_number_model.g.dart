@@ -9,6 +9,7 @@ part of 'event_number_model.dart';
 EventNumberModel _$EventNumberModelFromJson(Map json) {
   return EventNumberModel(
     value: json['value'] as int,
+    position: json['position'] as int,
   );
 }
 
@@ -22,5 +23,6 @@ Map<String, dynamic> _$EventNumberModelToJson(EventNumberModel instance) {
   }
 
   writeNotNull('value', instance.value);
+  writeNotNull('position', instance.position);
   return val;
 }

@@ -15,7 +15,9 @@ SnapshotModel _$SnapshotModelFromJson(Map json) {
         : EventNumberModel.fromJson((json['number'] as Map)?.map(
             (k, e) => MapEntry(k as String, e),
           )),
-    timestamp: json['timestamp'] == null ? null : DateTime.parse(json['timestamp'] as String),
+    timestamp: json['timestamp'] == null
+        ? null
+        : DateTime.parse(json['timestamp'] as String),
     aggregates: fromAggregateRootsJson(json['aggregates']),
   );
 }
@@ -29,6 +31,7 @@ Map<String, dynamic> _$SnapshotModelToJson(SnapshotModel instance) {
     }
   }
 
+  writeNotNull('type', instance.type);
   writeNotNull('uuid', instance.uuid);
   writeNotNull('timestamp', instance.timestamp?.toIso8601String());
   writeNotNull('number', instance.number?.toJson());

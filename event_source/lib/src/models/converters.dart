@@ -68,24 +68,25 @@ SnapshotModel toSnapshot(Repository repo, {DateTime timestamp}) =>
 
 /// Only aggregates with base is included
 LinkedHashMap<String, AggregateRootModel> toAggregateRoots(Repository repo) =>
-    LinkedHashMap.fromEntries(repo.aggregates.where((a) => !a.isNew).map(toAggregateRoot).map(
+    LinkedHashMap.fromEntries(repo.aggregates.where((a) => !a.isNew).map((a) => toAggregateRoot(repo, a)).map(
           (a) => MapEntry(a.uuid, a),
         ));
 
 LinkedHashMap<String, AggregateRootModel> replaceAggregateRoot(
+  Repository repo,
   LinkedHashMap<String, AggregateRootModel> aggregates,
   AggregateRoot aggregate,
 ) {
   final prev = aggregates[aggregate.uuid];
   if (prev == null || prev.number.value < aggregate.baseEvent.number.value) {
-    final model = toAggregateRoot(aggregate);
+    final model = toAggregateRoot(repo, aggregate);
     aggregates.update(aggregate.uuid, (_) => model, ifAbsent: () => model);
   }
   return aggregates;
 }
 
 /// Store remote state only!
-AggregateRootModel toAggregateRoot(AggregateRoot root) {
+AggregateRootModel toAggregateRoot(Repository repo, AggregateRoot root) {
   final baseEvent = root.baseEvent;
   return AggregateRootModel(
     uuid: root.uuid,
@@ -97,6 +98,9 @@ AggregateRootModel toAggregateRoot(AggregateRoot root) {
     // confirmed to exist remotely
     // should be persisted, BaseEvent
     // MUST exist (no null check required)
-    number: EventNumberModel.from(baseEvent.number),
+    number: EventNumberModel.from(
+      baseEvent.number,
+      position: repo.store.toPosition(baseEvent),
+    ),
   );
 }
