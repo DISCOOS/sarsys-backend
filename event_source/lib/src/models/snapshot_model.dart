@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:math';
 
 import 'package:meta/meta.dart';
 import 'package:equatable/equatable.dart';
@@ -20,7 +21,8 @@ class SnapshotModel extends Equatable {
     DateTime timestamp,
     LinkedHashMap<String, AggregateRootModel> aggregates,
   })  : timestamp = timestamp ?? DateTime.now(),
-        _missing = _checkPartial(number, aggregates),
+        _tail = _toTail(number, aggregates),
+        _missing = _toMissing(number, aggregates),
         // ignore: prefer_collection_literals
         aggregates = aggregates ?? LinkedHashMap<String, AggregateRootModel>();
 
@@ -33,35 +35,55 @@ class SnapshotModel extends Equatable {
   /// [Snapshot] timestamp
   final DateTime timestamp;
 
-  /// Get event number of [Event] applied last
+  /// Get [Event] number of event applied last
   final EventNumberModel number;
+
+  /// Get number of events first event in snapshot is behind last event
+  int get behind => number.position < 0 ? 0 : (number.position - (_tail < 0 ? 0 : _tail) + 1);
+
+  /// Get position of first event in snapshot
+  int get tail => _tail;
+  final int _tail;
+
+  /// Get number of events missing
+  int get missing => _missing;
+  final int _missing;
 
   /// Check if snapshot is partial.
   /// A partial snapshot contains
   /// aggregates that are missing
   /// events. This is an error
   /// that should not happen,
-  /// but is resolvable.
+  /// but is resolvable by
+  /// replaying events from [tail],
+  ///
   bool get isPartial => _missing > 0;
 
-  static int _checkPartial(
+  static int _toTail(
     EventNumberModel number,
     LinkedHashMap<String, AggregateRootModel> aggregates,
   ) {
-    var value = 0;
+    var tail = number.position;
     if (aggregates != null) {
       for (var a in (aggregates).values) {
-        // Adjust for zero-based number
-        value = value + a.number.value + 1;
+        tail = min(tail, a.number.position);
       }
     }
-    // Adjust for zero-based number
-    return number.value + 1 - value;
+    return tail;
   }
 
-  /// Get number of events missing from snapshot
-  int get missing => _missing;
-  final int _missing;
+  static int _toMissing(
+    EventNumberModel number,
+    LinkedHashMap<String, AggregateRootModel> aggregates,
+  ) {
+    var count = 0;
+    if (aggregates != null) {
+      for (var a in (aggregates).values) {
+        count += a.number.value + 1;
+      }
+    }
+    return number.position < 0 ? 0 : number.position - count + 1;
+  }
 
   /// List of aggregate roots
   @JsonKey(
@@ -87,7 +109,7 @@ class SnapshotModel extends Equatable {
         uuid: uuid ?? this.uuid,
         timestamp: timestamp ?? DateTime.now(),
         number: EventNumberModel.from(repo.number),
-        aggregates: root == null ? toAggregateRoots(repo) : replaceAggregateRoot(aggregates, root),
+        aggregates: root == null ? toAggregateRoots(repo) : replaceAggregateRoot(repo, aggregates, root),
       );
 
   @override

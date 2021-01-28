@@ -1282,7 +1282,7 @@ Future main() async {
     // Assert - subscription offset to current + 1
     expect(
       offsets2[FooRepository],
-      repo.store.current() + 1,
+      repo.store.last() + 1,
       reason: 'should resume from current',
     );
   });
@@ -1951,7 +1951,7 @@ Future main() async {
       // Assert repo 1
       expect(repo1.snapshot, isNotNull);
       expect(repo1.store.snapshots.length, 1); // (replay of 102 events yields 1 snapshot from 102 > 10)
-      expect(repo1.store.length, events - repo1.snapshot.number.value + 1);
+      expect(repo1.store.length, events - repo1.snapshot.number.position + 1);
 
       // Act on repo 2
       await repo2.load(); // Required since storage instances are not synchronized!
@@ -1961,10 +1961,10 @@ Future main() async {
       // Assert repo 2
       expect(repo2.snapshot, isNotNull);
       expect(repo2.store.snapshots.length, snapshots); // (total 102 events and page size is 20 => 5 snapshots)
-      expect(repo2.store.length, events - repo2.snapshot.number.value + 1);
+      expect(repo2.store.length, events - repo2.snapshot.number.position + 1);
     },
     // TODO: Fix expectation failure in _repositoryShouldCommitTransactionsOnPush
-    retry: 1,
+    retry: 0,
   );
 
   test('Repository push from last snapshot', () async {
@@ -1982,10 +1982,10 @@ Future main() async {
 
     // Assert
     expect(repo.snapshot, isNotNull, reason: 'Should have a snapshot');
-    expect(repo.number, repo.store.current(), reason: 'Should be equal');
-    expect(repo.store.current(), equals(EventNumber(3)), reason: 'Should cumulate to (offset + events.length - 1)');
-    expect(event3.number, repo.store.current(uuid: foo1.uuid), reason: 'Should be equal');
-    expect(event4.number, repo.store.current(uuid: foo2.uuid), reason: 'Should be equal');
+    expect(repo.number, repo.store.last(), reason: 'Should be equal');
+    expect(repo.store.last(), equals(EventNumber(3)), reason: 'Should cumulate to (offset + events.length - 1)');
+    expect(event3.number, repo.store.last(uuid: foo1.uuid), reason: 'Should be equal');
+    expect(event4.number, repo.store.last(uuid: foo2.uuid), reason: 'Should be equal');
 
     expect(foo1.number, equals(event3.number));
     expect(foo2.number, equals(event4.number));
@@ -2295,14 +2295,14 @@ Future _repositoryShouldCommitTransactionsOnPush(
   expect(repo2.store.aggregateMap[uuid2].length, equals(51));
 
   // Assert event numbers
-  expect(repo1.store.current().value, equals(101));
-  expect(repo1.store.current(uuid: uuid1).value, equals(50));
-  expect(repo1.store.current(uuid: uuid2).value, equals(50));
+  expect(repo1.store.last().value, equals(101));
+  expect(repo1.store.last(uuid: uuid1).value, equals(50));
+  expect(repo1.store.last(uuid: uuid2).value, equals(50));
   expect(repo1.store.aggregateMap[uuid1].last.number.value, equals(50));
 
-  expect(repo2.store.current().value, equals(101));
-  expect(repo2.store.current(uuid: uuid1).value, equals(50));
-  expect(repo2.store.current(uuid: uuid2).value, equals(50));
+  expect(repo2.store.last().value, equals(101));
+  expect(repo2.store.last(uuid: uuid1).value, equals(50));
+  expect(repo2.store.last(uuid: uuid2).value, equals(50));
   expect(repo2.store.aggregateMap[uuid2].last.number.value, equals(50));
 }
 
@@ -2311,6 +2311,7 @@ Future _repositoryShouldCommitTransactionsOnPush(
 Future _testShouldBuildFromLastSnapshot(
   EventSourceHarness harness, {
   bool partial = false,
+  bool withPosition = true,
 }) async {
   // -----------------------------------
   // Arrange repos
@@ -2369,6 +2370,7 @@ Future _testShouldBuildFromLastSnapshot(
   stream.append(
     '${stream.instanceStream}-0',
     [
+      // Position 0 in canonical stream
       TestStream.asSourceEvent<FooCreated>(
         fuuid1,
         {},
@@ -2376,14 +2378,6 @@ Future _testShouldBuildFromLastSnapshot(
         eventId: event11.uuid,
         number: EventNumber(0),
       ),
-      if (partial)
-        TestStream.asSourceEvent<FooUpdated>(
-          fuuid1,
-          data11,
-          data12,
-          eventId: event12.uuid,
-          number: EventNumber(1),
-        ),
     ],
   );
 
@@ -2425,6 +2419,7 @@ Future _testShouldBuildFromLastSnapshot(
   stream.append(
     '${stream.instanceStream}-1',
     [
+      // Position 1 in canonical stream
       TestStream.asSourceEvent<FooCreated>(
         fuuid2,
         {},
@@ -2432,7 +2427,27 @@ Future _testShouldBuildFromLastSnapshot(
         eventId: event21.uuid,
         number: EventNumber(0),
       ),
-      if (partial)
+    ],
+  );
+
+  if (partial) {
+    stream.append(
+      '${stream.instanceStream}-0',
+      [
+        // Position 2 in canonical stream
+        TestStream.asSourceEvent<FooUpdated>(
+          fuuid1,
+          data11,
+          data12,
+          eventId: event12.uuid,
+          number: EventNumber(1),
+        ),
+      ],
+    );
+    stream.append(
+      '${stream.instanceStream}-1',
+      [
+        // Position 3 in canonical stream
         TestStream.asSourceEvent<FooUpdated>(
           fuuid2,
           data21,
@@ -2440,8 +2455,9 @@ Future _testShouldBuildFromLastSnapshot(
           eventId: event22.uuid,
           number: EventNumber(1),
         ),
-    ],
-  );
+      ],
+    );
+  }
 
   // -----------------------------------
   // Create snapshot
@@ -2459,9 +2475,10 @@ Future _testShouldBuildFromLastSnapshot(
     StorageState(value: snapshot1),
   );
   final suuid2 = Uuid().v4();
+  final number = partial ? 3 : 1;
   final snapshot2 = SnapshotModel(
     uuid: suuid2,
-    timestamp: timestamp,
+    timestamp: timestamp.add(Duration(seconds: 1)),
     type: '${repo2.aggregateType}',
     // Partial snapshot where
     // aggregates are not up
@@ -2470,21 +2487,31 @@ Future _testShouldBuildFromLastSnapshot(
     // that should be recovered
     // on catchup or replay
     //
-    number: EventNumberModel(value: partial ? 3 : 1),
+    number: EventNumberModel(
+      value: number,
+      position: withPosition ? number : null,
+    ),
     aggregates: LinkedHashMap.from({
       fuuid1: AggregateRootModel(
         uuid: fuuid1,
         createdBy: event11,
         changedBy: event11,
         data: data11,
-        number: EventNumberModel.from(event11.number),
+        number: EventNumberModel.from(
+          event11.number,
+          // Always first in canonical stream
+          position: withPosition ? 0 : null,
+        ),
       ),
       fuuid2: AggregateRootModel(
         uuid: fuuid2,
         createdBy: event21,
         changedBy: event21,
         data: data21,
-        number: EventNumberModel.from(event21.number),
+        number: EventNumberModel.from(
+          event21.number,
+          position: withPosition ? 1 : null,
+        ),
       ),
     }),
   );
@@ -2512,16 +2539,18 @@ Future _testShouldBuildFromLastSnapshot(
   expect(count1, equals(partial ? 2 : 0), reason: 'Should replay ${partial ? 2 : 0} events');
   expect(repo1.snapshot, isNotNull, reason: 'Should have a snapshot');
   expect(repo1.snapshot.uuid, equals(suuid2), reason: 'Should have snapshot $suuid2');
-  expect(repo1.number, repo1.store.current(), reason: 'Should be equal');
+  expect(repo1.store.snapshot.isPartial, partial, reason: 'Should match');
   expect(
-    repo1.store.current(),
-    equals(EventNumber(partial ? 3 : 1)),
+    repo1.store.last(),
+    // If partial, expect position of event in aggregate most behind
+    equals(EventNumber(partial ? 2 : 1)),
     reason: 'Should cumulate to (events.length - 1)',
   );
+  expect(repo1.number, repo1.store.last(), reason: 'Should be equal');
   final n11 = (partial ? event12 : event11).number;
   final n12 = (partial ? event22 : event21).number;
-  expect(repo1.store.current(uuid: fuuid1), equals(n11), reason: 'Should be equal');
-  expect(repo1.store.current(uuid: fuuid2), equals(n12), reason: 'Should be equal');
+  expect(repo1.store.last(uuid: fuuid1), equals(n11), reason: 'Should be equal');
+  expect(repo1.store.last(uuid: fuuid2), equals(n12), reason: 'Should be equal');
 
   expect(repo1.contains(fuuid1), isTrue, reason: 'Should contain aggregate root $fuuid1');
   final foo11 = repo1.get(fuuid1);
@@ -2549,16 +2578,18 @@ Future _testShouldBuildFromLastSnapshot(
   expect(count2, equals(partial ? 2 : 0), reason: 'Should replay ${partial ? 2 : 0} events');
   expect(repo2.snapshot, isNotNull, reason: 'Should have a snapshot');
   expect(repo2.snapshot.uuid, equals(suuid2), reason: 'Should have snapshot $suuid2');
-  expect(repo2.number, repo2.store.current(), reason: 'Should be equal');
+  expect(repo2.store.snapshot.isPartial, partial, reason: 'Should match');
   expect(
-    repo2.store.current(),
-    equals(EventNumber(partial ? 3 : 1)),
+    repo2.store.last(),
+    // If partial, expect position of event in aggregate most behind
+    equals(EventNumber(partial ? 2 : 1)),
     reason: 'Should cumulate to (events.length - 1)',
   );
+  expect(repo2.number, repo2.store.last(), reason: 'Should be equal');
   final n21 = (partial ? event12 : event11).number;
   final n22 = (partial ? event22 : event21).number;
-  expect(repo2.store.current(uuid: fuuid1), equals(n21), reason: 'Should be equal');
-  expect(repo2.store.current(uuid: fuuid2), equals(n22), reason: 'Should be equal');
+  expect(repo2.store.last(uuid: fuuid1), equals(n21), reason: 'Should be equal');
+  expect(repo2.store.last(uuid: fuuid2), equals(n22), reason: 'Should be equal');
 
   expect(repo2.contains(fuuid1), isTrue, reason: 'Should contain aggregate root $fuuid1');
   final foo21 = repo2.get(fuuid1);

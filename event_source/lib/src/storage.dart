@@ -193,7 +193,7 @@ class Storage {
               'next.uuid': '${_last.uuid}',
               'next.type': '${_last.type}',
               'next.number': '${_last.number}',
-              if (_last.isPartial) 'next.partial.missing': '${_last.missing}',
+              if (_last.isPartial) 'next.partial.missing': '${_last.tail}',
             },
             category: 'Storage._popLast',
             error: error,
@@ -583,7 +583,7 @@ class Storage {
           if (withNumber) 'unsaved': current.value - snapshot.number.value,
           if (snapshot?.isPartial == true)
             'partial': {
-              'missing': snapshot.missing,
+              'missing': snapshot.tail,
             },
           'save': _metrics['save'].toMeta(),
         },
