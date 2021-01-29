@@ -1,5 +1,4 @@
 import 'package:aqueduct/aqueduct.dart';
-import 'package:event_source/event_source.dart';
 import 'package:sarsys_http_core/sarsys_http_core.dart';
 
 class ReadinessController extends ResourceController {
