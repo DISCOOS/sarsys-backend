@@ -3268,6 +3268,7 @@ class EventStoreConnection {
     final url = _mapUrlTo(
       toURL('subscriptions/$stream/$group'),
     );
+    _logger.fine('createSubscription: PUT $url');
     final result = await client.put(url,
         headers: {
           'Authorization': credentials.header,
@@ -3296,7 +3297,7 @@ class EventStoreConnection {
     if (embed) {
       url = '$url?embed=body';
     }
-    _logger.finer('_getSubscriptionGroup: REQUEST $url');
+    _logger.fine('_getSubscriptionGroup: GET $url');
     return client.get(
       url,
       headers: {

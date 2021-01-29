@@ -119,7 +119,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
       )
       ..route('/api/healthz/alive').link(() => LivenessController())
       ..route('/api/healthz/ready').link(() => ReadinessController(
-            manager,
+            () => manager.isReady,
           ))
       ..secure(
           '/api/messages/connect',
@@ -920,6 +920,13 @@ class SarSysAppServerChannel extends ApplicationChannel {
   }
 
   void documentSecuritySchemas(APIDocumentContext context) => context.securitySchemes
+    ..register(
+        'OpenId Connect',
+        APISecurityScheme.openID(
+          Uri.parse(
+            '${config.auth?.baseUrl ?? 'https://id.discoos.io/auth/realms/DISCOOS'}/.well-known/openid-configuration',
+          ),
+        ))
     ..register(
       "Passcode",
       APISecurityScheme.apiKey(

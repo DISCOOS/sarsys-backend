@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sarsys-ops-server-config
+  namespace: sarsys
+data:
+  IMAGE: "discoos/sarsys_ops_server:latest"
+  DEBUG: "true"
+  PREFIX: "test"
+  TENANT: "discoos"
+  MAX_BODY_SIZE: "100"
+  LOG_LEVEL: "FINE"
+  LOG_SENTRY_LEVEL: "severe"
+  LOG_SENTRY_DSN: "https://4a2d024141404d2cb0cf334132621665@sentry.io/5182599"
+  EVENTSTORE_HOST: "http://eventstore.sarsys.svc.cluster.local"
+  EVENTSTORE_PORT: "2113"
+  EVENTSTORE_REQUIRE_MASTER: "true"
+  APP_SERVER_HOST: "http://sarsys-app-server.sarsys.svc.cluster.local"
+  APP_SERVER_PORT: "8082"
+  TRACKING_SERVER_HOST: "http://sarsys-tracking-server.sarsys.svc.cluster.local"
+  TRACKING_SERVER_GRCP_PORT: "8082"
+  TRACKING_SERVER_HEALTHZ_PORT: "8083"
+  AUTH_ENABLED: "true"
+  AUTH_AUDIENCE: "sarsys-ops"
+  AUTH_ISSUER: "https://id.discoos.io/auth/realms/DISCOOS"
+  AUTH_BASE_URL: "https://id.discoos.io/auth/realms/DISCOOS"
+  AUTH_ROLES_CLAIM: "roles"
+  AUTH_REALM_ACCESS_ROLES_CLAIM: "realm_access_roles"
+  DATA_ENABLED: "true"
+  DATA_PATH: "/var/lib/sarsys"
+  DATA_SNAPSHOTS_ENABLED: "true"
+  DATA_SNAPSHOTS_KEEP: "20"
+  DATA_SNAPSHOTS_AUTOMATIC: "true"
+  DATA_SNAPSHOTS_THRESHOLD: "1000"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sarsys-ops-server-secrets
+  namespace: sarsys
+data:
+  # echo -n 'admin' | openssl base64
+  EVENTSTORE_LOGIN: YWRtaW4=
+  # echo -n 'changeit' | openssl base64
+  EVENTSTORE_PASSWORD: Y2hhbmdlaXQ=
+type: Opaque

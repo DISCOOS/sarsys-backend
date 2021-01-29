@@ -1,0 +1,22 @@
+name: sarsys_ops_server
+description: SARSys Ops server
+version: 0.0.1
+author: Kenneth Gulbrandsøy <kenneth@discoos.org>
+
+environment:
+  sdk: '>=2.9.0 <3.0.0'
+
+dependencies:
+
+  grpc: ^2.8.0
+  logging: ^0.11.4
+  protobuf: ^1.1.0
+  sarsys_domain:
+    path: ../sarsys_domain
+  sarsys_http_core:
+    path: ../sarsys_http_core
+
+
+dev_dependencies:
+  test: ^1.0.0
+  aqueduct_test: ^1.0.0

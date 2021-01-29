@@ -1,0 +1,35 @@
+debug: $DEBUG
+prefix: $PREFIX
+tenant: $TENANT
+
+data:
+  enabled: $DATA_ENABLED
+  path: $DATA_PATH
+  snapshots:
+    enabled: $DATA_SNAPSHOTS_ENABLED
+    keep: $DATA_SNAPSHOTS_KEEP
+    automatic: $DATA_SNAPSHOTS_AUTOMATIC
+    threshold: $DATA_SNAPSHOTS_THRESHOLD
+
+auth:
+  enabled: $AUTH_ENABLED
+  audience: $AUTH_AUDIENCE
+  issuer: $AUTH_ISSUER
+  baseUrl: $AUTH_BASE_URL
+  rolesClaims:
+    - $AUTH_ROLES_CLAIM
+    - $AUTH_REALM_ACCESS_ROLES_CLAIM
+  required:
+    - roles:personnel
+
+eventstore:
+  host: $EVENTSTORE_HOST
+  port: $EVENTSTORE_PORT
+  login: $EVENTSTORE_LOGIN
+  password: $EVENTSTORE_PASSWORD
+  requireMaster: $EVENTSTORE_REQUIRE_MASTER
+logging:
+  level: $LOG_LEVEL
+  sentry:
+    dsn: $LOG_SENTRY_DSN
+    level: $LOG_SENTRY_LEVEL

@@ -1,12 +1,14 @@
 import 'dart:math';
 
 import 'package:args/args.dart';
-import 'package:sarsys_app_server/sarsys_app_server.dart';
+import 'package:logging/logging.dart';
+import 'package:sarsys_http_core/sarsys_http_core.dart';
+import 'package:sarsys_ops_server/sarsys_ops_server.dart';
 
 Future main(List<String> args) async {
   final logger = Logger("main")
     ..onRecord.listen(
-      SarSysAppServerChannel.printRecord,
+      SarSysOpsServerChannel.printRecord,
     );
   final parser = ArgParser()
     ..addOption("port", defaultsTo: "80", abbr: "p")
@@ -16,7 +18,7 @@ Future main(List<String> args) async {
     ..addOption("training", defaultsTo: "false");
   final results = parser.parse(args);
   final training = (results['training'] as String).toLowerCase() == "true";
-  final app = Application<SarSysAppServerChannel>()
+  final app = Application<SarSysOpsServerChannel>()
     ..isolateStartupTimeout = const Duration(seconds: isolateStartupTimeout)
     ..options.configurationFilePath = results['config'] as String
     ..options.port = int.tryParse(results['port'] as String) ?? 8888;

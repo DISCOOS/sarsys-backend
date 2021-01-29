@@ -3,12 +3,12 @@ import 'package:event_source/event_source.dart';
 import 'package:sarsys_http_core/sarsys_http_core.dart';
 
 class ReadinessController extends ResourceController {
-  ReadinessController(this.manager);
-  final RepositoryManager manager;
+  ReadinessController(this.onCheck);
+  final bool Function() onCheck;
 
   @Operation.get()
   Future<Response> check() async {
-    return manager.isReady ? Response.ok('Status OK') : serviceUnavailable(body: 'Status Not ready');
+    return onCheck() ? Response.ok('Status OK') : serviceUnavailable(body: 'Status Not ready');
   }
 
   @override
