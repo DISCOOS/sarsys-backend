@@ -220,11 +220,15 @@ class SarSysOpsServerChannel extends ApplicationChannel {
   }
 
   void _terminateOnFailure(Object error, StackTrace stackTrace) {
+    stdout.writeln(
+      "Failed to prepare server: $error: $stackTrace",
+    );
     logger.severe(
-      "Failed to build repositories: $error: $stackTrace",
+      "Failed to prepare server: $error",
       error,
       Trace.from(stackTrace),
     );
+    stdout.writeln("Terminating server safely...");
     logger.severe(
       "Terminating server safely...",
       error,

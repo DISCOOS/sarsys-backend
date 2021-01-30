@@ -26,7 +26,7 @@ eventstore:
   host: $EVENTSTORE_HOST
   port: $EVENTSTORE_PORT
   login: $EVENTSTORE_LOGIN
-  password: $EVENTSTORE_PASSWORDm
+  password: $EVENTSTORE_PASSWORD
   requireMaster: $EVENTSTORE_REQUIRE_MASTER
 logging:
   level: $LOG_LEVEL
