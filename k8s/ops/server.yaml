@@ -136,7 +136,14 @@ spec:
         # Needed for write access to volume with non-root user 1000
         fsGroup: 1000
         runAsUser: 1000
+      #
       serviceAccountName: sarsys-user
+      # Needed for accessing api-server from within the pod
+      # Token is mounted at
+      # /var/run/secrets/kubernetes.io/serviceaccount/token
+      # Cert is mounted at
+      # /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      automountServiceAccountToken: true
 
   volumeClaimTemplates:
     - metadata:

@@ -46,7 +46,11 @@ Future main() async {
   });
 
   test('sarsysctl help auth', () async {
-    expect(await run(['help', 'init']), isNull);
+    expect(await run(['help', 'auth']), isNull);
+  });
+
+  test('sarsysctl help auth init', () async {
+    expect(await run(['help', 'auth', 'init']), isNull);
   });
 
   test('sarsysctl help status', () async {
