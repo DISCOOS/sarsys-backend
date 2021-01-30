@@ -76,15 +76,15 @@ class K8sApi {
         final response = await get('/api/v1/namespaces/$ns/pods');
         logger.info('K8S api: ${response.statusCode} ${response.reasonPhrase}');
         final json = Map<String, dynamic>.from(await toContent(response));
-        logger.fine('K8S api: $json');
-        final items = json.mapAt<String, Map<String, Map<String, dynamic>>>('items')?.values;
+        logger.fine('K8S api: Has content ${json.runtimeType}');
+        final items = json.listAt('items');
         if (items != null) {
           pods.addAll(
-            items.map((pod) => pod['metadata'].elementAt<String>('name')),
+            items.map((pod) => (pod['metadata'] as Map).elementAt<String>('name')),
           );
         }
         logger.fine('K8S api: pods: $pods');
-      } on Exception catch (error, stackTrace) {
+      } catch (error, stackTrace) {
         logger.severe(
           'K8S api: ${Context.toMethod('getPodNamesFromNs', [
             'namespace: $ns',

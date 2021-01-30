@@ -4,3 +4,30 @@ metadata:
   name: sarsys-user
   namespace: sarsys
 automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: sarsys
+  name: ops-monitor
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+# This role binding allows service
+# account "sarsys-user" to read pods
+# in the "sarsys" namespace.
+kind: RoleBinding
+metadata:
+  name: read-pods
+  namespace: sarsys
+subjects:
+  - kind: ServiceAccount
+    name: sarsys-user
+    namespace: sarsys
+roleRef:
+  kind: Role
+  name: ops-monitor
+  apiGroup: rbac.authorization.k8s.io
