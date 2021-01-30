@@ -2,10 +2,11 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 import 'package:ansicolor/ansicolor.dart';
+import 'package:args/command_runner.dart';
 import 'package:dart_app_data/dart_app_data.dart';
 
 final highlight = AnsiPen()..gray();
-final red = AnsiPen()..green(bold: true);
+final red = AnsiPen()..red(bold: true);
 final gray = AnsiPen()..gray(level: 0.5);
 final green = AnsiPen()..green(bold: true);
 
@@ -23,7 +24,7 @@ String get homeDir {
 }
 
 String get appDataDir {
-  return AppData.findOrCreate('sarsysctl').directory.path;
+  return AppData.findOrCreate('sarsysctl').path;
 }
 
 AppData findOrCreateDataDir(String name) {
@@ -46,4 +47,18 @@ String usage(String command, String description, ArgParser parser, [List<String>
   buffer.writeln('Global options:');
   buffer.writeln(parser.usage.split('\n').map((l) => '  $l').join('\n'));
   return buffer.toString();
+}
+
+abstract class BaseCommand extends Command<String> {
+  final buffer = StringBuffer();
+
+  void write(String message, IOSink sink) {
+    buffer.write(message);
+    sink.write(message);
+  }
+
+  void writeln(String message, IOSink sink) {
+    buffer.writeln(message);
+    sink.writeln(message);
+  }
 }
