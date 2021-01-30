@@ -20,13 +20,13 @@ auth:
     - $AUTH_ROLES_CLAIM
     - $AUTH_REALM_ACCESS_ROLES_CLAIM
   required:
-    - roles:personnel
+    - roles:admin
 
 eventstore:
   host: $EVENTSTORE_HOST
   port: $EVENTSTORE_PORT
   login: $EVENTSTORE_LOGIN
-  password: $EVENTSTORE_PASSWORD
+  password: $EVENTSTORE_PASSWORDm
   requireMaster: $EVENTSTORE_REQUIRE_MASTER
 logging:
   level: $LOG_LEVEL

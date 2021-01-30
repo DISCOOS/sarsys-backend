@@ -16,10 +16,14 @@ class StatusCommand extends BaseCommand {
   @override
   FutureOr<String> run() async {
     final client = HttpClient();
+
     writeln(highlight('> Ops control pane'), stdout);
     writeln('  Alive: ${await _isOK(client, '/ops/api/healthz/alive')}', stdout);
     writeln('  Ready: ${await _isOK(client, '/ops/api/healthz/ready')}', stdout);
-    writeln('  System: ${await _get(client, '/ops/api/system/status')}', stdout);
+
+    writeln(highlight('> System'), stdout);
+    writeln('  Alive: ${await _isOK(client, '/ops/api/system/status', failure: 'Failure')}', stdout);
+
     return buffer.toString();
   }
 
@@ -29,20 +33,25 @@ class StatusCommand extends BaseCommand {
     final request = await client.get('sarsys.app', 80, url);
     final response = await request.close();
     final result = '${response.statusCode} ${response.reasonPhrase} in ';
-    writeln(gray('GET $url: ($result${DateTime.now().difference(tic).inMilliseconds} ms)'), stdout);
+    writeln(gray('  GET $url: ($result${DateTime.now().difference(tic).inMilliseconds} ms)'), stdout);
     return buffer.toString();
   }
 
-  Future<String> _isOK(HttpClient client, String url) async {
+  Future<String> _isOK(
+    HttpClient client,
+    String url, {
+    String access = 'Yes',
+    String failure = 'No',
+  }) async {
     final tic = DateTime.now();
     final buffer = StringBuffer();
     final request = await client.get('sarsys.app', 80, url);
     final response = await request.close();
-    final reason = '${response.reasonPhrase} in ';
+    final reason = '${response.statusCode} ${response.reasonPhrase} in ';
     if (HttpStatus.ok == response.statusCode) {
-      buffer.write(green('Yes'));
+      buffer.write(green('$access'));
     } else {
-      buffer.write(red('No'));
+      buffer.write(red('$failure'));
     }
     buffer.write(gray(' ($reason${DateTime.now().difference(tic).inMilliseconds} ms)'));
     return buffer.toString();

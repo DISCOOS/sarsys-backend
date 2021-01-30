@@ -167,10 +167,18 @@ class AuthCheckCommand extends _AuthCommand {
           config['user'],
         ));
         writeln('  User: ${green(info.name)}', stdout);
+
         final tokens = TokenResponse.fromJson(Map<String, dynamic>.from(
           auth['tokens'],
         ));
         writeln('  Access token expires in: ${green('${tokens.expiresIn.inMinutes} min')}', stdout);
+
+        final json = _fromJWT(tokens.accessToken);
+        final roles = [
+          if (json.containsKey('roles')) ...json['roles'],
+          if (json.containsKey('realm_access_roles')) ...json['realm_access_roles'],
+        ];
+        writeln('  Roles: ${green('$roles')}', stdout);
       }
     } else {
       writeln(red('  Configuration not initialized'), stdout);
@@ -178,5 +186,37 @@ class AuthCheckCommand extends _AuthCommand {
     }
 
     return buffer.toString();
+  }
+
+  static Map<String, dynamic> _fromJWT(String token) {
+    final parts = token.split('.');
+    if (parts.length != 3) {
+      throw Exception('invalid token');
+    }
+    final payload = _decodeBase64(parts[1]);
+    final payloadMap = json.decode(payload);
+    if (payloadMap is! Map<String, dynamic>) {
+      throw Exception('invalid payload');
+    }
+    return payloadMap;
+  }
+
+  static String _decodeBase64(String str) {
+    var output = str.replaceAll('-', '+').replaceAll('_', '/');
+    switch (output.length % 4) {
+      case 0:
+        break;
+      case 2:
+        output += '==';
+        break;
+      case 3:
+        output += '=';
+        break;
+      default:
+        throw Exception('Illegal base64url string!"');
+    }
+    return utf8.decode(
+      base64Url.decode(output),
+    );
   }
 }
