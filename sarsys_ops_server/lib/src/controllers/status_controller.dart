@@ -29,7 +29,7 @@ abstract class StatusController extends ResourceController with RequestValidator
   // Status Operations
   //////////////////////////////////
 
-  /// Add @Operation.get() to activate
+  @Operation.get()
   Future<Response> getAll() async {
     try {
       return doGetAll();
@@ -42,7 +42,7 @@ abstract class StatusController extends ResourceController with RequestValidator
 
   Future<Response> doGetAll();
 
-  /// Add @Operation.get('name') to activate
+  @Operation.get('name')
   Future<Response> getByName(@Bind.path('name') String name) async {
     try {
       return doGetByName(name);

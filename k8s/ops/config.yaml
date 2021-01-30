@@ -21,7 +21,7 @@ data:
   TRACKING_SERVER_GRCP_PORT: "8082"
   TRACKING_SERVER_HEALTHZ_PORT: "8083"
   AUTH_ENABLED: "true"
-  AUTH_AUDIENCE: "sarsys-ops"
+  AUTH_AUDIENCE: "sarsys-app"
   AUTH_ISSUER: "https://id.discoos.io/auth/realms/DISCOOS"
   AUTH_BASE_URL: "https://id.discoos.io/auth/realms/DISCOOS"
   AUTH_ROLES_CLAIM: "roles"
