@@ -6,11 +6,12 @@ import 'package:http/http.dart';
 import 'package:jose/jose.dart';
 import 'package:meta/meta.dart';
 import 'package:aqueduct/aqueduct.dart' as aq;
-import 'package:sarsys_ops_server/src/modules.dart';
+import 'package:sarsys_ops_server/src/k8s/k8s_api.dart';
 import 'package:stack_trace/stack_trace.dart';
 import 'package:uuid/uuid.dart';
 
 import 'sarsys_ops_server.dart';
+import 'src/schemas.dart';
 
 /// MUST BE used when bootstrapping Aqueduct
 const int isolateStartupTimeout = 30;
@@ -183,8 +184,14 @@ class SarSysOpsServerChannel extends ApplicationChannel {
     }
   }
 
-  Future<bool> _configureK8sApi() {
-    return K8sApi().check();
+  Future<bool> _configureK8sApi() async {
+    final k8s = K8sApi();
+    final ok = k8s.check();
+    final pods = await k8s.getPodNamesFromNs(
+      k8s.namespace,
+    );
+    logger.info("PODS: ${pods.toList()}");
+    return ok;
   }
 
   void _buildValidators() {
@@ -352,8 +359,10 @@ class SarSysOpsServerChannel extends ApplicationChannel {
           ),
         ));
 
-  void documentSchemas(APIDocumentContext context) =>
-      context.schema..register('ID', documentID())..register('UUID', documentUUID());
+  void documentSchemas(APIDocumentContext context) => context.schema
+    ..register('ID', documentID())
+    ..register('UUID', documentUUID())
+    ..register('ServerStatus', documentServerStatus());
 }
 
 class RequestContext {
