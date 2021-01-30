@@ -6,6 +6,7 @@ import 'package:http/http.dart';
 import 'package:jose/jose.dart';
 import 'package:meta/meta.dart';
 import 'package:aqueduct/aqueduct.dart' as aq;
+import 'package:sarsys_ops_server/src/modules.dart';
 import 'package:stack_trace/stack_trace.dart';
 import 'package:uuid/uuid.dart';
 
@@ -64,10 +65,13 @@ class SarSysOpsServerChannel extends ApplicationChannel {
       _initHive();
       _configureLogger();
       _buildValidators();
+      await _configureK8sApi();
       await _buildSecureRouter();
 
       if (stopwatch.elapsed.inSeconds > isolateStartupTimeout * 0.8) {
-        logger.severe("Approaching maximum duration to wait for each isolate to complete startup");
+        logger.severe(
+          "Approaching maximum duration to wait for each isolate to complete startup",
+        );
       }
     } catch (e, stackTrace) {
       _terminateOnFailure(e, stackTrace);
@@ -177,6 +181,10 @@ class SarSysOpsServerChannel extends ApplicationChannel {
       logger.info("Sentry DSN is ${config.logging.sentry.dsn}");
       logger.info("Sentry log level set to ${_remoteLogger.level}");
     }
+  }
+
+  Future<bool> _configureK8sApi() {
+    return K8sApi().check();
   }
 
   void _buildValidators() {
