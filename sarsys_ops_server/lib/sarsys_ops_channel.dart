@@ -186,7 +186,7 @@ class SarSysOpsServerChannel extends ApplicationChannel {
 
   Future<bool> _configureK8sApi() async {
     final k8s = K8sApi();
-    final ok = k8s.check();
+    final ok = await k8s.check();
     final pods = await k8s.getPodNamesFromNs(
       k8s.namespace,
     );
