@@ -6,6 +6,7 @@ import 'package:http/http.dart';
 import 'package:jose/jose.dart';
 import 'package:meta/meta.dart';
 import 'package:aqueduct/aqueduct.dart' as aq;
+import 'package:sarsys_ops_server/src/controllers/system_status_controller.dart';
 import 'package:sarsys_ops_server/src/k8s/k8s_api.dart';
 import 'package:stack_trace/stack_trace.dart';
 import 'package:uuid/uuid.dart';
@@ -91,7 +92,8 @@ class SarSysOpsServerChannel extends ApplicationChannel {
         () => DocumentController(),
       )
       ..route('/ops/api/healthz/alive').link(() => LivenessController())
-      ..route('/ops/api/healthz/ready').link(() => LivenessController());
+      ..route('/ops/api/healthz/ready').link(() => LivenessController())
+      ..secure('/ops/api/system/status', () => SystemStatusController(config));
   }
 
   @override
