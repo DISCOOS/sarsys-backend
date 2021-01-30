@@ -12,7 +12,7 @@ auth:
     - roles
     - realm_access_roles
   required:
-    - roles:personnel
+    - roles:admin
 eventstore:
   # Eventstore:
   # host: http://127.0.0.1
