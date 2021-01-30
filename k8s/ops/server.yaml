@@ -112,7 +112,7 @@ spec:
               memory: "50Mi"
             limits:
               cpu: "250m"
-              memory: "100Mi"
+              memory: "250Mi"
           readinessProbe:
             httpGet:
               path: /ops/api/healthz/ready

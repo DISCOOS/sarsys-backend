@@ -1,18 +1,10 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:args/command_runner.dart';
 
 import 'core.dart';
 
-class StatusCommand extends Command<String> {
-  StatusCommand() {
-    // argParser.addFlag(
-    //   'help',
-    //   abbr: 'h',
-    //   negatable: false,
-    //   help: 'Displays this help information.',
-    // );
-  }
+class StatusCommand extends BaseCommand {
+  StatusCommand();
 
   @override
   final name = 'status';
@@ -23,10 +15,9 @@ class StatusCommand extends Command<String> {
   @override
   FutureOr<String> run() async {
     final client = HttpClient();
-    final buffer = StringBuffer();
-    buffer.writeln(highlight('> Ops control pane'));
-    buffer.writeln('  Alive: ${await _isOK(client, '/ops/api/healthz/alive')}');
-    buffer.writeln('  Ready: ${await _isOK(client, '/ops/api/healthz/ready')}');
+    writeln(highlight('> Ops control pane'), stdout);
+    writeln('  Alive: ${await _isOK(client, '/ops/api/healthz/alive')}', stdout);
+    writeln('  Ready: ${await _isOK(client, '/ops/api/healthz/ready')}', stdout);
     return buffer.toString();
   }
 
