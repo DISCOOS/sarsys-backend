@@ -8,56 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:openid_client/openid_client.dart';
 import 'package:sarsys_ops_cli/src/core.dart';
 
-abstract class _AuthCommand extends BaseCommand {
-  Future<Map<String, dynamic>> configure(Map<String, dynamic> config) async {
-    final auth = Map<String, dynamic>.from(config['auth'] ?? {});
-    var credential = _toCredential(auth);
-
-    if (credential == null) {
-      credential = await _authorize(auth); // this will open a browser
-
-      // Store credential
-      auth['credential'] = credential.toJson();
-    }
-
-    // return the user info
-    writeln(green('  Fetching user information...'), stdout);
-    final info = await credential.getUserInfo();
-    writeln('  User: ${green(info.name)}', stdout);
-    config['user'] = info.toJson();
-    final response = await credential.getTokenResponse();
-    writeln('  Access token expires in: ${green('${response.expiresIn.inMinutes} min')}', stdout);
-    auth['tokens'] = response.toJson();
-    config['auth'] = auth;
-    return config;
-  }
-
-  Future<Credential> _authorize(Map auth) async {
-    writeln(green('  Authorizing...'), stdout);
-    final issuer = await Issuer.discover(Uri.parse(
-      auth['discovery_uri'] as String ?? 'https://id.discoos.io/auth/realms/DISCOOS',
-    ));
-    final client = Client(issuer, auth['client_id'] as String ?? 'sarsys-app');
-
-    // Create an authenticator
-    final authenticator = Authenticator(client);
-
-    // Starts the authentication
-    return authenticator.authorize(); // this will open a browser
-  }
-
-  Credential _toCredential(Map auth) {
-    final c = auth['credential'];
-    if (c == null) {
-      return null;
-    }
-    return Credential.fromJson(
-      Map<String, dynamic>.from(auth['credential']),
-    );
-  }
-}
-
-class AuthCommand extends _AuthCommand {
+class AuthCommand extends BaseCommand {
   AuthCommand() {
     addSubcommand(AuthInitCommand());
     addSubcommand(AuthCheckCommand());
@@ -71,7 +22,7 @@ class AuthCommand extends _AuthCommand {
   final description = 'auth is used to authenticate the user';
 }
 
-class AuthInitCommand extends _AuthCommand {
+class AuthInitCommand extends BaseCommand {
   AuthInitCommand();
 
   @override
@@ -83,22 +34,10 @@ class AuthInitCommand extends _AuthCommand {
   @override
   FutureOr<String> run() async {
     writeln(highlight('> Initialize credential:'), stdout);
-    final file = File(globalResults['config'] ?? p.join(appDataDir, 'config.yaml'));
-    final exists = file.existsSync();
-    var config = <String, dynamic>{};
-    if (exists) {
-      config = Map<String, dynamic>.from(loadYaml(file.readAsStringSync()) ?? {});
-    }
-    if (config.isEmpty) {
-      config = {
-        'auth': {
-          'client_id': 'sarsys-app',
-          'discovery_uri': 'https://id.discoos.io/auth/realms/DISCOOS',
-        }
-      };
-    }
-    config = await configure(config);
-    if (!exists) {
+    final file = AuthUtils.toConfigFile(this);
+    var config = AuthUtils.ensureConfig(file);
+    config = await AuthUtils.configure(this, config);
+    if (!file.existsSync()) {
       file.createSync();
     }
     file.writeAsStringSync(jsonEncode(config));
@@ -107,7 +46,7 @@ class AuthInitCommand extends _AuthCommand {
   }
 }
 
-class AuthUpdateCommand extends _AuthCommand {
+class AuthUpdateCommand extends BaseCommand {
   AuthUpdateCommand();
 
   @override
@@ -125,10 +64,14 @@ class AuthUpdateCommand extends _AuthCommand {
     if (!exists) {
       throw StateError('configuration file $path does not exist');
     }
-    final config = await configure(
-      Map<String, dynamic>.from(loadYaml(
-        file.readAsStringSync(),
-      )),
+    final config = await AuthUtils.configure(
+      this,
+      Map<String, dynamic>.from(
+        loadYaml(
+          file.readAsStringSync(),
+        ),
+      ),
+      force: true,
     );
     file.writeAsStringSync(jsonEncode(config));
 
@@ -136,7 +79,7 @@ class AuthUpdateCommand extends _AuthCommand {
   }
 }
 
-class AuthCheckCommand extends _AuthCommand {
+class AuthCheckCommand extends BaseCommand {
   AuthCheckCommand();
 
   @override
@@ -157,7 +100,7 @@ class AuthCheckCommand extends _AuthCommand {
       ));
 
       final auth = Map<String, dynamic>.from(config['auth']);
-      var credential = _toCredential(auth);
+      var credential = AuthUtils.toCredential(auth);
 
       if (credential == null) {
         writeln(red('  Credential not found'), stdout);
@@ -168,12 +111,9 @@ class AuthCheckCommand extends _AuthCommand {
         ));
         writeln('  User: ${green(info.name)}', stdout);
 
-        final tokens = TokenResponse.fromJson(Map<String, dynamic>.from(
-          auth['tokens'],
-        ));
-        writeln('  Access token expires in: ${green('${tokens.expiresIn.inMinutes} min')}', stdout);
+        final tokens = AuthUtils._writeExpiresIn(this, auth['tokens']);
 
-        final json = _fromJWT(tokens.accessToken);
+        final json = AuthUtils.fromJWT(tokens.accessToken);
         final roles = [
           if (json.containsKey('roles')) ...json['roles'],
           if (json.containsKey('realm_access_roles')) ...json['realm_access_roles'],
@@ -187,8 +127,117 @@ class AuthCheckCommand extends _AuthCommand {
 
     return buffer.toString();
   }
+}
 
-  static Map<String, dynamic> _fromJWT(String token) {
+class AuthUtils {
+  static Future<String> getToken(BaseCommand command) async {
+    final file = toConfigFile(command);
+    if (!file.existsSync()) {
+      file.createSync();
+    }
+    final config = await configure(
+      command,
+      ensureConfig(file),
+    );
+    if (config != null) {
+      file.writeAsStringSync(jsonEncode(config));
+      final auth = config['auth'];
+      final tokens = auth['tokens'];
+      return tokens['access_token'];
+    }
+    return null;
+  }
+
+  static File toConfigFile(BaseCommand command) {
+    return File(command.globalResults['config'] ?? p.join(appDataDir, 'config.yaml'));
+  }
+
+  static Map<String, dynamic> ensureConfig(File file) {
+    var config = <String, dynamic>{};
+    if (file.existsSync()) {
+      config = Map<String, dynamic>.from(loadYaml(file.readAsStringSync()) ?? {});
+    }
+    if (config.isEmpty) {
+      config = {
+        'auth': {
+          'client_id': 'sarsys-app',
+          'discovery_uri': 'https://id.discoos.io/auth/realms/DISCOOS',
+        }
+      };
+    }
+    return config;
+  }
+
+  static Future<Map<String, dynamic>> configure(
+    BaseCommand command,
+    Map<String, dynamic> config, {
+    bool force = false,
+  }) async {
+    final auth = Map<String, dynamic>.from(config['auth'] ?? {});
+    var tokens = Map<String, dynamic>.from(auth['tokens'] ?? {});
+    var credential = toCredential(auth);
+    if (force || credential == null || _writeExpiresIn(command, tokens) == null) {
+      // This will open a browser
+      credential = await authorize(command, auth);
+      auth['credential'] = credential.toJson();
+    }
+
+    // Get user information
+    command.writeln(green('  Fetching user information...'), stdout);
+    final info = await credential.getUserInfo();
+    command.writeln('  User: ${green(info.name)}', stdout);
+    config['user'] = info.toJson();
+
+    // Get new tokens
+    final response = await credential.getTokenResponse();
+    tokens = response.toJson();
+    _writeExpiresIn(command, tokens);
+    config['auth'] = auth;
+    auth['tokens'] = tokens;
+    return config;
+  }
+
+  static TokenResponse _writeExpiresIn(BaseCommand command, Map<String, dynamic> tokens) {
+    if (tokens != null) {
+      final response = TokenResponse.fromJson(tokens);
+      final expiresIn = response.expiresAt.difference(DateTime.now()).inMinutes;
+      if (expiresIn > 0) {
+        command.writeln(
+          '  Access token expires in: ${green('$expiresIn min')}',
+          stdout,
+        );
+        return response;
+      }
+    }
+    command.writeln(red('  Access token is expired'), stdout);
+    return null;
+  }
+
+  static Future<Credential> authorize(BaseCommand command, Map auth) async {
+    command.writeln(green('  Authorizing...'), stdout);
+    final issuer = await Issuer.discover(Uri.parse(
+      auth['discovery_uri'] as String ?? 'https://id.discoos.io/auth/realms/DISCOOS',
+    ));
+    final client = Client(issuer, auth['client_id'] as String ?? 'sarsys-app');
+
+    // Create an authenticator
+    final authenticator = Authenticator(client);
+
+    // Starts the authentication
+    return authenticator.authorize(); // this will open a browser
+  }
+
+  static Credential toCredential(Map auth) {
+    final c = auth['credential'];
+    if (c == null) {
+      return null;
+    }
+    return Credential.fromJson(
+      Map<String, dynamic>.from(auth['credential']),
+    );
+  }
+
+  static Map<String, dynamic> fromJWT(String token) {
     final parts = token.split('.');
     if (parts.length != 3) {
       throw Exception('invalid token');

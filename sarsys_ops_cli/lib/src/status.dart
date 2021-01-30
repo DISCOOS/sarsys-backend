@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:sarsys_ops_cli/sarsys_ops_cli.dart';
+
 import 'core.dart';
 
 class StatusCommand extends BaseCommand {
@@ -16,24 +18,45 @@ class StatusCommand extends BaseCommand {
   @override
   FutureOr<String> run() async {
     final client = HttpClient();
-
     writeln(highlight('> Ops control pane'), stdout);
+    final token = await AuthUtils.getToken(this);
     writeln('  Alive: ${await _isOK(client, '/ops/api/healthz/alive')}', stdout);
     writeln('  Ready: ${await _isOK(client, '/ops/api/healthz/ready')}', stdout);
 
     writeln(highlight('> System'), stdout);
-    writeln('  Alive: ${await _isOK(client, '/ops/api/system/status', failure: 'Failure')}', stdout);
+    writeln(
+      '  Pods: ${await _get(
+        client,
+        '/ops/api/system/status',
+        (pods) => '$pods',
+        token: token,
+      )}',
+      stdout,
+    );
 
     return buffer.toString();
   }
 
-  Future<dynamic> _get(HttpClient client, String url) async {
+  Future<String> _get(
+    HttpClient client,
+    String url,
+    String Function(dynamic) map, {
+    String token,
+  }) async {
     final tic = DateTime.now();
     final buffer = StringBuffer();
     final request = await client.get('sarsys.app', 80, url);
+    if (token != null) {
+      request.headers.add('Authorization', 'Bearer $token');
+    }
     final response = await request.close();
     final result = '${response.statusCode} ${response.reasonPhrase} in ';
-    writeln(gray('  GET $url: ($result${DateTime.now().difference(tic).inMilliseconds} ms)'), stdout);
+    if (HttpStatus.ok == response.statusCode) {
+      buffer.write(green(map(toContent(response))));
+    } else {
+      buffer.write(red('Failure'));
+    }
+    buffer.write(gray(' ($result${DateTime.now().difference(tic).inMilliseconds} ms)'));
     return buffer.toString();
   }
 
@@ -42,10 +65,14 @@ class StatusCommand extends BaseCommand {
     String url, {
     String access = 'Yes',
     String failure = 'No',
+    String token,
   }) async {
     final tic = DateTime.now();
     final buffer = StringBuffer();
     final request = await client.get('sarsys.app', 80, url);
+    if (token != null) {
+      request.headers.add('Authorization', 'Bearer $token');
+    }
     final response = await request.close();
     final reason = '${response.statusCode} ${response.reasonPhrase} in ';
     if (HttpStatus.ok == response.statusCode) {
