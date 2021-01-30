@@ -111,14 +111,15 @@ class AuthCheckCommand extends BaseCommand {
         ));
         writeln('  User: ${green(info.name)}', stdout);
 
-        final tokens = AuthUtils._writeExpiresIn(this, auth['tokens']);
-
-        final json = AuthUtils.fromJWT(tokens.accessToken);
-        final roles = [
-          if (json.containsKey('roles')) ...json['roles'],
-          if (json.containsKey('realm_access_roles')) ...json['realm_access_roles'],
-        ];
-        writeln('  Roles: ${green('$roles')}', stdout);
+        final tokens = AuthUtils._writeExpiresIn(this, Map.from(auth['tokens']));
+        if (tokens != null) {
+          final json = AuthUtils.fromJWT(tokens.accessToken);
+          final roles = [
+            if (json.containsKey('roles')) ...json['roles'],
+            if (json.containsKey('realm_access_roles')) ...json['realm_access_roles'],
+          ];
+          writeln('  Roles: ${green('$roles')}', stdout);
+        }
       }
     } else {
       writeln(red('  Configuration not initialized'), stdout);
@@ -176,31 +177,34 @@ class AuthUtils {
     final auth = Map<String, dynamic>.from(config['auth'] ?? {});
     var tokens = Map<String, dynamic>.from(auth['tokens'] ?? {});
     var credential = toCredential(auth);
-    if (force || credential == null || _writeExpiresIn(command, tokens) == null) {
+    final expired = _writeExpiresIn(command, tokens) == null;
+    if (force || credential == null || expired) {
       // This will open a browser
       credential = await authorize(command, auth);
       auth['credential'] = credential.toJson();
     }
 
-    // Get user information
-    command.writeln(green('  Fetching user information...'), stdout);
-    final info = await credential.getUserInfo();
-    command.writeln('  User: ${green(info.name)}', stdout);
-    config['user'] = info.toJson();
+    if (expired) {
+      // Get user information
+      command.writeln(green('  Fetching user information...'), stdout);
+      final info = await credential.getUserInfo();
+      command.writeln('  User: ${green(info.name)}', stdout);
+      config['user'] = info.toJson();
 
-    // Get new tokens
-    final response = await credential.getTokenResponse();
-    tokens = response.toJson();
-    _writeExpiresIn(command, tokens);
-    config['auth'] = auth;
-    auth['tokens'] = tokens;
+      // Get new tokens
+      final response = await credential.getTokenResponse();
+      tokens = response.toJson();
+      _writeExpiresIn(command, tokens);
+      config['auth'] = auth;
+      auth['tokens'] = tokens;
+    }
     return config;
   }
 
   static TokenResponse _writeExpiresIn(BaseCommand command, Map<String, dynamic> tokens) {
     if (tokens != null) {
       final response = TokenResponse.fromJson(tokens);
-      final expiresIn = response.expiresAt.difference(DateTime.now()).inMinutes;
+      final expiresIn = response?.expiresAt?.difference(DateTime.now())?.inMinutes ?? 0;
       if (expiresIn > 0) {
         command.writeln(
           '  Access token expires in: ${green('$expiresIn min')}',
