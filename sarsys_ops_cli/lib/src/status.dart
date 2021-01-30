@@ -19,7 +19,7 @@ class StatusCommand extends BaseCommand {
     writeln(highlight('> Ops control pane'), stdout);
     writeln('  Alive: ${await _isOK(client, '/ops/api/healthz/alive')}', stdout);
     writeln('  Ready: ${await _isOK(client, '/ops/api/healthz/ready')}', stdout);
-
+    writeln('  System: ${await _get(client, '/ops/api/system/status')}', stdout);
     return buffer.toString();
   }
 
