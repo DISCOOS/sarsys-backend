@@ -554,7 +554,7 @@ class EventStore {
 
   /// Tainted aggregates.
   Map<String, Object> get tainted => Map.unmodifiable(_tainted);
-  final _tainted = <String, Object>{};
+  final _tainted = <String, dynamic>{};
 
   /// Check if aggregate with given [uuid] is tainted
   bool isTainted(String uuid) => _tainted.containsKey(uuid);
@@ -579,10 +579,10 @@ class EventStore {
     Context context,
   }) {
     _assertRepo(repo);
-    _tainted[uuid] = reason;
+    _tainted[uuid] = reason is ContextEvent ? reason.toJson() : toJsonSafe(reason);
     (context ?? _context).error(
       'Tainted ${repo.aggregateType} $uuid',
-      error: reason,
+      error: _tainted[uuid],
       stackTrace: StackTrace.current,
       category: 'EventStore.taint',
     );
@@ -594,7 +594,7 @@ class EventStore {
 
   /// Cordoned aggregates.
   Map<String, Object> get cordoned => Map.unmodifiable(_cordoned);
-  final _cordoned = <String, Object>{};
+  final _cordoned = <String, dynamic>{};
 
   /// Check if aggregate with given [uuid] is cordoned
   bool isCordoned(String uuid) => _cordoned.containsKey(uuid);
@@ -620,12 +620,13 @@ class EventStore {
     Context context,
   }) {
     _assertRepo(repo);
-    _cordoned[uuid] = reason;
     _tainted.remove(uuid);
+    _cordoned[uuid] = reason is ContextEvent ? reason.toJson() : toJsonSafe(reason);
+
     (context ?? _context).error(
       'Cordoned ${repo.aggregateType} $uuid',
       category: 'EventStore.cordon',
-      error: reason,
+      error: _cordoned[uuid],
       stackTrace: StackTrace.current,
     );
   }
