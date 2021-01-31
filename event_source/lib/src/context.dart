@@ -390,6 +390,16 @@ class ContextEvent {
     return '$message';
   }
 
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'data': data,
+        'message': message,
+        'category': category,
+        'instances': instances,
+        'level': enumName(level),
+        'timestamp': timestamp.toIso8601String(),
+      };
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

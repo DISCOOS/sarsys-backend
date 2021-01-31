@@ -681,3 +681,46 @@ String enumName(Object o) => o.toString().split('.').last;
 
 /// Type helper class
 Type typeOf<T>() => T;
+
+/// Force to object-safe
+dynamic toJsonSafe(
+  Object value, {
+  int level = 0,
+  bool skipNull = false,
+  rootField = 'value',
+}) {
+  if (value is List) {
+    final list = <dynamic>[];
+    for (var item in value) {
+      if (!skipNull || item != null) {
+        list.add(
+          item?.toJsonSafe(
+            level: level + 1,
+            skipNull: skipNull,
+            rootField: rootField,
+          ),
+        );
+      }
+    }
+    return list;
+  } else if (value is Map) {
+    final map = <String, dynamic>{};
+    for (var entry in value.entries) {
+      if (!skipNull || entry.value != null) {
+        map['${entry.key}'](
+          entry.value?.toJsonSafe(
+            level: level + 1,
+            skipNull: skipNull,
+            rootField: rootField,
+          ),
+        );
+      }
+    }
+    return map;
+  } else if (value is num || value is String || value is bool) {
+    return value;
+  }
+  // Must be an json-unsafe object, force objects to string
+  final json = value == null ? '' : value.toString();
+  return level > 0 ? json : {rootField: value};
+}

@@ -52,7 +52,7 @@ class StatusCommand extends BaseCommand {
     final response = await request.close();
     final result = '${response.statusCode} ${response.reasonPhrase} in ';
     if (HttpStatus.ok == response.statusCode) {
-      buffer.write(green(map(toContent(response))));
+      buffer.write(green(map(await toContent(response))));
     } else {
       buffer.write(red('Failure'));
     }
