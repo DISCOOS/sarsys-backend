@@ -14,11 +14,11 @@ class SarSysAppConfig extends SarSysModuleConfig {
   String apiSpecPath = sarsys.apiSpecPath;
 
   /// App server port
-  @requiredConfiguration
+  @optionalConfiguration
   int port = 80;
 
   /// The maximum size of a request body. Default is 10MB
-  @requiredConfiguration
+  @optionalConfiguration
   int maxBodySize = 10;
 
   /// Flag activating standalone mode.

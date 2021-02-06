@@ -13,10 +13,10 @@ class SarSysTrackingConfig extends SarSysModuleConfig {
   bool startup = true;
 
   /// Tracking server grpc port
-  @requiredConfiguration
+  @optionalConfiguration
   int grpcPort = 8082;
 
   /// Tracking server health check port
-  @requiredConfiguration
+  @optionalConfiguration
   int healthPort = 8083;
 }
