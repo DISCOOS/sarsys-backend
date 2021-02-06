@@ -16,7 +16,7 @@ abstract class SystemOperationsBaseController<T> extends ResourceController {
   final String tag;
   final String type;
   final bool requireReady;
-  final SarSysConfig config;
+  final SarSysModuleConfig config;
   final List<String> actions;
   final List<String> options;
   final RepositoryManager manager;
@@ -198,7 +198,7 @@ abstract class SystemOperationsBaseController<T> extends ResourceController {
     });
   }
 
-  APISchemaObject documentMetric(String name) {
+  static APISchemaObject documentDurationMetric(String name) {
     return APISchemaObject.object({
       'count': APISchemaObject.integer()
         ..description = 'Number of measurements'

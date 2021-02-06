@@ -1,6 +1,7 @@
 debug: false
 prefix: test
 tenant: discoos
+maxBodySize: 10
 data:
   enabled: false
 auth:
@@ -13,15 +14,34 @@ auth:
     - realm_access_roles
   required:
     - roles:admin
-eventstore:
-  # Eventstore:
-  # host: http://127.0.0.1
-  # port: 2113
-  # MockHTTPServer
-  host: http://localhost
-  port: 4000
-  login: admin
-  password: changeit
-  requireMaster: false
 logging:
   level: INFO
+
+app:
+  host: localhost
+  port: 80
+  eventstore:
+    # Eventstore:
+    # host: 127.0.0.1
+    # port: 2113
+    # MockHTTPServer
+    host: localhost
+    port: 4000
+    login: admin
+    password: changeit
+    requireMaster: false
+tracking:
+  host: localhost
+  healthPort: 80
+  grpcPort: 8080
+  eventstore:
+    # Eventstore:
+    # host: 127.0.0.1
+    # port: 2113
+    # MockHTTPServer
+    host: localhost
+    port: 4000
+    login: admin
+    password: changeit
+    requireMaster: false
+

@@ -8,9 +8,27 @@ import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:test/test.dart';
 
-typedef _Creator<T extends AggregateRoot> = Repository<Command, T> Function(EventStore store);
+import 'mock.dart';
+
+typedef _Creator<T extends AggregateRoot> = Repository<Command, T> Function(
+  RepositoryManager manager,
+  EventStore store,
+  int instance,
+);
 
 class EventSourceHarness {
+  EventSourceHarness._();
+  factory EventSourceHarness() {
+    if (!exists) {
+      _singleton = EventSourceHarness._();
+    }
+    return _singleton;
+  }
+
+  static EventSourceHarness _singleton;
+  static EventSourceHarness get instance => _singleton;
+  static bool get exists => _singleton != null;
+
   final Map<int, EventStoreMockServer> _servers = {};
   EventStoreMockServer server({int port = 4000}) => _servers[port];
 
@@ -31,6 +49,15 @@ class EventSourceHarness {
     return this;
   }
 
+  int _master;
+  int get master => _master;
+  EventSourceHarness withMaster(int port) {
+    assert(_servers.isEmpty, 'Master must be set before adding server');
+    _master = port;
+    return this;
+  }
+
+  StreamSubscription _printer;
   final Map<String, Map<String, bool>> _streams = {};
   List<String> get streams => _streams.keys.toList(growable: false);
   EventSourceHarness withStream(
@@ -39,8 +66,8 @@ class EventSourceHarness {
     bool useCanonicalName = true,
   }) {
     _streams[stream] = {
-      'useInstanceStreams': useInstanceStreams,
       'useCanonicalName': useCanonicalName,
+      'useInstanceStreams': useInstanceStreams,
     };
     return this;
   }
@@ -52,7 +79,6 @@ class EventSourceHarness {
     return this;
   }
 
-  StreamSubscription _printer;
   final Map<String, Set<String>> _subscriptions = {};
   Map<String, String> get subscriptions => Map.unmodifiable(_subscriptions);
   EventSourceHarness withSubscription(String stream, {String group}) {
@@ -60,11 +86,8 @@ class EventSourceHarness {
     return this;
   }
 
-  final _bus = MessageBus();
-  MessageBus get bus => _bus;
-
   EventSourceHarness withRepository<T extends AggregateRoot>(
-    Repository<Command, T> Function(EventStore) create, {
+    Repository<Command, T> Function(RepositoryManager, EventStore, int) create, {
     int instances = 1,
     bool useInstanceStreams = true,
   }) {
@@ -73,6 +96,9 @@ class EventSourceHarness {
       () => _RepositoryBuilder<T>(
         instances,
         create,
+        keep: _keep,
+        threshold: _threshold,
+        withSnapshots: _withSnapshots,
         useInstanceStreams: useInstanceStreams,
       ),
     );
@@ -90,14 +116,25 @@ class EventSourceHarness {
     return this;
   }
 
+  int _keep;
+  int _threshold;
+  bool _withSnapshots = false;
+  EventSourceHarness withSnapshot({int threshold = 100, int keep = 10}) {
+    _keep = keep;
+    _threshold = threshold;
+    _withSnapshots = true;
+    return this;
+  }
+
   Stream<LogRecord> get onRecord => _logger?.onRecord;
 
   final Map<Type, _RepositoryBuilder> _builders = {};
   T get<T extends Repository>({int port = 4000, int instance = 1}) => _managers[port][instance - 1].get<T>();
 
+  final List<StreamSubscription> _errorDetectors = [];
   final Map<int, List<RepositoryManager>> _managers = {};
 
-  void add({
+  EventSourceHarness addServer({
     @required int port,
   }) {
     _servers.putIfAbsent(
@@ -106,16 +143,18 @@ class EventSourceHarness {
         _tenant,
         _prefix,
         port,
+        master: port == _master ? null : _master,
         replicate: replicate,
         logger: _logger,
         verbose: _logger != null,
       ),
     );
+    return this;
   }
 
   void install() {
     if (_servers.isEmpty) {
-      add(port: 4000);
+      addServer(port: 4000);
     }
 
     final hiveDir = Directory('test/.hive');
@@ -127,34 +166,39 @@ class EventSourceHarness {
       // Initialize
       await Storage.init();
 
-      for (var server in _servers.entries) {
-        await _open(server.key, server.value);
+      for (var entry in _servers.entries) {
+        await _open(entry.key, entry.value);
       }
       return Future.value();
     });
 
     setUp(() async {
+      _logger.info('---setUp---');
       _initHiveDir(hiveDir);
       _printer = onRecord.listen(
         (rec) => Context.printRecord(rec, debug: _debug),
       );
-      for (var server in _servers.entries) {
-        await _build(server.key, server.value);
+      for (var entry in _servers.entries) {
+        await _build(entry.key, entry.value);
       }
+      _logger.info('---setUp--->ok');
       return Future.value();
     });
 
     tearDown(() async {
-      for (var server in _servers.entries) {
-        await _clear(server.key, server.value);
+      _logger.info('---tearDown---');
+      for (var entry in _servers.entries) {
+        await _clear(entry.key, entry.value);
       }
+      _logger.info('---tearDown---ok');
       await Hive.deleteFromDisk();
+      await hiveDir.delete(recursive: true);
       return _printer.cancel();
     });
 
     tearDownAll(() async {
-      for (var server in _servers.entries) {
-        await _close(server.key, server.value);
+      for (var entry in _servers.entries) {
+        await _close(entry.key, entry.value);
       }
       return await Hive.deleteFromDisk();
     });
@@ -170,8 +214,9 @@ class EventSourceHarness {
   Future<void> _open(int port, EventStoreMockServer server) async {
     await server.open();
     _connections[port] = EventStoreConnection(
-      host: 'http://localhost',
+      host: 'localhost',
       port: port,
+      requireMaster: _master != null,
     );
   }
 
@@ -194,7 +239,7 @@ class EventSourceHarness {
       for (var i = 0; i < builder.instances; i++) {
         if (list.length == i) {
           list.add(RepositoryManager(
-            _bus,
+            MessageBus(),
             _connections[port],
             prefix: EventStore.toCanonical([
               _tenant,
@@ -202,37 +247,38 @@ class EventSourceHarness {
             ]),
           ));
         }
-        builder(list[i]);
+        builder(port, list[i], i);
       }
       server.withStream(builder.stream);
     });
-    await Future.wait(
-      list.map(
-        (manager) => manager.prepare(withProjections: _projections.toList()),
-      ),
-    );
-    await Future.wait(
-      list.map(
-        (manager) => manager.build(),
-      ),
-    );
+
+    for (var manager in list) {
+      await manager.prepare(withProjections: _projections.toList());
+      await manager.build();
+      manager.repos.forEach(
+        (r) => _errorDetectors.add(
+          r.store.asStream().listen((_) {}, onError: onError),
+        ),
+      );
+    }
   }
 
   Future<void> _clear(int port, EventStoreMockServer server) async {
     server.clear();
     if (_managers.containsKey(port)) {
-      await Future.wait(
-        _managers[port].map((e) => e.dispose()),
-      );
+      for (var manager in _managers[port]) {
+        await manager.dispose();
+      }
       _managers[port].clear();
     }
+    _errorDetectors.forEach((s) => s.cancel());
   }
 
   Future<void> _close(int port, EventStoreMockServer server) async {
     if (_managers.containsKey(port)) {
-      await Future.wait(
-        _managers[port].map((e) => e.dispose()),
-      );
+      for (var manager in _managers[port]) {
+        await manager.dispose();
+      }
       _managers[port].clear();
     }
     _connections[port]?.close();
@@ -246,8 +292,15 @@ class EventSourceHarness {
     @required List<Map<String, dynamic>> events,
     int offset,
   }) {
+    _logger.fine('---replicate---');
+    _logger.fine('port: $port');
+    _logger.fine('path: $path');
+    _logger.fine('offset: $offset');
+    _logger.fine('events: $events');
+    _logger.fine('stream: $stream');
     _servers.values.where((server) => server.isOpen).forEach((server) {
       if (server.port != port) {
+        _logger.fine('append to $stream in server:${server.port}');
         server.getStream(stream).append(
               path,
               events,
@@ -256,6 +309,51 @@ class EventSourceHarness {
             );
       }
     });
+    _logger.fine('---replicate--->ok');
+  }
+
+  void onError(Object error, StackTrace stackTrace) {
+    throw error;
+  }
+
+  /// Pause all subscriptions in all managers
+  Map<int, Map<Type, EventNumber>> pause() {
+    final numbers = <int, Map<Type, EventNumber>>{};
+    _managers.entries.fold(
+      numbers,
+      (numbers, entry) {
+        final list = entry.value.fold<Map<Type, EventNumber>>(
+          <Type, EventNumber>{},
+          (list, manager) => list
+            ..addAll(
+              manager.pause(),
+            ),
+        );
+        numbers[entry.key] = list;
+        return numbers;
+      },
+    );
+    return numbers;
+  }
+
+  /// Resume all subscriptions in all managers
+  Map<int, Map<Type, EventNumber>> resume() {
+    final numbers = <int, Map<Type, EventNumber>>{};
+    _managers.entries.fold(
+      numbers,
+      (numbers, entry) {
+        final list = entry.value.fold<Map<Type, EventNumber>>(
+          <Type, EventNumber>{},
+          (list, manager) => list
+            ..addAll(
+              manager.resume(),
+            ),
+        );
+        numbers[entry.key] = list;
+        return numbers;
+      },
+    );
+    return numbers;
   }
 }
 
@@ -264,64 +362,32 @@ class _RepositoryBuilder<T extends AggregateRoot> {
     this.instances,
     _Creator<T> create, {
     @required this.useInstanceStreams,
+    this.keep,
+    this.threshold,
+    this.withSnapshots,
   }) : _create = create;
+  final int keep;
+  final int threshold;
   final int instances;
+  final bool withSnapshots;
   final _Creator<T> _create;
   final bool useInstanceStreams;
   String get stream => typeOf<T>().toColonCase();
 
-  void call(RepositoryManager manager) {
+  void call(int port, RepositoryManager manager, int instance) {
+    final snapshots = withSnapshots
+        ? Storage.fromType<T>(
+            keep: keep,
+            threshold: threshold,
+            // Servers do no share snapshots
+            prefix: '$port',
+          )
+        : null;
     manager.register<T>(
-      _create,
+      (store) => _create(manager, store, instance),
       stream: stream,
+      snapshots: snapshots,
       useInstanceStreams: useInstanceStreams,
     );
   }
 }
-
-Map<String, dynamic> createTracking(String uuid) => {
-      'uuid': '$uuid',
-    };
-
-Map<String, dynamic> createSource({String uuid = 'string', String type = 'device'}) => {
-      'uuid': '$uuid',
-      'type': '$type',
-    };
-
-Map<String, dynamic> createTrack({String id, String uuid = 'string', String type = 'device'}) => {
-      if (id != null) 'id': '$id',
-      'source': createSource(
-        uuid: uuid,
-        type: type,
-      ),
-    };
-
-Map<String, Object> createPosition({lon = 1.0, lat = 1.0, acc = 1.0}) => {
-      'type': 'Feature',
-      'geometry': {
-        'type': 'Point',
-        'coordinates': [lon, lat]
-      },
-      'properties': {
-        'name': 'string',
-        'description': 'string',
-        'accuracy': acc,
-        'timestamp': DateTime.now().toIso8601String(),
-        'source': 'manual'
-      }
-    };
-
-Map<String, dynamic> createDevice(
-  String uuid, {
-  Map<String, dynamic> position,
-  bool trackable = true,
-}) =>
-    {
-      'uuid': '$uuid',
-      'name': 'string',
-      'alias': 'string',
-      'network': 'string',
-      'networkId': 'string',
-      'trackable': trackable,
-      if (position != null) 'position': position,
-    };

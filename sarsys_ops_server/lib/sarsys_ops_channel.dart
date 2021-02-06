@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:event_source/event_source.dart';
+import 'package:grpc/grpc.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart';
 import 'package:jose/jose.dart';
@@ -8,10 +9,13 @@ import 'package:meta/meta.dart';
 import 'package:aqueduct/aqueduct.dart' as aq;
 import 'package:sarsys_ops_server/src/controllers/system_status_controller.dart';
 import 'package:sarsys_ops_server/src/k8s/k8s_api.dart';
+import 'package:sarsys_tracking_server/sarsys_tracking_server.dart';
 import 'package:stack_trace/stack_trace.dart';
 import 'package:uuid/uuid.dart';
 
 import 'sarsys_ops_server.dart';
+import 'src/config.dart';
+import 'src/controllers/tracking_service_commands_controller.dart';
 import 'src/schemas.dart';
 
 /// MUST BE used when bootstrapping Aqueduct
@@ -21,22 +25,25 @@ const List<String> allScopes = [
   'roles:admin',
 ];
 
-/// Path to SARSys Ops OpenAPI specification file
-const String apiSpecPath = 'web/sarsys-ops.json';
-
 /// This type initializes an application.
 ///
 /// Override methods in this class to set up routes and initialize services like
 /// database connections. See http://aqueduct.io/docs/http/channel/.
 class SarSysOpsServerChannel extends ApplicationChannel {
   /// Loaded in [prepare]
-  SarSysConfig config;
+  SarSysOpsConfig config;
 
   /// Validates requests against current open api specification
   JsonValidation requestValidator;
 
   /// Secure router enforcing authorization
   SecureRouter router;
+
+  /// Grpc channel with tracking server
+  ClientChannel trackingChannel;
+
+  /// Grpc tracking server client
+  SarSysTrackingServiceClient trackingClient;
 
   /// Logger instance
   @override
@@ -65,8 +72,8 @@ class SarSysOpsServerChannel extends ApplicationChannel {
 
       _loadConfig();
       _initHive();
-      _configureLogger();
       _buildValidators();
+      _configureGrpcClients();
       await _configureK8sApi();
       await _buildSecureRouter();
 
@@ -76,7 +83,7 @@ class SarSysOpsServerChannel extends ApplicationChannel {
         );
       }
     } catch (e, stackTrace) {
-      _terminateOnFailure(e, stackTrace);
+      await _terminateOnFailure(e, stackTrace);
     }
   }
 
@@ -93,7 +100,15 @@ class SarSysOpsServerChannel extends ApplicationChannel {
       )
       ..route('/ops/api/healthz/alive').link(() => LivenessController())
       ..route('/ops/api/healthz/ready').link(() => LivenessController())
-      ..secure('/ops/api/system/status', () => SystemStatusController(config));
+      ..secure('/ops/api/system/status', () => SystemStatusController(config))
+      ..secure(
+        '/ops/api/services/tracking',
+        () => TrackingServiceCommandsController(
+          trackingClient,
+          config,
+          options.context,
+        ),
+      );
   }
 
   @override
@@ -111,20 +126,37 @@ class SarSysOpsServerChannel extends ApplicationChannel {
 
   void _loadConfig() {
     // Parse from config file, given by --config to main.dart or default config.yaml
-    config = SarSysConfig(options.configurationFilePath);
-    RequestBody.maxSize = 1024 * 1024 * config.maxBodySize;
-    logger.onRecord.listen(
-      (record) => printRecord(
-        record,
-        debug: config.debug,
-        stdout: config.logging.stdout,
-      ),
-    );
+    config = SarSysOpsConfig(options.configurationFilePath);
 
-    logger.info("EVENTSTORE_HOST is ${config.eventstore.host}");
-    logger.info("EVENTSTORE_PORT is ${config.eventstore.port}");
-    logger.info("EVENTSTORE_LOGIN is ${config.eventstore.login}");
-    logger.info("EVENTSTORE_REQUIRE_MASTER is ${config.eventstore.requireMaster}");
+    // Overwrite config with values from context
+    _writeContextOnConfig();
+
+    // Set maximum content size
+    RequestBody.maxSize = 1024 * 1024 * config.app.maxBodySize;
+
+    // Configure logging
+    final level = LoggerConfig.toLevel(
+      config.logging.level,
+    );
+    logger.info("Server log level set to ${Logger.root.level.name}");
+    logger.onRecord.where((event) => logger.level >= level).listen(
+          (record) => printRecord(
+            record,
+            debug: config.debug,
+            stdout: config.logging.stdout,
+          ),
+        );
+    if (config.logging.sentry != null) {
+      _remoteLogger = RemoteLogger(
+        config.logging.sentry,
+        config.tenant,
+      );
+      logger.info("Sentry DSN is ${config.logging.sentry.dsn}");
+      logger.info("Sentry log level set to ${_remoteLogger.level}");
+    }
+
+    _logModuleConfig('APP', config.app);
+    _logModuleConfig('TRACKING', config.tracking);
 
     if (config.debug == true) {
       logger.info("Debug mode enabled");
@@ -174,16 +206,92 @@ class SarSysOpsServerChannel extends ApplicationChannel {
     }
   }
 
-  void _configureLogger() {
-    Logger.root.level = LoggerConfig.toLevel(
-      config.logging.level,
+  void _writeContextOnConfig() {
+    config.debug = _propertyAt<bool>('DEBUG', config.debug);
+    config.prefix = _propertyAt<String>('PREFIX', config.prefix);
+    config.tenant = _propertyAt<String>('TENANT', config.tenant);
+    config.maxBodySize = _propertyAt<int>('MAX_BODY_SIZE', config.maxBodySize);
+    config.apiSpecPath = _propertyAt<String>('API_SPEC_PATH', config.apiSpecPath);
+
+    config.logging?.level = _propertyAt<String>('LOG_LEVEL', config.logging?.level);
+    config.logging?.stdout = _propertyAt<bool>('LOG_STDOUT', config.logging?.stdout);
+    config.logging?.sentry?.level = _propertyAt<String>(
+      'LOG_SENTRY_LEVEL',
+      config.logging?.sentry?.level,
     );
-    logger.info("Server log level set to ${Logger.root.level.name}");
-    if (config.logging.sentry != null) {
-      _remoteLogger = RemoteLogger(config);
-      logger.info("Sentry DSN is ${config.logging.sentry.dsn}");
-      logger.info("Sentry log level set to ${_remoteLogger.level}");
-    }
+    config.logging?.sentry?.dsn = _propertyAt<String>(
+      'LOG_SENTRY_DSN',
+      config.logging?.sentry?.dsn,
+    );
+
+    config.auth?.enabled = _propertyAt<bool>('AUTH_ENABLED', config.auth?.enabled);
+    config.auth?.audience = _propertyAt<String>('AUTH_AUDIENCE', config.auth?.audience);
+    config.auth?.issuer = _propertyAt<String>('AUTH_ISSUER', config.auth?.issuer);
+    config.auth?.baseUrl = _propertyAt<String>('AUTH_BASE_URL', config.auth?.baseUrl);
+
+    config.data?.enabled = _propertyAt<bool>('DATA_ENABLED', config.data?.enabled);
+    config.data?.path = _propertyAt<String>('DATA_PATH', config.data?.path);
+    config.data?.snapshots?.keep = _propertyAt<int>('DATA_SNAPSHOTS_KEEP', config.data?.snapshots?.keep);
+    config.data?.snapshots?.threshold = _propertyAt<int>(
+      'DATA_SNAPSHOTS_THRESHOLD',
+      config.data?.snapshots?.threshold,
+    );
+    config.data?.snapshots?.automatic = _propertyAt<bool>(
+      'DATA_SNAPSHOTS_AUTOMATIC',
+      config.data?.snapshots?.automatic,
+    );
+
+    config.eventstore?.scheme = _propertyAt<String>(
+      'EVENTSTORE_SCHEME',
+      config.eventstore?.scheme,
+    );
+    config.eventstore?.host = _propertyAt<String>(
+      'EVENTSTORE_HOST',
+      config.eventstore?.host,
+    );
+    config.eventstore?.port = _propertyAt<int>(
+      'EVENTSTORE_PORT',
+      config.eventstore?.port,
+    );
+
+    config.app?.scheme = _propertyAt<String>('TRACKING_SERVER_SCHEME', config.app?.scheme);
+    config.app?.host = _propertyAt<String>('APP_SERVER_HOST', config.app?.host);
+    config.app?.port = _propertyAt<int>('APP_SERVER_PORT', config.app?.port);
+
+    config.tracking?.scheme = _propertyAt<String>('TRACKING_SERVER_SCHEME', config.tracking?.scheme);
+    config.tracking?.host = _propertyAt<String>('TRACKING_SERVER_HOST', config.tracking?.host);
+    config.tracking?.grpcPort = _propertyAt<int>('TRACKING_SERVER_GRPC_PORT', config.tracking?.grpcPort);
+    config.tracking?.healthPort = _propertyAt<int>('TRACKING_SERVER_HEALTH_PORT', config.tracking?.healthPort);
+  }
+
+  T _propertyAt<T>(String key, T defaultValue) => options.context.elementAt<T>(
+        key,
+        defaultValue: defaultValue,
+      );
+
+  void _logModuleConfig(String module, SarSysModuleConfig config) {
+    logger.info("${module}_SERVER url is ${config.url}");
+    logger.info("${module}_EVENTSTORE url is ${config.eventstore.url}");
+    logger.info("${module}_EVENTSTORE_LOGIN is ${config.eventstore.login}");
+    logger.info("${module}_EVENTSTORE_REQUIRE_MASTER is ${config.eventstore.requireMaster}");
+  }
+
+  void _configureGrpcClients() {
+    trackingChannel = ClientChannel(
+      config.tracking.host,
+      port: config.tracking.grpcPort,
+      options: const ChannelOptions(
+        credentials: ChannelCredentials.insecure(),
+      ),
+    );
+    trackingClient = SarSysTrackingServiceClient(
+      trackingChannel,
+      options: CallOptions(
+        timeout: const Duration(
+          seconds: 30,
+        ),
+      ),
+    );
   }
 
   Future<bool> _configureK8sApi() async {
@@ -197,29 +305,25 @@ class SarSysOpsServerChannel extends ApplicationChannel {
   }
 
   void _buildValidators() {
-    final file = File(apiSpecPath);
+    final file = File(config.apiSpecPath);
     final spec = file.readAsStringSync();
     final data = json.decode(spec.isEmpty ? '{}' : spec);
     requestValidator = JsonValidation(data as Map<String, dynamic>);
   }
 
   void _initHive() {
-    final enabled = options.context.elementAt<bool>(
-      'data_enabled',
-      defaultValue: config.data.enabled,
-    );
-    if (enabled) {
-      final path = options.context.elementAt<String>(
-        'data_path',
-        defaultValue: config.data.path,
+    if (config.data.enabled) {
+      final hiveDir = Directory(
+        config.data.path,
       );
-      final hiveDir = Directory(path);
-      hiveDir.createSync(recursive: true);
+      hiveDir.createSync(
+        recursive: true,
+      );
       Hive.init(hiveDir.path);
     }
   }
 
-  void _terminateOnFailure(Object error, StackTrace stackTrace) {
+  Future _terminateOnFailure(Object error, StackTrace stackTrace) async {
     stdout.writeln(
       "Failed to prepare server: $error: $stackTrace",
     );
@@ -234,7 +338,7 @@ class SarSysOpsServerChannel extends ApplicationChannel {
       error,
       Trace.from(stackTrace),
     );
-    server.close();
+    return server.close();
   }
 
   Future _buildSecureRouter() async {

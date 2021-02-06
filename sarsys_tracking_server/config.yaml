@@ -23,6 +23,7 @@ auth:
     - roles:personnel
 
 eventstore:
+  scheme: $EVENTSTORE_SCHEME
   host: $EVENTSTORE_HOST
   port: $EVENTSTORE_PORT
   login: $EVENTSTORE_LOGIN

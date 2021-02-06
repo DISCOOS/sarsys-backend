@@ -4,7 +4,7 @@ import 'package:sarsys_app_server/controllers/domain/track_request_utils.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 
-import 'harness.dart';
+import 'package:sarsys_app_server_test/sarsys_app_server_test.dart';
 
 Future main() async {
   test("TrackRequestUtils truncates 2:p from tail", () async {

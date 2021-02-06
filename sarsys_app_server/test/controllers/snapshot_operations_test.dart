@@ -3,10 +3,10 @@ import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 
-import 'harness.dart';
+import 'package:sarsys_app_server_test/sarsys_app_server_test.dart';
 
 Future main() async {
-  final harness = SarSysHttpHarness()
+  final harness = SarSysAppHarness()
     ..withContext()
     ..withSnapshot()
     ..withEventStoreMock()
@@ -129,7 +129,7 @@ Future main() async {
   });
 }
 
-Future<SnapshotModel> _prepare(SarSysHttpHarness harness, bool withSnapshots) async {
+Future<SnapshotModel> _prepare(SarSysAppHarness harness, bool withSnapshots) async {
   final uuid = Uuid().v4();
   final body = createDevice(uuid);
   final repo = harness.channel.manager.get<DeviceRepository>();

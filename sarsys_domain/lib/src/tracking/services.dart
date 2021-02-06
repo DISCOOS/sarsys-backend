@@ -72,12 +72,14 @@ class TrackingService extends MessageHandler<DomainEvent> {
     this.repo, {
     @required this.devices,
     this.consume = 1,
-    this.dataPath = '.data',
     this.snapshot = true,
+    this.maxPaused = 500,
+    this.dataPath = '.data',
     this.maxBackoffTime = const Duration(seconds: 10),
   });
   final int consume;
   final bool snapshot;
+  final int maxPaused;
   final String dataPath;
   final Duration maxBackoffTime;
   final DeviceRepository devices;
@@ -86,7 +88,12 @@ class TrackingService extends MessageHandler<DomainEvent> {
   final Map<String, Set<String>> _sources = {};
   final Logger logger = Logger('$TrackingService');
 
-  EventStoreSubscriptionController<TrackingRepository> _subscription;
+  /// Get last [PositionEvent] processed
+  PositionEvent get lastEvent => _lastEvent;
+  PositionEvent _lastEvent;
+
+  /// Check if [Tracking] with given [uuid] is managed by this service
+  bool isManagerOf(String uuid) => _managed.contains(uuid);
 
   /// Get [Tracking] instances managed by this [TrackingService]
   Set<String> get managed => UnmodifiableSetView(_managed);
@@ -96,6 +103,8 @@ class TrackingService extends MessageHandler<DomainEvent> {
 
   /// This stream will only contain [DomainEvent] pushed to remote stream
   final _streamController = StreamController<DomainEvent>.broadcast();
+
+  EventStoreSubscriptionController<TrackingRepository> _subscription;
 
   /// Persist [Tracking] managed by this service.
   /// This solves the restart problem, which will not
@@ -112,12 +121,57 @@ class TrackingService extends MessageHandler<DomainEvent> {
     return _streamController.stream;
   }
 
+  /// Check if service is competing
+  bool get isCompeting => _isCompeting;
+  bool _isCompeting = false;
+
+  FutureOr<bool> start() async {
+    if (!_isCompeting) {
+      // Start competition with other tracking service instances
+      _subscription = EventStoreSubscriptionController<TrackingRepository>(
+        onDone: _onDone,
+        onEvent: _onEvent,
+        onError: _onError,
+        maxBackoffTime: maxBackoffTime,
+      );
+      _subscription.compete(
+        repo,
+        stream: STREAM,
+        consume: consume,
+        group: EventStore.toCanonical([
+          repo.store.prefix,
+          '$runtimeType',
+        ]),
+        number: EventNumber.first,
+        strategy: ConsumerStrategy.RoundRobin,
+      );
+      _isCompeting = true;
+    } else if (isPaused) {
+      _subscription.resume();
+    }
+
+    return _isCompeting;
+  }
+
+  FutureOr<bool> stop() async {
+    if (_isCompeting) {
+      _subscription?.pause();
+      return _subscription.isPaused;
+    }
+    return false;
+  }
+
   /// When true, this manager should not be used any more
-  bool get disposed => _disposed;
+  bool get isDisposed => _disposed;
   bool _disposed = false;
 
-  /// Build competitive [Tracking] service
-  FutureOr build({Context context, bool init = false}) async {
+  /// Build competitive [Tracking] service.
+  /// Returns true if service started to compete
+  FutureOr build({
+    Context context,
+    bool init = false,
+    bool start = true,
+  }) async {
     // Initialize from snapshot?
     if (snapshot) {
       await _load(init);
@@ -129,27 +183,12 @@ class TrackingService extends MessageHandler<DomainEvent> {
     repo.store.bus.register<DevicePositionChanged>(this);
     repo.store.bus.register<TrackingPositionChanged>(this);
 
-    // Start competition with other tracking service instances
-    await _subscription?.cancel();
-    _subscription = EventStoreSubscriptionController<TrackingRepository>(
-      onDone: _onDone,
-      onEvent: _onEvent,
-      onError: _onError,
-      maxBackoffTime: maxBackoffTime,
-    );
-    final complete = _subscription.compete(
-      repo,
-      stream: STREAM,
-      consume: consume,
-      group: EventStore.toCanonical([
-        repo.store.prefix,
-        '$runtimeType',
-      ]),
-      number: EventNumber.first,
-      strategy: ConsumerStrategy.RoundRobin,
-    );
+    if (start) {
+      await this.start();
+    }
+
     logger.info('Built with consumption count $consume from stream $STREAM');
-    return complete;
+    return _isCompeting;
   }
 
   Future _load(bool init) async {
@@ -172,7 +211,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
     }
   }
 
-  bool get isPaused => _subscription?.isPaused;
+  bool get isPaused => _subscription?.isPaused == true;
 
   /// Pause all subscriptions
   void pause() async {
@@ -196,37 +235,48 @@ class TrackingService extends MessageHandler<DomainEvent> {
     _disposed = true;
   }
 
+  final List<DomainEvent> _paused = [];
+
   @override
   void handle(Object source, DomainEvent message) async {
-    try {
-      if (message.remote) {
-        switch (message.runtimeType) {
-          case TrackingCreated:
-            await _onTrackingCreated(message as TrackingCreated);
-            break;
-          case TrackingSourceAdded:
-            await _onTrackingSourceAdded(message as TrackingSourceAdded);
-            break;
-          case TrackingSourceRemoved:
-            await _onTrackingSourceRemoved(message as TrackingSourceRemoved);
-            break;
-          case DevicePositionChanged:
-            await _onDevicePositionChanged(message as DevicePositionChanged);
-            break;
-          case TrackingPositionChanged:
-            await _onSourcePositionChanged(message as TrackingPositionChanged);
-            break;
-          case TrackingDeleted:
-            await _onTrackingDeleted(message as TrackingDeleted);
-            break;
-        }
+    if (isPaused) {
+      _paused.add(message);
+      if (_paused.length > maxPaused) {
+        _paused.remove(_paused.first);
       }
-    } catch (error, stackTrace) {
-      logger.severe(
-        'Failed to handle $message: $error with stacktrace: $stackTrace',
-        error,
-        Trace.from(stackTrace),
-      );
+      return;
+    }
+    if (isCompeting) {
+      try {
+        if (message.remote) {
+          switch (message.runtimeType) {
+            case TrackingCreated:
+              await _onTrackingCreated(message as TrackingCreated);
+              break;
+            case TrackingSourceAdded:
+              await _onTrackingSourceAdded(message as TrackingSourceAdded);
+              break;
+            case TrackingSourceRemoved:
+              await _onTrackingSourceRemoved(message as TrackingSourceRemoved);
+              break;
+            case DevicePositionChanged:
+              await _onDevicePositionChanged(message as DevicePositionChanged);
+              break;
+            case TrackingPositionChanged:
+              await _onSourcePositionChanged(message as TrackingPositionChanged);
+              break;
+            case TrackingDeleted:
+              await _onTrackingDeleted(message as TrackingDeleted);
+              break;
+          }
+        }
+      } catch (error, stackTrace) {
+        logger.severe(
+          'Failed to handle $message: $error with stacktrace: $stackTrace',
+          error,
+          Trace.from(stackTrace),
+        );
+      }
     }
   }
 
@@ -242,40 +292,65 @@ class TrackingService extends MessageHandler<DomainEvent> {
 
   /// Build map of all source uuids to its tracking uuids
   Future _onTrackingCreated(TrackingCreated event, {bool replay = false}) async {
+    return _addTracking(event, replay);
+  }
+
+  Future<bool> addTracking(String uuid) async {
+    if (!_managed.contains(uuid)) {
+      final tracking = await _tryGet(uuid);
+      if (tracking != null) {
+        return _addTracking(
+          tracking.createdBy as TrackingCreated,
+          false,
+        );
+      }
+    }
+    return false;
+  }
+
+  FutureOr<Tracking> _tryGet(String uuid) async {
+    if (!repo.exists(uuid)) {
+      await repo.catchup();
+    }
+    return repo.get(uuid, createNew: false);
+  }
+
+  Future<bool> _addTracking(TrackingCreated event, bool replay) async {
     final tuuid = repo.toAggregateUuid(event);
-    if (!_managed.contains(tuuid)) {
+    var exists = _managed.contains(tuuid);
+    if (!exists) {
       // Ensure that tracking is persisted to this instance?
       if (!replay && snapshot) {
         await _box.put(tuuid, _toJson(event));
       }
-      _managed.add(tuuid);
+      exists = _managed.add(tuuid);
       logger.info('Added tracking $tuuid for position processing');
     }
     // Only attempt to add sources from tracking that exists during replay (stale
     if (!replay || replay && repo.contains(tuuid)) {
       _addToStream([event], 'Analysing source mappings for tracking $tuuid', replay: replay);
-      return _addSources(tuuid);
+      await _addSources(tuuid);
     } else if (replay) {
-      await _removeTracking(tuuid);
+      await removeTracking(tuuid);
       logger.info('Deleted stale tracking $tuuid');
     }
-    return Future.value();
+    return exists;
   }
 
-  Future _removeTracking(String tuuid) async {
-    _managed.remove(tuuid);
-    _removeSources(tuuid);
+  Future<bool> removeTracking(String tuuid) async {
+    var ok = _managed.remove(tuuid) || _removeSources(tuuid);
     if (snapshot) {
       // Stale tracking object, remove it from hive
       await _box.delete(tuuid);
     }
+    return ok;
   }
 
   /// Stop management and remove from service
   Future _onTrackingDeleted(TrackingDeleted event, {bool replay = false}) async {
     final tuuid = repo.toAggregateUuid(event);
     if (_managed.contains(tuuid) && !replay) {
-      await _removeTracking(tuuid);
+      await removeTracking(tuuid);
       _addToStream([event], 'Removed tracking $tuuid from service', replay: replay);
     }
     return Future.value();
@@ -401,6 +476,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
         final trx = repo.getTransaction(
           tuuid,
         );
+        _lastEvent = event;
         final position = event.position;
         final positions = track.positions ?? [];
         positions.add(position);
@@ -713,7 +789,11 @@ class TrackingService extends MessageHandler<DomainEvent> {
       ..forEach(
         (entry) => _sources.remove(entry.key),
       );
-    return changed.isNotEmpty || empty.isNotEmpty;
+    if (changed.isNotEmpty || empty.isNotEmpty) {
+      logger.info('Removed tracking $tuuid from service');
+      return true;
+    }
+    return false;
   }
 
   Future _ensureDetached(TrackingSourceEvent event) async {

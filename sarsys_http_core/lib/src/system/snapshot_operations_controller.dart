@@ -7,7 +7,7 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
   SnapshotOperationsController(
     RepositoryManager manager, {
     @required String tag,
-    @required SarSysConfig config,
+    @required SarSysModuleConfig config,
     @required Map<String, dynamic> context,
   }) : super(
           manager,
@@ -209,6 +209,10 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
 
   @override
   APISchemaObject documentMeta(APIDocumentContext context) {
+    return documentSnapshotMeta(context);
+  }
+
+  static APISchemaObject documentSnapshotMeta(APIDocumentContext context) {
     return APISchemaObject.object({
       'last': documentUUID()
         ..description = 'Uuid of snapshot last saved'
@@ -250,7 +254,7 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
         'snapshots': APISchemaObject.integer()
           ..description = 'Number of snapshots'
           ..isReadOnly = true,
-        'save': documentMetric('Save'),
+        'save': SystemOperationsBaseController.documentDurationMetric('Save'),
       })
         ..description = 'Snapshot metrics'
         ..isReadOnly = true,
@@ -259,7 +263,7 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
           ..description = 'Total number aggregates in snapshot'
           ..isReadOnly = true,
         'items': APISchemaObject.array(
-          ofSchema: _documentAggregate(context),
+          ofSchema: documentAggregate(context),
         )..description = 'Array of skipped events',
       }),
     })
@@ -267,7 +271,7 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
       ..isReadOnly = true;
   }
 
-  APISchemaObject _documentAggregate(APIDocumentContext context) {
+  static APISchemaObject documentAggregate(APIDocumentContext context) {
     return APISchemaObject.object({
       'uuid': documentUUID()
         ..description = 'Globally unique aggregate id'

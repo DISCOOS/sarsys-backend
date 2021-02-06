@@ -9,22 +9,359 @@ package app.sarsys.tracking;
 
 // Interface exported by the server.
 service SarSysTrackingService {
-  // Get metadata
+
+  // Start tracking service
+  //
+  // Service will start processing
+  // device position changes and competing
+  // for new tracking object
+  rpc start(StartTrackingRequest) returns (StartTrackingResponse) {}
+
+  // Stop tracking service
+  //
+  // Service will stop processing
+  // device position changes and competing
+  // for new tracking object
+  rpc stop(StopTrackingRequest) returns (StopTrackingResponse) {}
+
+  // Add tracking objects to service
+  //
+  // Service will start managing given tracking objects
+  rpc AddTrackings(AddTrackingsRequest) returns (AddTrackingsResponse) {}
+
+  // Remove tracking objects from service
+  //
+  // Service will stop managing given tracking objects
+  rpc RemoveTrackings(RemoveTrackingsRequest) returns (RemoveTrackingsResponse) {}
+
+  // Get tracking service metadata
   //
   // Obtains metadata from tracking service
-  rpc GetMeta(MetaRequest) returns (MetaResponse) {}
+  rpc GetMeta(GetMetaRequest) returns (GetMetaResponse) {}
+
+}
+
+enum TrackingServerStatus {
+  // Default value
+  STATUS_NONE = 0;
+  // If build without starting
+  STATUS_READY = 1;
+  // Service is started
+  STATUS_COMPETING = 2;
+  // Service is stopped (will not process any events)
+  STATUS_STOPPED = 3;
+  // Service is disposed (must be build to resume)
+  STATUS_DISPOSED = 4;
+}
+
+// Add tracking object action request
+//
+// Service will start managing given tracking object
+message AddTrackingsRequest {
+
+  // Tracking object uuids
+  repeated string uuids = 1;
+
+  // Expand response with given fields
+  repeated ExpandFields expand = 2;
+
+}
+
+// Tracking objects action response
+//
+// Defines the tracking objects action result
+message AddTrackingsResponse {
+
+  // Tracking object uuids
+  repeated string uuids = 1;
+
+  // Tracking object that failed to add
+  repeated string failed = 2;
+
+  // Tracking object action status code
+  int32 statusCode = 3;
+
+  // Tracking object action status code reason
+  string reasonPhrase = 4;
+
+  // Tracking service medata object
+  GetMetaResponse meta = 5;
+
+}
+
+// Start tracking service action request
+//
+// Service will start processing
+// device position changes and competing
+// for new tracking object
+message StartTrackingRequest {
+
+  // Expand response with given fields
+  repeated ExpandFields expand = 2;
+
+}
+
+// Start tracking service action response
+//
+// Defines the start tracking service action result
+message StartTrackingResponse {
+
+  // Tracking object uuids
+  repeated string uuids = 1;
+
+  // Tracking service action status code
+  int32 statusCode = 3;
+
+  // Tracking service action status code reason
+  string reasonPhrase = 4;
+
+  // Tracking service medata object
+  GetMetaResponse meta = 5;
+
+}
+
+// Stop tracking service
+//
+// Service will stop processing
+// device position changes and competing
+// for new tracking object
+message StopTrackingRequest {
+
+  // Expand response with given fields
+  repeated ExpandFields expand = 2;
+
+}
+
+// Start tracking service action response
+//
+// Defines the stop tracking service action result
+message StopTrackingResponse {
+
+  // Tracking object uuids
+  repeated string uuids = 1;
+
+  // Tracking service action status code
+  int32 statusCode = 3;
+
+  // Tracking service action status code reason
+  string reasonPhrase = 4;
+
+  // Tracking service medata object
+  GetMetaResponse meta = 5;
+
+}
+
+// Remove tracking objects action request
+//
+// Service will stop managing given tracking objects
+message RemoveTrackingsRequest {
+
+  // Tracking object uuids
+  repeated string uuids = 1;
+
+  // Expand response with given fields
+  repeated ExpandFields expand = 2;
+
+}
+
+// Remove tracking objects action response
+//
+// Defines remove trackings object action result
+message RemoveTrackingsResponse {
+
+  // Tracking object uuids
+  repeated string uuids = 1;
+
+  // Tracking object that failed to remove
+  repeated string failed = 2;
+
+  // Tracking object action status code
+  int32 statusCode = 3;
+
+  // Tracking object action status code reason
+  string reasonPhrase = 4;
+
+  // Tracking service medata object
+  GetMetaResponse meta = 5;
 
 }
 
 // Tracking Service metadata request
 //
 // Summarises tracking service data
-message MetaRequest {}
+message GetMetaRequest {
+
+  // Expand response with given fields
+  repeated ExpandFields expand = 1;
+
+}
+
+enum ExpandFields {
+
+  // Only return default fields
+  EXPAND_FIELDS_NONE = 0;
+
+  // Return all available fields
+  EXPAND_FIELDS_ALL = 1;
+
+  // Extend response with repository fields
+  EXPAND_FIELDS_REPO = 2;
+
+}
+
 
 // Tracking Service metadata response
 //
-// Summarises tracking service data
-message MetaResponse {
-  // Number of tracking objects
-  int32 count = 1;
+// Summarises tracking service metadata
+message GetMetaResponse {
+
+  // Current tracking service status
+  TrackingServerStatus status = 1;
+
+  // Total number of tracking objects
+  int32 total = 2;
+
+  // Number of managed tracking object to total number of tracking objects
+  double fractionManaged = 3;
+
+  // Positions metadata
+  PositionsMeta positions = 4;
+
+  // List of metadata for managed tracking objects
+  repeated TrackingMeta managerOf = 5;
+
+  // Map of repository metadata
+  RepositoryMeta repo = 6;
+
 }
+
+
+// Tracking object metadata
+//
+// Summarises tracking object metadata
+message TrackingMeta {
+
+  // Tracking uuid
+  string uuid = 1;
+
+  // Number of tracks in tracking object
+  int32 trackCount = 2;
+
+  // Total number of positions in tracking object
+  int32 positionCount = 3;
+
+  // Last applied tracking event
+  EventMeta lastEvent = 4;
+
+}
+
+// Position metadata
+//
+// Summarises position metadata
+message PositionsMeta {
+
+  // Total number of positions heard
+  int32 total = 1;
+
+  // Number of positions processed per minute
+  double positionsPerMinute = 2;
+
+  // Average processing time in milliseconds
+  double averageProcessingTimeMillis = 3;
+
+  // Last applied position event
+  EventMeta lastEvent = 4;
+
+}
+
+
+// Event object metadata
+//
+// Models event metadata
+message EventMeta {
+
+  // Event type
+  string type = 1;
+
+  // Event uuid
+  string uuid = 2;
+
+  // True if event origin is remote
+  bool remote = 3;
+
+  // Event number in instance stream
+  int32 number = 4;
+
+  // Event position in canonical (projection or instance) stream
+  int32 position = 5;
+
+}
+
+
+// Repository object metadata
+//
+// Summarises repository object metadata
+message RepositoryMeta {
+
+  // Repository type
+  string type = 1;
+
+  // Last event applied to repository
+  EventMeta lastEvent = 2;
+
+  // Repository queue object metadata
+  RepositoryQueueMeta queue = 3;
+
+}
+
+// Repository queue object metadata
+//
+// Summarises repository queue object metadata
+message RepositoryQueueMeta {
+
+  // Repository queue pressure object metadata
+  RepositoryQueuePressureMeta pressure = 1;
+
+  // Repository queue status object metadata
+  RepositoryQueueStatusMeta status = 2;
+
+}
+
+// Repository queue pressure object metadata
+//
+// Summarises repository queue pressure object metadata
+message RepositoryQueuePressureMeta {
+
+  // Number of pending pushes
+  int32 push = 1;
+
+  // Number of pending commands
+  int32 commands = 2;
+
+  // Total number of pending pushes and commands
+  int32 total = 3;
+
+  // Maximum allowed pressure
+  int32 maximum = 4;
+
+  // True if maximum pressure is exceeded
+  bool exceeded = 5;
+
+}
+
+// Repository queue status object metadata
+//
+// Summarises repository queue status object metadata
+message RepositoryQueueStatusMeta {
+
+  // True if queue is idle
+  bool idle = 1;
+
+  // True if queue is ready to process requests
+  bool ready = 2;
+
+  // True if queue is disposed
+  bool disposed = 3;
+
+}
+

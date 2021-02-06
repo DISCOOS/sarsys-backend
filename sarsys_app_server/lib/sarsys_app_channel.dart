@@ -30,9 +30,6 @@ const List<String> allScopes = [
   'roles:personnel',
 ];
 
-/// Path to SarSys OpenAPI specification file
-const String apiSpecPath = 'web/sarsys.json';
-
 /// This type initializes an application.
 ///
 /// Override methods in this class to set up routes and initialize services like
@@ -44,7 +41,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
   );
 
   /// Loaded in [prepare]
-  SarSysConfig config;
+  SarSysAppConfig config;
 
   /// Validates requests against current open api specification
   JsonValidation requestValidator;
@@ -85,7 +82,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
 
       _loadConfig();
       _initHive();
-      _configureLogger();
       _buildValidators();
       _buildRepoManager();
       _buildRepos(
@@ -457,18 +453,36 @@ class SarSysAppServerChannel extends ApplicationChannel {
 
   void _loadConfig() {
     // Parse from config file, given by --config to main.dart or default config.yaml
-    config = SarSysConfig(options.configurationFilePath);
-    RequestBody.maxSize = 1024 * 1024 * config.maxBodySize;
-    logger.onRecord.listen(
-      (record) => printRecord(
-        record,
-        debug: config.debug,
-        stdout: config.logging.stdout,
-      ),
+    config = SarSysAppConfig.fromFile(
+      options.configurationFilePath,
     );
+    _writeContextOnConfig();
+    config.host = Platform.localHostname;
+    config.port = server.options.port;
+    RequestBody.maxSize = 1024 * 1024 * config.maxBodySize;
+    final level = LoggerConfig.toLevel(
+      config.logging.level,
+    );
+    Logger.root.level = level;
+    logger.onRecord.where((event) => logger.level >= level).listen(
+          (record) => printRecord(
+            record,
+            debug: config.debug,
+            stdout: config.logging.stdout,
+          ),
+        );
+    logger.info("Server log level set to ${Logger.root.level.name}");
+    if (config.logging.sentry != null) {
+      _remoteLogger = RemoteLogger(
+        config.logging.sentry,
+        config.tenant,
+      );
+      logger.info("Sentry DSN is ${config.logging.sentry.dsn}");
+      logger.info("Sentry log level set to ${_remoteLogger.level}");
+    }
 
-    logger.info("EVENTSTORE_HOST is ${config.eventstore.host}");
-    logger.info("EVENTSTORE_PORT is ${config.eventstore.port}");
+    logger.info("SERVER url is ${config.url}");
+    logger.info("EVENTSTORE url is ${config.eventstore.url}");
     logger.info("EVENTSTORE_LOGIN is ${config.eventstore.login}");
     logger.info("EVENTSTORE_REQUIRE_MASTER is ${config.eventstore.requireMaster}");
 
@@ -520,20 +534,62 @@ class SarSysAppServerChannel extends ApplicationChannel {
     }
   }
 
-  void _configureLogger() {
-    Logger.root.level = LoggerConfig.toLevel(
-      config.logging.level,
+  void _writeContextOnConfig() {
+    config.debug = _propertyAt<bool>('DEBUG', config.debug);
+    config.prefix = _propertyAt<String>('PREFIX', config.prefix);
+    config.tenant = _propertyAt<String>('TENANT', config.tenant);
+    config.maxBodySize = _propertyAt<int>('MAX_BODY_SIZE', config.maxBodySize);
+    config.apiSpecPath = _propertyAt<String>('API_SPEC_PATH', config.apiSpecPath);
+
+    config.logging?.level = _propertyAt<String>('LOG_LEVEL', config.logging?.level);
+    config.logging?.stdout = _propertyAt<bool>('LOG_STDOUT', config.logging?.stdout);
+    config.logging?.sentry?.level = _propertyAt<String>(
+      'LOG_SENTRY_LEVEL',
+      config.logging?.sentry?.level,
     );
-    logger.info("Server log level set to ${Logger.root.level.name}");
-    if (config.logging.sentry != null) {
-      _remoteLogger = RemoteLogger(config);
-      logger.info("Sentry DSN is ${config.logging.sentry.dsn}");
-      logger.info("Sentry log level set to ${_remoteLogger.level}");
-    }
+    config.logging?.sentry?.dsn = _propertyAt<String>(
+      'LOG_SENTRY_DSN',
+      config.logging?.sentry?.dsn,
+    );
+
+    config.auth?.enabled = _propertyAt<bool>('AUTH_ENABLED', config.auth?.enabled);
+    config.auth?.audience = _propertyAt<String>('AUTH_AUDIENCE', config.auth?.audience);
+    config.auth?.issuer = _propertyAt<String>('AUTH_ISSUER', config.auth?.issuer);
+    config.auth?.baseUrl = _propertyAt<String>('AUTH_BASE_URL', config.auth?.baseUrl);
+
+    config.data?.enabled = _propertyAt<bool>('DATA_ENABLED', config.data?.enabled);
+    config.data?.path = _propertyAt<String>('DATA_PATH', config.data?.path);
+    config.data?.snapshots?.keep = _propertyAt<int>('DATA_SNAPSHOTS_KEEP', config.data?.snapshots?.keep);
+    config.data?.snapshots?.threshold = _propertyAt<int>(
+      'DATA_SNAPSHOTS_THRESHOLD',
+      config.data?.snapshots?.threshold,
+    );
+    config.data?.snapshots?.automatic = _propertyAt<bool>(
+      'DATA_SNAPSHOTS_AUTOMATIC',
+      config.data?.snapshots?.automatic,
+    );
+
+    config.eventstore?.scheme = _propertyAt<String>(
+      'EVENTSTORE_SCHEME',
+      config.eventstore?.scheme,
+    );
+    config.eventstore?.host = _propertyAt<String>(
+      'EVENTSTORE_HOST',
+      config.eventstore?.host,
+    );
+    config.eventstore?.port = _propertyAt<int>(
+      'EVENTSTORE_PORT',
+      config.eventstore?.port,
+    );
   }
 
+  T _propertyAt<T>(String key, T defaultValue) => options.context.elementAt<T>(
+        key,
+        defaultValue: defaultValue,
+      );
+
   void _buildValidators() {
-    final file = File(apiSpecPath);
+    final file = File(config.apiSpecPath);
     final spec = file.readAsStringSync();
     final data = json.decode(spec.isEmpty ? '{}' : spec);
     requestValidator = JsonValidation(data as Map<String, dynamic>);
@@ -551,6 +607,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
       EventStoreConnection(
         host: config.eventstore.host,
         port: config.eventstore.port,
+        scheme: config.eventstore.scheme,
         credentials: UserCredentials(
           login: config.eventstore.login,
           password: config.eventstore.password,
@@ -653,22 +710,10 @@ class SarSysAppServerChannel extends ApplicationChannel {
     bool useInstanceStreams = true,
   }) {
     // Context allows for testing to pass these
-    final keep = options.context.elementAt<int>(
-      'snapshot_keep',
-      defaultValue: config.data.snapshots.keep,
-    );
-    final enabled = options.context.elementAt<bool>(
-      'snapshots_enabled',
-      defaultValue: config.data.snapshots.enabled,
-    );
-    final automatic = options.context.elementAt<bool>(
-      'snapshot_automatic',
-      defaultValue: config.data.snapshots.automatic,
-    );
-    final threshold = options.context.elementAt<int>(
-      'snapshot_threshold',
-      defaultValue: config.data.snapshots.threshold,
-    );
+    final keep = config.data.snapshots.keep;
+    final enabled = config.data.snapshots.enabled;
+    final automatic = config.data.snapshots.automatic;
+    final threshold = config.data.snapshots.threshold;
     final snapshots = enabled
         ? Storage.fromType<T>(
             keep: keep,
@@ -686,17 +731,13 @@ class SarSysAppServerChannel extends ApplicationChannel {
   }
 
   void _initHive() {
-    final enabled = options.context.elementAt<bool>(
-      'data_enabled',
-      defaultValue: config.data.enabled,
-    );
-    if (enabled) {
-      final path = options.context.elementAt<String>(
-        'data_path',
-        defaultValue: config.data.path,
+    if (config.data.enabled) {
+      final hiveDir = Directory(
+        config.data.path,
       );
-      final hiveDir = Directory(path);
-      hiveDir.createSync(recursive: true);
+      hiveDir.createSync(
+        recursive: true,
+      );
       Hive.init(hiveDir.path);
     }
   }
@@ -717,7 +758,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
   }
 
   Future _buildDomainServices() async {
-    if (config.tracking) {
+    if (config.standalone) {
       trackingService = TrackingService(
         manager.get<TrackingRepository>(),
         dataPath: config.data.path,
@@ -725,6 +766,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
         devices: manager.get<DeviceRepository>(),
       );
       await trackingService.build();
+      await trackingService.start();
     }
     return Future.value();
   }
@@ -793,12 +835,10 @@ class SarSysAppServerChannel extends ApplicationChannel {
   bool get isPaused => manager.isPaused;
   void pause() {
     manager.pause();
-    trackingService?.pause();
   }
 
   void resume() {
     manager.resume();
-    trackingService?.resume();
   }
 
   @override
@@ -813,7 +853,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
       _disposed = true;
       await manager?.dispose();
       await messages?.dispose();
-      await trackingService?.dispose();
       manager?.connection?.close();
     }
   }

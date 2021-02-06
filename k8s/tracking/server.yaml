@@ -13,6 +13,8 @@ spec:
   ports:
     - port: 80
       targetPort: 8082
+    - port: 8080
+      targetPort: 8083
   clusterIP: None
 
 ---
@@ -59,6 +61,7 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 8082
+            - containerPort: 8083
           # Load configuration
           envFrom:
             - configMapRef:
@@ -92,7 +95,7 @@ spec:
           readinessProbe:
             httpGet:
               path: /api/healthz/ready
-              port:  8083
+              port:  8082
               scheme: HTTP
             # EventStoreConnection has
             # 10s as default connection
@@ -106,7 +109,7 @@ spec:
           livenessProbe:
             httpGet:
               path: /api/healthz/alive
-              port:  8083
+              port:  8082
               scheme: HTTP
             # EventStoreConnection has
             # 10s as default connection

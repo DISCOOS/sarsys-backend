@@ -2,10 +2,10 @@ import 'package:event_source/event_source.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 
-import 'harness.dart';
+import 'package:sarsys_app_server_test/sarsys_app_server_test.dart';
 
 Future main() async {
-  final harness = SarSysHttpHarness()
+  final harness = SarSysAppHarness()
     ..withEventStoreMock()
     ..install(restartForEachTest: true);
 
@@ -66,7 +66,7 @@ Future main() async {
   });
 }
 
-Future<String> _prepare(SarSysHttpHarness harness) async {
+Future<String> _prepare(SarSysAppHarness harness) async {
   final orguuid = Uuid().v4();
   final divuuid = Uuid().v4();
   expectResponse(await harness.agent.post("/api/organisations", body: createOrganisation(orguuid)), 201);

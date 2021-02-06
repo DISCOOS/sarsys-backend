@@ -2,36 +2,48 @@ import 'dart:io';
 
 import 'package:aqueduct/aqueduct.dart';
 
-class SarSysConfig extends Configuration {
-  SarSysConfig(String path) : super.fromFile(File(path));
+abstract class SarSysModuleConfig extends Configuration {
+  SarSysModuleConfig();
+  SarSysModuleConfig.fromFile(String path) : super.fromFile(File(path));
 
-  /// Tenant name
-  String tenant;
+  /// Module URI as string
+  String get url => '$scheme://$host';
 
-  /// The maximum size of a request body. Default is 10MB
-  int maxBodySize = 10;
+  /// Module URI scheme
+  ///
+  /// Optional configuration
+  @optionalConfiguration
+  String scheme = 'http';
 
-  /// [EventStore](www.eventstore.org) config values
-  AuthConfig auth;
+  /// Module host
+  ///
+  /// Optional configuration
+  @optionalConfiguration
+  String host;
 
-  /// [EventStore](www.eventstore.org) config values
-  EvenStoreConfig eventstore;
+  /// Module logging config
+  @optionalConfiguration
+  LoggerConfig logging = LoggerConfig();
 
-  /// SARSys data config
-  DataConfig data;
-
-  /// SARSys data config
-  LoggerConfig logging;
-
-  /// EventStore prefix
+  /// Module prefix
   @optionalConfiguration
   String prefix;
 
-  /// Tracking flag.
-  ///
-  /// Enables TrackingService
+  /// Module tenant name
   @optionalConfiguration
-  bool tracking = false;
+  String tenant;
+
+  /// Module authorization config
+  @optionalConfiguration
+  AuthConfig auth = AuthConfig();
+
+  /// Module data config
+  @optionalConfiguration
+  DataConfig data = DataConfig();
+
+  /// [EventStore](www.eventstore.org) config values
+  @optionalConfiguration
+  EvenStoreConfig eventstore;
 
   /// Debug flag.
   ///
@@ -122,7 +134,7 @@ class AuthConfig extends Configuration {
   /// Enabled flag
   ///
   /// This property is required.
-  bool enabled;
+  bool enabled = false;
 
   /// Token issuer
   ///
@@ -159,15 +171,23 @@ class AuthConfig extends Configuration {
 class EvenStoreConfig extends Configuration {
   EvenStoreConfig();
 
+  /// The URI as string
+  String get url => '$scheme://$host:$port';
+
+  /// The URI scheme to connect with.
+  ///
+  /// This property is required.
+  String scheme = 'http';
+
   /// The host of the database to connect to.
   ///
   /// This property is required.
-  String host;
+  String host = '127.0.0.1';
 
   /// The port of the database to connect to.
   ///
   /// This property is required.
-  int port;
+  int port = 2113;
 
   /// A username for authenticating to the database.
   ///
@@ -184,30 +204,4 @@ class EvenStoreConfig extends Configuration {
   /// This property is required.
   @optionalConfiguration
   bool requireMaster = false;
-}
-
-class TrackingConfig extends Configuration {
-  TrackingConfig(String path) : super.fromFile(File(path));
-
-  /// Tenant name
-  String tenant;
-
-  /// [EventStore](www.eventstore.org) config values
-  EvenStoreConfig eventstore;
-
-  /// EventStore prefix
-  @optionalConfiguration
-  String prefix;
-
-  /// Debug flag.
-  ///
-  /// Adds headers 'x-node-name' and 'x-pod-name' to
-  /// responses from environment variables 'NODE_NAME',
-  /// 'POD_NAME', and 'POD_NAMESPACE', see k8s/server.yaml
-  @optionalConfiguration
-  bool debug = false;
-
-  /// Log level
-  @optionalConfiguration
-  String level = Level.INFO.name;
 }

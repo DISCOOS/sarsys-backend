@@ -38,7 +38,7 @@ test:
 
 models:
 	echo "Generating models..."; \
-	protoc --dart_out=grpc:lib/src/generated -Iprotos protos/sarsys_tracking_service.proto
+	protoc --dart_out="generate_kythe_info,grpc:lib/src/generated" -Iprotos protos/sarsys_tracking_service.proto
 #	rm lib/src/generated/metadata.pb{enum,json}.dart
 	dartfmt -w lib/src/generated
 	echo "[✓] Generating models complete."
@@ -61,7 +61,7 @@ build: docker_is_up models test snapshot
 localhost:
 	echo "Start SarSys Tracking Server as docker container ..."
 	echo "$(OSNAME): Host IP available using $(HOST)"
-	docker run -d -i -t -p 80:8082 --env EVENTSTORE_HOST=http://$(HOST) --env EVENTSTORE_PORT=2113 --env EVENTSTORE_LOGIN=admin --env EVENTSTORE_PASSWORD=changeit --env TENANT=discoos --rm --name sarsys_tracking_server discoos/sarsys_tracking_server:latest
+	docker run -d -i -t -p 80:8082 --env EVENTSTORE_HOST=http --env EVENTSTORE_HOST=http --env EVENTSTORE_PORT=2113 --env EVENTSTORE_LOGIN=admin --env EVENTSTORE_PASSWORD=changeit --env TENANT=discoos --rm --name sarsys_tracking_server discoos/sarsys_tracking_server:latest
 	echo "[✓] SarSys Tracking Server listening at $(HOST)"
 
 push:

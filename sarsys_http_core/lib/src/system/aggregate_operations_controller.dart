@@ -7,7 +7,7 @@ class AggregateOperationsController extends SystemOperationsBaseController {
   AggregateOperationsController(
     RepositoryManager manager, {
     @required String tag,
-    @required SarSysConfig config,
+    @required SarSysModuleConfig config,
     @required Map<String, dynamic> context,
   }) : super(
           manager,
@@ -61,7 +61,14 @@ class AggregateOperationsController extends SystemOperationsBaseController {
           data: data,
           items: items,
           store: repository.store,
-        )..addAll({'transaction': trx?.toMeta(data: data, items: items) ?? {}}),
+        )..addAll({
+            'transaction': trx?.toMeta(
+                  data: data,
+                  items: items,
+                  store: repository.store,
+                ) ??
+                {}
+          }),
       );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
@@ -148,7 +155,12 @@ class AggregateOperationsController extends SystemOperationsBaseController {
   }
 
   Response _doReplace(
-      Map<String, dynamic> body, Repository repository, String uuid, bool expandData, bool expandItems) {
+    Map<String, dynamic> body,
+    Repository repository,
+    String uuid,
+    bool expandData,
+    bool expandItems,
+  ) {
     final data = body.mapAt<String, dynamic>(
       'params/data',
     );
@@ -177,7 +189,12 @@ class AggregateOperationsController extends SystemOperationsBaseController {
     );
   }
 
-  Future<Response> _doCatchup(Repository repository, String uuid, bool expandData, bool expandItems) async {
+  Future<Response> _doCatchup(
+    Repository repository,
+    String uuid,
+    bool expandData,
+    bool expandItems,
+  ) async {
     await repository.catchup(
       uuids: [uuid],
       strict: false,
@@ -191,7 +208,12 @@ class AggregateOperationsController extends SystemOperationsBaseController {
     );
   }
 
-  Future<Response> _doReplay(Repository repository, String uuid, bool expandData, bool expandItems) async {
+  Future<Response> _doReplay(
+    Repository repository,
+    String uuid,
+    bool expandData,
+    bool expandItems,
+  ) async {
     await repository.replay(
       uuids: [uuid],
       strict: false,
@@ -200,6 +222,7 @@ class AggregateOperationsController extends SystemOperationsBaseController {
       repository.get(uuid).toMeta(
             data: expandData,
             items: expandItems,
+            store: repository.store,
           ),
     );
   }
@@ -217,51 +240,55 @@ class AggregateOperationsController extends SystemOperationsBaseController {
       };
 
   @override
-  APISchemaObject documentMeta(APIDocumentContext context) => APISchemaObject.object({
-        'uuid': documentUUID()
-          ..description = 'Globally unique aggregate id'
+  APISchemaObject documentMeta(APIDocumentContext context) => documentAggregateMeta(context);
+
+  static APISchemaObject documentAggregateMeta(APIDocumentContext context) {
+    return APISchemaObject.object({
+      'uuid': documentUUID()
+        ..description = 'Globally unique aggregate id'
+        ..isReadOnly = true,
+      'type': APISchemaObject.string()
+        ..description = 'Aggregate Type'
+        ..isReadOnly = true,
+      'number': APISchemaObject.integer()
+        ..description = 'Current event number'
+        ..isReadOnly = true,
+      'created': documentEvent(context)
+        ..description = 'Created by given event'
+        ..isReadOnly = true,
+      'changed': documentEvent(context)
+        ..description = 'Last changed by given event'
+        ..isReadOnly = true,
+      'modifications': APISchemaObject.integer()
+        ..description = 'Total number of modifications'
+        ..isReadOnly = true,
+      'applied': APISchemaObject.object({
+        'count': APISchemaObject.integer()
+          ..description = 'Total number of applied events'
           ..isReadOnly = true,
-        'type': APISchemaObject.string()
-          ..description = 'Aggregate Type'
+        'items': APISchemaObject.array(
+          ofSchema: documentEvent(context),
+        )..description = 'Array of skipped events',
+      }),
+      'skipped': APISchemaObject.object({
+        'count': APISchemaObject.integer()
+          ..description = 'Total number of skipped events'
           ..isReadOnly = true,
-        'number': APISchemaObject.integer()
-          ..description = 'Current event number'
+        'items': APISchemaObject.array(
+          ofSchema: documentEvent(context),
+        )..description = 'Array of skipped events',
+      }),
+      'pending': APISchemaObject.object({
+        'count': APISchemaObject.integer()
+          ..description = 'Total number of local events pending push'
           ..isReadOnly = true,
-        'created': documentEvent(context)
-          ..description = 'Created by given event'
-          ..isReadOnly = true,
-        'changed': documentEvent(context)
-          ..description = 'Last changed by given event'
-          ..isReadOnly = true,
-        'modifications': APISchemaObject.integer()
-          ..description = 'Total number of modifications'
-          ..isReadOnly = true,
-        'applied': APISchemaObject.object({
-          'count': APISchemaObject.integer()
-            ..description = 'Total number of applied events'
-            ..isReadOnly = true,
-          'items': APISchemaObject.array(
-            ofSchema: documentEvent(context),
-          )..description = 'Array of skipped events',
-        }),
-        'skipped': APISchemaObject.object({
-          'count': APISchemaObject.integer()
-            ..description = 'Total number of skipped events'
-            ..isReadOnly = true,
-          'items': APISchemaObject.array(
-            ofSchema: documentEvent(context),
-          )..description = 'Array of skipped events',
-        }),
-        'pending': APISchemaObject.object({
-          'count': APISchemaObject.integer()
-            ..description = 'Total number of local events pending push'
-            ..isReadOnly = true,
-          'items': APISchemaObject.array(
-            ofSchema: documentEvent(context),
-          )..description = 'Array of local events pending push',
-        }),
-        'data': APISchemaObject.freeForm()
-          ..description = 'Map of JSON-Patch compliant values'
-          ..isReadOnly = true,
-      });
+        'items': APISchemaObject.array(
+          ofSchema: documentEvent(context),
+        )..description = 'Array of local events pending push',
+      }),
+      'data': APISchemaObject.freeForm()
+        ..description = 'Map of JSON-Patch compliant values'
+        ..isReadOnly = true,
+    });
+  }
 }

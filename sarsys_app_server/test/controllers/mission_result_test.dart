@@ -1,10 +1,10 @@
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 
-import 'harness.dart';
+import 'package:sarsys_app_server_test/sarsys_app_server_test.dart';
 
 Future main() async {
-  final harness = SarSysHttpHarness()
+  final harness = SarSysAppHarness()
     ..withEventStoreMock()
     ..install(restartForEachTest: true);
 
@@ -91,7 +91,7 @@ Future main() async {
   });
 }
 
-Future _prepare(SarSysHttpHarness harness) async {
+Future _prepare(SarSysAppHarness harness) async {
   final iuuid = Uuid().v4();
   expectResponse(await harness.agent.post("/api/incidents", body: createIncident(iuuid)), 201);
   final ouuid = Uuid().v4();

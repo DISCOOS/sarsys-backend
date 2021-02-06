@@ -791,24 +791,18 @@ class Transaction {
         'count': _changes.length,
         if (items)
           'items': _changes
-              .map((e) => {
-                    'type': e.type,
-                    'number': e.number.value,
-                    'created': e.created.toIso8601String(),
-                    if (data) 'patches': e.patches,
-                  })
+              .map(
+                (e) => repo.store.toJsonEvent(e, patches: data),
+              )
               .toList(),
       },
       'conflicts': {
         'count': conflicting.length,
         if (items)
           'items': conflicting
-              .map((e) => {
-                    'type': e.type,
-                    'number': e.number.value,
-                    'created': e.created.toIso8601String(),
-                    if (data) 'patches': e.patches,
-                  })
+              .map(
+                (e) => repo.store.toJsonEvent(e, patches: data),
+              )
               .toList(),
       },
       'status': {
@@ -3992,23 +3986,21 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   }
 
   Map<String, dynamic> toMeta({
+    @required EventStore store,
     bool data = false,
     bool items = false,
-    EventStore store,
   }) {
     return <String, dynamic>{
       'uuid': uuid,
       'number': number.value,
-      'created': <String, dynamic>{
-        'uuid': createdBy?.uuid,
-        'type': '${createdBy?.type}',
-        'timestamp': createdWhen.toIso8601String(),
-      },
-      'changed': <String, dynamic>{
-        'uuid': changedBy?.uuid,
-        'type': '${changedBy?.type}',
-        'timestamp': changedWhen.toIso8601String(),
-      },
+      'created': store.toJsonEvent(
+        createdBy,
+        patches: data,
+      ),
+      'changed': store.toJsonEvent(
+        changedBy,
+        patches: data,
+      ),
       'modifications': modifications,
       if (store?.isTainted(uuid) == true) 'tainted': store?.tainted[uuid],
       if (store?.isCordoned(uuid) == true) 'cordoned': store?.cordoned[uuid],
@@ -4017,12 +4009,9 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         if (items)
           'items': _applied.keys
               .map((uuid) => _applied[uuid])
-              .map((e) => {
-                    'type': e.type,
-                    'number': e.number.value,
-                    'created': e.created.toIso8601String(),
-                    if (data) 'patches': e.patches,
-                  })
+              .map(
+                (e) => store.toJsonEvent(e, patches: data),
+              )
               .toList(),
       },
       'skipped': <String, dynamic>{
@@ -4030,12 +4019,9 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         if (items)
           'items': skipped
               .map((uuid) => _applied[uuid])
-              .map((e) => {
-                    'type': e.type,
-                    'number': e.number.value,
-                    'created': e.created.toIso8601String(),
-                    if (data) 'patches': e.patches,
-                  })
+              .map(
+                (e) => store.toJsonEvent(e, patches: data),
+              )
               .toList(),
       },
       'pending': <String, dynamic>{
@@ -4043,12 +4029,9 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         if (items)
           'items': [
             ...getLocalEvents()
-                .map((e) => {
-                      'type': e.type,
-                      'number': e.number.value,
-                      'created': e.created.toIso8601String(),
-                      if (data) 'data': e.data,
-                    })
+                .map(
+                  (e) => store.toJsonEvent(e, patches: data),
+                )
                 .toList(),
           ],
       },

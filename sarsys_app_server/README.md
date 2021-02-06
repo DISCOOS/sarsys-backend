@@ -10,7 +10,8 @@ during bootstrap. The following environment variables are required to exist befo
 
 ```
 TENANT=discoos
-EVENTSTORE_HOST=http://127.0.0.1
+EVENTSTORE_SCHEME=http
+EVENTSTORE_HOST=127.0.0.1
 EVENTSTORE_PORT=2113
 EVENTSTORE_LOGIN=admin
 EVENTSTORE_PASSWORD=changeit

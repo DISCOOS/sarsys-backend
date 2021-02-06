@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:async/async.dart';
 import 'package:event_source/event_source.dart';
+import 'package:event_source_test/event_source_test.dart';
 import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
@@ -19,9 +20,9 @@ Future main() async {
     ..withStream(subscription, useInstanceStreams: false, useCanonicalName: false)
     ..withSubscription(subscription, group: group)
     ..withProjections(projections: ['\$by_category', '\$by_event_type'])
-    ..withRepository<Device>((store) => DeviceRepository(store))
-    ..withRepository<Tracking>((store) => TrackingRepository(store))
-    ..add(port: 4000)
+    ..withRepository<Device>((_, store, __) => DeviceRepository(store))
+    ..withRepository<Tracking>((_, store, __) => TrackingRepository(store))
+    ..addServer(port: 4000)
     ..install();
 
   test('TrackingRepository should build', () async {
