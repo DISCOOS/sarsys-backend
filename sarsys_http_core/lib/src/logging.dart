@@ -9,23 +9,27 @@ import 'package:sentry/sentry.dart';
 import 'config.dart';
 
 class RemoteLogger {
-  factory RemoteLogger(SarSysConfig config) {
-    return _singleton ??= RemoteLogger._internal(config);
+  factory RemoteLogger(SentryConfig config, String tenant) {
+    return _singleton ??= RemoteLogger._internal(config, tenant);
   }
-  RemoteLogger._internal(SarSysConfig config)
+  RemoteLogger._internal(SentryConfig config, String tenant)
       : _config = config,
+        _tenant = tenant,
         _level = LoggerConfig.toLevel(
-          config.logging.sentry.level,
+          config.level,
           defaultLevel: Level.SEVERE,
         ),
         _client = SentryClient(
-          dsn: config.logging.sentry.dsn,
+          dsn: config.dsn,
         );
 
   static RemoteLogger _singleton;
 
-  SarSysConfig get config => _config;
-  final SarSysConfig _config;
+  String get tenant => _tenant;
+  String _tenant;
+
+  SentryConfig get config => _config;
+  final SentryConfig _config;
 
   SentryClient get client => _client;
   final SentryClient _client;
@@ -63,7 +67,7 @@ class RemoteLogger {
         level: _toSeverityLevel(record),
         release: Platform.environment['IMAGE'],
         serverName: Platform.environment['NODE_NAME'],
-        environment: Platform.environment['POD_NAMESPACE'] ?? _config.tenant,
+        environment: Platform.environment['POD_NAMESPACE'] ?? _tenant,
         transaction: transaction,
         extra: Platform.environment,
         breadcrumbs: breadcrumbs,

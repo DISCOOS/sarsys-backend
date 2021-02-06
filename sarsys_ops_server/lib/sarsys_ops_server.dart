@@ -8,3 +8,6 @@ export 'package:sarsys_http_core/sarsys_http_core.dart';
 export 'sarsys_ops_channel.dart';
 export 'src/k8s/k8s_api.dart';
 export 'src/schemas.dart';
+
+/// Path to SARSys Ops OpenAPI specification file
+const String apiSpecPath = 'web/sarsys-ops.json';

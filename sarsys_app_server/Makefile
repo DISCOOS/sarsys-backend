@@ -44,7 +44,7 @@ serve:
 document:
 	echo "Generate OpenAPI document..."
 	aqueduct document --title "SarSys App Server" --host https://sarsys.app \
-		--host http://localhost --machine | tail -1 > web/sarsys.json
+		--host http://localhost --machine | tail -1 > web/sarsys-app.json
 	echo "[✓] Generate OpenAPI document"
 
 models:
@@ -70,7 +70,7 @@ build: docker_is_up test document snapshot
 localhost:
 	echo "Start SarSys App Server as docker container ..."
 	echo "$(OSNAME): Host IP available using $(HOST)"
-	docker run -d -i -t -p 80:8082 --env EVENTSTORE_HOST=http://$(HOST) --env EVENTSTORE_PORT=2113 --env EVENTSTORE_LOGIN=admin --env EVENTSTORE_PASSWORD=changeit --env TENANT=discoos --rm --name sarsys_app_server discoos/sarsys_app_server:latest
+	docker run -d -i -t -p 80:8082 --env EVENTSTORE_HOST=http --env EVENTSTORE_HOST=$(HOST) --env EVENTSTORE_PORT=2113 --env EVENTSTORE_LOGIN=admin --env EVENTSTORE_PASSWORD=changeit --env TENANT=discoos --rm --name sarsys_app_server discoos/sarsys_app_server:latest
 	echo "[✓] SarSys App Server listening at $(HOST)"
 
 push:

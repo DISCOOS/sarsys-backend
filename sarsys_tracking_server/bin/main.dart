@@ -11,18 +11,21 @@ Future main(List<String> args) async {
   final parser = ArgParser()
     ..addOption("timeout", defaultsTo: "30")
     ..addOption("training", defaultsTo: "false")
-    ..addOption("healthPort", defaultsTo: "8083")
-    ..addOption("port", defaultsTo: "8082", abbr: "p")
+    ..addOption("healthPort", defaultsTo: "80")
+    ..addOption("grpcPort", defaultsTo: "8080", abbr: "p")
     ..addOption("config", defaultsTo: "config.yaml", abbr: "c");
 
   final results = parser.parse(args);
   final training = (results['training'] as String).toLowerCase() == "true";
 
   final server = SarSysTrackingServer();
+  final config = SarSysTrackingConfig.fromFile(
+    results['config'],
+  );
+  config.grpcPort = int.parse(results['grpcPort']);
+  config.healthPort = int.parse(results['healthPort']);
   final request = server.start(
-    SarSysConfig(results['config']),
-    port: int.parse(results['port']),
-    healthPort: int.parse(results['healthPort']),
+    config,
   );
 
   if (training) {

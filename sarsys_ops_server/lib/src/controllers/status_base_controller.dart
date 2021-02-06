@@ -1,7 +1,8 @@
 import 'package:sarsys_http_core/sarsys_http_core.dart';
+import 'package:sarsys_ops_server/src/config.dart';
 
-abstract class StatusController extends ResourceController with RequestValidatorMixin {
-  StatusController(
+abstract class StatusBaseController extends ResourceController with RequestValidatorMixin {
+  StatusBaseController(
     this.type,
     this.config, {
     this.tag,
@@ -14,7 +15,7 @@ abstract class StatusController extends ResourceController with RequestValidator
 
   final String type;
 
-  final SarSysConfig config;
+  final SarSysOpsConfig config;
 
   @override
   final List<String> readOnly;
@@ -29,7 +30,7 @@ abstract class StatusController extends ResourceController with RequestValidator
   // Status Operations
   //////////////////////////////////
 
-  @Operation.get()
+  /// Add @Operation.get() to activate
   Future<Response> getAll() async {
     try {
       return doGetAll();
@@ -40,9 +41,11 @@ abstract class StatusController extends ResourceController with RequestValidator
     }
   }
 
-  Future<Response> doGetAll();
+  Future<Response> doGetAll() => throw UnimplementedError(
+        'doGetAll not implemented',
+      );
 
-  @Operation.get('name')
+  /// Add @Operation.get('name') to activate
   Future<Response> getByName(@Bind.path('name') String name) async {
     try {
       return doGetByName(name);
@@ -53,7 +56,9 @@ abstract class StatusController extends ResourceController with RequestValidator
     }
   }
 
-  Future<Response> doGetByName(String name);
+  Future<Response> doGetByName(String name) => throw UnimplementedError(
+        'doGetByName not implemented',
+      );
 
   /// Report error to Sentry and
   /// return 500 with message as body

@@ -209,6 +209,22 @@ class EventStore {
     return position > -1 ? offset + position + 1 : -1;
   }
 
+  /// Get event metadata as json
+  Map<String, dynamic> toJsonEvent(
+    Event event, {
+    bool patches = false,
+  }) {
+    return <String, dynamic>{
+      'uuid': event?.uuid,
+      'type': '${event?.type}',
+      'number': '${event?.number}',
+      'remote': '${event?.remote}',
+      'position': '${toPosition(event)}',
+      'timestamp': event?.created?.toIso8601String(),
+      if (patches) 'patches': event?.patches,
+    };
+  }
+
   /// Get snapshots [Storage] instance
   Storage get snapshots => _snapshots;
 
@@ -2607,7 +2623,8 @@ class SourceEventErrorHandler {
 @sealed
 class EventStoreConnection {
   EventStoreConnection({
-    this.host = 'http://127.0.0.1',
+    this.scheme = 'http',
+    this.host = '127.0.0.1',
     this.port = 2113,
     this.pageSize = 20,
     this.requireMaster = false,
@@ -2622,6 +2639,7 @@ class EventStoreConnection {
   final int port;
   final String host;
   final int pageSize;
+  final String scheme;
   final Client client;
   final bool requireMaster;
   final bool enforceAddress;
@@ -2629,7 +2647,7 @@ class EventStoreConnection {
 
   final Logger _logger;
 
-  String get baseUrl => '$host:$port';
+  String get baseUrl => '$scheme://$host:$port';
   String get masterUrl => _masterUrl;
   String _masterUrl;
 
@@ -3434,7 +3452,7 @@ class EventStoreConnection {
 
   @override
   String toString() {
-    return 'EventStoreConnection{host: $host, port: $port, pageSize: $pageSize}';
+    return 'EventStoreConnection{url: $baseUrl, pageSize: $pageSize}';
   }
 
   String _mapUrlTo(String url) {
@@ -3442,10 +3460,10 @@ class EventStoreConnection {
       var uri = Uri.parse(url);
       final host = uri.host;
       if (uri.hasPort) {
-        final next = url.replaceFirst('${uri.scheme}://$host:${uri.port}', '${this.host}:$port');
+        final next = url.replaceFirst('${uri.scheme}://$host:${uri.port}', '$baseUrl');
         return next;
       }
-      return url.replaceFirst('$host', '${this.host}:$port');
+      return url.replaceFirst('$host', '$baseUrl');
     }
     return url;
   }

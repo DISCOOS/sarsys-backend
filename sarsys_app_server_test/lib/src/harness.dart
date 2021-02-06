@@ -1,5 +1,6 @@
 import 'package:aqueduct_test/aqueduct_test.dart';
 import 'package:event_source/event_source.dart';
+import 'package:event_source_test/event_source_test.dart';
 import 'package:jaguar_jwt/jaguar_jwt.dart';
 import 'package:sarsys_app_server/controllers/tenant/app_config.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
@@ -21,13 +22,13 @@ export 'package:aqueduct/aqueduct.dart';
 ///         void main() {
 ///           Harness harness = Harness()..install();
 ///
-///           test("GET /path returns 200", () async {
-///             final response = await harness.agent.get("/path");
+///           test('GET /path returns 200', () async {
+///             final response = await harness.agent.get('/path');
 ///             expectResponse(response, 200);
 ///           });
 ///         }
 ///
-class SarSysHttpHarness extends TestHarness<SarSysAppServerChannel> {
+class SarSysAppHarness extends TestHarness<SarSysAppServerChannel> {
   EventStoreMockServer eventStoreMockServer;
 
   static const testDataPath = 'test/.hive';
@@ -48,7 +49,7 @@ class SarSysHttpHarness extends TestHarness<SarSysAppServerChannel> {
   int _threshold;
   bool _automatic;
   bool _withSnapshots = false;
-  SarSysHttpHarness withSnapshot({
+  SarSysAppHarness withSnapshot({
     int threshold = 100,
     int keep = 10,
     bool automatic = true,
@@ -61,19 +62,21 @@ class SarSysHttpHarness extends TestHarness<SarSysAppServerChannel> {
   }
 
   final Map<String, dynamic> _context = {};
-  SarSysHttpHarness withContext({
+  SarSysAppHarness withContext({
     String podName = 'bar',
     String dataPath,
+    String apiSpecPath,
   }) {
     _context.clear();
     _context.addAll({
       if (podName != null) 'POD_NAME': podName,
-      if (dataPath != null) 'data_path': testDataPath,
+      if (dataPath != null) 'DATA_PATH': dataPath,
+      if (apiSpecPath != null) 'API_SPEC_PATH': apiSpecPath,
     });
     return this;
   }
 
-  SarSysHttpHarness withInstance(int port) {
+  SarSysAppHarness withInstance(int port) {
     assert(port != 80, 'Instance with port 80 exists');
     assert(!_ports.contains(port), 'Instance with port $port exists');
     _ports.add(port);
@@ -111,7 +114,7 @@ class SarSysHttpHarness extends TestHarness<SarSysAppServerChannel> {
 
   Future _deleteTestData() async {
     await Hive.deleteFromDisk();
-    final dataPath = Directory((_context['data_path'] ?? testDataPath) as String);
+    final dataPath = Directory((_context['DATA_PATH'] ?? testDataPath) as String);
     if (dataPath.existsSync()) {
       dataPath.deleteSync(recursive: true);
     }
@@ -120,12 +123,12 @@ class SarSysHttpHarness extends TestHarness<SarSysAppServerChannel> {
   void _configureContext(Application application) {
     application.options.context.addAll(_context);
     if (_withSnapshots) {
-      application.options.context['data_enabled'] = true;
-      application.options.context['data_path'] = testDataPath;
-      application.options.context['snapshots_keep'] = _keep;
-      application.options.context['snapshots_enabled'] = true;
-      application.options.context['snapshots_threshold'] = _threshold;
-      application.options.context['snapshots_automatic'] = _automatic;
+      application.options.context['DATA_ENABLED'] = true;
+      application.options.context['DATA_PATH'] = testDataPath;
+      application.options.context['DATA_SNAPSHOTS_KEEP'] = _keep;
+      application.options.context['DATA_SNAPSHOTS_ENABLED'] = true;
+      application.options.context['DATA_SNAPSHOTS_THRESHOLD'] = _threshold;
+      application.options.context['DATA_SNAPSHOTS_AUTOMATIC'] = _automatic;
     }
   }
 
@@ -139,9 +142,9 @@ class SarSysHttpHarness extends TestHarness<SarSysAppServerChannel> {
       }
     }
     if (missing.isNotEmpty) {
-      throw "Following streams are not defined: \n\n"
-          "   $missing\n\n"
-          ">> Add missing stream(s) to SarSysHarness.onSetUp()";
+      throw 'Following streams are not defined: \n\n'
+          '   $missing\n\n'
+          '>> Add missing stream(s) to SarSysHarness.onSetUp()';
     }
     for (var port in _ports) {
       final agent = await _startInstance(port);
@@ -200,14 +203,14 @@ class SarSysHttpHarness extends TestHarness<SarSysAppServerChannel> {
 //////////////////////////////////
 
 Future expectAggregateInList(
-  SarSysHttpHarness harness, {
+  SarSysAppHarness harness, {
   String uri,
   String uuid,
   int port = 80,
   String listField,
   List<String> uuids,
 }) async {
-  final response = expectResponse(await harness.agents[port].get("$uri/$uuid"), 200);
+  final response = expectResponse(await harness.agents[port].get('$uri/$uuid'), 200);
   final actual = await response.body.decode();
   expect(
     Map.from(actual['data'] as Map).elementAt(listField),
@@ -216,7 +219,7 @@ Future expectAggregateInList(
 }
 
 Future expectAggregateReference(
-  SarSysHttpHarness harness, {
+  SarSysAppHarness harness, {
   String uri,
   int port = 80,
   String childUuid,
@@ -224,7 +227,7 @@ Future expectAggregateReference(
   String parentField,
   String parentUuid,
 }) async {
-  final response = expectResponse(await harness.agents[port].get("$uri/$childUuid"), 200);
+  final response = expectResponse(await harness.agents[port].get('$uri/$childUuid'), 200);
   final actual = await response.body.decode();
   expect(
     actual['data'],
@@ -241,19 +244,19 @@ Map<String, String> createAuthn(String value) => {'Authorization': value};
 
 String createAuthnAdmin({List<String> required = const ['personnel']}) => createBearerToken(
       createJWT(
-        ['admin']..addAll(required),
+        ['admin', ...required],
       ),
     );
 
 String createAuthnCommander({List<String> required = const ['personnel']}) => createBearerToken(
       createJWT(
-        ['commander']..addAll(required),
+        ['commander', ...required],
       ),
     );
 
 String createAuthnUnitLeader({List<String> required = const ['personnel']}) => createBearerToken(
       createJWT(
-        ['unit_leader']..addAll(required),
+        ['unit_leader', ...required],
       ),
     );
 
@@ -273,134 +276,134 @@ String createJWT(List<String> roles) => issueJwtHS256(
       's3cr3t',
     );
 
-String createBearerToken(String jwt) => "Bearer $jwt";
+String createBearerToken(String jwt) => 'Bearer $jwt';
 
 //////////////////////////////////
 // Common domain objects
 //////////////////////////////////
 
 Map<String, dynamic> createIncident(String uuid) => {
-      "uuid": uuid,
-      "name": "string",
-      "summary": "string",
-      "type": "lost",
-      "status": "registered",
-      "resolution": "unresolved",
-      "occurred": DateTime.now().toIso8601String(),
+      'uuid': uuid,
+      'name': 'string',
+      'summary': 'string',
+      'type': 'lost',
+      'status': 'registered',
+      'resolution': 'unresolved',
+      'occurred': DateTime.now().toIso8601String(),
     };
 
 Map<String, dynamic> createClue(String id) => {
-      "id": id,
-      "name": "string",
-      "description": "string",
-      "type": "find",
-      "quality": "confirmed",
-      "location": {
-        "point": createPoint(),
-        "address": createAddress(),
-        "description": "string",
+      'id': id,
+      'name': 'string',
+      'description': 'string',
+      'type': 'find',
+      'quality': 'confirmed',
+      'location': {
+        'point': createPoint(),
+        'address': createAddress(),
+        'description': 'string',
       }
     };
 
 Map<String, dynamic> createSubject(String uuid) => {
-      "uuid": uuid,
-      "name": "string",
-      "situation": "string",
-      "type": "person",
-      "location": createLocation(),
+      'uuid': uuid,
+      'name': 'string',
+      'situation': 'string',
+      'type': 'person',
+      'location': createLocation(),
     };
 
 Map<String, dynamic> createPoint() => {
-      "type": "Point",
-      "coordinates": [0.0, 0.0]
+      'type': 'Point',
+      'coordinates': [0.0, 0.0]
     };
 
 Map<String, dynamic> createAddress() => {
-      "lines": ["string"],
-      "city": "string",
-      "postalCode": "string",
-      "countryCode": "string",
+      'lines': ['string'],
+      'city': 'string',
+      'postalCode': 'string',
+      'countryCode': 'string',
     };
 
 Map<String, dynamic> createOperation(String uuid) => {
-      "uuid": uuid,
-      "name": "string",
-      "type": "search",
-      "status": "planned",
-      "resolution": "unresolved",
-      "reference": "string",
-      "justification": "string",
-      "commander": {
-        "uuid": "string",
+      'uuid': uuid,
+      'name': 'string',
+      'type': 'search',
+      'status': 'planned',
+      'resolution': 'unresolved',
+      'reference': 'string',
+      'justification': 'string',
+      'commander': {
+        'uuid': 'string',
       },
-      "ipp": createLocation(),
-      "meetup": createLocation(),
-      "passcodes": {"commander": "string", "personnel": "string"},
+      'ipp': createLocation(),
+      'meetup': createLocation(),
+      'passcodes': {'commander': 'string', 'personnel': 'string'},
     };
 
 Map<String, dynamic> createObjective(String id) => {
-      "id": id,
-      "name": "string",
-      "description": "string",
-      "type": "locate",
-      "location": [
+      'id': id,
+      'name': 'string',
+      'description': 'string',
+      'type': 'locate',
+      'location': [
         {
-          "point": createPoint(),
-          "address": createAddress(),
-          "description": "string",
+          'point': createPoint(),
+          'address': createAddress(),
+          'description': 'string',
         }
       ],
-      "resolution": "unresolved"
+      'resolution': 'unresolved'
     };
 
 Map<String, dynamic> createTalkGroup(String id) => {
-      "id": id,
-      "name": 'string',
-      "type": "tetra",
+      'id': id,
+      'name': 'string',
+      'type': 'tetra',
     };
 
 Map<String, dynamic> createLocation() => {
-      "point": createPoint(),
-      "address": createAddress(),
-      "description": "string",
+      'point': createPoint(),
+      'address': createAddress(),
+      'description': 'string',
     };
 
 Map<String, dynamic> createMission(String uuid) => {
-      "uuid": uuid,
-      "description": "string",
-      "type": "search",
-      "status": "created",
-      "priority": "medium",
-      "resolution": "unresolved",
+      'uuid': uuid,
+      'description': 'string',
+      'type': 'search',
+      'status': 'created',
+      'priority': 'medium',
+      'resolution': 'unresolved',
     };
 
 Map<String, dynamic> createMissionPart(String id) => {
-      "id": id,
-      "name": "string",
-      "description": "string",
-      "data": {
-        "type": "FeatureCollection",
-        "features": [
+      'id': id,
+      'name': 'string',
+      'description': 'string',
+      'data': {
+        'type': 'FeatureCollection',
+        'features': [
           {
-            "type": "Feature",
-            "geometry": {"type": "Point"},
-            "properties": {"name": "string", "description": "string"}
+            'type': 'Feature',
+            'geometry': {'type': 'Point'},
+            'properties': {'name': 'string', 'description': 'string'}
           }
         ]
       }
     };
 
 Map<String, dynamic> createMissionResult(String id) => {
-      "id": id,
-      "name": "string",
-      "description": "string",
-      "data": {
-        "type": "FeatureCollection",
-        "features": [
+      'id': id,
+      'name': 'string',
+      'description': 'string',
+      'data': {
+        'type': 'FeatureCollection',
+        'features': [
           {
-            "type": "Feature",
-            "geometry": {"type": "Point"},
-            "properties": {"name": "string", "description": "string"}
+            'type': 'Feature',
+            'geometry': {'type': 'Point'},
+            'properties': {'name': 'string', 'description': 'string'}
           }
         ]
       }
@@ -409,20 +412,20 @@ Map<String, dynamic> createMissionResult(String id) => {
 Map<String, dynamic> createPerson(
   String uuid, {
   String userId,
-  String fname = "fname",
-  String lname = "lname",
-  String email = "email",
-  String phone = "phone",
+  String fname = 'fname',
+  String lname = 'lname',
+  String email = 'email',
+  String phone = 'phone',
   bool temporary = false,
 }) =>
     {
-      "uuid": uuid,
-      "fname": fname,
-      "lname": lname,
-      "phone": phone,
-      "email": email,
-      "temporary": temporary,
-      if (userId != null) "userId": userId,
+      'uuid': uuid,
+      'fname': fname,
+      'lname': lname,
+      'phone': phone,
+      'email': email,
+      'temporary': temporary,
+      if (userId != null) 'userId': userId,
     };
 
 Map<String, dynamic> createPersonnel(
@@ -433,13 +436,13 @@ Map<String, dynamic> createPersonnel(
   String tuuid,
 }) =>
     {
-      "uuid": uuid,
-      "status": "alerted",
-      "function": "personnel",
-      if (tuuid != null) "tracking": {"uuid": tuuid},
-      if (ouuid != null) "operation": {"uuid": ouuid},
-      if (uuuid != null) "unit": {"uuid": uuuid},
-      if (auuid != null) "affiliation": {"uuid": auuid},
+      'uuid': uuid,
+      'status': 'alerted',
+      'function': 'personnel',
+      if (tuuid != null) 'tracking': {'uuid': tuuid},
+      if (ouuid != null) 'operation': {'uuid': ouuid},
+      if (uuuid != null) 'unit': {'uuid': uuuid},
+      if (auuid != null) 'affiliation': {'uuid': auuid},
     };
 
 Map<String, dynamic> createAffiliation(
@@ -450,50 +453,50 @@ Map<String, dynamic> createAffiliation(
   String depuuid,
 }) =>
     {
-      "uuid": uuid,
-      "type": "member",
-      "status": "available",
-      "active": true,
-      if (puuid != null) "person": {"uuid": puuid},
-      if (orguuid != null) "org": {"uuid": orguuid},
-      if (divuuid != null) "div": {"uuid": divuuid},
-      if (depuuid != null) "dep": {"uuid": depuuid},
+      'uuid': uuid,
+      'type': 'member',
+      'status': 'available',
+      'active': true,
+      if (puuid != null) 'person': {'uuid': puuid},
+      if (orguuid != null) 'org': {'uuid': orguuid},
+      if (divuuid != null) 'div': {'uuid': divuuid},
+      if (depuuid != null) 'dep': {'uuid': depuuid},
     };
 
 Map<String, dynamic> createUnit(String uuid, {String tuuid, List<String> puuids = const []}) => {
-      "uuid": uuid,
-      "type": "team",
-      "number": 0,
-      "phone": "string",
-      "callsign": "string",
-      "status": "mobilized",
-      if (puuids.isNotEmpty) "personnels": puuids,
-      if (tuuid != null) "tracking": {"uuid": tuuid}
+      'uuid': uuid,
+      'type': 'team',
+      'number': 0,
+      'phone': 'string',
+      'callsign': 'string',
+      'status': 'mobilized',
+      if (puuids.isNotEmpty) 'personnels': puuids,
+      if (tuuid != null) 'tracking': {'uuid': tuuid}
     };
 
 Map<String, dynamic> createOrganisation(String uuid) => {
-      "uuid": uuid,
-      "name": "string",
-      "prefix": "string",
-      "active": true,
+      'uuid': uuid,
+      'name': 'string',
+      'prefix': 'string',
+      'active': true,
     };
 
 Map<String, dynamic> createDivision(String uuid) => {
-      "uuid": uuid,
-      "name": "string",
-      "suffix": "string",
-      "active": true,
+      'uuid': uuid,
+      'name': 'string',
+      'suffix': 'string',
+      'active': true,
     };
 
 Map<String, dynamic> createDepartment(String uuid) => {
-      "uuid": uuid,
-      "name": "string",
-      "suffix": "string",
-      "active": true,
+      'uuid': uuid,
+      'name': 'string',
+      'suffix': 'string',
+      'active': true,
     };
 
 Map<String, dynamic> createTracking(String uuid, {String status, List<Map<String, dynamic>> sources}) => {
-      "uuid": uuid,
+      'uuid': uuid,
       if (status != null) 'status': status,
       if (sources != null) 'sources': sources,
     };
@@ -531,19 +534,19 @@ Map<String, Object> createPosition({
   DateTime timestamp,
 }) =>
     {
-      "type": "Feature",
-      "geometry": {
-        "type": "Point",
-        "coordinates": [lat, lon, if (alt != null) alt]
+      'type': 'Feature',
+      'geometry': {
+        'type': 'Point',
+        'coordinates': [lat, lon, if (alt != null) alt]
       },
-      "properties": {
-        "name": "string",
-        "description": "string",
-        "source": "$type",
-        if (acc != null) "accuracy": acc,
-        if (speed != null) "speed": speed,
-        if (bearing != null) "bearing": bearing,
-        "timestamp": (timestamp ?? DateTime.now()).toIso8601String(),
+      'properties': {
+        'name': 'string',
+        'description': 'string',
+        'source': '$type',
+        if (acc != null) 'accuracy': acc,
+        if (speed != null) 'speed': speed,
+        if (bearing != null) 'bearing': bearing,
+        'timestamp': (timestamp ?? DateTime.now()).toIso8601String(),
         if (activity != null)
           'activity': {
             'type': '$activity',
@@ -553,17 +556,17 @@ Map<String, Object> createPosition({
     };
 
 Map<String, dynamic> createDevice(String uuid) => {
-      "uuid": uuid,
-      "alias": "string",
-      "trackable": true,
-      "number": "string",
-      "network": "string",
-      "networkId": "string",
+      'uuid': uuid,
+      'alias': 'string',
+      'trackable': true,
+      'number': 'string',
+      'network': 'string',
+      'networkId': 'string',
     };
 
 Map<String, dynamic> createMessage(String id) => {
-      "id": id,
-      "type": "clue",
-      "subject": "string",
-      "body": {"additionalProp1": {}}
+      'id': id,
+      'type': 'clue',
+      'subject': 'string',
+      'body': {'additionalProp1': {}}
     };

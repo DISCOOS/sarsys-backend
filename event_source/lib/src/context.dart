@@ -309,14 +309,19 @@ class Context {
       });
     }
     if (record.error != null) {
-      postfix.write('${prefix}Error: ${record.error}');
+      postfix.writeln('${prefix}Error: ${record.error}');
     }
     if (record.stackTrace != null) {
       postfix.write(
         '${Context.toStackTraceString(prefix, record.stackTrace)}',
       );
     }
-    print('$prefix${record.message}$postfix');
+    final lines = '$prefix${record.message}$postfix';
+    if (lines.endsWith('\n')) {
+      stdout.write(lines);
+    } else {
+      stdout.writeln(lines);
+    }
   }
 
   static String toMethod(String name, List<String> args) => '$name(${args.join(',  ')})';

@@ -1,19 +1,59 @@
+import 'package:event_source_test/event_source_test.dart';
+import 'package:grpc/grpc.dart';
 import 'package:hive/hive.dart';
 import 'package:sarsys_http_core/sarsys_http_core.dart';
+import 'package:sarsys_tracking_server/sarsys_tracking_server.dart';
 import 'package:test/test.dart';
 
 import 'package:event_source/event_source.dart';
 import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:sarsys_tracking_server/src/server.dart';
 
-class SarSysHarness {
-  int port = 8082;
-  int healthPort = 8083;
+class SarSysTrackingHarness {
   SarSysTrackingServer server;
+  HttpClient httpClient = HttpClient();
   EventStoreMockServer eventStoreMockServer;
 
+  int get grpcPort => _grpcPort;
+  int _grpcPort = 8082;
+
+  int get healthPort => _healthPort;
+  int _healthPort = 8083;
+
+  SarSysTrackingHarness withServerPorts({
+    int grpcPort = 8082,
+    int healthPort = 8083,
+  }) {
+    _grpcPort = grpcPort;
+    _healthPort = healthPort;
+    return this;
+  }
+
+  ClientChannel get grpcChannel => _grpcChannel;
+  ClientChannel _grpcChannel;
+  SarSysTrackingServiceClient get grpcClient => _grpcClient;
+  SarSysTrackingServiceClient _grpcClient;
+  SarSysTrackingHarness withGrpc({int port = 8082}) {
+    _grpcChannel = ClientChannel(
+      '127.0.0.1',
+      port: port,
+      options: const ChannelOptions(
+        credentials: ChannelCredentials.insecure(),
+      ),
+    );
+    _grpcClient = SarSysTrackingServiceClient(
+      grpcChannel,
+      options: CallOptions(
+        timeout: const Duration(
+          seconds: 30,
+        ),
+      ),
+    );
+    return this;
+  }
+
   Logger _logger;
-  SarSysHarness withLogger({bool debug = false}) {
+  SarSysTrackingHarness withLogger({bool debug = false}) {
     _logger = Logger('$runtimeType');
     if (debug) {
       Logger.root.level = Level.FINE;
@@ -46,10 +86,11 @@ class SarSysHarness {
     setUp(() async {
       assert(server == null);
       server = SarSysTrackingServer();
+      final config = SarSysTrackingConfig.fromFile('config.src.yaml');
+      config.grpcPort = _grpcPort;
+      config.healthPort = _healthPort;
       await server.start(
-        SarSysConfig('config.src.yaml'),
-        port: port,
-        healthPort: healthPort,
+        config,
       );
       // Assert that all repos have a stream
       final missing = <String>[];
@@ -59,9 +100,9 @@ class SarSysHarness {
         }
       }
       if (missing.isNotEmpty) {
-        throw "Following streams are not defined: \n\n"
-            "   $missing\n\n"
-            ">> Add missing stream(s) to SarSysHarness.onSetUp()";
+        throw 'Following streams are not defined: \n\n'
+            '   $missing\n\n'
+            '>> Add missing stream(s) to SarSysHarness.onSetUp()';
       }
       return server.manager.readyAsync();
     });
@@ -81,25 +122,25 @@ class SarSysHarness {
 //////////////////////////////////
 
 Map<String, dynamic> createPoint() => {
-      "type": "Point",
-      "coordinates": [0.0, 0.0]
+      'type': 'Point',
+      'coordinates': [0.0, 0.0]
     };
 
 Map<String, dynamic> createAddress() => {
-      "lines": ["string"],
-      "city": "string",
-      "postalCode": "string",
-      "countryCode": "string",
+      'lines': ['string'],
+      'city': 'string',
+      'postalCode': 'string',
+      'countryCode': 'string',
     };
 
 Map<String, dynamic> createLocation() => {
-      "point": createPoint(),
-      "address": createAddress(),
-      "description": "string",
+      'point': createPoint(),
+      'address': createAddress(),
+      'description': 'string',
     };
 
 Map<String, dynamic> createTracking(String uuid, {String status, List<Map<String, dynamic>> sources}) => {
-      "uuid": uuid,
+      'uuid': uuid,
       if (status != null) 'status': status,
       if (sources != null) 'sources': sources,
     };
@@ -137,19 +178,19 @@ Map<String, Object> createPosition({
   DateTime timestamp,
 }) =>
     {
-      "type": "Feature",
-      "geometry": {
-        "type": "Point",
-        "coordinates": [lat, lon, if (alt != null) alt]
+      'type': 'Feature',
+      'geometry': {
+        'type': 'Point',
+        'coordinates': [lat, lon, if (alt != null) alt]
       },
-      "properties": {
-        "name": "string",
-        "description": "string",
-        "source": "$type",
-        if (acc != null) "accuracy": acc,
-        if (speed != null) "speed": speed,
-        if (bearing != null) "bearing": bearing,
-        "timestamp": (timestamp ?? DateTime.now()).toIso8601String(),
+      'properties': {
+        'name': 'string',
+        'description': 'string',
+        'source': '$type',
+        if (acc != null) 'accuracy': acc,
+        if (speed != null) 'speed': speed,
+        if (bearing != null) 'bearing': bearing,
+        'timestamp': (timestamp ?? DateTime.now()).toIso8601String(),
         if (activity != null)
           'activity': {
             'type': '$activity',
@@ -159,10 +200,10 @@ Map<String, Object> createPosition({
     };
 
 Map<String, dynamic> createDevice(String uuid) => {
-      "uuid": uuid,
-      "alias": "string",
-      "trackable": true,
-      "number": "string",
-      "network": "string",
-      "networkId": "string",
+      'uuid': uuid,
+      'alias': 'string',
+      'trackable': true,
+      'number': 'string',
+      'network': 'string',
+      'networkId': 'string',
     };

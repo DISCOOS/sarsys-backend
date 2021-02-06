@@ -64,7 +64,7 @@ build: docker_is_up models document test snapshot
 localhost:
 	echo "Start SarSys ops Server as docker container ..."
 	echo "$(OSNAME): Host IP available using $(HOST)"
-	docker run -d -i -t -p 80:8082 --env EVENTSTORE_HOST=http://$(HOST) --env EVENTSTORE_PORT=2113 --env EVENTSTORE_LOGIN=admin --env EVENTSTORE_PASSWORD=changeit --env TENANT=discoos --rm --name sarsys_ops_server discoos/sarsys_ops_server:latest
+	docker run -d -i -t -p 80:8082 --env EVENTSTORE_HOST=http  --env EVENTSTORE_HOST=$(HOST) --env EVENTSTORE_PORT=2113 --env EVENTSTORE_LOGIN=admin --env EVENTSTORE_PASSWORD=changeit --env TENANT=discoos --rm --name sarsys_ops_server discoos/sarsys_ops_server:latest
 	echo "[✓] SarSys ops Server listening at $(HOST)"
 
 push:

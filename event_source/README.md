@@ -1,4 +1,4 @@
-A client library for event sourcing using eventstore streams
+A client library for Event Sourcing using eventstore streams
 
 ## Usage
 TBD

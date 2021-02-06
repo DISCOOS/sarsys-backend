@@ -4,10 +4,10 @@ import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 
-import 'harness.dart';
+import 'package:sarsys_app_server_test/sarsys_app_server_test.dart';
 
 Future main() async {
-  final harness = SarSysHttpHarness()
+  final harness = SarSysAppHarness()
     ..withEventStoreMock()
     ..install(restartForEachTest: true);
 
@@ -75,7 +75,7 @@ Future main() async {
   });
 }
 
-Future _testTruncate(SarSysHttpHarness harness, String truncate, int skip, int take) async {
+Future _testTruncate(SarSysAppHarness harness, String truncate, int skip, int take) async {
   // Arrange
   final uuid = Uuid().v4();
   final p1 = createPosition(lat: 1.0);
@@ -101,7 +101,7 @@ Future _testTruncate(SarSysHttpHarness harness, String truncate, int skip, int t
 }
 
 Future<Map<String, dynamic>> _prepareGet(
-  SarSysHttpHarness harness,
+  SarSysAppHarness harness,
   String uuid,
   List<Map<String, Object>> positions,
 ) async {

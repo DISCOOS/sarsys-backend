@@ -22,14 +22,33 @@ auth:
   required:
     - roles:admin
 
-eventstore:
-  host: $EVENTSTORE_HOST
-  port: $EVENTSTORE_PORT
-  login: $EVENTSTORE_LOGIN
-  password: $EVENTSTORE_PASSWORD
-  requireMaster: $EVENTSTORE_REQUIRE_MASTER
 logging:
   level: $LOG_LEVEL
   sentry:
     dsn: $LOG_SENTRY_DSN
     level: $LOG_SENTRY_LEVEL
+
+app:
+  scheme: $APP_SERVER_SCHEME
+  host: $APP_SERVER_HOST
+  port: $APP_SERVER_PORT
+  eventstore:
+    scheme: $EVENTSTORE_SCHEME
+    host: $EVENTSTORE_HOST
+    port: $EVENTSTORE_PORT
+    login: $EVENTSTORE_LOGIN
+    password: $EVENTSTORE_PASSWORD
+    requireMaster: $EVENTSTORE_REQUIRE_MASTER
+
+tracking:
+  scheme: $TRACKING_SERVER_SCHEME
+  host: $TRACKING_SERVER_HOST
+  grcpPort: $TRACKING_SERVER_GRPC_PORT
+  healthPort: $TRACKING_SERVER_HEALTH_PORT
+  eventstore:
+    scheme: $EVENTSTORE_SCHEME
+    host: $EVENTSTORE_HOST
+    port: $EVENTSTORE_PORT
+    login: $EVENTSTORE_LOGIN
+    password: $EVENTSTORE_PASSWORD
+    requireMaster: $EVENTSTORE_REQUIRE_MASTER

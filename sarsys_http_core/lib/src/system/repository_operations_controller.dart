@@ -7,7 +7,7 @@ class RepositoryOperationsController extends SystemOperationsBaseController {
   RepositoryOperationsController(
     RepositoryManager manager, {
     @required String tag,
-    @required SarSysConfig config,
+    @required SarSysModuleConfig config,
     @required Map<String, dynamic> context,
   }) : super(
           manager,
@@ -194,21 +194,26 @@ class RepositoryOperationsController extends SystemOperationsBaseController {
 
   @override
   APISchemaObject documentMeta(APIDocumentContext context) {
+    return documentRepositoryMeta(context);
+  }
+
+  static APISchemaObject documentRepositoryMeta(APIDocumentContext context) {
     return APISchemaObject.object({
       'type': APISchemaObject.string()
         ..description = 'Aggregate Type'
         ..isReadOnly = true,
-      'count': APISchemaObject.integer()
-        ..description = 'Number of aggregates'
+      'number': APISchemaObject.integer()
+        ..description = 'Event number of last applied event'
         ..isReadOnly = true,
-      'queue': _documentQueue(),
-      'snapshot': _documentSnapshot(context),
-      'connection': _documentConnection(context),
-      'subscriptions': _documentSubscriptions(context),
+      'queue': documentQueue(),
+      'metrics': documentRepositoryMetrics(),
+      'snapshot': documentSnapshot(context),
+      'connection': documentConnection(context),
+      'subscriptions': documentSubscriptions(context),
     });
   }
 
-  APISchemaObject _documentQueue() {
+  static APISchemaObject documentQueue() {
     return APISchemaObject.object({
       'pressure': APISchemaObject.object({
         'push': APISchemaObject.integer()
@@ -247,7 +252,39 @@ class RepositoryOperationsController extends SystemOperationsBaseController {
       ..isReadOnly = true;
   }
 
-  APISchemaObject _documentSnapshot(APIDocumentContext context) {
+  static APISchemaObject documentRepositoryMetrics() {
+    return APISchemaObject.object({
+      'events': APISchemaObject.integer()
+        ..description = 'Number of events'
+        ..isReadOnly = true,
+      'aggregates': APISchemaObject.object({
+        'count': APISchemaObject.integer()
+          ..description = 'Number of aggregates'
+          ..isReadOnly = true,
+        'changed': APISchemaObject.integer()
+          ..description = 'Number of aggregates with local changes'
+          ..isReadOnly = true,
+        'tainted': APISchemaObject.integer()
+          ..description = 'Number of tainted aggregates'
+          ..isReadOnly = true,
+        'cordoned': APISchemaObject.integer()
+          ..description = 'Number of cordoned aggregates'
+          ..isReadOnly = true,
+      })
+        ..description = 'Aggregates metrics metadata'
+        ..isReadOnly = true,
+      'transactions': APISchemaObject.integer()
+        ..description = 'Number of open transactions'
+        ..isReadOnly = true,
+      'push': SystemOperationsBaseController.documentDurationMetric('push')
+        ..description = 'Number of open transactions'
+        ..isReadOnly = true,
+    })
+      ..description = 'Repository metrics metadata'
+      ..isReadOnly = true;
+  }
+
+  static APISchemaObject documentSnapshot(APIDocumentContext context) {
     return APISchemaObject.object({
       'uuid': documentUUID()
         ..description = 'Globally unique Snapshot id'
@@ -288,7 +325,7 @@ class RepositoryOperationsController extends SystemOperationsBaseController {
       ..isReadOnly = true;
   }
 
-  APISchemaObject _documentAggregate(APIDocumentContext context) {
+  static APISchemaObject _documentAggregate(APIDocumentContext context) {
     return APISchemaObject.object({
       'uuid': documentUUID()
         ..description = 'Globally unique aggregate id'
@@ -311,18 +348,18 @@ class RepositoryOperationsController extends SystemOperationsBaseController {
     });
   }
 
-  APISchemaObject _documentConnection(APIDocumentContext context) {
+  static APISchemaObject documentConnection(APIDocumentContext context) {
     return APISchemaObject.object({
       'metrics': APISchemaObject.object({
-        'read': documentMetric('Read'),
-        'write': documentMetric('Write'),
+        'read': SystemOperationsBaseController.documentDurationMetric('Read'),
+        'write': SystemOperationsBaseController.documentDurationMetric('Write'),
       })
         ..description = 'Connection metrics'
         ..isReadOnly = true,
     });
   }
 
-  APISchemaObject _documentSubscriptions(APIDocumentContext context) {
+  static APISchemaObject documentSubscriptions(APIDocumentContext context) {
     return APISchemaObject.object({
       'catchup': APISchemaObject.object({
         'isAutomatic': APISchemaObject.boolean()

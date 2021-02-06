@@ -19,3 +19,5 @@ dependencies:
 
 dev_dependencies:
   test: ^1.0.0
+  sarsys_tracking_server_test:
+    path: ../sarsys_tracking_server_test

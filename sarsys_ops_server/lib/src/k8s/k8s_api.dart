@@ -83,7 +83,9 @@ class K8sApi {
             items.map((pod) => (pod['metadata'] as Map).elementAt<String>('name')),
           );
         }
-        logger.fine('K8S api: pods: $pods');
+        logger.fine(
+          'K8S api: ${Context.toMethod('getPodNamesFromNs', ['result: $pods'])}',
+        );
       } catch (error, stackTrace) {
         logger.severe(
           'K8S api: ${Context.toMethod('getPodNamesFromNs', [

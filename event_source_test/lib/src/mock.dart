@@ -793,8 +793,8 @@ class TestStream {
     return handled;
   }
 
-  String toHost() => 'http://localhost:$port';
-  String toSelfURL(String stream) => '${toHost()}/streams/$stream';
+  String toUrl() => 'http://localhost:$port';
+  String toSelfURL(String stream) => '${toUrl()}/streams/$stream';
 
   String asHead(String stream) => '/streams/$stream/head/backward/(\\d+)';
   String asForward(String stream) => '/streams/$stream/(\\d+)/forward/(\\d+)';
@@ -822,7 +822,7 @@ class TestStream {
       request.response
         ..statusCode = HttpStatus.ok
         ..write(json.encode(_toAtomItem(
-          toHost(),
+          toUrl(),
           canonicalStream,
           number,
           selfUrl,
@@ -856,7 +856,7 @@ class TestStream {
       final selfUrl = toSelfURL(stream);
       final paged = events.values.skip(offset).take(count).toList();
       final data = _toAtomFeed(
-        toHost(),
+        toUrl(),
         selfUrl,
         stream,
         offset,
@@ -936,7 +936,7 @@ class TestSubscription {
     final path = request.uri.path;
     final match = RegExp(asCount(RegExp.escape(this.stream), RegExp.escape(group))).firstMatch(path);
     final count = int.parse(match.group(1) ?? '1');
-    final selfUrl = '${stream.toHost()}/${asGroup(this.stream, group)}';
+    final selfUrl = '${stream.toUrl()}/${asGroup(this.stream, group)}';
     final consumed = _evict(stream);
     final events = stream._canonical.values
         .skip(_offset)
@@ -944,7 +944,7 @@ class TestSubscription {
         .take(count)
         .toList();
     final data = _toAtomFeed(
-      stream.toHost(),
+      stream.toUrl(),
       selfUrl,
       this.stream,
       offset,

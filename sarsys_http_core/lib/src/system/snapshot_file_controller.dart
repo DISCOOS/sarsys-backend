@@ -18,7 +18,7 @@ class SnapshotFileController extends ResourceController {
   }
 
   final String tag;
-  final SarSysConfig config;
+  final SarSysModuleConfig config;
   final RepositoryManager manager;
   final Map<String, dynamic> context;
   final List<String> options = const [
@@ -26,7 +26,7 @@ class SnapshotFileController extends ResourceController {
     'items',
   ];
 
-  String get dataPath => config.data.path ?? context['data_path'];
+  String get dataPath => config.data.path;
 
   String get(String name) => context[name] ?? Platform.environment[name];
 

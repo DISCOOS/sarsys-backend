@@ -1,0 +1,35 @@
+name: sarsys_ops_server_test
+description: SARSys Ops Server test support library
+version: 1.0.0
+author: Kenneth Gulbrandsøy <kenneth@discoos.org>
+homepage: https://github.com/DISCOOS/sarsys-backend
+
+environment:
+  sdk: '>=2.9.0 <3.0.0'
+
+dependencies:
+  aqueduct_test: ^1.0.0
+  #  event_source:
+  #    path: ../event_source
+  #  sarsys_domain:
+  #    path: ../sarsys_domain
+  #  sarsys_http_core:
+  #    path: ../sarsys_http_core
+  sarsys_app_server:
+    path: ../sarsys_app_server
+
+  sarsys_ops_server:
+    path: ../sarsys_ops_server
+
+
+  event_source_test:
+    path: ../event_source_test
+
+  sarsys_tracking_server_test:
+    path: ../sarsys_tracking_server_test
+
+
+
+dev_dependencies:
+  pedantic: ^1.9.0
+  test: ^1.0.0

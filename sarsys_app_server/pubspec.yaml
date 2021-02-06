@@ -21,6 +21,12 @@ dev_dependencies:
   test: ^1.0.0
   aqueduct_test: ^1.0.0
   build_runner: ^1.7.0
+  event_source_test:
+    path: ../event_source_test
+  sarsys_app_server_test:
+    path: ../sarsys_app_server_test
+
+
 
 dependency_overrides:
   jose:

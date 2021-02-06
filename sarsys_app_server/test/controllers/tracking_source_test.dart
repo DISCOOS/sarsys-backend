@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 
-import 'harness.dart';
+import 'package:sarsys_app_server_test/sarsys_app_server_test.dart';
 
 Future main() async {
-  final harness = SarSysHttpHarness()
+  final harness = SarSysAppHarness()
     ..withEventStoreMock()
     ..install(restartForEachTest: true);
 

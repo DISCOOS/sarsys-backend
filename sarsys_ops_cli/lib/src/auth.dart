@@ -34,8 +34,8 @@ class AuthInitCommand extends BaseCommand {
   @override
   FutureOr<String> run() async {
     writeln(highlight('> Initialize credential:'), stdout);
-    final file = AuthUtils.toConfigFile(this);
-    var config = AuthUtils.ensureConfig(file);
+    final file = toConfigFile(this);
+    var config = ensureConfig(file);
     config = await AuthUtils.configure(this, config);
     if (!file.existsSync()) {
       file.createSync();
@@ -111,7 +111,7 @@ class AuthCheckCommand extends BaseCommand {
         ));
         writeln('  User: ${green(info.name)}', stdout);
 
-        final tokens = AuthUtils._writeExpiresIn(this, Map.from(auth['tokens']));
+        final tokens = AuthUtils.writeExpiresIn(this, Map.from(auth['tokens']));
         if (tokens != null) {
           final json = AuthUtils.fromJWT(tokens.accessToken);
           final roles = [
@@ -141,32 +141,12 @@ class AuthUtils {
       ensureConfig(file),
     );
     if (config != null) {
-      file.writeAsStringSync(jsonEncode(config));
+      writeConfig(file, config);
       final auth = config['auth'];
       final tokens = auth['tokens'];
       return tokens['access_token'];
     }
     return null;
-  }
-
-  static File toConfigFile(BaseCommand command) {
-    return File(command.globalResults['config'] ?? p.join(appDataDir, 'config.yaml'));
-  }
-
-  static Map<String, dynamic> ensureConfig(File file) {
-    var config = <String, dynamic>{};
-    if (file.existsSync()) {
-      config = Map<String, dynamic>.from(loadYaml(file.readAsStringSync()) ?? {});
-    }
-    if (config.isEmpty) {
-      config = {
-        'auth': {
-          'client_id': 'sarsys-app',
-          'discovery_uri': 'https://id.discoos.io/auth/realms/DISCOOS',
-        }
-      };
-    }
-    return config;
   }
 
   static Future<Map<String, dynamic>> configure(
@@ -177,7 +157,7 @@ class AuthUtils {
     final auth = Map<String, dynamic>.from(config['auth'] ?? {});
     var tokens = Map<String, dynamic>.from(auth['tokens'] ?? {});
     var credential = toCredential(auth);
-    final expired = _writeExpiresIn(command, tokens) == null;
+    final expired = writeExpiresIn(command, tokens) == null;
     if (force || credential == null || expired) {
       // This will open a browser
       credential = await authorize(command, auth);
@@ -194,14 +174,14 @@ class AuthUtils {
       // Get new tokens
       final response = await credential.getTokenResponse();
       tokens = response.toJson();
-      _writeExpiresIn(command, tokens);
+      writeExpiresIn(command, tokens);
       config['auth'] = auth;
       auth['tokens'] = tokens;
     }
     return config;
   }
 
-  static TokenResponse _writeExpiresIn(BaseCommand command, Map<String, dynamic> tokens) {
+  static TokenResponse writeExpiresIn(BaseCommand command, Map<String, dynamic> tokens) {
     if (tokens != null) {
       final response = TokenResponse.fromJson(tokens);
       final expiresIn = response?.expiresAt?.difference(DateTime.now())?.inMinutes ?? 0;

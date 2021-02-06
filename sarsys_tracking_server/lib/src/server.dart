@@ -8,6 +8,7 @@ import 'package:stack_trace/stack_trace.dart';
 import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:sarsys_http_core/sarsys_http_core.dart';
 
+import 'config.dart';
 import 'service.dart';
 
 class SarSysTrackingServer {
@@ -17,9 +18,9 @@ class SarSysTrackingServer {
 
   HttpServer _http;
   grpc.Server _grpc;
-  SarSysConfig config;
   TrackingService service;
   RepositoryManager manager;
+  SarSysTrackingConfig config;
 
   bool get isOpen => _http != null;
   bool get isReady => isOpen && manager.isReady;
@@ -33,21 +34,19 @@ class SarSysTrackingServer {
     _remoteLogger?.log(rec);
   }
 
-  Future start(
-    SarSysConfig config, {
-    int port = 8082,
-    int healthPort = 8083,
-  }) async {
+  Future start(SarSysTrackingConfig config) async {
     // Start grpc service
     _grpc = grpc.Server([
-      SarSysTrackingGrpcService(),
+      SarSysTrackingGrpcService(this),
     ]);
-    await _grpc.serve(port: port);
+    await _grpc.serve(
+      port: config.grpcPort,
+    );
 
     // Start tracking service
     await _build(config);
 
-    _listen(healthPort);
+    _listen(config.healthPort);
   }
 
   void _listen(int port) async {
@@ -99,13 +98,12 @@ class SarSysTrackingServer {
     }
   }
 
-  Future _build(SarSysConfig config) {
+  Future _build(SarSysModuleConfig config) {
     try {
       final stopwatch = Stopwatch()..start();
 
       _loadConfig(config);
       _initHive();
-      _configureLogger();
       _buildRepoManager();
       _buildRepos(
         stopwatch,
@@ -118,17 +116,32 @@ class SarSysTrackingServer {
     return Future.value();
   }
 
-  void _loadConfig(SarSysConfig config) {
+  void _loadConfig(SarSysTrackingConfig config) {
     this.config = config;
-    logger.onRecord.listen(
-      (record) => printRecord(
-        record,
-        debug: config.debug,
-        stdout: config.logging.stdout,
-      ),
+    config.host = Platform.localHostname;
+    final level = LoggerConfig.toLevel(
+      config.logging.level,
     );
+    Logger.root.level = level;
+    logger.onRecord.where((event) => logger.level >= level).listen(
+          (record) => printRecord(
+            record,
+            debug: config.debug,
+            stdout: config.logging.stdout,
+          ),
+        );
+    logger.info("Server log level set to ${Logger.root.level.name}");
+    if (config.logging.sentry != null) {
+      _remoteLogger = RemoteLogger(
+        config.logging.sentry,
+        config.tenant,
+      );
+      logger.info("Sentry DSN is ${config.logging.sentry.dsn}");
+      logger.info("Sentry log level set to ${_remoteLogger.level}");
+    }
 
-    logger.info("EVENTSTORE_HOST is ${config.eventstore.host}");
+    logger.info("SERVER url is ${config.url}");
+    logger.info("EVENTSTORE url is ${config.eventstore.url}");
     logger.info("EVENTSTORE_PORT is ${config.eventstore.port}");
     logger.info("EVENTSTORE_LOGIN is ${config.eventstore.login}");
     logger.info("EVENTSTORE_REQUIRE_MASTER is ${config.eventstore.requireMaster}");
@@ -181,18 +194,6 @@ class SarSysTrackingServer {
     }
   }
 
-  void _configureLogger() {
-    Logger.root.level = LoggerConfig.toLevel(
-      config.logging.level,
-    );
-    logger.info("Server log level set to ${Logger.root.level.name}");
-    if (config.logging.sentry != null) {
-      _remoteLogger = RemoteLogger(config);
-      logger.info("Sentry DSN is ${config.logging.sentry.dsn}");
-      logger.info("Sentry log level set to ${_remoteLogger.level}");
-    }
-  }
-
   void _buildRepoManager() {
     final namespace = EventStore.toCanonical([
       config.tenant,
@@ -205,6 +206,7 @@ class SarSysTrackingServer {
       EventStoreConnection(
         host: config.eventstore.host,
         port: config.eventstore.port,
+        scheme: config.eventstore.scheme,
         credentials: UserCredentials(
           login: config.eventstore.login,
           password: config.eventstore.password,
@@ -282,7 +284,9 @@ class SarSysTrackingServer {
       snapshot: config.data.enabled,
       devices: manager.get<DeviceRepository>(),
     );
-    await service.build();
+    await service.build(
+      start: config.startup,
+    );
     return service;
   }
 

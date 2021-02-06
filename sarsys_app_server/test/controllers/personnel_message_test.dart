@@ -1,10 +1,10 @@
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 
-import 'harness.dart';
+import 'package:sarsys_app_server_test/sarsys_app_server_test.dart';
 
 Future main() async {
-  final harness = SarSysHttpHarness()
+  final harness = SarSysAppHarness()
     ..withEventStoreMock()
     ..install(restartForEachTest: true);
 
@@ -121,7 +121,7 @@ Future main() async {
   });
 }
 
-Future<String> _prepare(SarSysHttpHarness harness, String auuid) async {
+Future<String> _prepare(SarSysAppHarness harness, String auuid) async {
   await _createAffiliation(harness, auuid);
   final iuuid = Uuid().v4();
   expectResponse(await harness.agent.post("/api/incidents", body: createIncident(iuuid)), 201);
@@ -130,7 +130,7 @@ Future<String> _prepare(SarSysHttpHarness harness, String auuid) async {
   return ouuid;
 }
 
-Future<String> _createAffiliation(SarSysHttpHarness harness, String auuid) async {
+Future<String> _createAffiliation(SarSysAppHarness harness, String auuid) async {
   final puuid = Uuid().v4();
   expectResponse(await harness.agent.post("/api/persons", body: createPerson(puuid)), 201);
   final orguuid = Uuid().v4();

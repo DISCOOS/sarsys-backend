@@ -231,6 +231,15 @@ APISchemaObject documentEvent(
       'type': APISchemaObject.string()
         ..description = '${type ?? 'Event'} Type'
         ..isReadOnly = readOnly,
+      'number': APISchemaObject.integer()
+        ..description = 'Event number in instance stream'
+        ..isReadOnly = readOnly,
+      'remote': APISchemaObject.boolean()
+        ..description = 'True if event origin is remote'
+        ..isReadOnly = readOnly,
+      'position': APISchemaObject.integer()
+        ..description = 'Event position in canonical (projection or instance) stream'
+        ..isReadOnly = readOnly,
       'timestamp': APISchemaObject.string()
         ..description = 'When event occurred'
         ..format = 'date-time'
