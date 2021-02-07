@@ -65,9 +65,9 @@ class K8sApi {
     return ok;
   }
 
-  Uri toPodUri(Map<String, dynamic> pod, {String uri}) {
+  Uri toPodUri(Map<String, dynamic> pod, {String scheme = 'http', String uri}) {
     // Base Url is given by pattern 'pod-ip-address.my-namespace.pod.cluster.local'
-    final baseUrl = '${pod.elementAt('status/podIP')}.'
+    final baseUrl = '$scheme://${pod.elementAt('status/podIP')}.'
         '${pod.elementAt('metadata/namespace')}.pod.cluster.local';
     if (uri == null || uri.isEmpty) {
       return Uri.parse(baseUrl);
