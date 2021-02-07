@@ -137,7 +137,7 @@ class SarSysOpsServerChannel extends ApplicationChannel {
     final level = LoggerConfig.toLevel(
       config.logging.level,
     );
-    logger.info("Server log level set to ${Logger.root.level.name}");
+    Logger.root.level = level;
     logger.onRecord.where((event) => logger.level >= level).listen(
           (record) => printRecord(
             record,
@@ -145,6 +145,7 @@ class SarSysOpsServerChannel extends ApplicationChannel {
             stdout: config.logging.stdout,
           ),
         );
+    logger.info("Server log level set to ${Logger.root.level.name}");
     if (config.logging.sentry != null) {
       _remoteLogger = RemoteLogger(
         config.logging.sentry,
