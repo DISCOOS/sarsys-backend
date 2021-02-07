@@ -111,26 +111,36 @@ class StatusModuleCommand extends BaseCommand {
 String _toStatuses(List items, {bool verbose = false}) {
   final buffer = StringBuffer();
   for (var module in items.map((item) => Map.from(item))) {
-    _toStatus(buffer, module, verbose: verbose);
+    buffer.writeln('  Module ${green(module.elementAt('name'))}');
+    _toStatus(buffer, module, indent: 4, verbose: verbose);
   }
   return buffer.toString();
 }
 
-void _toStatus(StringBuffer buffer, Map module, {bool verbose = false}) {
-  buffer.writeln('  Module ${green(module.elementAt('name'))}');
+void _toStatus(StringBuffer buffer, Map module, {int indent = 2, bool verbose = false}) {
+  final spaces = List.filled(indent, ' ').join();
   final instances = module.listAt('instances');
-  buffer.writeln('    Instances: ${green(instances.length)}');
+  buffer.writeln('${spaces}Instances: ${green(instances.length)}');
   for (var instance in instances.map((item) => Map.from(item))) {
-    buffer.writeln('    Name: ${green(instance.elementAt('name'))}');
-    buffer.writeln('    API');
-    buffer.writeln('      Alive: ${green(instance.elementAt('status/health/alive'))}');
-    buffer.writeln('      Ready: ${green(instance.elementAt('status/health/ready'))}');
-    buffer.writeln('    Deployment');
-    final conditions = instance.listAt('status/conditions');
-    for (var condition in conditions.map((item) => Map.from(item))) {
-      final status = condition.elementAt<String>('status');
-      final acceptable = 'true' == status.toLowerCase();
-      buffer.writeln('      ${condition['type']}: ${acceptable ? green(status) : red(status)}');
+    final alive = instance.elementAt<bool>('status/health/alive');
+    final ready = instance.elementAt<bool>('status/health/ready');
+    if (verbose) {
+      buffer.writeln(gray('${spaces}--------------------------------------------'));
+      buffer.writeln('${spaces}Name: ${green(instance.elementAt('name'))}');
+      buffer.writeln('${spaces}API');
+      buffer.writeln('${spaces}  Alive: ${green(alive)}');
+      buffer.writeln('${spaces}  Ready: ${green(alive)}');
+      buffer.writeln('${spaces}Deployment');
+      final conditions = instance.listAt('status/conditions');
+      for (var condition in conditions.map((item) => Map.from(item))) {
+        final status = condition.elementAt<String>('status');
+        final acceptable = 'true' == status.toLowerCase();
+        buffer.writeln('${spaces}  ${condition['type']}: ${acceptable ? green(status) : red(status)}');
+      }
+    } else {
+      final down = !alive || !ready;
+      final api = '${alive ? '1' : '0'}/${alive ? '1' : '0'}';
+      buffer.writeln('${spaces}${green(instance.elementAt('name'))} API: ${down ? red(api) : green(api)}');
     }
   }
 }
