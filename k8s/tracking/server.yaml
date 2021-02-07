@@ -21,6 +21,7 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
+  # Must be equal to label 'module' (K8sApi uses this convention to build host name)
   name: sarsys-tracking-server
   namespace: sarsys
   labels:
