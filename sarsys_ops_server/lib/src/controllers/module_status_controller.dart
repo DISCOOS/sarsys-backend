@@ -7,10 +7,10 @@ class ModuleStatusController extends StatusBaseController {
       : super('Module', config, [
           'sarsys-app-server',
           'sarsys-tracking-server',
-          'sarsys-tracking-server',
         ]);
 
-  final k8s = K8sApi();
+  final K8sApi k8s = K8sApi();
+  final HttpClient client = HttpClient();
 
   @override
   @Operation.get()
@@ -20,7 +20,7 @@ class ModuleStatusController extends StatusBaseController {
 
   @override
   Future<Map<String, dynamic>> doGetByName(String name) async {
-    final instances = await k8s.getPodNamesFromNs(
+    final pods = await k8s.getPodsFromNs(
       k8s.namespace,
       labels: [
         'module=$name',
@@ -28,18 +28,56 @@ class ModuleStatusController extends StatusBaseController {
     );
     return {
       'name': name,
-      'instances': instances
+      'instances': pods
           .map(
-            (instance) => {
-              'name': instance,
-              'health': {
-                'alive': 'N/A',
-                'ready': 'N/A',
-              }
+            (pod) async => {
+              'name': pod.elementAt('metadata/name'),
+              'status': _toPodStatus(pod),
+              'health': await _toInstanceHealth(pod)
             },
           )
           .toList(),
     };
+  }
+
+  Future<Map<String, dynamic>> _toInstanceHealth(Map<String, dynamic> pod) async {
+    return {
+      'alive': await _isOK(pod, '/api/healthz/alive'),
+      'ready': await _isOK(pod, '/api/healthz/ready'),
+    };
+  }
+
+  Future<bool> _isOK(Map<String, dynamic> pod, String uri) async {
+    try {
+      final url = k8s.toPodUri(pod, uri: uri);
+      final response = await k8s.getUrl(
+        url,
+        authenticate: false,
+      );
+      return response.statusCode == HttpStatus.ok;
+    } on Exception {
+      return false;
+    }
+  }
+
+  Map<String, dynamic> _toPodStatus(Map<String, dynamic> pod) {
+    final conditions = pod.listAt(
+      'status/conditions',
+      defaultList: [],
+    ).map((c) => Map<String, dynamic>.from(c));
+
+    if (conditions.isEmpty) {
+      return {
+        'type': 'unknown',
+        'acceptable': false,
+        'reason': 'EMPTY_LIST',
+        'message': 'no conditions found',
+      };
+    }
+    return conditions.lastWhere(
+      (c) => 'true' == c.elementAt<String>('status', defaultValue: 'False').toLowerCase(),
+      orElse: () => conditions.first,
+    );
   }
 
   @override

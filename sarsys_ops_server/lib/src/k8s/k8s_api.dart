@@ -48,7 +48,7 @@ class K8sApi {
       logger.info('K8S api: Check...');
 
       try {
-        final response = await get('/api');
+        final response = await getUri('/api');
         logger.info('K8S api: ${response.statusCode} ${response.reasonPhrase}');
         final json = await toContent(response);
         ok = json != null;
@@ -63,6 +63,66 @@ class K8sApi {
       logger.info('K8S api: Check...done');
     }
     return ok;
+  }
+
+  Uri toPodUri(Map<String, dynamic> pod, {String uri}) {
+    // Base Url is given by pattern 'pod-ip-address.my-namespace.pod.cluster.local'
+    final baseUrl = '${pod.elementAt('status/podIP')}.'
+        '${pod.elementAt('metadata/namespace')}.pod.cluster.local';
+    if (uri == null || uri.isEmpty) {
+      return Uri.parse(baseUrl);
+    }
+    return Uri.parse(uri.startsWith('/') ? '$baseUrl$uri' : '$baseUrl/$uri');
+  }
+
+  Future<List<Map<String, dynamic>>> getPodsFromNs(
+    String ns, {
+    List<String> labels = const [],
+  }) async {
+    final pods = <Map<String, dynamic>>[];
+
+    if (isReady) {
+      final labelSelector = labels?.join(',');
+      final query = labels.isEmpty ? '' : '?labelSelector=${Uri.encodeQueryComponent(labelSelector)}';
+      logger.fine(
+        'K8S api: ${Context.toMethod('getPodsFromNs', [
+          'namespace: $ns',
+          'labelSelector: $labelSelector',
+        ])}...',
+      );
+      try {
+        final uri = '/api/v1/namespaces/$ns/pods$query';
+        final response = await getUri(uri);
+        logger.info('K8S api: $uri ${response.statusCode} ${response.reasonPhrase}');
+        final json = Map<String, dynamic>.from(await toContent(response));
+        logger.fine('K8S api: $uri Has content ${json.runtimeType}');
+        final items = json.listAt('items');
+        if (items != null) {
+          pods.addAll(
+            List<Map<String, dynamic>>.from(items),
+          );
+        }
+        logger.fine(
+          'K8S api: ${Context.toMethod('getPodsFromNs', ['result: $pods'])}',
+        );
+      } catch (error, stackTrace) {
+        logger.severe(
+          'K8S api: ${Context.toMethod('getPodsFromNs', [
+            'namespace: $ns',
+            'error: $error',
+          ])}',
+          error,
+          stackTrace ?? Trace.current(1),
+        );
+      }
+      logger.fine(
+        'K8S api: ${Context.toMethod('getPodsFromNs', [
+          'namespace: $ns',
+          'labelSelector: $labelSelector',
+        ])}...done',
+      );
+    }
+    return pods;
   }
 
   Future<List<String>> getPodNamesFromNs(
@@ -81,8 +141,9 @@ class K8sApi {
         ])}...',
       );
       try {
-        final response = await get('/api/v1/namespaces/$ns/pods$query');
-        logger.info('K8S api: ${response.statusCode} ${response.reasonPhrase}');
+        final uri = '/api/v1/namespaces/$ns/pods$query';
+        final response = await getUri(uri);
+        logger.info('K8S api: $uri ${response.statusCode} ${response.reasonPhrase}');
         final json = Map<String, dynamic>.from(await toContent(response));
         logger.fine('K8S api: Has content ${json.runtimeType}');
         final items = json.listAt('items');
@@ -114,11 +175,23 @@ class K8sApi {
     return pods;
   }
 
-  Future<HttpClientResponse> get(String uri) async {
+  Future<HttpClientResponse> getUri(String uri) async {
     final url = Uri.parse('https://$apiHost:$apiPort$uri');
+    return getUrl(
+      url,
+      authenticate: true,
+    );
+  }
+
+  Future<HttpClientResponse> getUrl(
+    Uri url, {
+    bool authenticate = true,
+  }) async {
     final request = await client.getUrl(url);
     logger.fine('K8S api: request: ${request.method} ${request.uri}');
-    request.headers.add('Authorization', 'Bearer $token');
+    if (authenticate) {
+      request.headers.add('Authorization', 'Bearer $token');
+    }
     return request.close();
   }
 
