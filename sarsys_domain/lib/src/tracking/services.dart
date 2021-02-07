@@ -338,12 +338,13 @@ class TrackingService extends MessageHandler<DomainEvent> {
   }
 
   Future<bool> removeTracking(String tuuid) async {
-    var ok = _managed.remove(tuuid) || _removeSources(tuuid);
+    final wasManaged = _managed.remove(tuuid);
+    final removedSources = _removeSources(tuuid);
     if (snapshot) {
       // Stale tracking object, remove it from hive
       await _box.delete(tuuid);
     }
-    return ok;
+    return wasManaged || removedSources;
   }
 
   /// Stop management and remove from service
