@@ -34,7 +34,7 @@ commit:
 
 test:
 	pub run test -j 1
-	pub run test -j 1 ../sarsys_domain/test/domain_services/tracking_service_test.dart
+	pub run test -j 1 ../sarsys_domain/test/services/tracking_service_test.dart
 
 models:
 	echo "Generating models..."; \
