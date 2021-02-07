@@ -11,9 +11,9 @@ spec:
   # StatefulSet needs a headless service
   # clusterIP: None
   ports:
-    - port: 80
+    - port: 8082
       targetPort: 8082
-    - port: 8080
+    - port: 8082
       targetPort: 8083
   clusterIP: None
 

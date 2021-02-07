@@ -89,8 +89,6 @@ class StatusModuleCommand extends BaseCommand {
       final verbose = argResults['verbose'] as bool;
       writeln(highlight('> Status $module ${verbose ? '--verbose' : ''}'), stdout);
       final token = await AuthUtils.getToken(this);
-      writeln('  Alive: ${await isOK(client, '/ops/api/healthz/alive')}', stdout);
-      writeln('  Ready: ${await isOK(client, '/ops/api/healthz/ready')}', stdout);
 
       final statuses = await get(
         client,
