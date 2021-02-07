@@ -135,14 +135,19 @@ void _toStatus(StringBuffer buffer, Map module, {int indent = 2, bool verbose = 
       for (var condition in conditions.map((item) => Map.from(item))) {
         final status = condition.elementAt<String>('status');
         final acceptable = 'true' == status.toLowerCase();
-        buffer.writeln('${spaces}  ${condition['type']}: ${acceptable ? green(status) : red(status)}');
+        buffer.writeln(
+          '${spaces}  ${condition['type']}: '
+          '${acceptable ? green(status) : red(status)} '
+          '${condition.hasPath('message') ? gray('(${condition.elementAt<String>('message')})') : ''}',
+        );
       }
     } else {
       final down = !alive || !ready;
       final api = '${alive ? '1' : '0'}/${alive ? '1' : '0'}';
-      buffer.writeln('${spaces}${green(instance.elementAt('name'))} '
-          'API ${gray('Alive / Ready')}: '
-          '${down ? red(api) : green(api)}');
+      buffer.writeln(
+        '${spaces}${green(instance.elementAt('name'))} '
+        'API: ${down ? red(api) : green(api)} ${gray('(Alive/Ready)')}',
+      );
     }
   }
 }
