@@ -23,6 +23,24 @@ Future main() async {
     expect(response.statusCode, 200);
   });
 
+  test('GET /ops/api/system/status returns 200 OK', () async {
+    final response = await harness.agent.get('/ops/api/system/status');
+    expect(response.statusCode, 200);
+    final body = List.from(
+      await response.body.decode(),
+    );
+    final statuses = Map.fromEntries(
+      body.map((status) => Map<String, dynamic>.from(status)).map((status) {
+        return MapEntry<String, dynamic>(status['name'], status);
+      }),
+    );
+    expect(statuses.length, 2);
+    expect(statuses.elementAt('sarsys-app-server'), isNotEmpty);
+    expect(statuses.elementAt('sarsys-app-server/instances'), isEmpty);
+    expect(statuses.elementAt('sarsys-tracking-server'), isNotEmpty);
+    expect(statuses.elementAt('sarsys-tracking-server/instances'), isEmpty);
+  });
+
   test('GET /ops/api/services/tracking returns 200 OK', () async {
     final response = await harness.agent.get('/ops/api/services/tracking');
     expect(response.statusCode, 200);

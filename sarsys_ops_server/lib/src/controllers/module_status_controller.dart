@@ -28,15 +28,17 @@ class ModuleStatusController extends StatusBaseController {
     );
     return {
       'name': name,
-      'instances': instances.map(
-        (instance) => {
-          'name': instance,
-          'health': {
-            'alive': 'N/A',
-            'ready': 'N/A',
-          }
-        },
-      ),
+      'instances': instances
+          .map(
+            (instance) => {
+              'name': instance,
+              'health': {
+                'alive': 'N/A',
+                'ready': 'N/A',
+              }
+            },
+          )
+          .toList(),
     };
   }
 
