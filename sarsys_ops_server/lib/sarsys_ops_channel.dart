@@ -99,7 +99,7 @@ class SarSysOpsServerChannel extends ApplicationChannel {
       )
       ..route('/ops/api/healthz/alive').link(() => LivenessController())
       ..route('/ops/api/healthz/ready').link(() => LivenessController())
-      ..secure('/ops/api/system/status', () => ModuleStatusController(config))
+      ..secure('/ops/api/system/status[/:name]', () => ModuleStatusController(config))
       ..secure(
         '/ops/api/services/tracking',
         () => TrackingServiceCommandsController(

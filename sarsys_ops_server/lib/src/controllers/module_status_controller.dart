@@ -24,6 +24,10 @@ class ModuleStatusController extends StatusBaseController {
   }
 
   @override
+  @Operation.get('name')
+  Future<Response> getByName(@Bind.path('name') String name) => super.getByName(name);
+
+  @override
   Future<Map<String, dynamic>> doGetByName(String name) async {
     final pods = await k8s.getPodsFromNs(
       k8s.namespace,
