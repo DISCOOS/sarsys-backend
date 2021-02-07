@@ -7,6 +7,7 @@ data:
   IMAGE: "discoos/sarsys_tracking_server:latest"
   DEBUG: "true"
   PREFIX: "test"
+  STARTUP: "true"
   TENANT: "discoos"
   LOG_LEVEL: "FINE"
   LOG_SENTRY_LEVEL: "severe"
