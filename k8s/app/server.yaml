@@ -70,7 +70,7 @@ spec:
               podAffinityTerm:
                 labelSelector:
                   matchExpressions:
-                    - key: "app"
+                    - key: "module"
                       operator: In
                       values:
                         - "sarsys-app-server"
