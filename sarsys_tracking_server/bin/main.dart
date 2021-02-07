@@ -11,8 +11,8 @@ Future main(List<String> args) async {
   final parser = ArgParser()
     ..addOption("timeout", defaultsTo: "30")
     ..addOption("training", defaultsTo: "false")
-    ..addOption("healthPort", defaultsTo: "80")
-    ..addOption("grpcPort", defaultsTo: "8080", abbr: "p")
+    ..addOption("healthPort", defaultsTo: "8082")
+    ..addOption("grpcPort", defaultsTo: "8083", abbr: "p")
     ..addOption("config", defaultsTo: "config.yaml", abbr: "c");
 
   final results = parser.parse(args);
@@ -35,6 +35,6 @@ Future main(List<String> args) async {
   }
   await request;
 
-  logger.info("Server started with ports {grpc: ${results['grpcPort']}, health: ${results['healthPort']}}.");
+  logger.info("Server started with ports {health: ${results['healthPort']}, grpc: ${results['grpcPort']}}.");
   logger.info("Use Ctrl-C (SIGINT) to stop running the server.");
 }

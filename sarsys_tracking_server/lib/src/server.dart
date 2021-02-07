@@ -43,10 +43,11 @@ class SarSysTrackingServer {
       port: config.grpcPort,
     );
 
+    // Start to listen for health checks
+    _listen(config.healthPort);
+
     // Start tracking service
     await _build(config);
-
-    _listen(config.healthPort);
   }
 
   void _listen(int port) async {
@@ -59,6 +60,7 @@ class SarSysTrackingServer {
     // This will bloc until stop is called
     await for (HttpRequest request in _http) {
       final handle = '${request.method.toUpperCase()} ${request.uri.path}';
+      logger.fine(Context.toMethod('_listen', ['handle: $handle']));
       switch (handle) {
         case 'GET /api/healthz/alive':
           _onHandleAlive(request);
