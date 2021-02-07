@@ -35,6 +35,6 @@ Future main(List<String> args) async {
   }
   await request;
 
-  logger.info("Server started on port: ${results['port']}.");
+  logger.info("Server started with ports {grpc: ${results['grpcPort']}, health: ${results['healthPort']}}.");
   logger.info("Use Ctrl-C (SIGINT) to stop running the server.");
 }
