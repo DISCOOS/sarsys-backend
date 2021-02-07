@@ -65,7 +65,7 @@ localhost:
 	echo "Start SarSys ops Server as docker container ..."
 	echo "$(OSNAME): Host IP available using $(HOST)"
 	docker run -d -i -t -p 80:8082 --env EVENTSTORE_HOST=http  --env EVENTSTORE_HOST=$(HOST) --env EVENTSTORE_PORT=2113 --env EVENTSTORE_LOGIN=admin --env EVENTSTORE_PASSWORD=changeit --env TENANT=discoos --rm --name sarsys_ops_server discoos/sarsys_ops_server:latest
-	echo "[✓] SarSys ops Server listening at $(HOST)"
+	echo "[✓] SARSys Ops Server listening at $(HOST)"
 
 push:
 	echo "Push changes to github..."
@@ -74,7 +74,7 @@ push:
 	echo "[✓] Push changes to github"
 	echo "Push docker image..."
 	docker push discoos/sarsys_ops_server:latest
-	echo "[✓] Deploy docker image finished"
+	echo "[✓] SARSys Ops Server deploy docker image finished"
 
 publish: check build commit push
 	echo "Applying SARSys Ops server..."
@@ -94,7 +94,7 @@ publish: check build commit push
 		echo "[!] Publish to kubernetes failed"; \
 	    exit 1; \
     fi
-	echo "[✓] Publish to kubernetes finished"
+	echo "[✓] SARSys Ops Server publish to kubernetes finished"
 
 install:
 	echo "Applying SARSys Ops server..."
@@ -117,19 +117,19 @@ delete:
 	kubectl -n sarsys get pvc | grep data-sarsys-ops-server-; \
 	echo "2) Manually delete PersistentVolumes"; \
 	kubectl -n sarsys get pv | grep sarsys/data-sarsys-ops-server-
-	echo "[✓] SARSys server deleted"
+	echo "[✓] SARSys Ops Server deleted"
 
 restart:
 	echo "Restarting using rollout (k8s version 1.15 or higher)"
 	kubectl -n sarsys rollout restart statefulset sarsys-ops-server
 	kubectl -n sarsys rollout status statefulset sarsys-ops-server
-	echo "[✓] Restart finished"
+	echo "[✓] SARSys Ops Server restart finished"
 
 rollback:
 	echo "Rolling back last publish to kubernetes..."
 	kubectl -n sarsys rollout undo statefulset sarsys-ops-server
 	kubectl -n sarsys rollout status statefulset sarsys-ops-server
-	echo "[✓] Rollback finished"
+	echo "[✓] SARSys Ops Server rollback finished"
 
 status:
 	echo "Fetching rollout status from kubernetes..."
@@ -141,7 +141,7 @@ status:
 	kubectl top pod sarsys-ops-server-1 -n sarsys --containers
 	kubectl top pod sarsys-ops-server-2 -n sarsys --containers
 
-	echo "[✓] Status finished"
+	echo "[✓] SARSys Ops Server status finished"
 
 eventstore:
 	echo "Starting eventstore..."

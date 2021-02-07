@@ -80,7 +80,7 @@ push:
 	echo "[✓] Push changes to github"
 	echo "Push docker image..."
 	docker push discoos/sarsys_app_server:latest
-	echo "[✓] Deploy docker image finished"
+	echo "[✓] SARSys App Server deploy docker image finished"
 
 publish: check build commit push
 	echo "Applying SARSys App server..."
@@ -100,7 +100,7 @@ publish: check build commit push
 		echo "[!] Publish to kubernetes failed"; \
 	    exit 1; \
     fi
-	echo "[✓] Publish to kubernetes finished"
+	echo "[✓] SARSys App Server publish to kubernetes finished"
 
 install:
 	echo "Applying SARSys App server..."
@@ -109,10 +109,10 @@ install:
 	kubectl apply -f ../k8s/app/config.yaml; \
 	kubectl apply -f ../k8s/app/server.yaml; \
     kubectl -n sarsys rollout status statefulset sarsys-app-server; \
-	echo "[✓] SARSys applied"
+	echo "[✓] SARSys App Server applied"
 
 delete:
-	echo "Deleting SARSys server..."
+	echo "Deleting SARSys App Server..."
 	# DO NOT DELETE NAMESPACE AND RBACK unless you know what you are doing!
 	# kubectl apply -f ../k8s/ns.yaml;
 	# kubectl delete -f ../k8s/rbac.yaml; \
@@ -122,19 +122,19 @@ delete:
 	kubectl -n sarsys get pvc | grep data-sarsys-app-server-; \
 	echo "2) Manually delete PersistentVolumes"; \
 	kubectl -n sarsys get pv | grep sarsys/data-sarsys-app-server-
-	echo "[✓] SARSys server deleted"
+	echo "[✓] SARSys App Server deleted"
 
 restart:
 	echo "Restarting using rollout (k8s version 1.15 or higher)"
 	kubectl -n sarsys rollout restart statefulset sarsys-app-server
 	kubectl -n sarsys rollout status statefulset sarsys-app-server
-	echo "[✓] Restart finished"
+	echo "[✓] SARSys App Server restart finished"
 
 rollback:
 	echo "Rolling back last publish to kubernetes..."
 	kubectl -n sarsys rollout undo statefulset sarsys-app-server
 	kubectl -n sarsys rollout status statefulset sarsys-app-server
-	echo "[✓] Rollback finished"
+	echo "[✓] SARSys App Server rollback finished"
 
 status:
 	echo "Fetching rollout status from kubernetes..."
@@ -146,7 +146,7 @@ status:
 	kubectl top pod sarsys-app-server-1 -n sarsys --containers
 	kubectl top pod sarsys-app-server-2 -n sarsys --containers
 
-	echo "[✓] Status finished"
+	echo "[✓] SARSys App Server status finished"
 
 download-snapshots:
 	echo "Downloading SARSys App Snapshots ..."
@@ -156,7 +156,7 @@ download-snapshots:
 	kubectl -n sarsys cp sarsys/sarsys-app-server-0:/var/lib/sarsys/ .data/server-2
 	echo "Analysing folder '.data'"
 	ls -al .data
-	echo "[✓] Downloading finished"
+	echo "[✓] SARSys App Server snapshots downloading finished"
 
 eventstore:
 	echo "Starting eventstore..."

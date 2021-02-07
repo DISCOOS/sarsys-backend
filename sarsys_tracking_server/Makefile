@@ -103,7 +103,7 @@ install:
 	echo "[✓] SARSys applied"
 
 delete:
-	echo "Deleting SARSys server..."
+	echo "Deleting SARSys Tracking Server server..."
 	# DO NOT DELETE NAMESPACE AND RBACK unless you know what you are doing!
 	# kubectl apply -f ../k8s/ns.yaml;
 	# kubectl delete -f ../k8s/rbac.yaml; \
@@ -114,19 +114,19 @@ delete:
 	kubectl -n sarsys get pvc | grep data-sarsys-tracking-server-; \
 	echo "2) Manually delete PersistentVolumes"; \
 	kubectl -n sarsys get pv | grep sarsys/data-sarsys-tracking-server-
-	echo "[✓] SARSys server deleted"
+	echo "[✓] SARSys Tracking Server deleted"
 
 restart:
 	echo "Restarting using rollout (k8s version 1.15 or higher)"
 	kubectl -n sarsys rollout restart statefulset sarsys-tracking-server
 	kubectl -n sarsys rollout status statefulset sarsys-tracking-server
-	echo "[✓] Restart finished"
+	echo "[✓] SARSys Tracking Server restart finished"
 
 rollback:
 	echo "Rolling back last publish to kubernetes..."
 	kubectl -n sarsys rollout undo statefulset sarsys-tracking-server
 	kubectl -n sarsys rollout status statefulset sarsys-tracking-server
-	echo "[✓] Rollback finished"
+	echo "[✓] SARSys Tracking Server rollback finished"
 
 status:
 	echo "Fetching rollout status from kubernetes..."
@@ -138,7 +138,7 @@ status:
 	kubectl top pod sarsys-tracking-server-1 -n sarsys --containers
 	kubectl top pod sarsys-tracking-server-2 -n sarsys --containers
 
-	echo "[✓] Status finished"
+	echo "[✓] SARSys Tracking Server status finished"
 
 eventstore:
 	echo "Starting eventstore..."
