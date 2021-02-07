@@ -21,14 +21,16 @@ class StatusCommand extends BaseCommand {
     writeln('  Alive: ${await isOK(client, '/ops/api/healthz/alive')}', stdout);
     writeln('  Ready: ${await isOK(client, '/ops/api/healthz/ready')}', stdout);
 
+    final status = await get(
+      client,
+      '/ops/api/system/status',
+          (pods) => '$pods',
+      token: token,
+    );
+
     writeln(highlight('> System'), stdout);
     writeln(
-      '  Pods: ${await get(
-        client,
-        '/ops/api/system/status',
-        (pods) => '$pods',
-        token: token,
-      )}',
+      '  Pods: ${}',
       stdout,
     );
 
