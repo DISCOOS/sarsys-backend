@@ -1,7 +1,7 @@
 debug: $DEBUG
 prefix: $PREFIX
 tenant: $TENANT
-
+startup: $STARTUP
 data:
   enabled: $DATA_ENABLED
   path: $DATA_PATH
