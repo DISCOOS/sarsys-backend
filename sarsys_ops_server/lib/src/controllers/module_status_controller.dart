@@ -28,16 +28,20 @@ class ModuleStatusController extends StatusBaseController {
     );
     return {
       'name': name,
-      'instances': pods
-          .map(
-            (pod) async => {
-              'name': pod.elementAt('metadata/name'),
-              'status': _toPodStatus(pod),
-              'health': await _toInstanceHealth(pod)
-            },
-          )
-          .toList(),
+      'instances': await _toInstanceStatus(pods),
     };
+  }
+
+  Future<List<Map<String, dynamic>>> _toInstanceStatus(List<Map<String, dynamic>> pods) async {
+    final instances = <Map<String, dynamic>>[];
+    for (var pod in pods) {
+      instances.add({
+        'name': pod.elementAt('metadata/name'),
+        'status': _toPodStatus(pod),
+        'health': await _toInstanceHealth(pod)
+      });
+    }
+    return instances.toList();
   }
 
   Future<Map<String, dynamic>> _toInstanceHealth(Map<String, dynamic> pod) async {
@@ -79,6 +83,10 @@ class ModuleStatusController extends StatusBaseController {
       orElse: () => conditions.first,
     );
   }
+
+  //////////////////////////////////
+  // Documentation
+  //////////////////////////////////
 
   @override
   APISchemaObject documentStatusType(APIDocumentContext context) => documentModuleStatus();
