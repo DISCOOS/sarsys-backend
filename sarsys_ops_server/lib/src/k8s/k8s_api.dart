@@ -85,7 +85,7 @@ class K8sApi {
       final labelSelector = labels?.join(',');
       final query = labels.isEmpty ? '' : '?labelSelector=${Uri.encodeQueryComponent(labelSelector)}';
       logger.fine(
-        'K8S api: ${Context.toMethod('getPodsFromNs', [
+        '${Context.toMethod('getPodsFromNs', [
           'namespace: $ns',
           'labelSelector: $labelSelector',
         ])}...',
@@ -93,9 +93,9 @@ class K8sApi {
       try {
         final uri = '/api/v1/namespaces/$ns/pods$query';
         final response = await getUri(uri);
-        logger.info('K8S api: $uri ${response.statusCode} ${response.reasonPhrase}');
+        logger.info('$uri ${response.statusCode} ${response.reasonPhrase}');
         final json = Map<String, dynamic>.from(await toContent(response));
-        logger.fine('K8S api: $uri Has content ${json.runtimeType}');
+        logger.fine('$uri Has content ${json.runtimeType}');
         final items = json.listAt('items');
         if (items != null) {
           pods.addAll(
@@ -103,11 +103,11 @@ class K8sApi {
           );
         }
         logger.fine(
-          'K8S api: ${Context.toMethod('getPodsFromNs', ['result: $pods'])}',
+          '${Context.toMethod('getPodsFromNs', ['result: $pods'])}',
         );
       } catch (error, stackTrace) {
         logger.severe(
-          'K8S api: ${Context.toMethod('getPodsFromNs', [
+          '${Context.toMethod('getPodsFromNs', [
             'namespace: $ns',
             'error: $error',
           ])}',
@@ -116,7 +116,7 @@ class K8sApi {
         );
       }
       logger.fine(
-        'K8S api: ${Context.toMethod('getPodsFromNs', [
+        '${Context.toMethod('getPodsFromNs', [
           'namespace: $ns',
           'labelSelector: $labelSelector',
         ])}...done',
@@ -135,7 +135,7 @@ class K8sApi {
       final labelSelector = labels?.join(',');
       final query = labels.isEmpty ? '' : '?labelSelector=${Uri.encodeQueryComponent(labelSelector)}';
       logger.fine(
-        'K8S api: ${Context.toMethod('getPodNamesFromNs', [
+        '${Context.toMethod('getPodNamesFromNs', [
           'namespace: $ns',
           'labelSelector: $labelSelector',
         ])}...',
@@ -143,9 +143,9 @@ class K8sApi {
       try {
         final uri = '/api/v1/namespaces/$ns/pods$query';
         final response = await getUri(uri);
-        logger.info('K8S api: $uri ${response.statusCode} ${response.reasonPhrase}');
+        logger.info('$uri ${response.statusCode} ${response.reasonPhrase}');
         final json = Map<String, dynamic>.from(await toContent(response));
-        logger.fine('K8S api: Has content ${json.runtimeType}');
+        logger.fine('Has content ${json.runtimeType}');
         final items = json.listAt('items');
         if (items != null) {
           pods.addAll(
@@ -153,11 +153,11 @@ class K8sApi {
           );
         }
         logger.fine(
-          'K8S api: ${Context.toMethod('getPodNamesFromNs', ['result: $pods'])}',
+          '${Context.toMethod('getPodNamesFromNs', ['result: $pods'])}',
         );
       } catch (error, stackTrace) {
         logger.severe(
-          'K8S api: ${Context.toMethod('getPodNamesFromNs', [
+          '${Context.toMethod('getPodNamesFromNs', [
             'namespace: $ns',
             'error: $error',
           ])}',
@@ -166,7 +166,7 @@ class K8sApi {
         );
       }
       logger.fine(
-        'K8S api: ${Context.toMethod('getPodNamesFromNs', [
+        '${Context.toMethod('getPodNamesFromNs', [
           'namespace: $ns',
           'labelSelector: $labelSelector',
         ])}...done',
@@ -188,7 +188,7 @@ class K8sApi {
     bool authenticate = true,
   }) async {
     final request = await client.getUrl(url);
-    logger.fine('K8S api: request: ${request.method} ${request.uri}');
+    logger.fine('request: ${request.method} ${request.uri}');
     if (authenticate) {
       request.headers.add('Authorization', 'Bearer $token');
     }
