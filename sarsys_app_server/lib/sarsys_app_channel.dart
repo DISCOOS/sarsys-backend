@@ -557,16 +557,23 @@ class SarSysAppServerChannel extends ApplicationChannel {
     config.auth?.issuer = _propertyAt<String>('AUTH_ISSUER', config.auth?.issuer);
     config.auth?.baseUrl = _propertyAt<String>('AUTH_BASE_URL', config.auth?.baseUrl);
 
-    config.data?.enabled = _propertyAt<bool>('DATA_ENABLED', config.data?.enabled);
-    config.data?.path = _propertyAt<String>('DATA_PATH', config.data?.path);
-    config.data?.snapshots?.keep = _propertyAt<int>('DATA_SNAPSHOTS_KEEP', config.data?.snapshots?.keep);
-    config.data?.snapshots?.threshold = _propertyAt<int>(
-      'DATA_SNAPSHOTS_THRESHOLD',
-      config.data?.snapshots?.threshold,
+    config.data.enabled = _propertyAt<bool>('DATA_ENABLED', config.data?.enabled);
+    config.data.path = _propertyAt<String>('DATA_PATH', config.data?.path);
+    config.data.snapshots.enabled = _propertyAt<bool>(
+      'DATA_SNAPSHOTS_ENABLED',
+      config.data.snapshots.enabled,
     );
-    config.data?.snapshots?.automatic = _propertyAt<bool>(
+    config.data.snapshots.keep = _propertyAt<int>(
+      'DATA_SNAPSHOTS_KEEP',
+      config.data.snapshots.keep,
+    );
+    config.data.snapshots.threshold = _propertyAt<int>(
+      'DATA_SNAPSHOTS_THRESHOLD',
+      config.data.snapshots.threshold,
+    );
+    config.data.snapshots.automatic = _propertyAt<bool>(
       'DATA_SNAPSHOTS_AUTOMATIC',
-      config.data?.snapshots?.automatic,
+      config.data.snapshots.automatic,
     );
 
     config.eventstore?.scheme = _propertyAt<String>(

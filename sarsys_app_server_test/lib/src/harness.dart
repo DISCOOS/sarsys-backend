@@ -129,6 +129,9 @@ class SarSysAppHarness extends TestHarness<SarSysAppServerChannel> {
       application.options.context['DATA_SNAPSHOTS_ENABLED'] = true;
       application.options.context['DATA_SNAPSHOTS_THRESHOLD'] = _threshold;
       application.options.context['DATA_SNAPSHOTS_AUTOMATIC'] = _automatic;
+    } else {
+      application.options.context['DATA_ENABLED'] = false;
+      application.options.context['DATA_SNAPSHOTS_ENABLED'] = false;
     }
   }
 
