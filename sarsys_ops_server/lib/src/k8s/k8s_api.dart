@@ -68,17 +68,19 @@ class K8sApi {
   Uri toPodUri(
     Map<String, dynamic> pod, {
     String uri,
+    int port = 80,
+    String deployment,
     String scheme = 'http',
     String deploymentLabel = 'module',
   }) {
-    final deployment = pod.elementAt<String>('metadata/labels/$deploymentLabel');
+    deployment ??= pod.elementAt<String>('metadata/labels/$deploymentLabel');
     if (deployment == null) {
       throw Exception('Pod does not contain deployment label with key '
           '$deploymentLabel: ${pod.mapAt('metadata/labels')}');
     }
     // Base Url is given by pattern 'pod-name.deployment-name.my-namespace.svc.cluster.local'
     final baseUrl = '$scheme://${pod.elementAt('metadata/name')}.'
-        '${deployment}.${pod.elementAt('metadata/namespace')}.svc.cluster.local';
+        '${deployment}.${pod.elementAt('metadata/namespace')}.svc.cluster.local:$port';
     if (uri == null || uri.isEmpty) {
       return Uri.parse(baseUrl);
     }
