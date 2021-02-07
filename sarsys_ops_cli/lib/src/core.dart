@@ -116,6 +116,7 @@ abstract class BaseCommand extends Command<String> {
     HttpClient client,
     String uri,
     String Function(dynamic) map, {
+    String Function(String) format,
     String token,
   }) async {
     final tic = DateTime.now();
@@ -128,7 +129,10 @@ abstract class BaseCommand extends Command<String> {
     final response = await request.close();
     final result = '${response.statusCode} ${response.reasonPhrase} in ';
     if (HttpStatus.ok == response.statusCode) {
-      buffer.write(green(map(await toContent(response))));
+      final content = map(await toContent(response));
+      buffer.write(
+        format == null ? green(content) : format(content),
+      );
     } else {
       buffer.write(red('Failure'));
     }

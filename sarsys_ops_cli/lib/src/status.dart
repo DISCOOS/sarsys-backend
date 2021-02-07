@@ -1,39 +1,138 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:event_source/event_source.dart';
 import 'package:sarsys_ops_cli/sarsys_ops_cli.dart';
 
 import 'core.dart';
 
 class StatusCommand extends BaseCommand {
-  StatusCommand();
+  StatusCommand() {
+    addSubcommand(StatusAllCommand());
+    addSubcommand(StatusModuleCommand());
+  }
 
   @override
   final name = 'status';
 
   @override
   final description = 'status is used to get information about backend modules';
+}
+
+class StatusAllCommand extends BaseCommand {
+  StatusAllCommand() {
+    argParser
+      ..addFlag(
+        'verbose',
+        abbr: 'v',
+        help: 'Verbose output',
+      );
+  }
+
+  @override
+  final name = 'all';
+
+  @override
+  final description = 'all is used to get information about all backend modules';
 
   @override
   FutureOr<String> run() async {
+    final verbose = argResults['verbose'] as bool;
     writeln(highlight('> Ops control pane'), stdout);
     final token = await AuthUtils.getToken(this);
     writeln('  Alive: ${await isOK(client, '/ops/api/healthz/alive')}', stdout);
     writeln('  Ready: ${await isOK(client, '/ops/api/healthz/ready')}', stdout);
 
-    final status = await get(
+    final statuses = await get(
       client,
       '/ops/api/system/status',
-          (pods) => '$pods',
+      (map) => _toStatuses(map, verbose: verbose),
       token: token,
+      format: (result) => result,
     );
 
-    writeln(highlight('> System'), stdout);
-    writeln(
-      '  Pods: ${}',
-      stdout,
-    );
+    writeln(highlight('> Status all ${verbose ? '--verbose' : ''}'), stdout);
+    writeln(statuses, stdout);
 
     return buffer.toString();
+  }
+}
+
+class StatusModuleCommand extends BaseCommand {
+  StatusModuleCommand() {
+    argParser
+      ..addOption(
+        'module',
+        abbr: 'm',
+        help: 'Module name',
+      )
+      ..addFlag(
+        'verbose',
+        abbr: 'v',
+        help: 'Verbose output',
+      );
+  }
+
+  @override
+  final name = 'module';
+
+  @override
+  final description = 'module is used to get information about given backend module';
+
+  @override
+  FutureOr<String> run() async {
+    final module = argResults['module'];
+    if (module == null) {
+      usageException(red(' Module name is missing'));
+      return writeln(red(' Module name is missing'), stderr);
+    } else {
+      final verbose = argResults['verbose'] as bool;
+      writeln(highlight('> Status $module ${verbose ? '--verbose' : ''}'), stdout);
+      final token = await AuthUtils.getToken(this);
+      writeln('  Alive: ${await isOK(client, '/ops/api/healthz/alive')}', stdout);
+      writeln('  Ready: ${await isOK(client, '/ops/api/healthz/ready')}', stdout);
+
+      final statuses = await get(
+        client,
+        '/ops/api/system/status/$module',
+        (map) {
+          final buffer = StringBuffer();
+          _toStatus(buffer, map, verbose: verbose);
+          return buffer.toString();
+        },
+        token: token,
+        format: (result) => result,
+      );
+      writeln(statuses, stdout);
+    }
+
+    return buffer.toString();
+  }
+}
+
+String _toStatuses(List items, {bool verbose = false}) {
+  final buffer = StringBuffer();
+  for (var module in items.map((item) => Map.from(item))) {
+    _toStatus(buffer, module, verbose: verbose);
+  }
+  return buffer.toString();
+}
+
+void _toStatus(StringBuffer buffer, Map module, {bool verbose = false}) {
+  buffer.writeln('  Module ${green(module.elementAt('name'))}');
+  final instances = module.listAt('instances');
+  buffer.writeln('    Instances: ${green(instances.length)}');
+  for (var instance in instances.map((item) => Map.from(item))) {
+    buffer.writeln('    Name: ${green(instance.elementAt('name'))}');
+    buffer.writeln('    API');
+    buffer.writeln('      Alive: ${green(instance.elementAt('status/health/alive'))}');
+    buffer.writeln('      Ready: ${green(instance.elementAt('status/health/ready'))}');
+    buffer.writeln('    Deployment');
+    final conditions = instance.listAt('status/conditions');
+    for (var condition in conditions.map((item) => Map.from(item))) {
+      final status = condition.elementAt<String>('status');
+      final acceptable = 'true' == status.toLowerCase();
+      buffer.writeln('      ${condition['type']}: ${acceptable ? green(status) : red(status)}');
+    }
   }
 }
