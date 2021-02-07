@@ -37,8 +37,7 @@ class ModuleStatusController extends StatusBaseController {
     for (var pod in pods) {
       instances.add({
         'name': pod.elementAt('metadata/name'),
-        'status': _toPodStatus(pod),
-        'health': await _toInstanceHealth(pod)
+        'status': await _toPodStatus(pod),
       });
     }
     return instances.toList();
@@ -52,36 +51,39 @@ class ModuleStatusController extends StatusBaseController {
   }
 
   Future<bool> _isOK(Map<String, dynamic> pod, String uri) async {
+    final url = k8s.toPodUri(pod, uri: uri);
     try {
-      final url = k8s.toPodUri(pod, uri: uri);
       final response = await k8s.getUrl(
         url,
         authenticate: false,
       );
+      logger.fine('GET $url responded with ${response.statusCode} ${response.reasonPhrase}');
       return response.statusCode == HttpStatus.ok;
-    } on Exception {
+    } on Exception catch (e) {
+      logger.warning('GET $url failed with $e');
       return false;
     }
   }
 
-  Map<String, dynamic> _toPodStatus(Map<String, dynamic> pod) {
+  Future<Map<String, dynamic>> _toPodStatus(Map<String, dynamic> pod) async {
     final conditions = pod.listAt(
       'status/conditions',
       defaultList: [],
     ).map((c) => Map<String, dynamic>.from(c));
 
-    if (conditions.isEmpty) {
-      return {
-        'type': 'unknown',
-        'acceptable': false,
-        'reason': 'EMPTY_LIST',
-        'message': 'no conditions found',
-      };
-    }
-    return conditions.lastWhere(
-      (c) => 'true' == c.elementAt<String>('status', defaultValue: 'False').toLowerCase(),
-      orElse: () => conditions.first,
-    );
+    return {
+      'health': await _toInstanceHealth(pod),
+      'conditions': conditions.isNotEmpty
+          ? conditions
+          : [
+              {
+                'type': 'Unknown',
+                'status': 'Unknown',
+                'reason': 'EMPTY_LIST',
+                'message': 'No conditions found',
+              }
+            ]
+    };
   }
 
   //////////////////////////////////
