@@ -5,9 +5,9 @@ metadata:
   namespace: sarsys
 spec:
   selector:
-    app: sarsys-app-server
-    role: backend
     type: api
+    role: backend
+    module: sarsys-app-server
   # StatefulSet needs a headless service
   # clusterIP: None
   ports:
@@ -45,19 +45,19 @@ metadata:
   name: sarsys-app-server
   namespace: sarsys
   labels:
-    app: sarsys-app-server
+    module: sarsys-app-server
 spec:
   serviceName: sarsys-app-server
   replicas: 3
   selector:
     matchLabels:
-      app: sarsys-app-server
+      module: sarsys-app-server
   template:
     metadata:
       labels:
-        app: sarsys-app-server
-        role: backend
         type: api
+        role: backend
+        module: sarsys-app-server
     spec:
       # Only schedule on given node pool
       nodeSelector:

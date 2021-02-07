@@ -4,20 +4,28 @@ import 'package:sarsys_http_core/sarsys_http_core.dart';
 // SARSys Domain documentation
 //////////////////////////////////
 
-APISchemaObject documentServerStatus() => APISchemaObject.object(
+APISchemaObject documentModuleStatus() => APISchemaObject.object(
       {
-        "type": APISchemaObject.string()..description = "Server type",
-        "health": APISchemaObject.object({
-          'alive': APISchemaObject.boolean()..description = 'Server is alive',
-          'ready': APISchemaObject.boolean()..description = 'Server is ready',
-        })
-          ..description = "Server health status",
+        "name": APISchemaObject.string()..description = "Module name",
+        'instances': APISchemaObject.array(
+          ofSchema: APISchemaObject.object({
+            "name": APISchemaObject.string()..description = "Server instance name",
+            "health": APISchemaObject.object({
+              'alive': APISchemaObject.boolean()..description = 'Server is alive',
+              'ready': APISchemaObject.boolean()..description = 'Server is ready',
+            })
+          })
+            ..required = [
+              'name',
+              'health',
+            ],
+        )..description = 'Array of server instances',
       },
     )
-      ..description = "Server status"
+      ..description = "Module status"
       ..isReadOnly = true
       ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
       ..required = [
-        'type',
-        'health',
+        'name',
+        'instances',
       ];

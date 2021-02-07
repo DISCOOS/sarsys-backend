@@ -7,7 +7,7 @@ import 'package:http/http.dart';
 import 'package:jose/jose.dart';
 import 'package:meta/meta.dart';
 import 'package:aqueduct/aqueduct.dart' as aq;
-import 'package:sarsys_ops_server/src/controllers/system_status_controller.dart';
+import 'package:sarsys_ops_server/src/controllers/module_status_controller.dart';
 import 'package:sarsys_ops_server/src/k8s/k8s_api.dart';
 import 'package:sarsys_tracking_server/sarsys_tracking_server.dart';
 import 'package:stack_trace/stack_trace.dart';
@@ -16,7 +16,6 @@ import 'package:uuid/uuid.dart';
 import 'sarsys_ops_server.dart';
 import 'src/config.dart';
 import 'src/controllers/tracking_service_commands_controller.dart';
-import 'src/schemas.dart';
 
 /// MUST BE used when bootstrapping Aqueduct
 const int isolateStartupTimeout = 30;
@@ -100,7 +99,7 @@ class SarSysOpsServerChannel extends ApplicationChannel {
       )
       ..route('/ops/api/healthz/alive').link(() => LivenessController())
       ..route('/ops/api/healthz/ready').link(() => LivenessController())
-      ..secure('/ops/api/system/status', () => SystemStatusController(config))
+      ..secure('/ops/api/system/status', () => ModuleStatusController(config))
       ..secure(
         '/ops/api/services/tracking',
         () => TrackingServiceCommandsController(
@@ -469,10 +468,8 @@ class SarSysOpsServerChannel extends ApplicationChannel {
           ),
         ));
 
-  void documentSchemas(APIDocumentContext context) => context.schema
-    ..register('ID', documentID())
-    ..register('UUID', documentUUID())
-    ..register('ServerStatus', documentServerStatus());
+  void documentSchemas(APIDocumentContext context) =>
+      context.schema..register('ID', documentID())..register('UUID', documentUUID());
 }
 
 class RequestContext {
