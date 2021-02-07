@@ -74,7 +74,7 @@ class ModuleStatusController extends StatusBaseController {
     return {
       'health': await _toInstanceHealth(pod),
       'conditions': conditions.isNotEmpty
-          ? conditions
+          ? conditions.toList()
           : [
               {
                 'type': 'Unknown',
