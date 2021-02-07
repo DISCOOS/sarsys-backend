@@ -46,7 +46,7 @@ models:
 snapshot:
 	echo "Build dart JIT snapshot of bin/main.dart (faster boot and less memory usage) ..."
 	dart --snapshot=bin/main.snapshot --snapshot-kind=app-jit bin/main.dart \
-		--port 8082 --config config.src.yaml --training=true
+		--healthPort 8082 --grpcPort 8083 --config config.src.yaml --training=true
 	echo "[✓] Building dart snapshot bin/main.snapshot finished"
 
 docker_is_up:

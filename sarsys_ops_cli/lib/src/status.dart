@@ -140,7 +140,7 @@ void _toStatus(StringBuffer buffer, Map module, {int indent = 2, bool verbose = 
     } else {
       final down = !alive || !ready;
       final api = '${alive ? '1' : '0'}/${alive ? '1' : '0'}';
-      buffer.writeln('${spaces}${green(instance.elementAt('name'))} API: ${down ? red(api) : green(api)}');
+      buffer.writeln('${spaces}${green(instance.elementAt('name'))} API Alive/Ready: ${down ? red(api) : green(api)}');
     }
   }
 }
