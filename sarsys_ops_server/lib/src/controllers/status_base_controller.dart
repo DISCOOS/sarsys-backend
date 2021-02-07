@@ -1,10 +1,12 @@
 import 'package:sarsys_http_core/sarsys_http_core.dart';
+import 'package:sarsys_ops_server/sarsys_ops_server.dart';
 import 'package:sarsys_ops_server/src/config.dart';
 
 abstract class StatusBaseController extends ResourceController with RequestValidatorMixin {
   StatusBaseController(
     this.type,
-    this.config, {
+    this.config,
+    this.modules, {
     this.tag,
     this.validation,
     this.readOnly = const [],
@@ -16,6 +18,8 @@ abstract class StatusBaseController extends ResourceController with RequestValid
   final String type;
 
   final SarSysOpsConfig config;
+
+  final List<String> modules;
 
   @override
   final List<String> readOnly;
@@ -33,22 +37,28 @@ abstract class StatusBaseController extends ResourceController with RequestValid
   /// Add @Operation.get() to activate
   Future<Response> getAll() async {
     try {
-      return doGetAll();
+      final statuses = <Map<String, dynamic>>[];
+      for (var module in modules) {
+        statuses.add(
+          await doGetByName(module),
+        );
+      }
+      return Response.ok(
+        statuses,
+      );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } catch (e, stackTrace) {
       return toServerError(e, stackTrace);
     }
   }
-
-  Future<Response> doGetAll() => throw UnimplementedError(
-        'doGetAll not implemented',
-      );
 
   /// Add @Operation.get('name') to activate
   Future<Response> getByName(@Bind.path('name') String name) async {
     try {
-      return doGetByName(name);
+      return Response.ok(
+        await doGetByName(name),
+      );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } catch (e, stackTrace) {
@@ -56,7 +66,7 @@ abstract class StatusBaseController extends ResourceController with RequestValid
     }
   }
 
-  Future<Response> doGetByName(String name) => throw UnimplementedError(
+  Future<Map<String, dynamic>> doGetByName(String name) => throw UnimplementedError(
         'doGetByName not implemented',
       );
 
@@ -93,8 +103,10 @@ abstract class StatusBaseController extends ResourceController with RequestValid
   @override
   Map<String, APIResponse> documentOperationResponses(APIDocumentContext context, Operation operation) {
     final responses = {
+      '200': context.responses.getObject('200'),
       '401': context.responses.getObject('401'),
       '403': context.responses.getObject('403'),
+      '500': context.responses.getObject('500'),
       '503': context.responses.getObject('503'),
       '504': context.responses.getObject('504'),
     };
@@ -105,7 +117,7 @@ abstract class StatusBaseController extends ResourceController with RequestValid
             '200': APIResponse.schema(
               'Successful response.',
               APISchemaObject.array(
-                ofSchema: documentStatusType(context),
+                ofSchema: context.schema[type],
               ),
             )
           });
@@ -113,7 +125,7 @@ abstract class StatusBaseController extends ResourceController with RequestValid
           responses.addAll({
             '200': APIResponse.schema(
               'Successful response',
-              documentStatusType(context),
+              context.schema[type],
             ),
           });
         }
@@ -137,13 +149,10 @@ abstract class StatusBaseController extends ResourceController with RequestValid
   }
 
   Map<String, APISchemaObject> documentSchemaObjects(APIDocumentContext context) => {
-        'type': documentStatusType(context),
-      }
-        ..addAll(documentEntities(context))
-        ..addAll(documentValues(context));
+        type: documentStatusType(context),
+      }..addAll(documentObjects(context));
 
   APISchemaObject documentStatusType(APIDocumentContext context);
 
-  Map<String, APISchemaObject> documentEntities(APIDocumentContext context) => {};
-  Map<String, APISchemaObject> documentValues(APIDocumentContext context) => {};
+  Map<String, APISchemaObject> documentObjects(APIDocumentContext context) => {};
 }

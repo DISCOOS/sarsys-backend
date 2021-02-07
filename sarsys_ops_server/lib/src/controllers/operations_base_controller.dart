@@ -239,7 +239,7 @@ abstract class OperationsBaseController extends ResourceController {
       '403': context.responses.getObject('403'),
       '416': context.responses.getObject('416'),
       '429': context.responses.getObject('429'),
-      '500': context.responses.getObject('503'),
+      '500': context.responses.getObject('500'),
       '503': context.responses.getObject('503'),
       '504': context.responses.getObject('504'),
     };

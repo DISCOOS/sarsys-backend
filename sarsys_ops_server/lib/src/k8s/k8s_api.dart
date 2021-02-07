@@ -65,15 +65,23 @@ class K8sApi {
     return ok;
   }
 
-  Future<List<String>> getPodNamesFromNs(String ns) async {
+  Future<List<String>> getPodNamesFromNs(
+    String ns, {
+    List<String> labels = const [],
+  }) async {
     final pods = <String>[];
 
     if (isReady) {
+      final labelSelector = labels?.join(',');
+      final query = labels.isEmpty ? '' : '?labelSelector=${Uri.encodeQueryComponent(labelSelector)}';
       logger.fine(
-        'K8S api: ${Context.toMethod('getPodNamesFromNs', ['namespace: $ns'])}...',
+        'K8S api: ${Context.toMethod('getPodNamesFromNs', [
+          'namespace: $ns',
+          'labelSelector: $labelSelector',
+        ])}...',
       );
       try {
-        final response = await get('/api/v1/namespaces/$ns/pods');
+        final response = await get('/api/v1/namespaces/$ns/pods$query');
         logger.info('K8S api: ${response.statusCode} ${response.reasonPhrase}');
         final json = Map<String, dynamic>.from(await toContent(response));
         logger.fine('K8S api: Has content ${json.runtimeType}');
@@ -97,7 +105,10 @@ class K8sApi {
         );
       }
       logger.fine(
-        'K8S api: ${Context.toMethod('getPodNamesFromNs', ['namespace: $ns'])}...done',
+        'K8S api: ${Context.toMethod('getPodNamesFromNs', [
+          'namespace: $ns',
+          'labelSelector: $labelSelector',
+        ])}...done',
       );
     }
     return pods;
