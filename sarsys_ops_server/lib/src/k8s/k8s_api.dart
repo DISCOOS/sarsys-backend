@@ -81,6 +81,7 @@ class K8sApi {
     // Base Url is given by pattern 'pod-name.deployment-name.my-namespace.svc.cluster.local'
     final baseUrl = '$scheme://${pod.elementAt('metadata/name')}.'
         '${deployment}.${pod.elementAt('metadata/namespace')}.svc.cluster.local:$port';
+    logger.fine('Base url is $baseUrl');
     if (uri == null || uri.isEmpty) {
       return Uri.parse(baseUrl);
     }
