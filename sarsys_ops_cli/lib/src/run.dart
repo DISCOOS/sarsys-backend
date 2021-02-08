@@ -40,7 +40,8 @@ class ListCommand extends BaseCommand {
   @override
   FutureOr<String> run() {
     writeln(highlight('> SARSys modules'), stdout);
-    writeln(highlight('  ${green('sarsys-app-server')}'), stdout);
-    writeln(highlight('  ${green('sarsys-tracking-server')}'), stdout);
+    writeln('  ${green('sarsys-app-server')}', stdout);
+    writeln('  ${green('sarsys-tracking-server')}', stdout);
+    return buffer.toString();
   }
 }
