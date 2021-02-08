@@ -9,10 +9,12 @@ spec:
     type: api
     module: sarsys-tracking-server
   ports:
-    - port: 8082
-      targetPort: 8082
-    - port: 8083
-      targetPort: 8083
+    - name: http
+      port: 8082
+      targetPort: http
+    - name: grpc
+      port: 8083
+      targetPort: grpc
   # StatefulSet needs a headless service
   clusterIP: None
 
@@ -61,7 +63,9 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 8082
+              name: http
             - containerPort: 8083
+              name: grpc
           # Load configuration
           envFrom:
             - configMapRef:
@@ -95,7 +99,7 @@ spec:
           readinessProbe:
             httpGet:
               path: /api/healthz/ready
-              port:  8082
+              port:  http
               scheme: HTTP
             # EventStoreConnection has
             # 10s as default connection
@@ -109,7 +113,7 @@ spec:
           livenessProbe:
             httpGet:
               path: /api/healthz/alive
-              port:  8082
+              port:  http
               scheme: HTTP
             # EventStoreConnection has
             # 10s as default connection
