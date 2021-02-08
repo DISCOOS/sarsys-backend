@@ -106,8 +106,15 @@ class TrackingServiceCommandsController extends OperationsBaseController {
       ..expand.addAll([
         if (shouldExpand(expand, 'repo')) ExpandFields.EXPAND_FIELDS_REPO,
       ]));
+    final name = k8s.toPodName(pod);
+    logger.fine(
+      Context.toMethod('_doGetMetaByName', [
+        'name: $name',
+        'expand: $expand',
+      ]),
+    );
     return _toJsonGetMetaResponse(
-      k8s.toPodName(pod),
+      name,
       meta,
       expand,
     );
@@ -327,9 +334,18 @@ class TrackingServiceCommandsController extends OperationsBaseController {
           if (shouldExpand(expand, 'repo')) ExpandFields.EXPAND_FIELDS_REPO,
         ]),
     );
+    final name = k8s.toPodName(pod);
+    logger.fine(
+      Context.toMethod('_doStart', [
+        'name: $name',
+        'expand: $expand',
+        'statusCode: ${response.statusCode}',
+        'reasonPhrase: ${response.reasonPhrase}',
+      ]),
+    );
     return {
       'meta': _toJsonGetMetaResponse(
-        k8s.toPodName(pod),
+        name,
         response.meta,
         expand,
       ),
@@ -366,14 +382,24 @@ class TrackingServiceCommandsController extends OperationsBaseController {
           if (shouldExpand(expand, 'repo')) ExpandFields.EXPAND_FIELDS_REPO,
         ]),
     );
+    final name = k8s.toPodName(pod);
+    logger.fine(
+      Context.toMethod('_doStop', [
+        'name: $name',
+        'expand: $expand',
+        'statusCode: ${response.statusCode}',
+        'reasonPhrase: ${response.reasonPhrase}',
+      ]),
+    );
     return {
       'meta': _toJsonGetMetaResponse(
-        k8s.toPodName(pod),
+        name,
         response.meta,
         expand,
       ),
       if (response.statusCode != HttpStatus.ok)
         'error': {
+          'statusCode': response.statusCode,
           'reasonPhrase': response.reasonPhrase,
         }
     };
@@ -391,6 +417,15 @@ class TrackingServiceCommandsController extends OperationsBaseController {
           if (shouldExpand(expand, 'repo')) ExpandFields.EXPAND_FIELDS_REPO,
         ]),
     );
+    final name = k8s.toPodName(pod);
+    logger.fine(
+      Context.toMethod('doAddTrackings', [
+        'name: $name',
+        'expand: $expand',
+        'statusCode: ${response.statusCode}',
+        'reasonPhrase: ${response.reasonPhrase}',
+      ]),
+    );
     return Response(
       response.statusCode,
       {},
@@ -403,6 +438,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
         if (response.failed.isNotEmpty)
           'error': {
             'failed': response.failed,
+            'statusCode': response.statusCode,
             'reasonPhrase': response.reasonPhrase,
           }
       },
@@ -421,6 +457,15 @@ class TrackingServiceCommandsController extends OperationsBaseController {
           if (shouldExpand(expand, 'repo')) ExpandFields.EXPAND_FIELDS_REPO,
         ]),
     );
+    final name = k8s.toPodName(pod);
+    logger.fine(
+      Context.toMethod('doAddTrackings', [
+        'name: $name',
+        'expand: $expand',
+        'statusCode: ${response.statusCode}',
+        'reasonPhrase: ${response.reasonPhrase}',
+      ]),
+    );
     return Response(
       response.statusCode,
       {},
@@ -433,6 +478,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
         if (response.failed.isNotEmpty)
           'error': {
             'failed': response.failed,
+            'statusCode': response.statusCode,
             'reasonPhrase': response.reasonPhrase,
           }
       },
@@ -455,7 +501,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
         ),
       ),
     );
-    return _clients.putIfAbsent(
+    final client = _clients.putIfAbsent(
       uri.path,
       () => SarSysTrackingServiceClient(
         channel,
@@ -466,6 +512,13 @@ class TrackingServiceCommandsController extends OperationsBaseController {
         ),
       ),
     );
+    logger.fine(
+      Context.toMethod('toClient', [
+        'host: ${channel.host}',
+        'port: ${channel.port}',
+      ]),
+    );
+    return client;
   }
 
   //////////////////////////////////
