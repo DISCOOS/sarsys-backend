@@ -3316,7 +3316,7 @@ class EventStoreConnection {
     if (embed) {
       url = '$url?embed=body';
     }
-    _logger.fine('_getSubscriptionGroup: GET $url');
+    _logger.finer('_getSubscriptionGroup: GET $url');
     return client.get(
       url,
       headers: {

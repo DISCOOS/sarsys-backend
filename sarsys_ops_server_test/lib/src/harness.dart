@@ -20,7 +20,7 @@ class SarSysOpsHarness extends TestHarness<SarSysOpsServerChannel> {
   static const testDataPath = 'test/.hive';
   static const sub = _SarSysTrackingHarness.sub;
   static const group = _SarSysTrackingHarness.group;
-  static const trackingInstance = 'sarsys-tracking-server-0';
+  static const trackingInstance0 = 'sarsys-tracking-server-0';
 
   SarSysTrackingServer get trackingServer => _trackingHarness?.server;
   EventStoreMockServer get esServer => _trackingHarness?.eventStoreMockServer;
@@ -35,7 +35,7 @@ class SarSysOpsHarness extends TestHarness<SarSysOpsServerChannel> {
 
   SarSysOpsHarness withK8sMockClient({
     String namespace = 'sarsys',
-    String tracking = trackingInstance,
+    List<String> instances = const [trackingInstance0],
   }) {
     _namespace = namespace;
     _k8sMockClient = _K8sMockClient(
@@ -43,7 +43,7 @@ class SarSysOpsHarness extends TestHarness<SarSysOpsServerChannel> {
       // env, which is null during testing
       _namespace,
       // Default
-      [tracking],
+      instances,
     );
     _context['DATA_PATH'] ??= testDataPath;
     return this;
