@@ -25,6 +25,11 @@ class TrackingCommand extends BaseCommand {
 class TrackingStatusCommand extends BaseCommand {
   TrackingStatusCommand() {
     argParser
+      ..addOption(
+        'server',
+        abbr: 's',
+        help: 'Server name',
+      )
       ..addFlag(
         'verbose',
         abbr: 'v',
@@ -41,18 +46,32 @@ class TrackingStatusCommand extends BaseCommand {
   @override
   FutureOr<String> run() async {
     final verbose = argResults['verbose'] as bool;
-    writeln(highlight('> Tracking status'), stdout);
+    final server = argResults['server'] as String;
+    writeln(highlight('> Tracking status...'), stdout);
     final token = await AuthUtils.getToken(this);
-    final statuses = await get(
-      client,
-      '/ops/api/services/tracking',
-      (list) => _toStatuses(list, verbose: verbose),
-      token: token,
-      format: (result) => result,
-    );
-
-    writeln(highlight('> Status all ${verbose ? '--verbose' : ''}'), stdout);
-    writeln(statuses, stdout);
+    if (server == null) {
+      final statuses = await get(
+        client,
+        '/ops/api/services/tracking',
+        (list) => _toStatuses(list, verbose: verbose),
+        token: token,
+        format: (result) => result,
+      );
+      writeln(statuses, stdout);
+    } else {
+      final status = await get(
+        client,
+        '/ops/api/services/tracking/$server',
+        (meta) {
+          final buffer = StringBuffer();
+          _toStatus(buffer, meta, verbose: verbose);
+          return buffer.toString();
+        },
+        token: token,
+        format: (result) => result,
+      );
+      writeln(status, stdout);
+    }
 
     return buffer.toString();
   }
@@ -82,8 +101,8 @@ class TrackingAddCommand extends BaseCommand {
   @override
   FutureOr<String> run() async {
     writeln(highlight('> Tracking add'), stdout);
-    final name = argResults['server'] as String;
-    if (name == null) {
+    final server = argResults['server'] as String;
+    if (server == null) {
       usageException(red(' Server name is missing'));
       return writeln(red(' Server name is missing'), stderr);
     }
@@ -96,7 +115,7 @@ class TrackingAddCommand extends BaseCommand {
     writeln(
       '  json: ${await post(
         client,
-        '/ops/api/services/tracking',
+        '/ops/api/services/tracking/$server',
         {
           'action': 'add_trackings',
           'uuids': uuids,
@@ -251,7 +270,7 @@ String _toStatuses(List items, {bool verbose = false}) {
   final buffer = StringBuffer();
   for (var instance in items.map((item) => Map.from(item))) {
     buffer.writeln(instance);
-    buffer.writeln('  Name ${green(instance.elementAt('name') ?? 'Test')}');
+    buffer.writeln('  Name ${green(instance.elementAt('name'))}');
     _toStatus(buffer, instance, indent: 4, verbose: verbose);
   }
   return buffer.toString();
@@ -261,13 +280,15 @@ void _toStatus(StringBuffer buffer, Map instance, {int indent = 2, bool verbose 
   final spaces = List.filled(indent, ' ').join();
   final trackings = instance.listAt('managerOf');
   buffer.writeln('${spaces}Status: ${green(instance.elementAt('status'))} ${gray('(service)')}');
+  buffer.writeln(
+    '${spaces}Processed:'
+    ' ${green(instance.elementAt<int>('positions/total', defaultValue: 0))} '
+    '${gray('(positions)')}',
+  );
   buffer.writeln('${spaces}Total seen: ${green(instance.elementAt('total'))} ${gray('(all tracking objects)')}');
   buffer.writeln(
     '${spaces}Is managing: ${green(trackings.length)} '
     '${gray('(${(instance.elementAt<int>('fractionManaged:', defaultValue: 0) * 100).toInt()}% of tracking objects)')}',
-  );
-  buffer.writeln(
-    '${spaces}Positions processed: ${green(instance.elementAt<int>('positions/total', defaultValue: 0))}',
   );
   for (var tracking in trackings.map((item) => Map.from(item))) {
     final alive = tracking.elementAt<bool>('status/health/alive');

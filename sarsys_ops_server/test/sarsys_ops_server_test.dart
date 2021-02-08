@@ -79,7 +79,8 @@ Future main() async {
     await _testStartService(harness);
 
     // Act
-    final response = await harness.agent.post('/ops/api/services/tracking/${SarSysOpsHarness.trackingInstance}', body: {
+    final response =
+        await harness.agent.post('/ops/api/services/tracking/${SarSysOpsHarness.trackingInstance0}', body: {
       'action': 'stop',
     });
 
@@ -136,7 +137,8 @@ Future main() async {
 
     // Act
     final tuuid1 = uuids.first;
-    final response = await harness.agent.post('/ops/api/services/tracking/${SarSysOpsHarness.trackingInstance}', body: {
+    final response =
+        await harness.agent.post('/ops/api/services/tracking/${SarSysOpsHarness.trackingInstance0}', body: {
       'action': 'remove_trackings',
       'uuids': [tuuid1],
     });
@@ -164,7 +166,7 @@ Future main() async {
 }
 
 Future _testStartService(SarSysOpsHarness harness) async {
-  final response = await harness.agent.post('/ops/api/services/tracking/${SarSysOpsHarness.trackingInstance}', body: {
+  final response = await harness.agent.post('/ops/api/services/tracking/${SarSysOpsHarness.trackingInstance0}', body: {
     'action': 'start',
   });
   final body = await response.body.decode();
@@ -195,7 +197,7 @@ Future<List<String>> _testAddTrackings(SarSysOpsHarness harness) async {
   final tuuid2 = await createTracking(repo, stream, sub);
 
   // Act
-  final response = await harness.agent.post('/ops/api/services/tracking/${SarSysOpsHarness.trackingInstance}', body: {
+  final response = await harness.agent.post('/ops/api/services/tracking/${SarSysOpsHarness.trackingInstance0}', body: {
     'action': 'add_trackings',
     'uuids': [
       tuuid1,
