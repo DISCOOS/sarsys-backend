@@ -69,7 +69,16 @@ class SarSysTrackingServer {
         case 'GET /api/healthz/ready':
           _onHandleReady(request);
           break;
+        default:
+          request.response
+            ..statusCode = 404
+            ..write('Not found');
       }
+
+      logger.info(
+        '$handle ${request.response.statusCode} ${request.response.reasonPhrase}',
+      );
+
       await request.response.close();
     }
   }
@@ -78,6 +87,9 @@ class SarSysTrackingServer {
     request.response
       ..statusCode = 200
       ..write('OK');
+    logger.info(
+      '${request.method.toUpperCase()} ${request.uri.path} 200 OK',
+    );
   }
 
   void _onHandleReady(HttpRequest request) {
