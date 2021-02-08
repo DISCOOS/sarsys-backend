@@ -54,7 +54,7 @@ class SarSysTrackingServer {
   void _listen(int port) async {
     // Start health check
     _http = await HttpServer.bind(
-      InternetAddress.loopbackIPv4,
+      InternetAddress.anyIPv4,
       port,
     );
 
