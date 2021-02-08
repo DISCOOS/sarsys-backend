@@ -182,7 +182,9 @@ class K8sApi {
       final items = json.listAt('items');
       if (items != null) {
         pods.addAll(
-          items.map(toPodName),
+          items.map(
+            (item) => toPodName(Map<String, dynamic>.from(item)),
+          ),
         );
       }
     } catch (error, stackTrace) {
