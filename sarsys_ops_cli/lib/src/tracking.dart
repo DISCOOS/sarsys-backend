@@ -46,7 +46,7 @@ class TrackingStatusCommand extends BaseCommand {
     final statuses = await get(
       client,
       '/ops/api/services/tracking',
-      (map) => _toStatuses([map], verbose: verbose),
+      (list) => _toStatuses(list, verbose: verbose),
       token: token,
       format: (result) => result,
     );
@@ -250,6 +250,7 @@ class TrackingStopCommand extends BaseCommand {
 String _toStatuses(List items, {bool verbose = false}) {
   final buffer = StringBuffer();
   for (var instance in items.map((item) => Map.from(item))) {
+    buffer.writeln(instance);
     buffer.writeln('  Name ${green(instance.elementAt('name') ?? 'Test')}');
     _toStatus(buffer, instance, indent: 4, verbose: verbose);
   }

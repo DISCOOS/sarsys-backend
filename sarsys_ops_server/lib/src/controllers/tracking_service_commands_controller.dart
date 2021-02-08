@@ -38,8 +38,8 @@ class TrackingServiceCommandsController extends OperationsBaseController {
   static const String module = 'sarsys-tracking-server';
 
   final K8sApi k8s;
-  final Map<Uri, ClientChannel> channels;
-  final Map<Uri, SarSysTrackingServiceClient> _clients = {};
+  final Map<String, ClientChannel> channels;
+  final Map<String, SarSysTrackingServiceClient> _clients = {};
 
   @override
   @Operation.get()
@@ -98,19 +98,24 @@ class TrackingServiceCommandsController extends OperationsBaseController {
     );
   }
 
-  Future<Map<String, dynamic>> _doGetMetaByName(Map<String, dynamic> pod, String expand) async {
+  Future<Map<String, dynamic>> _doGetMetaByName(
+    Map<String, dynamic> pod,
+    String expand,
+  ) async {
     final meta = await toClient(pod).getMeta(GetMetaRequest()
       ..expand.addAll([
         if (shouldExpand(expand, 'repo')) ExpandFields.EXPAND_FIELDS_REPO,
       ]));
     return _toJsonGetMetaResponse(
+      k8s.toPodName(pod),
       meta,
       expand,
     );
   }
 
-  Map<String, Object> _toJsonGetMetaResponse(GetMetaResponse meta, String expand) {
+  Map<String, Object> _toJsonGetMetaResponse(String name, GetMetaResponse meta, String expand) {
     return {
+      'name': name,
       'total': meta.total,
       'status': _toStatus(meta),
       'managerOf': _toJsonManagerOf(meta),
@@ -323,7 +328,11 @@ class TrackingServiceCommandsController extends OperationsBaseController {
         ]),
     );
     return {
-      'meta': _toJsonGetMetaResponse(response.meta, expand),
+      'meta': _toJsonGetMetaResponse(
+        k8s.toPodName(pod),
+        response.meta,
+        expand,
+      ),
       if (response.statusCode != HttpStatus.ok)
         'error': {
           'statusCode': response.statusCode,
@@ -358,7 +367,11 @@ class TrackingServiceCommandsController extends OperationsBaseController {
         ]),
     );
     return {
-      'meta': _toJsonGetMetaResponse(response.meta, expand),
+      'meta': _toJsonGetMetaResponse(
+        k8s.toPodName(pod),
+        response.meta,
+        expand,
+      ),
       if (response.statusCode != HttpStatus.ok)
         'error': {
           'reasonPhrase': response.reasonPhrase,
@@ -382,7 +395,11 @@ class TrackingServiceCommandsController extends OperationsBaseController {
       response.statusCode,
       {},
       {
-        'meta': _toJsonGetMetaResponse(response.meta, expand),
+        'meta': _toJsonGetMetaResponse(
+          k8s.toPodName(pod),
+          response.meta,
+          expand,
+        ),
         if (response.failed.isNotEmpty)
           'error': {
             'failed': response.failed,
@@ -408,7 +425,11 @@ class TrackingServiceCommandsController extends OperationsBaseController {
       response.statusCode,
       {},
       {
-        'meta': _toJsonGetMetaResponse(response.meta, expand),
+        'meta': _toJsonGetMetaResponse(
+          k8s.toPodName(pod),
+          response.meta,
+          expand,
+        ),
         if (response.failed.isNotEmpty)
           'error': {
             'failed': response.failed,
@@ -425,7 +446,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
       deployment: module,
     );
     final channel = channels.putIfAbsent(
-      uri,
+      uri.path,
       () => ClientChannel(
         config.tracking.host,
         port: config.tracking.grpcPort,
@@ -435,7 +456,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
       ),
     );
     return _clients.putIfAbsent(
-      uri,
+      uri.path,
       () => SarSysTrackingServiceClient(
         channel,
         options: CallOptions(
@@ -463,6 +484,15 @@ class TrackingServiceCommandsController extends OperationsBaseController {
   @override
   APISchemaObject documentMeta(APIDocumentContext context) {
     return APISchemaObject.object({
+      'name': APISchemaObject.string()
+        ..description = 'Tracking service instance name'
+        ..isReadOnly = true,
+      'total': APISchemaObject.integer()
+        ..description = 'Total number of tracking objects'
+        ..isReadOnly = true,
+      'fractionManaged': APISchemaObject.integer()
+        ..description = 'Number of managed tracking object to total number of tracking objects'
+        ..isReadOnly = true,
       'status': APISchemaObject.string()
         ..description = 'Tracking service status'
         ..enumerated = [
@@ -472,12 +502,6 @@ class TrackingServiceCommandsController extends OperationsBaseController {
           'paused',
           'disposed',
         ]
-        ..isReadOnly = true,
-      'total': APISchemaObject.integer()
-        ..description = 'Total number of tracking objects'
-        ..isReadOnly = true,
-      'fractionManaged': APISchemaObject.integer()
-        ..description = 'Number of managed tracking object to total number of tracking objects'
         ..isReadOnly = true,
       'positions': documentPositionsMeta(context),
       'managerOf': APISchemaObject.array(
