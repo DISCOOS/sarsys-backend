@@ -8,11 +8,10 @@ spec:
     type: api
     role: backend
     module: sarsys-ops-server
-  # StatefulSet needs a headless service
-  # clusterIP: None
   ports:
     - port: 8082
       targetPort: 8082
+  # StatefulSet needs a headless service
   clusterIP: None
 ---
 apiVersion: networking.k8s.io/v1beta1

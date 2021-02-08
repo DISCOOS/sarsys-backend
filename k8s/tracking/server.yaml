@@ -8,13 +8,12 @@ spec:
     role: backend
     type: api
     module: sarsys-tracking-server
-  # StatefulSet needs a headless service
-  # clusterIP: None
   ports:
     - port: 8082
       targetPort: 8082
-    - port: 8082
+    - port: 8083
       targetPort: 8083
+  # StatefulSet needs a headless service
   clusterIP: None
 
 ---

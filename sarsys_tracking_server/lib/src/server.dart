@@ -35,19 +35,20 @@ class SarSysTrackingServer {
   }
 
   Future start(SarSysTrackingConfig config) async {
-    // Start grpc service
-    _grpc = grpc.Server([
-      SarSysTrackingGrpcService(this),
-    ]);
-    await _grpc.serve(
-      port: config.grpcPort,
-    );
-
     // Start to listen for health checks
     _listen(config.healthPort);
 
     // Start tracking service
     await _build(config);
+
+    // Start grpc service
+    _grpc = grpc.Server([
+      SarSysTrackingGrpcService(this),
+    ]);
+
+    return _grpc.serve(
+      port: config.grpcPort,
+    );
   }
 
   void _listen(int port) async {

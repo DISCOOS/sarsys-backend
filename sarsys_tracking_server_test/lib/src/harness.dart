@@ -15,14 +15,14 @@ class SarSysTrackingHarness {
   EventStoreMockServer eventStoreMockServer;
 
   int get grpcPort => _grpcPort;
-  int _grpcPort = 8082;
+  int _grpcPort = 8083;
 
   int get healthPort => _healthPort;
-  int _healthPort = 8083;
+  int _healthPort = 8082;
 
   SarSysTrackingHarness withServerPorts({
-    int grpcPort = 8082,
-    int healthPort = 8083,
+    int grpcPort = 8083,
+    int healthPort = 8082,
   }) {
     _grpcPort = grpcPort;
     _healthPort = healthPort;
@@ -33,7 +33,7 @@ class SarSysTrackingHarness {
   ClientChannel _grpcChannel;
   SarSysTrackingServiceClient get grpcClient => _grpcClient;
   SarSysTrackingServiceClient _grpcClient;
-  SarSysTrackingHarness withGrpc({int port = 8082}) {
+  SarSysTrackingHarness withGrpc({int port = 8083}) {
     _grpcChannel = ClientChannel(
       '127.0.0.1',
       port: port,
