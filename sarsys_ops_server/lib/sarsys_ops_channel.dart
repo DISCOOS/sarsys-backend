@@ -41,7 +41,7 @@ class SarSysOpsServerChannel extends ApplicationChannel {
   final K8sApi k8s = K8sApi();
 
   /// Grpc channels
-  final Map<Uri, ClientChannel> channels = {};
+  final Map<String, ClientChannel> channels = {};
 
   /// Logger instance
   @override
