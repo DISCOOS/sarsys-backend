@@ -3,7 +3,7 @@ import 'package:sarsys_ops_server/src/config.dart';
 import 'package:sarsys_ops_server/src/controllers/status_base_controller.dart';
 
 class ModuleStatusController extends StatusBaseController {
-  ModuleStatusController(SarSysOpsConfig config)
+  ModuleStatusController(this.k8s, SarSysOpsConfig config)
       : ports = {
           'sarsys-app-server': config.app.port,
           'sarsys-tracking-server': config.tracking.healthPort,
@@ -13,7 +13,7 @@ class ModuleStatusController extends StatusBaseController {
           'sarsys-tracking-server',
         ]);
 
-  final K8sApi k8s = K8sApi();
+  final K8sApi k8s;
   final Map<String, int> ports;
   final HttpClient client = HttpClient();
 

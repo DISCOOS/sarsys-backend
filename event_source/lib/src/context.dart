@@ -316,16 +316,19 @@ class Context {
         '${Context.toStackTraceString(prefix, record.stackTrace)}',
       );
     }
-    final lines = '$prefix${record.message}$postfix';
-    if (lines.endsWith('\n')) {
-      stdout.write(lines);
-    } else {
-      stdout.writeln(lines);
+    stdout.writeln('$prefix${record.message}');
+    if (postfix.isNotEmpty) {
+      final lines = '$postfix';
+      if (lines.endsWith('\n')) {
+        stdout.write(lines);
+      } else {
+        stdout.writeln(lines);
+      }
     }
   }
 
-  static String toMethod(String name, List<String> args) => '$name(${args.join(',  ')})';
-  static String toObject(String name, List<String> args) => '$name: {${args.join(', ')}}';
+  static String toMethod(String name, [List<String> args = const []]) => '$name(${args.join(',  ')})';
+  static String toObject(String name, [List<String> args = const []]) => '$name: {${args.join(', ')}}';
 
   static Level toLogLevel(ContextLevel level) {
     switch (level) {

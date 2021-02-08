@@ -9,6 +9,7 @@ import 'package:test/test.dart';
 Future main() async {
   final harness = SarSysOpsHarness()
     ..withContext()
+    ..withK8sMockClient()
     ..withTrackingServer()
     ..withLogger(debug: false)
     ..install();
@@ -38,20 +39,22 @@ Future main() async {
     expect(statuses.elementAt('sarsys-app-server'), isNotEmpty);
     expect(statuses.elementAt('sarsys-app-server/instances'), isEmpty);
     expect(statuses.elementAt('sarsys-tracking-server'), isNotEmpty);
-    expect(statuses.elementAt('sarsys-tracking-server/instances'), isEmpty);
+    expect(statuses.elementAt('sarsys-tracking-server/instances'), isNotEmpty);
   });
 
   test('GET /ops/api/services/tracking returns 200 OK', () async {
     final response = await harness.agent.get('/ops/api/services/tracking');
     expect(response.statusCode, 200);
-    final body = Map<String, dynamic>.from(
+    final metas = List<Map<String, dynamic>>.from(
       await response.body.decode(),
     );
-    expect(body.elementAt<String>('status'), 'ready');
-    expect(body.elementAt<int>('total'), 0);
-    expect(body.listAt('managerOf'), isEmpty);
-    expect(body.elementAt<double>('fractionManaged'), 0.0);
-    final positions = body.mapAt<String, dynamic>('positions');
+    expect(metas.length, 1);
+    final meta = metas.last;
+    expect(meta.elementAt<String>('status'), 'ready');
+    expect(meta.elementAt<int>('total'), 0);
+    expect(meta.listAt('managerOf'), isEmpty);
+    expect(meta.elementAt<double>('fractionManaged'), 0.0);
+    final positions = meta.mapAt<String, dynamic>('positions');
     expect(positions.elementAt<int>('total'), 0);
     expect(positions.elementAt<double>('positionsPerMinute'), 0.0);
     expect(positions.elementAt<double>('averageProcessingTimeMillis'), 0.0);
@@ -63,23 +66,46 @@ Future main() async {
     expect(lastEvent.elementAt<int>('position'), -1);
   });
 
-  test("POST /ops/api/services/tracking with 'start' returns 200", () async {
+  test("POST with 'start' returns 200", () async {
     await _testStartService(harness);
   });
 
-  test("POST /ops/api/services/tracking with 'stop' returns 200", () async {
+  test("POST with 'start_all' returns 200", () async {
+    await _testStartAllService(harness);
+  });
+
+  test("POST with 'stop' returns 200", () async {
     // Arrange
     await _testStartService(harness);
 
     // Act
-    final response = await harness.agent.post('/ops/api/services/tracking', body: {
+    final response = await harness.agent.post('/ops/api/services/tracking/${SarSysOpsHarness.trackingInstance}', body: {
       'action': 'stop',
     });
 
     // Assert
     final body = await response.body.decode();
     expect(response.statusCode, 200, reason: '$body');
-    final meta = (body as Map).mapAt<String, dynamic>('meta');
+    final meta = Map<String, dynamic>.from(body['meta']);
+    expect(meta, isNotEmpty);
+    expect(meta.elementAt<String>('status'), 'stopped');
+  });
+
+  test("POST with 'stop_all' returns 200", () async {
+    // Arrange
+    await _testStartAllService(harness);
+
+    // Act
+    final response = await harness.agent.post('/ops/api/services/tracking', body: {
+      'action': 'stop_all',
+    });
+
+    // Assert
+    final body = await response.body.decode();
+    expect(response.statusCode, 200, reason: '$body');
+    final metas = List<Map<String, dynamic>>.from(body);
+    expect(metas.length, 1);
+    final meta = Map<String, dynamic>.from(metas.last['meta']);
     expect(meta.elementAt<String>('status'), 'stopped');
   });
 
@@ -99,18 +125,18 @@ Future main() async {
     expect(response.statusCode, 400);
   });
 
-  test("POST /ops/api/services/tracking with 'add_trackings' returns 200 for uuids that exists", () async {
+  test("POST with 'add_trackings' returns 200 for uuids that exists", () async {
     // Arrange
     await _testAddTrackings(harness);
   });
 
-  test("POST /ops/api/services/tracking with 'remove_trackings' returns 200 for uuids that is managed", () async {
+  test("POST with 'remove_trackings' returns 200 for uuids that is managed", () async {
     // Arrange
     final uuids = await _testAddTrackings(harness);
 
     // Act
     final tuuid1 = uuids.first;
-    final response = await harness.agent.post('/ops/api/services/tracking', body: {
+    final response = await harness.agent.post('/ops/api/services/tracking/${SarSysOpsHarness.trackingInstance}', body: {
       'action': 'remove_trackings',
       'uuids': [tuuid1],
     });
@@ -138,12 +164,25 @@ Future main() async {
 }
 
 Future _testStartService(SarSysOpsHarness harness) async {
-  final response = await harness.agent.post('/ops/api/services/tracking', body: {
+  final response = await harness.agent.post('/ops/api/services/tracking/${SarSysOpsHarness.trackingInstance}', body: {
     'action': 'start',
   });
   final body = await response.body.decode();
   expect(response.statusCode, 200, reason: '$body');
-  final meta = (body as Map).mapAt<String, dynamic>('meta');
+  final meta = Map<String, dynamic>.from(body['meta']);
+  expect(meta, isNotEmpty);
+  expect(meta.elementAt<String>('status'), 'competing');
+}
+
+Future _testStartAllService(SarSysOpsHarness harness) async {
+  final response = await harness.agent.post('/ops/api/services/tracking', body: {
+    'action': 'start_all',
+  });
+  final body = await response.body.decode();
+  expect(response.statusCode, 200, reason: '$body');
+  final metas = List<Map<String, dynamic>>.from(body);
+  expect(metas.length, 1);
+  final meta = Map<String, dynamic>.from(metas.last['meta']);
   expect(meta.elementAt<String>('status'), 'competing');
 }
 
@@ -156,7 +195,7 @@ Future<List<String>> _testAddTrackings(SarSysOpsHarness harness) async {
   final tuuid2 = await createTracking(repo, stream, sub);
 
   // Act
-  final response = await harness.agent.post('/ops/api/services/tracking', body: {
+  final response = await harness.agent.post('/ops/api/services/tracking/${SarSysOpsHarness.trackingInstance}', body: {
     'action': 'add_trackings',
     'uuids': [
       tuuid1,

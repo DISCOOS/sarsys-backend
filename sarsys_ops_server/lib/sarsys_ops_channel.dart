@@ -9,7 +9,6 @@ import 'package:meta/meta.dart';
 import 'package:aqueduct/aqueduct.dart' as aq;
 import 'package:sarsys_ops_server/src/controllers/module_status_controller.dart';
 import 'package:sarsys_ops_server/src/k8s/k8s_api.dart';
-import 'package:sarsys_tracking_server/sarsys_tracking_server.dart';
 import 'package:stack_trace/stack_trace.dart';
 import 'package:uuid/uuid.dart';
 
@@ -38,11 +37,11 @@ class SarSysOpsServerChannel extends ApplicationChannel {
   /// Secure router enforcing authorization
   SecureRouter router;
 
-  /// Grpc channel with tracking server
-  ClientChannel trackingChannel;
+  /// K8s Api instance
+  final K8sApi k8s = K8sApi();
 
-  /// Grpc tracking server client
-  SarSysTrackingServiceClient trackingClient;
+  /// Grpc channels
+  final Map<Uri, ClientChannel> channels = {};
 
   /// Logger instance
   @override
@@ -72,8 +71,7 @@ class SarSysOpsServerChannel extends ApplicationChannel {
       _loadConfig();
       _initHive();
       _buildValidators();
-      _configureGrpcClients();
-      await _configureK8sApi();
+      await _checkK8sApi();
       await _buildSecureRouter();
 
       if (stopwatch.elapsed.inSeconds > isolateStartupTimeout * 0.8) {
@@ -99,11 +97,15 @@ class SarSysOpsServerChannel extends ApplicationChannel {
       )
       ..route('/ops/api/healthz/alive').link(() => LivenessController())
       ..route('/ops/api/healthz/ready').link(() => LivenessController())
-      ..secure('/ops/api/system/status[/:name]', () => ModuleStatusController(config))
       ..secure(
-        '/ops/api/services/tracking',
+        '/ops/api/system/status[/:name]',
+        () => ModuleStatusController(k8s, config),
+      )
+      ..secure(
+        '/ops/api/services/tracking[/:name]',
         () => TrackingServiceCommandsController(
-          trackingClient,
+          k8s,
+          channels,
           config,
           options.context,
         ),
@@ -270,31 +272,12 @@ class SarSysOpsServerChannel extends ApplicationChannel {
     logger.info("${module}_EVENTSTORE_REQUIRE_MASTER is ${config.eventstore.requireMaster}");
   }
 
-  void _configureGrpcClients() {
-    trackingChannel = ClientChannel(
-      config.tracking.host,
-      port: config.tracking.grpcPort,
-      options: const ChannelOptions(
-        credentials: ChannelCredentials.insecure(),
-      ),
-    );
-    trackingClient = SarSysTrackingServiceClient(
-      trackingChannel,
-      options: CallOptions(
-        timeout: const Duration(
-          seconds: 30,
-        ),
-      ),
-    );
-  }
-
-  Future<bool> _configureK8sApi() async {
-    final k8s = K8sApi();
+  Future<bool> _checkK8sApi() async {
     final ok = await k8s.check();
     final pods = await k8s.getPodNamesFromNs(
       k8s.namespace,
     );
-    logger.info("PODS: ${pods.toList()}");
+    logger.info("PODS found in namespace ${k8s.namespace}: ${pods.length}");
     return ok;
   }
 

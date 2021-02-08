@@ -7,15 +7,19 @@ abstract class OperationsBaseController extends ResourceController {
     this.type,
     this.config, {
     @required this.tag,
-    @required this.actions,
-    @required this.options,
     @required this.context,
+    this.actions = const [],
+    this.options = const [],
+    this.instanceActions = const [],
+    this.instanceOptions = const [],
   });
 
   final String tag;
   final String type;
   final List<String> actions;
   final List<String> options;
+  final List<String> instanceActions;
+  final List<String> instanceOptions;
   final SarSysOpsConfig config;
   final Map<String, dynamic> context;
 
@@ -61,13 +65,13 @@ abstract class OperationsBaseController extends ResourceController {
         'doGetMeta not implemented',
       );
 
-  /// Add @Operation.get('uuid') to activate
-  Future<Response> getMetaByUuid(
-    @Bind.path('uuid') String uuid, {
+  /// Add @Operation.get('name') to activate
+  Future<Response> getMetaByName(
+    @Bind.path('name') String name, {
     @Bind.query('expand') String expand,
   }) async {
     try {
-      return doGetMetaByUuid(uuid, expand);
+      return doGetMetaByName(name, expand);
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
     } catch (e, stackTrace) {
@@ -75,7 +79,7 @@ abstract class OperationsBaseController extends ResourceController {
     }
   }
 
-  Future<Response> doGetMetaByUuid(String uuid, String expand) => throw UnimplementedError(
+  Future<Response> doGetMetaByName(String name, String expand) => throw UnimplementedError(
         'doGetMetaByName not implemented',
       );
 
@@ -118,16 +122,16 @@ abstract class OperationsBaseController extends ResourceController {
         'doExecute not implemented',
       );
 
-  /// Add @Operation.post('uuid') to activate
-  Future<Response> executeByUuid(
-    @Bind.path('uuid') String uuid,
+  /// Add @Operation.post('name') to activate
+  Future<Response> executeByName(
+    @Bind.path('name') String name,
     @Bind.body() Map<String, dynamic> body, {
     @Bind.query('expand') String expand,
   }) async {
     try {
       final command = assertCommand(body);
-      return doExecuteByUuid(
-        uuid,
+      return doExecuteByName(
+        name,
         command,
         body,
         expand,
@@ -155,8 +159,8 @@ abstract class OperationsBaseController extends ResourceController {
     }
   }
 
-  Future<Response> doExecuteByUuid(
-    String uuid,
+  Future<Response> doExecuteByName(
+    String name,
     String command,
     Map<String, dynamic> body,
     String expand,
@@ -209,7 +213,8 @@ abstract class OperationsBaseController extends ResourceController {
         parameters.add(
           APIParameter.query('expand')
             ..description = 'Expand response with metadata. '
-                "Legal values are: '${options.join("', '")}'",
+                'Legal values are: '
+                "'${(operation.pathVariables.isEmpty ? options : instanceOptions).join("', '")}'",
         );
         break;
     }
@@ -220,11 +225,17 @@ abstract class OperationsBaseController extends ResourceController {
   APIRequestBody documentOperationRequestBody(APIDocumentContext context, Operation operation) {
     switch (operation.method) {
       case 'POST':
-        return APIRequestBody.schema(
-          context.schema['${type}Command'],
-          description: '$type Command Request',
-          required: true,
-        );
+        return operation.pathVariables.isEmpty
+            ? APIRequestBody.schema(
+                context.schema['${type}Command'],
+                description: '$type Command Request',
+                required: true,
+              )
+            : APIRequestBody.schema(
+                context.schema['${type}InstanceCommand'],
+                description: '$type Instance Command Request',
+                required: true,
+              );
         break;
     }
     return super.documentOperationRequestBody(context, operation);
@@ -254,10 +265,15 @@ abstract class OperationsBaseController extends ResourceController {
         break;
       case 'POST':
         responses.addAll({
-          '200': APIResponse.schema(
-            'Successful response.',
-            context.schema['${type}CommandResult'],
-          ),
+          '200': operation.pathVariables.isEmpty
+              ? APIResponse.schema(
+                  'Successful $type command response.',
+                  context.schema['${type}CommandResult'],
+                )
+              : APIResponse.schema(
+                  'Successful $type instance command response.',
+                  context.schema['${type}InstanceCommandResult'],
+                ),
         });
         break;
     }
@@ -283,25 +299,59 @@ abstract class OperationsBaseController extends ResourceController {
         '${type}Command': documentCommand(
           documentCommandParams(context),
         ),
+        '${type}InstanceCommand': documentInstanceCommand(
+          documentInstanceCommandParams(context),
+        ),
         '${type}CommandResult': documentCommandResult(context),
+        '${type}InstanceCommandResult': documentInstanceCommandResult(context),
       };
 
-  APISchemaObject documentMeta(APIDocumentContext context);
-  Map<String, APISchemaObject> documentCommandParams(APIDocumentContext context);
+  APISchemaObject documentMeta(APIDocumentContext context) => throw UnimplementedError(
+        'documentMeta not implemented',
+      );
+  Map<String, APISchemaObject> documentCommandParams(APIDocumentContext context) => throw UnimplementedError(
+        'documentCommandParams not implemented',
+      );
+
+  Map<String, APISchemaObject> documentInstanceCommandParams(APIDocumentContext context) => throw UnimplementedError(
+        'documentCommandInstanceParams not implemented',
+      );
 
   APISchemaObject documentCommand(Map<String, APISchemaObject> params) {
     return APISchemaObject.object({
       'action': APISchemaObject.string()
-        ..description = 'Snapshot actions'
+        ..description = '$type actions'
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..enumerated = actions,
       'params': APISchemaObject.object(params)
-        ..description = 'Command properties'
+        ..description = '$type command properties'
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+    });
+  }
+
+  APISchemaObject documentInstanceCommand(Map<String, APISchemaObject> params) {
+    return APISchemaObject.object({
+      'action': APISchemaObject.string()
+        ..description = '$type instance actions'
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+        ..enumerated = instanceActions,
+      'params': APISchemaObject.object(params)
+        ..description = '$type instance command properties'
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
     });
   }
 
   APISchemaObject documentCommandResult(APIDocumentContext context) {
+    return APISchemaObject.array(
+      ofSchema: documentInstanceMeta(context)..description = 'Array $type metadata',
+    );
+  }
+
+  APISchemaObject documentInstanceCommandResult(APIDocumentContext context) {
+    return documentInstanceMeta(context);
+  }
+
+  APISchemaObject documentInstanceMeta(APIDocumentContext context) {
     return APISchemaObject.object({
       'meta': documentMeta(context)
         ..description = '$type metadata'

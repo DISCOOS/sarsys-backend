@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:event_source/event_source.dart';
 import 'package:sarsys_ops_cli/sarsys_ops_cli.dart';
 
 import 'core.dart';
@@ -22,7 +23,14 @@ class TrackingCommand extends BaseCommand {
 }
 
 class TrackingStatusCommand extends BaseCommand {
-  TrackingStatusCommand();
+  TrackingStatusCommand() {
+    argParser
+      ..addFlag(
+        'verbose',
+        abbr: 'v',
+        help: 'Verbose output',
+      );
+  }
 
   @override
   final name = 'status';
@@ -32,17 +40,19 @@ class TrackingStatusCommand extends BaseCommand {
 
   @override
   FutureOr<String> run() async {
+    final verbose = argResults['verbose'] as bool;
     writeln(highlight('> Tracking status'), stdout);
     final token = await AuthUtils.getToken(this);
-    writeln(
-      '  json: ${await get(
-        client,
-        '/ops/api/services/tracking',
-        (pods) => '$pods',
-        token: token,
-      )}',
-      stdout,
+    final statuses = await get(
+      client,
+      '/ops/api/services/tracking',
+      (map) => _toStatuses([map], verbose: verbose),
+      token: token,
+      format: (result) => result,
     );
+
+    writeln(highlight('> Status all ${verbose ? '--verbose' : ''}'), stdout);
+    writeln(statuses, stdout);
 
     return buffer.toString();
   }
@@ -234,5 +244,59 @@ class TrackingStopCommand extends BaseCommand {
     );
 
     return buffer.toString();
+  }
+}
+
+String _toStatuses(List items, {bool verbose = false}) {
+  final buffer = StringBuffer();
+  for (var instance in items.map((item) => Map.from(item))) {
+    buffer.writeln('  Name ${green(instance.elementAt('name') ?? 'Test')}');
+    _toStatus(buffer, instance, indent: 4, verbose: verbose);
+  }
+  return buffer.toString();
+}
+
+void _toStatus(StringBuffer buffer, Map instance, {int indent = 2, bool verbose = false}) {
+  final spaces = List.filled(indent, ' ').join();
+  final trackings = instance.listAt('managerOf');
+  buffer.writeln('${spaces}Status: ${green(instance.elementAt('status'))} ${gray('(service)')}');
+  buffer.writeln('${spaces}Total seen: ${green(instance.elementAt('total'))} ${gray('(all tracking objects)')}');
+  buffer.writeln(
+    '${spaces}Is managing: ${green(trackings.length)} '
+    '${gray('(${(instance.elementAt<int>('fractionManaged:', defaultValue: 0) * 100).toInt()}% of tracking objects)')}',
+  );
+  buffer.writeln(
+    '${spaces}Positions processed: ${green(instance.elementAt<int>('positions/total', defaultValue: 0))}',
+  );
+  for (var tracking in trackings.map((item) => Map.from(item))) {
+    final alive = tracking.elementAt<bool>('status/health/alive');
+    final ready = tracking.elementAt<bool>('status/health/ready');
+    //   final alive = tracking.elementAt<bool>('status/health/alive');
+    //   final ready = tracking.elementAt<bool>('status/health/ready');
+    //   if (verbose) {
+    //     buffer.writeln(gray('${spaces}--------------------------------------------'));
+    //     buffer.writeln('${spaces}Name: ${green(tracking.elementAt('name'))}');
+    //     buffer.writeln('${spaces}API');
+    //     buffer.writeln('${spaces}  Alive: ${green(alive)}');
+    //     buffer.writeln('${spaces}  Ready: ${green(alive)}');
+    //     buffer.writeln('${spaces}Deployment');
+    //     final conditions = tracking.listAt('status/conditions');
+    //     for (var condition in conditions.map((item) => Map.from(item))) {
+    //       final status = condition.elementAt<String>('status');
+    //       final acceptable = 'true' == status.toLowerCase();
+    //       buffer.writeln(
+    //         '${spaces}  ${condition['type']}: '
+    //         '${acceptable ? green(status) : red(status)} '
+    //         '${condition.hasPath('message') ? gray('(${condition.elementAt<String>('message')})') : ''}',
+    //       );
+    //     }
+    //   } else {
+    //     final down = !alive || !ready;
+    //     final api = '${alive ? '1' : '0'}/${alive ? '1' : '0'}';
+    //     buffer.writeln(
+    //       '${spaces}${green(tracking.elementAt('name'))} '
+    //       'API: ${down ? red(api) : green(api)} ${gray('(Alive/Ready)')}',
+    //     );
+    //   }
   }
 }

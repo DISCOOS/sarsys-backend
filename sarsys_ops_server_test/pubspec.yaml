@@ -9,6 +9,7 @@ environment:
 
 dependencies:
   aqueduct_test: ^1.0.0
+  mockito: ^4.1.1
   #  event_source:
   #    path: ../event_source
   #  sarsys_domain:

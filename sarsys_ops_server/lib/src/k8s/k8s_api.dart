@@ -7,23 +7,34 @@ import 'package:sarsys_ops_server/sarsys_ops_server.dart';
 import 'package:stack_trace/stack_trace.dart';
 
 class K8sApi {
-  static const _serviceAccountPath = '/var/run/secrets/kubernetes.io/serviceaccount';
+  K8sApi({
+    HttpClient client,
+    String serviceAccountPath = '/var/run/secrets/kubernetes.io/serviceaccount',
+  })  : _client = client,
+        serviceAccountPath = serviceAccountPath;
+
+  String serviceAccountPath;
   final logger = Logger('$K8sApi');
-  final tokenFile = File('$_serviceAccountPath/token');
-  final certFile = File('$_serviceAccountPath/ca.crt');
-  final serviceAccountDir = Directory(_serviceAccountPath);
-  String get namespace => Platform.environment['POD_NAMESPACE'];
-  bool get isReady => tokenFile.existsSync() && certFile.existsSync();
+
+  File get tokenFile => File('$serviceAccountPath/token');
+  File get certFile => File('$serviceAccountPath/ca.crt');
+  File get namespaceFile => File('$serviceAccountPath/namespace');
+  Directory get serviceAccountDir => Directory(serviceAccountPath);
+  bool get isAuthorized => tokenFile.existsSync() && certFile.existsSync();
+  String get namespace =>
+      Platform.environment['POD_NAMESPACE'] ??
+      (namespaceFile.existsSync() ? namespaceFile.readAsStringSync() : 'default');
 
   HttpClient get client {
     if (certFile.existsSync()) {
-      SecurityContext.defaultContext.setClientAuthorities('$_serviceAccountPath/ca.crt');
+      SecurityContext.defaultContext.setClientAuthorities('$serviceAccountPath/ca.crt');
     }
     return _client ??= HttpClient(
       context: SecurityContext.defaultContext,
     )..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
   }
 
+  set client(HttpClient client) => _client = client;
   HttpClient _client;
 
   String get token {
@@ -36,32 +47,33 @@ class K8sApi {
   String get apiHost => 'kubernetes.default.svc';
 
   int get apiPort {
-    return int.parse(Platform.environment['KUBERNETES_SERVICE_PORT_HTTPS']);
+    return int.parse(Platform.environment['KUBERNETES_SERVICE_PORT_HTTPS'] ?? '443');
   }
 
   Future<bool> check() async {
     var ok = false;
-    logger.info('K8S api: CERT: ${certFile.existsSync() ? 'Found' : 'Not found'}');
-    logger.info('K8S api: TOKEN: ${tokenFile.existsSync() ? 'Found' : 'Not found'}');
+    logger.info('CERT: ${certFile.existsSync() ? 'Found' : 'Not found'}');
+    logger.info('TOKEN: ${tokenFile.existsSync() ? 'Found' : 'Not found'}');
+    logger.info('Check...');
 
-    if (isReady) {
-      logger.info('K8S api: Check...');
-
-      try {
-        final response = await getUri('/api');
-        logger.info('K8S api: ${response.statusCode} ${response.reasonPhrase}');
-        final json = await toContent(response);
-        ok = json != null;
-        logger.info('K8S api: Has content: $ok');
-      } on Exception catch (error, stackTrace) {
-        logger.severe(
-          'K8S api: error: $error',
-          error,
-          stackTrace ?? Trace.current(1),
-        );
-      }
-      logger.info('K8S api: Check...done');
+    try {
+      final response = await getUri('/api');
+      logger.info('${response.statusCode} ${response.reasonPhrase}');
+      final json = await toContent(response);
+      ok = json != null;
+      logger.info('Has content: $ok');
+    } on Exception catch (error, stackTrace) {
+      logger.severe(
+        '${Context.toMethod('check', [
+          'namespace: $namespace',
+          'isAuthorized: $isAuthorized',
+        ])}',
+        error,
+        stackTrace ?? Trace.current(1),
+      );
     }
+    logger.info('Check...done');
+
     return ok;
   }
 
@@ -81,7 +93,13 @@ class K8sApi {
     // Base Url is given by pattern 'pod-name.deployment-name.my-namespace.svc.cluster.local'
     final baseUrl = '$scheme://${pod.elementAt('metadata/name')}.'
         '${deployment}.${pod.elementAt('metadata/namespace')}.svc.cluster.local:$port';
-    logger.fine('Base url is $baseUrl');
+    logger.fine(
+      '${Context.toMethod('toPodUri', [
+        'Base url is $baseUrl',
+        'namespace: $namespace',
+        'isAuthorized: $isAuthorized',
+      ])}',
+    );
     if (uri == null || uri.isEmpty) {
       return Uri.parse(baseUrl);
     }
@@ -94,49 +112,50 @@ class K8sApi {
   }) async {
     final pods = <Map<String, dynamic>>[];
 
-    if (isReady) {
-      final labelSelector = labels?.join(',');
-      final query = labels.isEmpty ? '' : '?labelSelector=${Uri.encodeQueryComponent(labelSelector)}';
-      logger.fine(
-        '${Context.toMethod('getPodsFromNs', [
-          'namespace: $ns',
-          'labelSelector: $labelSelector',
-        ])}...',
+    final labelSelector = labels?.join(',');
+    final query = labels.isEmpty ? '' : '?labelSelector=${Uri.encodeQueryComponent(labelSelector)}';
+    logger.fine(
+      '${Context.toMethod('getPodsFromNs', [
+        'namespace: $ns',
+        'isAuthorized: $isAuthorized',
+        'labelSelector: $labelSelector',
+      ])}...',
+    );
+    try {
+      final uri = '/api/v1/namespaces/$ns/pods$query';
+      final response = await getUri(uri);
+      logger.info('$uri ${response.statusCode} ${response.reasonPhrase}');
+      final json = Map<String, dynamic>.from(
+        await toContent(response, defaultValue: {}),
       );
-      try {
-        final uri = '/api/v1/namespaces/$ns/pods$query';
-        final response = await getUri(uri);
-        logger.info('$uri ${response.statusCode} ${response.reasonPhrase}');
-        final json = Map<String, dynamic>.from(await toContent(response));
-        logger.fine('$uri Has content ${json.runtimeType}');
-        final items = json.listAt('items');
-        if (items != null) {
-          pods.addAll(
-            List<Map<String, dynamic>>.from(items),
-          );
-        }
-        logger.fine(
-          '${Context.toMethod('getPodsFromNs', ['result: $pods'])}',
-        );
-      } catch (error, stackTrace) {
-        logger.severe(
-          '${Context.toMethod('getPodsFromNs', [
-            'namespace: $ns',
-            'error: $error',
-          ])}',
-          error,
-          stackTrace ?? Trace.current(1),
+      logger.fine('$uri Has content ${json.runtimeType}');
+      final items = json.listAt('items');
+      if (items != null) {
+        pods.addAll(
+          List<Map<String, dynamic>>.from(items),
         );
       }
       logger.fine(
+        '${Context.toMethod('getPodsFromNs', ['result: $pods'])}',
+      );
+    } catch (error, stackTrace) {
+      logger.severe(
         '${Context.toMethod('getPodsFromNs', [
           'namespace: $ns',
+          'isAuthorized: $isAuthorized',
           'labelSelector: $labelSelector',
-        ])}...done',
+        ])}',
+        error,
+        stackTrace ?? Trace.current(1),
       );
     }
+    logger.fine(
+      '${Context.toMethod('getPodsFromNs')}...done',
+    );
     return pods;
   }
+
+  String toPodName(Map<String, dynamic> pod) => pod.elementAt<String>('metadata/name');
 
   Future<List<String>> getPodNamesFromNs(
     String ns, {
@@ -144,47 +163,42 @@ class K8sApi {
   }) async {
     final pods = <String>[];
 
-    if (isReady) {
-      final labelSelector = labels?.join(',');
-      final query = labels.isEmpty ? '' : '?labelSelector=${Uri.encodeQueryComponent(labelSelector)}';
-      logger.fine(
-        '${Context.toMethod('getPodNamesFromNs', [
-          'namespace: $ns',
-          'labelSelector: $labelSelector',
-        ])}...',
+    final labelSelector = labels?.join(',');
+    final query = labels.isEmpty ? '' : '?labelSelector=${Uri.encodeQueryComponent(labelSelector)}';
+    logger.fine(
+      '${Context.toMethod('getPodNamesFromNs', [
+        'namespace: $ns',
+        'labelSelector: $labelSelector',
+      ])}...',
+    );
+    try {
+      final uri = '/api/v1/namespaces/$ns/pods$query';
+      final response = await getUri(uri);
+      logger.info('$uri ${response.statusCode} ${response.reasonPhrase}');
+      final json = Map<String, dynamic>.from(
+        await toContent(response, defaultValue: {}),
       );
-      try {
-        final uri = '/api/v1/namespaces/$ns/pods$query';
-        final response = await getUri(uri);
-        logger.info('$uri ${response.statusCode} ${response.reasonPhrase}');
-        final json = Map<String, dynamic>.from(await toContent(response));
-        logger.fine('Has content ${json.runtimeType}');
-        final items = json.listAt('items');
-        if (items != null) {
-          pods.addAll(
-            items.map((pod) => (pod['metadata'] as Map).elementAt<String>('name')),
-          );
-        }
-        logger.fine(
-          '${Context.toMethod('getPodNamesFromNs', ['result: $pods'])}',
-        );
-      } catch (error, stackTrace) {
-        logger.severe(
-          '${Context.toMethod('getPodNamesFromNs', [
-            'namespace: $ns',
-            'error: $error',
-          ])}',
-          error,
-          stackTrace ?? Trace.current(1),
+      logger.fine('Has content ${json.runtimeType}');
+      final items = json.listAt('items');
+      if (items != null) {
+        pods.addAll(
+          items.map(toPodName),
         );
       }
-      logger.fine(
+    } catch (error, stackTrace) {
+      logger.severe(
         '${Context.toMethod('getPodNamesFromNs', [
           'namespace: $ns',
+          'isAuthorized: $isAuthorized',
           'labelSelector: $labelSelector',
-        ])}...done',
+        ])}',
+        error,
+        stackTrace ?? Trace.current(1),
       );
     }
+    logger.fine(
+      '${Context.toMethod('getPodNamesFromNs', ['result: $pods'])}...done',
+    );
     return pods;
   }
 
@@ -202,20 +216,23 @@ class K8sApi {
   }) async {
     final request = await client.getUrl(url);
     logger.fine('request: ${request.method} ${request.uri}');
-    if (authenticate) {
+    if (isAuthorized && authenticate) {
       request.headers.add('Authorization', 'Bearer $token');
     }
     return request.close();
   }
 
-  static Future<dynamic> toContent(HttpClientResponse response) async {
+  static Future toContent(HttpClientResponse response, {dynamic defaultValue}) async {
     final completer = Completer<String>();
     final contents = StringBuffer();
-    response.transform(utf8.decoder).listen(
-          contents.write,
-          onDone: () => completer.complete(contents.toString()),
-        );
-    final json = await completer.future;
-    return jsonDecode(json);
+    if (response.statusCode < 300) {
+      response.transform(utf8.decoder).listen(
+            contents.write,
+            onDone: () => completer.complete(contents.toString()),
+          );
+      final json = await completer.future;
+      return jsonDecode(json);
+    }
+    return defaultValue;
   }
 }
