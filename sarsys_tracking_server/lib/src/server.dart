@@ -21,6 +21,7 @@ class SarSysTrackingServer {
   TrackingService service;
   RepositoryManager manager;
   SarSysTrackingConfig config;
+  StreamSubscription _subscription;
 
   bool get isOpen => _http != null;
   bool get isReady => isOpen && manager.isReady;
@@ -61,7 +62,7 @@ class SarSysTrackingServer {
     // This will bloc until stop is called
     await for (HttpRequest request in _http) {
       final handle = '${request.method.toUpperCase()} ${request.uri.path}';
-      logger.fine(Context.toMethod('_listen', ['handle: $handle']));
+      logger.finer(Context.toMethod('_listen', ['handle: $handle']));
       switch (handle) {
         case 'GET /api/healthz/alive':
           _onHandleAlive(request);
@@ -108,6 +109,7 @@ class SarSysTrackingServer {
     if (isOpen) {
       await _grpc.shutdown();
       await _http.close();
+      await _subscription.cancel();
       _http = null;
       _grpc = null;
     }
@@ -138,7 +140,7 @@ class SarSysTrackingServer {
       config.logging.level,
     );
     Logger.root.level = level;
-    logger.onRecord.where((event) => logger.level >= level).listen(
+    _subscription = logger.onRecord.where((event) => logger.level >= level).listen(
           (record) => printRecord(
             record,
             debug: config.debug,

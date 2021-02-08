@@ -68,8 +68,6 @@ class SarSysTrackingHarness {
         logger: _logger,
       );
 
-  Stream<LogRecord> get onRecord => _logger?.onRecord;
-
   void install() {
     setUpAll(() async {
       assert(eventStoreMockServer != null, 'Forgot to call withEventStoreMock()?');

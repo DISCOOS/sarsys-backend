@@ -296,14 +296,15 @@ class TrackingService extends MessageHandler<DomainEvent> {
   }
 
   Future<bool> addTracking(String uuid) async {
-    if (!_managed.contains(uuid)) {
-      final tracking = await _tryGet(uuid);
-      if (tracking != null) {
-        return _addTracking(
-          tracking.createdBy as TrackingCreated,
-          false,
-        );
-      }
+    if (_managed.contains(uuid)) {
+      return true;
+    }
+    final tracking = await _tryGet(uuid);
+    if (tracking != null) {
+      return _addTracking(
+        tracking.createdBy as TrackingCreated,
+        false,
+      );
     }
     return false;
   }

@@ -70,7 +70,7 @@ Future main() async {
     expect(response.statusCode, 404);
     expect(response.meta, isNotNull);
     expect(response.failed, contains(uuid));
-    expect(response.reasonPhrase, 'Not found');
+    expect(response.reasonPhrase, 'Not found: $uuid');
   });
 
   test('GRPC RemoveTrackingsRequest returns RemoveTrackingResponse with code 404', () async {
@@ -82,6 +82,6 @@ Future main() async {
     expect(response.statusCode, 404);
     expect(response.meta, isNotNull);
     expect(response.failed, contains(uuid));
-    expect(response.reasonPhrase, 'Not found');
+    expect(response.reasonPhrase, 'Not found: $uuid');
   });
 }

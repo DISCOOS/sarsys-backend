@@ -305,7 +305,7 @@ class Context {
       final category = '${prefix}${event.category}';
       event.data.forEach((key, value) {
         if (!const ['error', 'stackTrace'].contains(key)) {}
-        postfix.write('\n${toObject(category, ['$key: $value'])}');
+        postfix.writeln('${toObject(category, ['$key: $value'])}');
       });
     }
     if (record.error != null) {

@@ -10,13 +10,19 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
   SarSysTrackingGrpcService(this.server);
   final SarSysTrackingServer server;
   TrackingService get service => server.service;
+  final logger = Logger('$SarSysTrackingGrpcService');
 
   @override
-  Future<GetMetaResponse> getMeta(ServiceCall call, GetMetaRequest request) {
-    return _getMetaData(request.expand);
+  Future<GetMetaResponse> getMeta(ServiceCall call, GetMetaRequest request) async {
+    final response = await _getMetaData(request.expand);
+    _ok('getMeta');
+    return response;
   }
 
   Future<GetMetaResponse> _getMetaData(List<ExpandFields> expand) async {
+    logger.fine(
+      Context.toMethod('_getMetaData', ['expand: ${expand.map(enumName).join(',')}']),
+    );
     var positionsTotal = 0;
     final repo = service.repo;
     final store = repo.store;
@@ -113,26 +119,50 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
 
   @override
   Future<StartTrackingResponse> start(ServiceCall call, StartTrackingRequest request) async {
+    logger.fine(
+      Context.toMethod('start', ['expand: ${request.expand.map(enumName).join(',')}']),
+    );
     final ok = await service.start();
-    return StartTrackingResponse()
+    final response = StartTrackingResponse()
       ..meta = await _getMetaData(request.expand)
       ..statusCode = ok ? HttpStatus.ok : HttpStatus.internalServerError
       ..reasonPhrase = ok ? 'OK' : 'Unable to start tracking service';
+    _log(
+      'start',
+      response.statusCode,
+      response.reasonPhrase,
+    );
+    return response;
   }
 
   @override
   Future<StopTrackingResponse> stop(ServiceCall call, StopTrackingRequest request) async {
+    logger.fine(
+      Context.toMethod('start', ['expand: ${request.expand.map(enumName).join(',')}']),
+    );
     final ok = await service.stop();
-    return StopTrackingResponse()
+    final response = StopTrackingResponse()
       ..meta = await _getMetaData(request.expand)
       ..statusCode = ok ? HttpStatus.ok : HttpStatus.internalServerError
       ..reasonPhrase = ok ? 'OK' : 'Unable to stop tracking service';
+    _log(
+      'start',
+      response.statusCode,
+      response.reasonPhrase,
+    );
+    return response;
   }
 
   @override
   Future<AddTrackingsResponse> addTrackings(ServiceCall call, AddTrackingsRequest request) async {
-    final uuids = request.uuids;
     final failed = <String>[];
+    final uuids = request.uuids;
+    logger.fine(
+      Context.toMethod('addTrackings', [
+        'uuids: ${uuids.join(',')}',
+        'expand: ${request.expand.map(enumName).join(',')}',
+      ]),
+    );
     for (var uuid in uuids) {
       if (!service.isManagerOf(uuid)) {
         final ok = await service.addTracking(uuid);
@@ -146,17 +176,26 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
       ..failed.addAll(failed)
       ..meta = await _getMetaData(request.expand);
     if (failed.isEmpty) {
+      _ok('addTrackings');
       return response
         ..statusCode = HttpStatus.ok
         ..reasonPhrase = 'OK';
     } else if (failed.length < uuids.length) {
+      _partial(
+        'addTrackings',
+        'Failed to add: ${failed.join(',')}',
+      );
       return response
         ..statusCode = HttpStatus.partialContent
-        ..reasonPhrase = 'Partial content';
+        ..reasonPhrase = 'Failed to add: ${failed.join(',')}';
     }
+    _notFound(
+      'addTrackings',
+      'Not found: ${failed.join(',')}',
+    );
     return response
       ..failed.addAll(failed)
-      ..reasonPhrase = 'Not found'
+      ..reasonPhrase = 'Not found: ${failed.join(',')}'
       ..statusCode = HttpStatus.notFound;
   }
 
@@ -164,6 +203,13 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
   Future<RemoveTrackingsResponse> removeTrackings(ServiceCall call, RemoveTrackingsRequest request) async {
     final failed = <String>[];
     final uuids = request.uuids;
+    logger.fine(
+      Context.toMethod('removeTrackings', [
+        'uuids: ${uuids.join(',')}',
+        'expand: ${request.expand.map(enumName).join(',')}',
+      ]),
+    );
+
     for (var uuid in uuids) {
       final ok = await service.removeTracking(uuid);
       if (!ok) {
@@ -175,17 +221,68 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
       ..failed.addAll(failed)
       ..meta = await _getMetaData(request.expand);
     if (failed.isEmpty) {
+      _ok('removeTrackings');
       return response
         ..statusCode = HttpStatus.ok
         ..reasonPhrase = 'OK';
     }
     if (failed.length < uuids.length) {
+      _partial(
+        'removeTrackings',
+        'Failed to remove: ${failed.join(',')}',
+      );
       return response
         ..statusCode = HttpStatus.partialContent
-        ..reasonPhrase = 'Partial content';
+        ..reasonPhrase = 'Failed to remove: ${failed.join(',')}';
     }
+    _notFound(
+      'removeTrackings',
+      'Not found: ${uuids.join(',')}',
+    );
     return response
       ..statusCode = HttpStatus.notFound
-      ..reasonPhrase = 'Not found';
+      ..reasonPhrase = 'Not found: ${uuids.join(',')}';
+  }
+
+  String _ok(String method) {
+    return _log(
+      method,
+      HttpStatus.ok,
+      'OK',
+    );
+  }
+
+  String _partial(String method, String message) {
+    return _log(
+      method,
+      HttpStatus.partialContent,
+      message,
+    );
+  }
+
+  String _notFound(String method, String message) {
+    return _log(
+      method,
+      HttpStatus.notFound,
+      message,
+    );
+  }
+
+  String _log(String method, int statusCode, String reasonPhrase, [Object error, StackTrace stackTrace]) {
+    final message = '$method $statusCode $reasonPhrase';
+    if (statusCode > 500) {
+      logger.severe(
+        message,
+        error,
+        stackTrace,
+      );
+    } else {
+      logger.info(
+        '$method $statusCode $reasonPhrase',
+        error,
+        stackTrace,
+      );
+    }
+    return message;
   }
 }
