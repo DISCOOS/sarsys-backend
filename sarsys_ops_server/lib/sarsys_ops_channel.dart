@@ -38,7 +38,7 @@ class SarSysOpsServerChannel extends ApplicationChannel {
   SecureRouter router;
 
   /// K8s Api instance
-  final K8sApi k8s = K8sApi();
+  K8sApi k8s;
 
   /// Grpc channels
   final Map<String, ClientChannel> channels = {};
@@ -71,7 +71,7 @@ class SarSysOpsServerChannel extends ApplicationChannel {
       _loadConfig();
       _initHive();
       _buildValidators();
-      await _checkK8sApi();
+      await _configureK8sApi();
       await _buildSecureRouter();
 
       if (stopwatch.elapsed.inSeconds > isolateStartupTimeout * 0.8) {
@@ -272,7 +272,8 @@ class SarSysOpsServerChannel extends ApplicationChannel {
     logger.info("${module}_EVENTSTORE_REQUIRE_MASTER is ${config.eventstore.requireMaster}");
   }
 
-  Future<bool> _checkK8sApi() async {
+  Future<bool> _configureK8sApi() async {
+    k8s = _propertyAt<K8sApi>('K8S_API', K8sApi());
     final ok = await k8s.check();
     final pods = await k8s.getPodNamesFromNs(
       k8s.namespace,
