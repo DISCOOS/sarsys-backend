@@ -488,14 +488,14 @@ class TrackingServiceCommandsController extends OperationsBaseController {
   SarSysTrackingServiceClient toClient(Map<String, dynamic> pod) {
     final uri = k8s.toPodUri(
       pod,
-      port: config.tracking.grpcPort,
       deployment: module,
+      port: config.tracking.grpcPort,
     );
     final channel = channels.putIfAbsent(
       uri.path,
       () => ClientChannel(
-        config.tracking.host,
-        port: config.tracking.grpcPort,
+        uri.host,
+        port: uri.port,
         options: const ChannelOptions(
           credentials: ChannelCredentials.insecure(),
         ),

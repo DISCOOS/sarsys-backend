@@ -27,32 +27,21 @@ class SarSysOpsHarness extends TestHarness<SarSysOpsServerChannel> {
   SarSysTrackingServiceClient get trackingClient => _trackingHarness?.grpcClient;
   _SarSysTrackingHarness _trackingHarness;
 
-  HttpClient get k8sMockClient => _k8sMockClient;
-  HttpClient _k8sMockClient;
+  /// Get mocked [K8sApi]
+  K8sApi get k8sMockApi => _k8sMockApi;
+  _K8sMockApi _k8sMockApi;
 
   String get namespace => _namespace;
   String _namespace;
+  List<String> get instances => _instances;
+  List<String> _instances;
 
-  SarSysOpsHarness withK8sMockClient({
-    String namespace = 'sarsys',
-    List<String> instances = const [trackingInstance0],
-  }) {
-    _namespace = namespace;
-    _k8sMockClient = _K8sMockClient(
-      // K8sApi.namespace fetches from
-      // env, which is null during testing
-      _namespace,
-      // Default
-      instances,
-    );
-    _context['DATA_PATH'] ??= testDataPath;
-    return this;
-  }
-
-  SarSysOpsHarness withTrackingServer({
+  SarSysOpsHarness withModules({
     bool debug = false,
     int grpcPort = 8083,
     int healthPort = 8084,
+    String namespace = 'sarsys',
+    List<String> instances = const [trackingInstance0],
   }) {
     _trackingHarness = _SarSysTrackingHarness()
       ..withTenant()
@@ -64,7 +53,24 @@ class SarSysOpsHarness extends TestHarness<SarSysOpsServerChannel> {
       ..withEventStoreMock()
       ..withLogger(debug: debug)
       ..withGrpcClient(port: grpcPort);
+
+    _namespace = namespace;
+    _instances = instances;
+    _context['DATA_PATH'] ??= testDataPath;
+
+    _k8sMockApi = _K8sMockApi(
+      'localhost',
+      grpcPort,
+      // K8sApi.namespace fetches from
+      // env, which is null during testing
+      _namespace,
+      // Mocked instances
+      instances,
+      // Path to mocked service account
+      p.join(_context['DATA_PATH'] as String, 'serviceaccount'),
+    );
     _context.addAll({
+      'K8S_API': _k8sMockApi,
       'TRACKING_SERVER_GRPC_PORT': _trackingHarness.grpcPort,
       'TRACKING_SERVER_HEALTH_PORT': _trackingHarness.healthPort,
     });
@@ -134,20 +140,8 @@ class SarSysOpsHarness extends TestHarness<SarSysOpsServerChannel> {
       final serviceAccountNsFile = File(p.join(serviceAccountDir.path, 'namespace'));
       if (!serviceAccountNsFile.existsSync()) {
         serviceAccountNsFile.createSync(recursive: true);
-        serviceAccountNsFile.writeAsString(_namespace);
       }
-    }
-  }
-
-  @override
-  Future afterStart() async {
-    if (_k8sMockClient != null) {
-      channel.k8s
-        ..client = _k8sMockClient
-        ..serviceAccountPath = p.join(
-          _context['DATA_PATH'] as String,
-          'serviceaccount',
-        );
+      serviceAccountNsFile.writeAsStringSync(_namespace);
     }
   }
 
@@ -156,6 +150,34 @@ class SarSysOpsHarness extends TestHarness<SarSysOpsServerChannel> {
     await _deleteTestData();
     assert(channel.router.getContexts().isEmpty, 'Contexts should be empty');
     return super.stop();
+  }
+}
+
+class _K8sMockApi extends K8sApi {
+  _K8sMockApi(
+    this.host,
+    this.port,
+    String namespace,
+    List<String> names,
+    String serviceAccountPath,
+  ) : super(
+          client: _K8sMockClient(namespace, names),
+          serviceAccountPath: serviceAccountPath,
+        );
+
+  final String host;
+  final int port;
+
+  @override
+  Uri toPodUri(
+    Map<String, dynamic> pod, {
+    String uri,
+    int port = 80,
+    String deployment,
+    String scheme = 'http',
+    String deploymentLabel = 'module',
+  }) {
+    return Uri.parse('http://$host:$port');
   }
 }
 

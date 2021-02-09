@@ -9,8 +9,7 @@ import 'package:test/test.dart';
 Future main() async {
   final harness = SarSysOpsHarness()
     ..withContext()
-    ..withK8sMockClient()
-    ..withTrackingServer()
+    ..withModules()
     ..withLogger(debug: false)
     ..install();
 

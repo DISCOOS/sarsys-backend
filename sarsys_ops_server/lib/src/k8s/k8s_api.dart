@@ -21,9 +21,9 @@ class K8sApi {
   File get namespaceFile => File('$serviceAccountPath/namespace');
   Directory get serviceAccountDir => Directory(serviceAccountPath);
   bool get isAuthorized => tokenFile.existsSync() && certFile.existsSync();
-  String get namespace =>
-      Platform.environment['POD_NAMESPACE'] ??
-      (namespaceFile.existsSync() ? namespaceFile.readAsStringSync() : 'default');
+  String get namespace => Platform.environment['POD_NAMESPACE']?.isNotEmpty == true
+      ? Platform.environment['POD_NAMESPACE']
+      : (namespaceFile.existsSync() ? namespaceFile.readAsStringSync() : 'default');
 
   HttpClient get client {
     if (certFile.existsSync()) {
