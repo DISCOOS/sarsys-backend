@@ -492,7 +492,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
       port: config.tracking.grpcPort,
     );
     final channel = channels.putIfAbsent(
-      uri.path,
+      uri.authority,
       () => ClientChannel(
         uri.host,
         port: uri.port,
@@ -502,7 +502,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
       ),
     );
     final client = _clients.putIfAbsent(
-      uri.path,
+      uri.authority,
       () => SarSysTrackingServiceClient(
         channel,
         options: CallOptions(
