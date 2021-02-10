@@ -10,6 +10,11 @@ package app.sarsys.tracking;
 // Interface exported by the server.
 service SarSysTrackingService {
 
+  // Get tracking service metadata
+  //
+  // Obtains metadata from tracking service
+  rpc GetMeta(GetMetaRequest) returns (GetMetaResponse) {}
+
   // Start tracking service
   //
   // Service will start processing
@@ -34,11 +39,6 @@ service SarSysTrackingService {
   // Service will stop managing given tracking objects
   rpc RemoveTrackings(RemoveTrackingsRequest) returns (RemoveTrackingsResponse) {}
 
-  // Get tracking service metadata
-  //
-  // Obtains metadata from tracking service
-  rpc GetMeta(GetMetaRequest) returns (GetMetaResponse) {}
-
 }
 
 enum TrackingServerStatus {
@@ -47,7 +47,7 @@ enum TrackingServerStatus {
   // If build without starting
   STATUS_READY = 1;
   // Service is started
-  STATUS_COMPETING = 2;
+  STATUS_STARTED = 2;
   // Service is stopped (will not process any events)
   STATUS_STOPPED = 3;
   // Service is disposed (must be build to resume)
@@ -218,20 +218,17 @@ message GetMetaResponse {
   // Current tracking service status
   TrackingServerStatus status = 1;
 
-  // Total number of tracking objects
-  int32 total = 2;
-
-  // Number of managed tracking object to total number of tracking objects
-  double fractionManaged = 3;
+  // Trackings metadata
+  TrackingsMeta trackings = 2;
 
   // Positions metadata
-  PositionsMeta positions = 4;
+  PositionsMeta positions = 3;
 
   // List of metadata for managed tracking objects
-  repeated TrackingMeta managerOf = 5;
+  repeated TrackingMeta managerOf = 4;
 
   // Map of repository metadata
-  RepositoryMeta repo = 6;
+  RepositoryMeta repo = 5;
 
 }
 
@@ -255,19 +252,41 @@ message TrackingMeta {
 
 }
 
-// Position metadata
+// Trackings metadata
 //
-// Summarises position metadata
+// Summarises trackings metadata
+message TrackingsMeta {
+
+  // Total number of tracking objects heard
+  int32 total = 1;
+
+  // Number of managed tracking object to total number of tracking objects
+  double fractionManaged = 2;
+
+  // Number of tracking events processed per minute
+  double eventsPerMinute = 3;
+
+  // Average processing time in milliseconds
+  int32 averageProcessingTimeMillis = 4;
+
+  // Last applied tracking event
+  EventMeta lastEvent = 5;
+
+}
+
+// Positions metadata
+//
+// Summarises positions metadata
 message PositionsMeta {
 
   // Total number of positions heard
   int32 total = 1;
 
   // Number of positions processed per minute
-  double positionsPerMinute = 2;
+  double eventsPerMinute = 2;
 
   // Average processing time in milliseconds
-  double averageProcessingTimeMillis = 3;
+  int32 averageProcessingTimeMillis = 3;
 
   // Last applied position event
   EventMeta lastEvent = 4;

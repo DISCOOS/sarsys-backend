@@ -29,7 +29,6 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
     final total = repo.count();
     final managed = service.managed;
     final response = GetMetaResponse()
-      ..total = total
       ..status = toServiceStatus()
       ..managerOf.addAll(managed.map((uuid) {
         final tracking = repo.get(uuid);
@@ -50,14 +49,22 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
           ..positionCount = positionCount;
       }))
       ..positions = (PositionsMeta()
-        ..positionsPerMinute = 0
         ..total = positionsTotal
-        ..averageProcessingTimeMillis = 0
+        ..eventsPerMinute = service.positionMetrics.rateExp * 60
+        ..averageProcessingTimeMillis = service.positionMetrics.meanExp.inMilliseconds
         ..lastEvent = toEventMeta(
-          service.lastEvent,
+          service.lastPositionEvent,
           store,
         ))
-      ..fractionManaged = total > 0 ? managed.length / total : 0;
+      ..trackings = (TrackingsMeta()
+        ..total = total
+        ..eventsPerMinute = service.positionMetrics.rateExp * 60
+        ..averageProcessingTimeMillis = service.positionMetrics.meanExp.inMilliseconds
+        ..lastEvent = toEventMeta(
+          service.lastPositionEvent,
+          store,
+        )
+        ..fractionManaged = total > 0 ? managed.length / total : 0);
     if (expand.contains(ExpandFields.EXPAND_FIELDS_REPO)) {
       final meta = await repo.toMeta(
         data: false,
@@ -94,7 +101,7 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
       return TrackingServerStatus.STATUS_STOPPED;
     }
     if (service.isCompeting) {
-      return TrackingServerStatus.STATUS_COMPETING;
+      return TrackingServerStatus.STATUS_STARTED;
     }
     if (service.isDisposed) {
       return TrackingServerStatus.STATUS_DISPOSED;

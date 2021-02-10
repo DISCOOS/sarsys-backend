@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
+import 'package:meta/meta.dart';
 import 'package:args/args.dart';
 import 'package:ansicolor/ansicolor.dart';
 import 'package:args/command_runner.dart';
@@ -14,6 +16,32 @@ final highlight = AnsiPen()..gray();
 final red = AnsiPen()..red(bold: true);
 final gray = AnsiPen()..gray(level: 0.5);
 final green = AnsiPen()..green(bold: true);
+final fill = (int length, [String delimiter = ' ']) => List.filled(length, delimiter).join();
+final pad = (String text, int indent, int max) => '${fill(indent)}$text${fill(math.max(0, max - '$text'.length))}';
+
+void vprint(
+  String label,
+  Object value, {
+  @required StringBuffer buffer,
+  int max = 30,
+  int left = 15,
+  int indent = 2,
+  String unit = '',
+}) {
+  final _value = (value ?? '').toString();
+  final length = left + _value.length + 2;
+  final prefix = '${pad('$label:', indent, left)}${green(_value)}';
+  final rest = (unit ?? '').isEmpty ? 0 : math.max(0, max - length - '$unit'.length);
+  if (rest > 0) {
+    buffer.writeln(
+      '$prefix${rest > 0 ? '${fill(rest)}${gray('($unit)')}' : ''}',
+    );
+  } else {
+    buffer.writeln(
+      '$prefix${rest > 0 ? '${fill(rest)}${gray('($unit)')}' : ''}',
+    );
+  }
+}
 
 const defaultConfig = {
   'ops': {
@@ -130,13 +158,14 @@ abstract class BaseCommand extends Command<String> {
     final result = '${response.statusCode} ${response.reasonPhrase} in ';
     if (HttpStatus.ok == response.statusCode) {
       final content = map(await toContent(response));
-      buffer.write(
+      buffer.writeln(
         format == null ? green(content) : format(content),
       );
+      buffer.write('  ');
     } else {
-      buffer.write(red('Failure'));
+      buffer.write(red('  Failure'));
     }
-    buffer.write(gray(' ($result${DateTime.now().difference(tic).inMilliseconds} ms)'));
+    buffer.write(gray('($result${DateTime.now().difference(tic).inMilliseconds} ms)'));
     return buffer.toString();
   }
 
@@ -159,11 +188,12 @@ abstract class BaseCommand extends Command<String> {
     final response = await request.close();
     final result = '${response.statusCode} ${response.reasonPhrase} in ';
     if (HttpStatus.ok == response.statusCode) {
-      buffer.write(green(map(await toContent(response))));
+      buffer.writeln(green(map(await toContent(response))));
+      buffer.write('  ');
     } else {
-      buffer.write(red('Failure'));
+      buffer.write(red('  Failure'));
     }
-    buffer.write(gray(' ($result${DateTime.now().difference(tic).inMilliseconds} ms)'));
+    buffer.write(gray('($result${DateTime.now().difference(tic).inMilliseconds} ms)'));
     return buffer.toString();
   }
 
@@ -184,7 +214,7 @@ abstract class BaseCommand extends Command<String> {
     final response = await request.close();
     final reason = '${response.statusCode} ${response.reasonPhrase} in ';
     if (HttpStatus.ok == response.statusCode) {
-      buffer.write(green('$access'));
+      buffer.write(green('$access '));
     } else {
       buffer.write(red('$failure'));
     }

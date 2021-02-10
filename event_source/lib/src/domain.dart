@@ -1230,11 +1230,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   StreamRequest _checkSlowPush(StreamRequestCompleted result, int limit) {
     final request = result.request;
-    final metric = _metrics['push'].now(request.created);
-    if (metric.duration.inMilliseconds > limit) {
+    final metric = _metrics['push'].next(request.created);
+    if (metric.last.inMilliseconds > limit) {
       context.warning(
         'SLOW PUSH: ${(result.request.tag as Transaction).toTagAsString()} '
-        'took ${metric.duration.inMilliseconds} ms',
+        'took ${metric.last.inMilliseconds} ms',
         category: 'Repository._checkSlowPush',
       );
     }

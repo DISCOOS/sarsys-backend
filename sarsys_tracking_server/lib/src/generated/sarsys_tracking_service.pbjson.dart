@@ -10,7 +10,7 @@ const TrackingServerStatus$json = const {
   '2': const [
     const {'1': 'STATUS_NONE', '2': 0},
     const {'1': 'STATUS_READY', '2': 1},
-    const {'1': 'STATUS_COMPETING', '2': 2},
+    const {'1': 'STATUS_STARTED', '2': 2},
     const {'1': 'STATUS_STOPPED', '2': 3},
     const {'1': 'STATUS_DISPOSED', '2': 4},
   ],
@@ -178,17 +178,17 @@ const GetMetaResponse$json = const {
       '6': '.app.sarsys.tracking.TrackingServerStatus',
       '10': 'status'
     },
-    const {'1': 'total', '3': 2, '4': 1, '5': 5, '10': 'total'},
     const {
-      '1': 'fractionManaged',
-      '3': 3,
+      '1': 'trackings',
+      '3': 2,
       '4': 1,
-      '5': 1,
-      '10': 'fractionManaged'
+      '5': 11,
+      '6': '.app.sarsys.tracking.TrackingsMeta',
+      '10': 'trackings'
     },
     const {
       '1': 'positions',
-      '3': 4,
+      '3': 3,
       '4': 1,
       '5': 11,
       '6': '.app.sarsys.tracking.PositionsMeta',
@@ -196,7 +196,7 @@ const GetMetaResponse$json = const {
     },
     const {
       '1': 'managerOf',
-      '3': 5,
+      '3': 4,
       '4': 3,
       '5': 11,
       '6': '.app.sarsys.tracking.TrackingMeta',
@@ -204,7 +204,7 @@ const GetMetaResponse$json = const {
     },
     const {
       '1': 'repo',
-      '3': 6,
+      '3': 5,
       '4': 1,
       '5': 11,
       '6': '.app.sarsys.tracking.RepositoryMeta',
@@ -230,22 +230,58 @@ const TrackingMeta$json = const {
   ],
 };
 
+const TrackingsMeta$json = const {
+  '1': 'TrackingsMeta',
+  '2': const [
+    const {'1': 'total', '3': 1, '4': 1, '5': 5, '10': 'total'},
+    const {
+      '1': 'fractionManaged',
+      '3': 2,
+      '4': 1,
+      '5': 1,
+      '10': 'fractionManaged'
+    },
+    const {
+      '1': 'eventsPerMinute',
+      '3': 3,
+      '4': 1,
+      '5': 1,
+      '10': 'eventsPerMinute'
+    },
+    const {
+      '1': 'averageProcessingTimeMillis',
+      '3': 4,
+      '4': 1,
+      '5': 5,
+      '10': 'averageProcessingTimeMillis'
+    },
+    const {
+      '1': 'lastEvent',
+      '3': 5,
+      '4': 1,
+      '5': 11,
+      '6': '.app.sarsys.tracking.EventMeta',
+      '10': 'lastEvent'
+    },
+  ],
+};
+
 const PositionsMeta$json = const {
   '1': 'PositionsMeta',
   '2': const [
     const {'1': 'total', '3': 1, '4': 1, '5': 5, '10': 'total'},
     const {
-      '1': 'positionsPerMinute',
+      '1': 'eventsPerMinute',
       '3': 2,
       '4': 1,
       '5': 1,
-      '10': 'positionsPerMinute'
+      '10': 'eventsPerMinute'
     },
     const {
       '1': 'averageProcessingTimeMillis',
       '3': 3,
       '4': 1,
-      '5': 1,
+      '5': 5,
       '10': 'averageProcessingTimeMillis'
     },
     const {

@@ -707,20 +707,15 @@ class GetMetaResponse extends $pb.GeneratedMessage {
         defaultOrMaker: TrackingServerStatus.STATUS_NONE,
         valueOf: TrackingServerStatus.valueOf,
         enumValues: TrackingServerStatus.values)
-    ..a<$core.int>(
-        2,
-        const $core.bool.fromEnvironment('protobuf.omit_field_names')
-            ? ''
-            : 'total',
-        $pb.PbFieldType.O3)
-    ..a<$core.double>(
-        3,
-        const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'fractionManaged',
-        $pb.PbFieldType.OD,
-        protoName: 'fractionManaged')
-    ..aOM<PositionsMeta>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'positions', subBuilder: PositionsMeta.create)
-    ..pc<TrackingMeta>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'managerOf', $pb.PbFieldType.PM, protoName: 'managerOf', subBuilder: TrackingMeta.create)
-    ..aOM<RepositoryMeta>(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'repo', subBuilder: RepositoryMeta.create)
+    ..aOM<TrackingsMeta>(
+        2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'trackings',
+        subBuilder: TrackingsMeta.create)
+    ..aOM<PositionsMeta>(
+        3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'positions',
+        subBuilder: PositionsMeta.create)
+    ..pc<TrackingMeta>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'managerOf', $pb.PbFieldType.PM,
+        protoName: 'managerOf', subBuilder: TrackingMeta.create)
+    ..aOM<RepositoryMeta>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'repo', subBuilder: RepositoryMeta.create)
     ..hasRequiredFields = false;
 
   GetMetaResponse._() : super();
@@ -765,59 +760,49 @@ class GetMetaResponse extends $pb.GeneratedMessage {
   void clearStatus() => clearField(1);
 
   @$pb.TagNumber(2)
-  $core.int get total => $_getIZ(1);
+  TrackingsMeta get trackings => $_getN(1);
   @$pb.TagNumber(2)
-  set total($core.int v) {
-    $_setSignedInt32(1, v);
+  set trackings(TrackingsMeta v) {
+    setField(2, v);
   }
 
   @$pb.TagNumber(2)
-  $core.bool hasTotal() => $_has(1);
+  $core.bool hasTrackings() => $_has(1);
   @$pb.TagNumber(2)
-  void clearTotal() => clearField(2);
+  void clearTrackings() => clearField(2);
+  @$pb.TagNumber(2)
+  TrackingsMeta ensureTrackings() => $_ensure(1);
 
   @$pb.TagNumber(3)
-  $core.double get fractionManaged => $_getN(2);
+  PositionsMeta get positions => $_getN(2);
   @$pb.TagNumber(3)
-  set fractionManaged($core.double v) {
-    $_setDouble(2, v);
-  }
-
-  @$pb.TagNumber(3)
-  $core.bool hasFractionManaged() => $_has(2);
-  @$pb.TagNumber(3)
-  void clearFractionManaged() => clearField(3);
-
-  @$pb.TagNumber(4)
-  PositionsMeta get positions => $_getN(3);
-  @$pb.TagNumber(4)
   set positions(PositionsMeta v) {
-    setField(4, v);
+    setField(3, v);
   }
 
+  @$pb.TagNumber(3)
+  $core.bool hasPositions() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearPositions() => clearField(3);
+  @$pb.TagNumber(3)
+  PositionsMeta ensurePositions() => $_ensure(2);
+
   @$pb.TagNumber(4)
-  $core.bool hasPositions() => $_has(3);
-  @$pb.TagNumber(4)
-  void clearPositions() => clearField(4);
-  @$pb.TagNumber(4)
-  PositionsMeta ensurePositions() => $_ensure(3);
+  $core.List<TrackingMeta> get managerOf => $_getList(3);
 
   @$pb.TagNumber(5)
-  $core.List<TrackingMeta> get managerOf => $_getList(4);
-
-  @$pb.TagNumber(6)
-  RepositoryMeta get repo => $_getN(5);
-  @$pb.TagNumber(6)
+  RepositoryMeta get repo => $_getN(4);
+  @$pb.TagNumber(5)
   set repo(RepositoryMeta v) {
-    setField(6, v);
+    setField(5, v);
   }
 
-  @$pb.TagNumber(6)
-  $core.bool hasRepo() => $_has(5);
-  @$pb.TagNumber(6)
-  void clearRepo() => clearField(6);
-  @$pb.TagNumber(6)
-  RepositoryMeta ensureRepo() => $_ensure(5);
+  @$pb.TagNumber(5)
+  $core.bool hasRepo() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearRepo() => clearField(5);
+  @$pb.TagNumber(5)
+  RepositoryMeta ensureRepo() => $_ensure(4);
 }
 
 class TrackingMeta extends $pb.GeneratedMessage {
@@ -923,6 +908,122 @@ class TrackingMeta extends $pb.GeneratedMessage {
   EventMeta ensureLastEvent() => $_ensure(3);
 }
 
+class TrackingsMeta extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'TrackingsMeta',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'app.sarsys.tracking'),
+      createEmptyInstance: create)
+    ..a<$core.int>(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'total',
+        $pb.PbFieldType.O3)
+    ..a<$core.double>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'fractionManaged', $pb.PbFieldType.OD,
+        protoName: 'fractionManaged')
+    ..a<$core.double>(
+        3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'eventsPerMinute', $pb.PbFieldType.OD,
+        protoName: 'eventsPerMinute')
+    ..a<$core.int>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'averageProcessingTimeMillis', $pb.PbFieldType.O3,
+        protoName: 'averageProcessingTimeMillis')
+    ..aOM<EventMeta>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'lastEvent',
+        protoName: 'lastEvent', subBuilder: EventMeta.create)
+    ..hasRequiredFields = false;
+
+  TrackingsMeta._() : super();
+  factory TrackingsMeta() => create();
+  factory TrackingsMeta.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+  factory TrackingsMeta.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  TrackingsMeta clone() => TrackingsMeta()..mergeFromMessage(this);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  TrackingsMeta copyWith(void Function(TrackingsMeta) updates) =>
+      super.copyWith((message) =>
+          updates(message as TrackingsMeta)); // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static TrackingsMeta create() => TrackingsMeta._();
+  TrackingsMeta createEmptyInstance() => create();
+  static $pb.PbList<TrackingsMeta> createRepeated() =>
+      $pb.PbList<TrackingsMeta>();
+  @$core.pragma('dart2js:noInline')
+  static TrackingsMeta getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<TrackingsMeta>(create);
+  static TrackingsMeta _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get total => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set total($core.int v) {
+    $_setSignedInt32(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasTotal() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTotal() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.double get fractionManaged => $_getN(1);
+  @$pb.TagNumber(2)
+  set fractionManaged($core.double v) {
+    $_setDouble(1, v);
+  }
+
+  @$pb.TagNumber(2)
+  $core.bool hasFractionManaged() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearFractionManaged() => clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.double get eventsPerMinute => $_getN(2);
+  @$pb.TagNumber(3)
+  set eventsPerMinute($core.double v) {
+    $_setDouble(2, v);
+  }
+
+  @$pb.TagNumber(3)
+  $core.bool hasEventsPerMinute() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearEventsPerMinute() => clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.int get averageProcessingTimeMillis => $_getIZ(3);
+  @$pb.TagNumber(4)
+  set averageProcessingTimeMillis($core.int v) {
+    $_setSignedInt32(3, v);
+  }
+
+  @$pb.TagNumber(4)
+  $core.bool hasAverageProcessingTimeMillis() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearAverageProcessingTimeMillis() => clearField(4);
+
+  @$pb.TagNumber(5)
+  EventMeta get lastEvent => $_getN(4);
+  @$pb.TagNumber(5)
+  set lastEvent(EventMeta v) {
+    setField(5, v);
+  }
+
+  @$pb.TagNumber(5)
+  $core.bool hasLastEvent() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearLastEvent() => clearField(5);
+  @$pb.TagNumber(5)
+  EventMeta ensureLastEvent() => $_ensure(4);
+}
+
 class PositionsMeta extends $pb.GeneratedMessage {
   static final $pb.BuilderInfo _i =
       $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'PositionsMeta',
@@ -938,12 +1039,12 @@ class PositionsMeta extends $pb.GeneratedMessage {
                 : 'total',
             $pb.PbFieldType.O3)
         ..a<$core.double>(
-            2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'positionsPerMinute', $pb.PbFieldType.OD,
-            protoName: 'positionsPerMinute')
-        ..a<$core.double>(
-            3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'averageProcessingTimeMillis', $pb.PbFieldType.OD,
+            2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'eventsPerMinute', $pb.PbFieldType.OD,
+            protoName: 'eventsPerMinute')
+        ..a<$core.int>(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'averageProcessingTimeMillis', $pb.PbFieldType.O3,
             protoName: 'averageProcessingTimeMillis')
-        ..aOM<EventMeta>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'lastEvent',
+        ..aOM<EventMeta>(
+            4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'lastEvent',
             protoName: 'lastEvent', subBuilder: EventMeta.create)
         ..hasRequiredFields = false;
 
@@ -989,22 +1090,22 @@ class PositionsMeta extends $pb.GeneratedMessage {
   void clearTotal() => clearField(1);
 
   @$pb.TagNumber(2)
-  $core.double get positionsPerMinute => $_getN(1);
+  $core.double get eventsPerMinute => $_getN(1);
   @$pb.TagNumber(2)
-  set positionsPerMinute($core.double v) {
+  set eventsPerMinute($core.double v) {
     $_setDouble(1, v);
   }
 
   @$pb.TagNumber(2)
-  $core.bool hasPositionsPerMinute() => $_has(1);
+  $core.bool hasEventsPerMinute() => $_has(1);
   @$pb.TagNumber(2)
-  void clearPositionsPerMinute() => clearField(2);
+  void clearEventsPerMinute() => clearField(2);
 
   @$pb.TagNumber(3)
-  $core.double get averageProcessingTimeMillis => $_getN(2);
+  $core.int get averageProcessingTimeMillis => $_getIZ(2);
   @$pb.TagNumber(3)
-  set averageProcessingTimeMillis($core.double v) {
-    $_setDouble(2, v);
+  set averageProcessingTimeMillis($core.int v) {
+    $_setSignedInt32(2, v);
   }
 
   @$pb.TagNumber(3)
