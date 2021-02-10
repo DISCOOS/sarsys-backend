@@ -62,11 +62,14 @@ class TrackingServiceCommandsController extends OperationsBaseController {
       final meta = await _doGetMetaByName(pod, expand);
       metas.add(meta);
     }
-    final statusCode = toStatusCode(metas);
-    return Response(
-      statusCode,
-      {},
-      metas,
+    return _toResponse(
+      name: 'name',
+      body: metas,
+      method: 'doGetMeta',
+      args: {'expand': expand},
+      statusCode: toStatusCode(
+        metas,
+      ),
     );
   }
 
@@ -81,20 +84,31 @@ class TrackingServiceCommandsController extends OperationsBaseController {
 
   @override
   Future<Response> doGetMetaByName(String name, String expand) async {
-    final pod = await _getPod(name);
+    final pod = await _getPod(
+      name,
+    );
     if (pod == null) {
-      return Response.notFound(
+      return _toResponse(
+        name: name,
+        args: {'expand': expand},
+        method: 'doGetMetaByName',
+        statusCode: HttpStatus.notFound,
         body: "$type instance '$name' not found",
       );
     }
-    final meta = await _doGetMetaByName(pod, expand);
-    return Response(
-      meta.elementAt<int>(
+    final meta = await _doGetMetaByName(
+      pod,
+      expand,
+    );
+    return _toResponse(
+      name: name,
+      body: meta,
+      args: {'expand': expand},
+      method: 'doGetMetaByName',
+      statusCode: meta.elementAt<int>(
         'error/statusCode',
         defaultValue: HttpStatus.ok,
       ),
-      {},
-      meta,
     );
   }
 
@@ -106,21 +120,369 @@ class TrackingServiceCommandsController extends OperationsBaseController {
       ..expand.addAll([
         if (shouldExpand(expand, 'repo')) ExpandFields.EXPAND_FIELDS_REPO,
       ]));
-    final name = k8s.toPodName(pod);
-    logger.fine(
-      Context.toMethod('_doGetMetaByName', [
-        'name: $name',
-        'expand: $expand',
-      ]),
-    );
-    return _toJsonGetMetaResponse(
-      name,
+    return _toJsonMeta(
+      k8s.toPodName(pod),
       meta,
       expand,
     );
   }
 
-  Map<String, Object> _toJsonGetMetaResponse(String name, GetMetaResponse meta, String expand) {
+  @override
+  @Operation.post()
+  Future<Response> execute(
+    @Bind.body() Map<String, dynamic> body, {
+    @Bind.query('expand') String expand,
+  }) =>
+      super.execute(body, expand: expand);
+
+  @override
+  Future<Response> doExecute(
+    String command,
+    Map<String, dynamic> body,
+    String expand,
+  ) async {
+    final pods = await k8s.getPodsFromNs(
+      k8s.namespace,
+      labels: [
+        'module=$module',
+      ],
+    );
+    switch (command) {
+      case 'start_all':
+        return doStartAll(pods, expand);
+      case 'stop_all':
+        return doStopAll(pods, expand);
+    }
+    return _toResponse(
+      name: 'all',
+      method: 'execute',
+      statusCode: HttpStatus.notFound,
+      body: "$type command '$command' not found",
+      args: {'command': command, 'expand': expand},
+    );
+  }
+
+  @override
+  @Operation.post('name')
+  Future<Response> executeByName(
+    @Bind.path('name') String name,
+    @Bind.body() Map<String, dynamic> body, {
+    @Bind.query('expand') String expand,
+  }) {
+    return super.executeByName(name, body, expand: expand);
+  }
+
+  @override
+  Future<Response> doExecuteByName(
+    String name,
+    String command,
+    Map<String, dynamic> body,
+    String expand,
+  ) async {
+    final pod = await _getPod(name);
+    if (pod == null) {
+      return _toResponse(
+        name: name,
+        method: 'doExecuteByName',
+        statusCode: HttpStatus.notFound,
+        body: "$type instance '$name' not found",
+        args: {'command': command, 'expand': expand},
+      );
+    }
+    switch (command) {
+      case 'start':
+        return doStart(pod, expand);
+      case 'stop':
+        return doStop(pod, expand);
+      case 'add_trackings':
+        return doAddTrackings(
+          pod,
+          body.listAt<String>(
+            'uuids',
+            defaultList: [],
+          ),
+          expand,
+        );
+      case 'remove_trackings':
+        return doRemoveTrackings(
+          pod,
+          body.listAt<String>(
+            'uuids',
+            defaultList: [],
+          ),
+          expand,
+        );
+    }
+    return _toResponse(
+      name: name,
+      method: 'doExecuteByName',
+      statusCode: HttpStatus.notFound,
+      args: {'command': command, 'expand': expand},
+      body: "$type command instance '$command' not found",
+    );
+  }
+
+  Future<Response> doStartAll(
+    List<Map<String, dynamic>> pods,
+    String expand,
+  ) async {
+    final metas = <Map<String, dynamic>>[];
+    for (var pod in pods) {
+      final meta = await _doStart(pod, expand);
+      metas.add(meta);
+    }
+    return _toResponse(
+      name: 'all',
+      body: metas,
+      method: 'doStartAll',
+      args: {'expand': expand},
+      statusCode: toStatusCode(metas),
+    );
+  }
+
+  Future<Response> doStopAll(
+    List<Map<String, dynamic>> pods,
+    String expand,
+  ) async {
+    final metas = <Map<String, dynamic>>[];
+    for (var pod in pods) {
+      final meta = await _doStop(pod, expand);
+      metas.add(meta);
+    }
+    return _toResponse(
+      name: 'all',
+      body: metas,
+      method: 'doStopAll',
+      args: {'expand': expand},
+      statusCode: toStatusCode(metas),
+    );
+  }
+
+  int toStatusCode(List<Map<String, dynamic>> metas) {
+    final errors = metas
+        .where((meta) => meta.hasPath('error'))
+        .map(
+          (meta) => meta.elementAt<int>('error/statusCode'),
+        )
+        .toList();
+    return errors.isEmpty ? HttpStatus.ok : (errors.length == 1 ? errors.first : HttpStatus.partialContent);
+  }
+
+  Future<Response> doStart(
+    Map<String, dynamic> pod,
+    String expand,
+  ) async {
+    final meta = await _doStart(pod, expand);
+    return _toResponse(
+      body: meta,
+      method: 'doStart',
+      name: k8s.toPodName(pod),
+      args: {'expand': expand},
+      statusCode: toStatusCode([meta]),
+    );
+  }
+
+  Future<Map<String, dynamic>> _doStart(
+    Map<String, dynamic> pod,
+    String expand,
+  ) async {
+    final response = await toClient(pod).start(
+      StartTrackingRequest()
+        ..expand.addAll([
+          if (shouldExpand(expand, 'repo')) ExpandFields.EXPAND_FIELDS_REPO,
+        ]),
+    );
+    return {
+      'meta': _toJsonMeta(
+        k8s.toPodName(pod),
+        response.meta,
+        expand,
+      ),
+      if (response.statusCode != HttpStatus.ok)
+        'error': {
+          'statusCode': response.statusCode,
+          'reasonPhrase': response.reasonPhrase,
+        }
+    };
+  }
+
+  Future<Response> doStop(
+    Map<String, dynamic> pod,
+    String expand,
+  ) async {
+    final meta = await _doStop(pod, expand);
+    return _toResponse(
+      body: meta,
+      method: 'doStop',
+      name: k8s.toPodName(pod),
+      args: {'expand': expand},
+      statusCode: toStatusCode([meta]),
+    );
+  }
+
+  Future<Map<String, dynamic>> _doStop(
+    Map<String, dynamic> pod,
+    String expand,
+  ) async {
+    final response = await toClient(pod).stop(
+      StopTrackingRequest()
+        ..expand.addAll([
+          if (shouldExpand(expand, 'repo')) ExpandFields.EXPAND_FIELDS_REPO,
+        ]),
+    );
+    return {
+      'meta': _toJsonMeta(
+        k8s.toPodName(pod),
+        response.meta,
+        expand,
+      ),
+      if (response.statusCode != HttpStatus.ok)
+        'error': {
+          'statusCode': response.statusCode,
+          'reasonPhrase': response.reasonPhrase,
+        }
+    };
+  }
+
+  Future<Response> doAddTrackings(
+    Map<String, dynamic> pod,
+    List<String> uuids,
+    String expand,
+  ) async {
+    final name = k8s.toPodName(pod);
+    final args = {'command': 'add_trackings', 'expand': expand};
+    if (uuids.isEmpty) {
+      return _toResponse(
+        name: name,
+        args: args,
+        method: 'doExecuteByName',
+        statusCode: HttpStatus.badRequest,
+        body: "One ore more tracing uuids are required ('uuids' was empty)",
+      );
+    }
+    final response = await toClient(pod).addTrackings(
+      AddTrackingsRequest()
+        ..uuids.addAll(uuids)
+        ..expand.addAll([
+          if (shouldExpand(expand, 'repo')) ExpandFields.EXPAND_FIELDS_REPO,
+        ]),
+    );
+    return _toResponse(
+      name: name,
+      args: args,
+      method: 'doAddTrackings',
+      body: {
+        'meta': _toJsonMeta(
+          k8s.toPodName(pod),
+          response.meta,
+          expand,
+        ),
+        if (response.failed.isNotEmpty)
+          'error': {
+            'failed': response.failed,
+            'statusCode': response.statusCode,
+            'reasonPhrase': response.reasonPhrase,
+          }
+      },
+      statusCode: response.statusCode,
+    );
+  }
+
+  Future<Response> doRemoveTrackings(
+    Map<String, dynamic> pod,
+    List<String> uuids,
+    String expand,
+  ) async {
+    final name = k8s.toPodName(pod);
+    final args = {'command': 'remove_trackings', 'expand': expand};
+    if (uuids.isEmpty) {
+      return _toResponse(
+        name: name,
+        args: args,
+        method: 'doExecuteByName',
+        statusCode: HttpStatus.badRequest,
+        body: "One ore more tracing uuids are required ('uuids' was empty)",
+      );
+    }
+    final response = await toClient(pod).removeTrackings(
+      RemoveTrackingsRequest()
+        ..uuids.addAll(uuids)
+        ..expand.addAll([
+          if (shouldExpand(expand, 'repo')) ExpandFields.EXPAND_FIELDS_REPO,
+        ]),
+    );
+    return _toResponse(
+      name: name,
+      args: args,
+      method: 'doRemoveTrackings',
+      body: {
+        'meta': _toJsonMeta(
+          k8s.toPodName(pod),
+          response.meta,
+          expand,
+        ),
+        if (response.failed.isNotEmpty)
+          'error': {
+            'failed': response.failed,
+            'statusCode': response.statusCode,
+            'reasonPhrase': response.reasonPhrase,
+          }
+      },
+      statusCode: response.statusCode,
+    );
+  }
+
+  SarSysTrackingServiceClient toClient(Map<String, dynamic> pod) {
+    final uri = k8s.toPodUri(
+      pod,
+      deployment: module,
+      port: config.tracking.grpcPort,
+    );
+    final channel = channels.putIfAbsent(
+      uri.authority,
+      () => ClientChannel(
+        uri.host,
+        port: uri.port,
+        options: const ChannelOptions(
+          credentials: ChannelCredentials.insecure(),
+        ),
+      ),
+    );
+    final client = _clients.putIfAbsent(
+      uri.authority,
+      () => SarSysTrackingServiceClient(
+        channel,
+        options: CallOptions(
+          timeout: const Duration(
+            seconds: 30,
+          ),
+        ),
+      ),
+    );
+    logger.fine(
+      Context.toMethod('toClient', [
+        'host: ${channel.host}',
+        'port: ${channel.port}',
+      ]),
+    );
+    return client;
+  }
+
+  Future<Map<String, dynamic>> _getPod(String name) async {
+    final pods = await k8s.getPodsFromNs(
+      k8s.namespace,
+      labels: [
+        'module=$module',
+      ],
+    );
+    final Map<String, dynamic> pod = pods.firstWhere(
+      (pod) => name == k8s.toPodName(pod),
+      orElse: () => null,
+    );
+    return pod;
+  }
+
+  Map<String, Object> _toJsonMeta(String name, GetMetaResponse meta, String expand) {
     return {
       'name': name,
       'status': _toStatus(meta),
@@ -134,7 +496,9 @@ class TrackingServiceCommandsController extends OperationsBaseController {
   }
 
   String _toStatus(GetMetaResponse meta) {
-    return capitalize(enumName(meta.status).split('_').last);
+    return capitalize(
+      enumName(meta.status).split('_').last,
+    );
   }
 
   List<Map<String, dynamic>> _toJsonManagerOf(GetMetaResponse meta) => meta.managerOf
@@ -173,361 +537,25 @@ class TrackingServiceCommandsController extends OperationsBaseController {
         'averageProcessingTimeMillis': meta.averageProcessingTimeMillis,
       };
 
-  @override
-  @Operation.post()
-  Future<Response> execute(
-    @Bind.body() Map<String, dynamic> body, {
-    @Bind.query('expand') String expand,
-  }) =>
-      super.execute(body, expand: expand);
-
-  @override
-  Future<Response> doExecute(
-    String command,
-    Map<String, dynamic> body,
-    String expand,
-  ) async {
-    final pods = await k8s.getPodsFromNs(
-      k8s.namespace,
-      labels: [
-        'module=$module',
-      ],
-    );
-    switch (command) {
-      case 'start_all':
-        return doStartAll(pods, expand);
-      case 'stop_all':
-        return doStopAll(pods, expand);
-    }
-    return Response.badRequest(
-      body: "$type command '$command' not found",
-    );
-  }
-
-  @override
-  @Operation.post('name')
-  Future<Response> executeByName(
-    @Bind.path('name') String name,
-    @Bind.body() Map<String, dynamic> body, {
-    @Bind.query('expand') String expand,
+  Response _toResponse({
+    @required String name,
+    @required String method,
+    @required int statusCode,
+    @required Map<String, dynamic> args,
+    dynamic body,
   }) {
-    return super.executeByName(name, body, expand: expand);
-  }
-
-  @override
-  Future<Response> doExecuteByName(
-    String name,
-    String command,
-    Map<String, dynamic> body,
-    String expand,
-  ) async {
-    final pod = await _getPod(name);
-    if (pod == null) {
-      return Response.notFound(
-        body: "$type instance '$name' not found",
-      );
-    }
-    switch (command) {
-      case 'start':
-        return doStart(pod, expand);
-      case 'stop':
-        return doStop(pod, expand);
-      case 'add_trackings':
-        final uuids = body.listAt<String>(
-          'uuids',
-          defaultList: [],
-        );
-        if (uuids.isEmpty) {
-          return Response.badRequest(
-            body: "One ore more tracing uuids are required ('uuids' was empty)",
-          );
-        }
-        return doAddTrackings(pod, uuids, expand);
-      case 'remove_trackings':
-        final uuids = body.listAt<String>(
-          'uuids',
-          defaultList: [],
-        );
-        if (uuids.isEmpty) {
-          return Response.badRequest(
-            body: "One ore more tracing uuids are required ('uuids' was empty)",
-          );
-        }
-        return doRemoveTrackings(pod, uuids, expand);
-    }
-    return Response.badRequest(
-      body: "$type instance command '$command' not found",
+    logger.fine(
+      Context.toMethod('method', [
+        'name: $name',
+        ...args.entries.map((entry) => '${entry.key}: ${entry.value}'),
+        'response: $body',
+      ]),
     );
-  }
-
-  Future<Map<String, dynamic>> _getPod(String name) async {
-    final pods = await k8s.getPodsFromNs(
-      k8s.namespace,
-      labels: [
-        'module=$module',
-      ],
-    );
-    final Map<String, dynamic> pod = pods.firstWhere(
-      (pod) => name == k8s.toPodName(pod),
-      orElse: () => null,
-    );
-    return pod;
-  }
-
-  Future<Response> doStartAll(
-    List<Map<String, dynamic>> pods,
-    String expand,
-  ) async {
-    final metas = <Map<String, dynamic>>[];
-    for (var pod in pods) {
-      final meta = await _doStart(pod, expand);
-      metas.add(meta);
-    }
-    final statusCode = toStatusCode(metas);
     return Response(
       statusCode,
       {},
-      metas,
+      body,
     );
-  }
-
-  Future<Response> doStopAll(
-    List<Map<String, dynamic>> pods,
-    String expand,
-  ) async {
-    final metas = <Map<String, dynamic>>[];
-    for (var pod in pods) {
-      final meta = await _doStop(pod, expand);
-      metas.add(meta);
-    }
-    final statusCode = toStatusCode(metas);
-    return Response(
-      statusCode,
-      {},
-      metas,
-    );
-  }
-
-  int toStatusCode(List<Map<String, dynamic>> metas) {
-    final errors = metas
-        .where((meta) => meta.hasPath('error'))
-        .map(
-          (meta) => meta.elementAt<int>('error/statusCode'),
-        )
-        .toList();
-    return errors.isEmpty ? HttpStatus.ok : (errors.length == 1 ? errors.first : HttpStatus.partialContent);
-  }
-
-  Future<Response> doStart(
-    Map<String, dynamic> pod,
-    String expand,
-  ) async {
-    final meta = await _doStart(pod, expand);
-    return Response(
-      meta.elementAt<int>(
-        'error/statusCode',
-        defaultValue: HttpStatus.ok,
-      ),
-      {},
-      meta,
-    );
-  }
-
-  Future<Map<String, dynamic>> _doStart(
-    Map<String, dynamic> pod,
-    String expand,
-  ) async {
-    final response = await toClient(pod).start(
-      StartTrackingRequest()
-        ..expand.addAll([
-          if (shouldExpand(expand, 'repo')) ExpandFields.EXPAND_FIELDS_REPO,
-        ]),
-    );
-    final name = k8s.toPodName(pod);
-    logger.fine(
-      Context.toMethod('_doStart', [
-        'name: $name',
-        'expand: $expand',
-        'statusCode: ${response.statusCode}',
-        'reasonPhrase: ${response.reasonPhrase}',
-      ]),
-    );
-    return {
-      'meta': _toJsonGetMetaResponse(
-        name,
-        response.meta,
-        expand,
-      ),
-      if (response.statusCode != HttpStatus.ok)
-        'error': {
-          'statusCode': response.statusCode,
-          'reasonPhrase': response.reasonPhrase,
-        }
-    };
-  }
-
-  Future<Response> doStop(
-    Map<String, dynamic> pod,
-    String expand,
-  ) async {
-    final meta = await _doStop(pod, expand);
-    return Response(
-      meta.elementAt<int>(
-        'error/statusCode',
-        defaultValue: HttpStatus.ok,
-      ),
-      {},
-      meta,
-    );
-  }
-
-  Future<Map<String, dynamic>> _doStop(
-    Map<String, dynamic> pod,
-    String expand,
-  ) async {
-    final response = await toClient(pod).stop(
-      StopTrackingRequest()
-        ..expand.addAll([
-          if (shouldExpand(expand, 'repo')) ExpandFields.EXPAND_FIELDS_REPO,
-        ]),
-    );
-    final name = k8s.toPodName(pod);
-    logger.fine(
-      Context.toMethod('_doStop', [
-        'name: $name',
-        'expand: $expand',
-        'statusCode: ${response.statusCode}',
-        'reasonPhrase: ${response.reasonPhrase}',
-      ]),
-    );
-    return {
-      'meta': _toJsonGetMetaResponse(
-        name,
-        response.meta,
-        expand,
-      ),
-      if (response.statusCode != HttpStatus.ok)
-        'error': {
-          'statusCode': response.statusCode,
-          'reasonPhrase': response.reasonPhrase,
-        }
-    };
-  }
-
-  Future<Response> doAddTrackings(
-    Map<String, dynamic> pod,
-    List<String> uuids,
-    String expand,
-  ) async {
-    final response = await toClient(pod).addTrackings(
-      AddTrackingsRequest()
-        ..uuids.addAll(uuids)
-        ..expand.addAll([
-          if (shouldExpand(expand, 'repo')) ExpandFields.EXPAND_FIELDS_REPO,
-        ]),
-    );
-    final name = k8s.toPodName(pod);
-    logger.fine(
-      Context.toMethod('doAddTrackings', [
-        'name: $name',
-        'expand: $expand',
-        'statusCode: ${response.statusCode}',
-        'reasonPhrase: ${response.reasonPhrase}',
-      ]),
-    );
-    return Response(
-      response.statusCode,
-      {},
-      {
-        'meta': _toJsonGetMetaResponse(
-          k8s.toPodName(pod),
-          response.meta,
-          expand,
-        ),
-        if (response.failed.isNotEmpty)
-          'error': {
-            'failed': response.failed,
-            'statusCode': response.statusCode,
-            'reasonPhrase': response.reasonPhrase,
-          }
-      },
-    );
-  }
-
-  Future<Response> doRemoveTrackings(
-    Map<String, dynamic> pod,
-    List<String> uuids,
-    String expand,
-  ) async {
-    final response = await toClient(pod).removeTrackings(
-      RemoveTrackingsRequest()
-        ..uuids.addAll(uuids)
-        ..expand.addAll([
-          if (shouldExpand(expand, 'repo')) ExpandFields.EXPAND_FIELDS_REPO,
-        ]),
-    );
-    final name = k8s.toPodName(pod);
-    logger.fine(
-      Context.toMethod('doAddTrackings', [
-        'name: $name',
-        'expand: $expand',
-        'statusCode: ${response.statusCode}',
-        'reasonPhrase: ${response.reasonPhrase}',
-      ]),
-    );
-    return Response(
-      response.statusCode,
-      {},
-      {
-        'meta': _toJsonGetMetaResponse(
-          k8s.toPodName(pod),
-          response.meta,
-          expand,
-        ),
-        if (response.failed.isNotEmpty)
-          'error': {
-            'failed': response.failed,
-            'statusCode': response.statusCode,
-            'reasonPhrase': response.reasonPhrase,
-          }
-      },
-    );
-  }
-
-  SarSysTrackingServiceClient toClient(Map<String, dynamic> pod) {
-    final uri = k8s.toPodUri(
-      pod,
-      deployment: module,
-      port: config.tracking.grpcPort,
-    );
-    final channel = channels.putIfAbsent(
-      uri.authority,
-      () => ClientChannel(
-        uri.host,
-        port: uri.port,
-        options: const ChannelOptions(
-          credentials: ChannelCredentials.insecure(),
-        ),
-      ),
-    );
-    final client = _clients.putIfAbsent(
-      uri.authority,
-      () => SarSysTrackingServiceClient(
-        channel,
-        options: CallOptions(
-          timeout: const Duration(
-            seconds: 30,
-          ),
-        ),
-      ),
-    );
-    logger.fine(
-      Context.toMethod('toClient', [
-        'host: ${channel.host}',
-        'port: ${channel.port}',
-      ]),
-    );
-    return client;
   }
 
   //////////////////////////////////

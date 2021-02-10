@@ -1,5 +1,4 @@
 import 'package:args/args.dart';
-import 'package:logging/logging.dart';
 import 'package:sarsys_http_core/sarsys_http_core.dart';
 import 'package:sarsys_tracking_server/sarsys_tracking_server.dart';
 

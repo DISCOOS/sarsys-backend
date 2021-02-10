@@ -110,17 +110,25 @@ class StatusModuleCommand extends BaseCommand {
 
 String _toStatuses(List items, {bool verbose = false}) {
   final buffer = StringBuffer();
+  final spaces = fill(2);
   for (var module in items.map((item) => Map.from(item))) {
-    buffer.writeln('  Module ${green(module.elementAt('name'))}');
-    _toStatus(buffer, module, indent: 4, verbose: verbose);
+    final instances = module.listAt<Map<String, dynamic>>('instances');
+    buffer.writeln(
+      '${spaces}Module: ${green(module.elementAt('name'))} '
+      '${gray('(${instances.length} instances)')}',
+    );
+    _toStatus(buffer, instances, indent: 4, verbose: verbose);
   }
   return buffer.toString();
 }
 
-void _toStatus(StringBuffer buffer, Map module, {int indent = 2, bool verbose = false}) {
+void _toStatus(
+  StringBuffer buffer,
+  List<Map<String, dynamic>> instances, {
+  int indent = 2,
+  bool verbose = false,
+}) {
   final spaces = List.filled(indent, ' ').join();
-  final instances = module.listAt('instances');
-  buffer.writeln('${spaces}Instances: ${green(instances.length)}');
   for (var instance in instances.map((item) => Map.from(item))) {
     final alive = instance.elementAt<bool>('status/health/alive');
     final ready = instance.elementAt<bool>('status/health/ready');
@@ -129,7 +137,7 @@ void _toStatus(StringBuffer buffer, Map module, {int indent = 2, bool verbose = 
       buffer.writeln('${spaces}Name: ${green(instance.elementAt('name'))}');
       buffer.writeln('${spaces}API');
       buffer.writeln('${spaces}  Alive: ${green(alive)}');
-      buffer.writeln('${spaces}  Ready: ${green(alive)}');
+      buffer.writeln('${spaces}  Ready: ${green(ready)}');
       buffer.writeln('${spaces}Deployment');
       final conditions = instance.listAt('status/conditions');
       for (var condition in conditions.map((item) => Map.from(item))) {
