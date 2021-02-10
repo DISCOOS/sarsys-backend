@@ -50,7 +50,7 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
       }))
       ..positions = (PositionsMeta()
         ..total = positionsTotal
-        ..eventsPerMinute = service.positionMetrics.rateExp * 60
+        ..eventsPerMinute = service.positionMetrics.rateExp * 60.0
         ..averageProcessingTimeMillis = service.positionMetrics.meanExp.inMilliseconds
         ..lastEvent = toEventMeta(
           service.lastPositionEvent,
@@ -58,7 +58,7 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
         ))
       ..trackings = (TrackingsMeta()
         ..total = total
-        ..eventsPerMinute = service.trackingMetrics.rateExp * 60
+        ..eventsPerMinute = service.trackingMetrics.rateExp * 60.0
         ..averageProcessingTimeMillis = service.trackingMetrics.meanExp.inMilliseconds
         ..lastEvent = toEventMeta(
           service.lastTrackingEvent,
