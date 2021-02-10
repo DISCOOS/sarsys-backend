@@ -217,8 +217,8 @@ const TrackingMeta$json = const {
   '1': 'TrackingMeta',
   '2': const [
     const {'1': 'uuid', '3': 1, '4': 1, '5': 9, '10': 'uuid'},
-    const {'1': 'trackCount', '3': 2, '4': 1, '5': 5, '10': 'trackCount'},
-    const {'1': 'positionCount', '3': 3, '4': 1, '5': 5, '10': 'positionCount'},
+    const {'1': 'trackCount', '3': 2, '4': 1, '5': 3, '10': 'trackCount'},
+    const {'1': 'positionCount', '3': 3, '4': 1, '5': 3, '10': 'positionCount'},
     const {
       '1': 'lastEvent',
       '3': 4,
@@ -233,7 +233,7 @@ const TrackingMeta$json = const {
 const TrackingsMeta$json = const {
   '1': 'TrackingsMeta',
   '2': const [
-    const {'1': 'total', '3': 1, '4': 1, '5': 5, '10': 'total'},
+    const {'1': 'total', '3': 1, '4': 1, '5': 3, '10': 'total'},
     const {
       '1': 'fractionManaged',
       '3': 2,
@@ -269,7 +269,7 @@ const TrackingsMeta$json = const {
 const PositionsMeta$json = const {
   '1': 'PositionsMeta',
   '2': const [
-    const {'1': 'total', '3': 1, '4': 1, '5': 5, '10': 'total'},
+    const {'1': 'total', '3': 1, '4': 1, '5': 3, '10': 'total'},
     const {
       '1': 'eventsPerMinute',
       '3': 2,
@@ -301,9 +301,9 @@ const EventMeta$json = const {
     const {'1': 'type', '3': 1, '4': 1, '5': 9, '10': 'type'},
     const {'1': 'uuid', '3': 2, '4': 1, '5': 9, '10': 'uuid'},
     const {'1': 'remote', '3': 3, '4': 1, '5': 8, '10': 'remote'},
-    const {'1': 'number', '3': 4, '4': 1, '5': 5, '10': 'number'},
-    const {'1': 'position', '3': 5, '4': 1, '5': 5, '10': 'position'},
-    const {'1': 'timestamp', '3': 6, '4': 1, '5': 5, '10': 'timestamp'},
+    const {'1': 'number', '3': 4, '4': 1, '5': 3, '10': 'number'},
+    const {'1': 'position', '3': 5, '4': 1, '5': 3, '10': 'position'},
+    const {'1': 'timestamp', '3': 6, '4': 1, '5': 3, '10': 'timestamp'},
   ],
 };
 
