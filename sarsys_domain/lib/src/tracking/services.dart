@@ -341,7 +341,8 @@ class TrackingService extends MessageHandler<DomainEvent> {
     if (!repo.exists(uuid)) {
       await repo.catchup();
     }
-    return repo.get(uuid, createNew: false);
+    // Only get aggregate if is exists in storage!
+    return repo.store.contains(uuid) ? repo.get(uuid) : null;
   }
 
   Future<bool> _addTracking(TrackingCreated event, bool replay) async {

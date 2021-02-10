@@ -202,7 +202,6 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
       'Not found: ${failed.join(',')}',
     );
     return response
-      ..failed.addAll(failed)
       ..reasonPhrase = 'Not found: ${failed.join(',')}'
       ..statusCode = HttpStatus.notFound;
   }
