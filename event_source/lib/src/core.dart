@@ -690,7 +690,7 @@ class DurationMetric {
   final double alpha;
 
   /// Complementary weight of previous [Duration]s
-  double get beta => 1 - alpha;
+  double get beta => 1.0 - alpha;
 
   /// Exponential moving average [last] weighted bv [alpha]
   final Duration meanExp;
@@ -705,10 +705,10 @@ class DurationMetric {
   bool get isZero => t0 == null;
 
   /// Get [Duration] between [t0] to [tn]
-  Duration get duration => isZero ? Duration.zero : tn.difference(t0);
+  Duration get total => isZero ? Duration.zero : tn.difference(t0);
 
   /// Get cumulative average of calculations per second from [t0] to [tn]
-  double get rateCum => isZero || t0 == tn ? 0 : count / min(1, duration.inSeconds);
+  double get rateCum => isZero || t0 == tn ? 0.0 : count / max(1.0, total.inSeconds);
 
   /// Get exponential moving average of calculations per second from [t0] to [tn]
   final double rateExp;
@@ -746,8 +746,9 @@ class DurationMetric {
         't0': t0?.toIso8601String(),
         'tn': t0?.toIso8601String(),
         'last': '${last.inMilliseconds}',
+        'total': '${total.inMilliseconds}',
         'cumulative': {
-          'rate': '${rateCum}',
+          'rate': '$rateCum',
           'mean': '${meanCum.inMilliseconds}',
           'variance': '${varianceCum}',
           'deviation': '${deviationCum}',
@@ -755,7 +756,7 @@ class DurationMetric {
         'exponential': {
           'beta': beta,
           'alpha': alpha,
-          'rate': '${rateExp}',
+          'rate': '$rateExp',
           'mean': '${meanExp.inMilliseconds}',
           'variance': '${varianceExp}',
           'deviation': '${deviationExp}',
