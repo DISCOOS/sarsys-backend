@@ -1,16 +1,11 @@
 import 'dart:math';
 
 import 'package:args/args.dart';
-import 'package:logging/logging.dart';
 import 'package:sarsys_http_core/sarsys_http_core.dart';
 import 'package:sarsys_ops_server/sarsys_ops_server.dart';
 
 Future main(List<String> args) async {
   stdout.writeln('Starting server with args $args...');
-  final logger = Logger("main")
-    ..onRecord.listen(
-      SarSysOpsServerChannel.printRecord,
-    );
   final parser = ArgParser()
     ..addOption("port", defaultsTo: "80", abbr: "p")
     ..addOption("config", defaultsTo: "config.yaml", abbr: "c")
@@ -31,9 +26,9 @@ Future main(List<String> args) async {
   await app.start(numberOfInstances: count > 0 ? count : 1);
 
   if (training) {
-    logger.info("Snapshot training, stopping...");
+    stdout.writeln("Snapshot training, stopping...");
     await app.stop();
   }
-  logger.info("Application started on port: ${app.options.port}.");
-  logger.info("Use Ctrl-C (SIGINT) to stop running the application.");
+  stdout.writeln("Application started on port: ${app.options.port}.");
+  stdout.writeln("Use Ctrl-C (SIGINT) to stop running the application.");
 }

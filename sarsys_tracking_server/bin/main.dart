@@ -4,10 +4,7 @@ import 'package:sarsys_http_core/sarsys_http_core.dart';
 import 'package:sarsys_tracking_server/sarsys_tracking_server.dart';
 
 Future main(List<String> args) async {
-  final logger = Logger("main")
-    ..onRecord.listen(
-      SarSysTrackingServer.printRecord,
-    );
+  stdout.writeln('Starting server with args $args...');
   final parser = ArgParser()
     ..addOption("timeout", defaultsTo: "30")
     ..addOption("training", defaultsTo: "false")
@@ -29,12 +26,12 @@ Future main(List<String> args) async {
   );
 
   if (training) {
-    logger.info("Snapshot training, stopping...");
+    stdout.writeln("Snapshot training, stopping...");
     await server.stop();
     exit(0);
   }
   await request;
 
-  logger.info("Server started with ports {health: ${results['healthPort']}, grpc: ${results['grpcPort']}}.");
-  logger.info("Use Ctrl-C (SIGINT) to stop running the server.");
+  stdout.writeln("Server started with ports {health: ${results['healthPort']}, grpc: ${results['grpcPort']}}.");
+  stdout.writeln("Use Ctrl-C (SIGINT) to stop running the server.");
 }
