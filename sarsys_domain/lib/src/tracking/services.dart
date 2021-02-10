@@ -607,7 +607,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
 
   T _firstOrNull<T>(Iterable<T> list) => list?.isNotEmpty == true ? list.first : null;
 
-  TrackModel _findTrack(TrackingModel tracking, String source) => tracking.tracks.firstWhere(
+  TrackModel _findTrack(TrackingModel tracking, String source) => tracking.tracks?.firstWhere(
         (track) => track.source.uuid == source,
         orElse: () => null,
       );
