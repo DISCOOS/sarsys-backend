@@ -22,7 +22,154 @@ class TrackingCommand extends BaseCommand {
   final description = 'tracking is used to manage tracking module';
 }
 
-class TrackingStatusCommand extends BaseCommand {
+abstract class TrackingCommandBase extends BaseCommand {
+  Future<String> executeOn(
+    String server,
+    Map<String, dynamic> args,
+    bool verbose,
+  ) async {
+    final token = await AuthUtils.getToken(this);
+    final status = await post(
+      client,
+      '/ops/api/services/tracking/$server',
+      args,
+      (result) {
+        final buffer = StringBuffer();
+        toStatus(
+          buffer,
+          result['meta'],
+          verbose: verbose,
+        );
+        return buffer.toString();
+      },
+      token: token,
+      format: (result) => result,
+    );
+    return status;
+  }
+
+  String toStatuses(List items, {bool verbose = false}) {
+    final buffer = StringBuffer();
+    for (var instance in items.map((item) => Map.from(item))) {
+      vprint('Name', instance.elementAt('name'), buffer: buffer);
+      toStatus(buffer, instance, indent: 4, verbose: verbose);
+    }
+    return buffer.toString();
+  }
+
+  void toStatus(StringBuffer buffer, Map instance, {int indent = 2, bool verbose = false}) {
+    final delimiter = fill(60, '-');
+    final columns = delimiter.length;
+    final spaces = fill(indent);
+    final trackings = instance.listAt<Map<String, dynamic>>(
+      'managerOf',
+      defaultList: [],
+    );
+    vprint(
+      'Status',
+      instance.elementAt('status'),
+      unit: 'tracking service',
+      max: columns,
+      buffer: buffer,
+      indent: indent,
+    );
+    vprint(
+      'Trackings seen',
+      instance.elementAt<int>('trackings/total', defaultValue: 0),
+      unit: 'all tracking objects',
+      max: columns,
+      buffer: buffer,
+      indent: indent,
+    );
+    vprint(
+      'Is managing',
+      trackings.length,
+      unit: '${(instance.elementAt<double>('trackings/fractionManaged', defaultValue: 0) * 100).toInt()}'
+          '% of all tracking objects',
+      max: columns,
+      buffer: buffer,
+      indent: indent,
+    );
+    vprint(
+      'TPM',
+      instance.elementAt<double>('trackings/eventsPerMinute', defaultValue: 0),
+      unit: 'trackings per minute',
+      max: columns,
+      buffer: buffer,
+      indent: indent,
+    );
+    vprint(
+      'TPT',
+      instance.elementAt<int>('trackings/averageProcessingTimeMillis', defaultValue: 0),
+      unit: 'average tracking processing in ms',
+      max: columns,
+      buffer: buffer,
+      indent: indent,
+    );
+    vprint(
+      'Processed',
+      instance.elementAt<int>('positions/total', defaultValue: 0),
+      unit: 'positions',
+      max: columns,
+      buffer: buffer,
+      indent: indent,
+    );
+    vprint(
+      'PPM',
+      instance.elementAt<double>('positions/eventsPerMinute', defaultValue: 0),
+      unit: 'positions per minute',
+      max: columns,
+      buffer: buffer,
+      indent: indent,
+    );
+    vprint(
+      'PPT',
+      instance.elementAt<int>('positions/averageProcessingTimeMillis', defaultValue: 0),
+      unit: 'average position processing in ms',
+      max: columns,
+      buffer: buffer,
+      indent: indent,
+    );
+    if (verbose) {
+      var i = 0;
+      for (var tracking in trackings.map((item) => Map<String, dynamic>.from(item))) {
+        buffer.writeln(gray('${spaces}$delimiter'));
+        vprint(
+          'Tracking',
+          tracking.elementAt('uuid'),
+          unit: '# ${++i}',
+          max: columns,
+          buffer: buffer,
+          indent: indent,
+        );
+        vprint(
+          'Last applied',
+          tracking.elementAt<String>('lastEvent/type', defaultValue: 'none'),
+          unit: 'event ${tracking.elementAt<int>('lastEvent/number')}',
+          max: columns,
+          buffer: buffer,
+          indent: indent,
+        );
+        vprint(
+          'Tracks',
+          tracking.elementAt<int>('trackCount', defaultValue: 0),
+          max: columns,
+          buffer: buffer,
+          indent: indent,
+        );
+        vprint(
+          'Positions',
+          tracking.elementAt<int>('positionCount', defaultValue: 0),
+          max: columns,
+          buffer: buffer,
+          indent: indent,
+        );
+      }
+    }
+  }
+}
+
+class TrackingStatusCommand extends TrackingCommandBase {
   TrackingStatusCommand() {
     argParser
       ..addOption(
@@ -45,7 +192,6 @@ class TrackingStatusCommand extends BaseCommand {
 
   @override
   FutureOr<String> run() async {
-    final verbose = argResults['verbose'] as bool;
     final server = argResults['server'] as String;
     writeln(highlight('> Tracking status...'), stdout);
     final token = await AuthUtils.getToken(this);
@@ -53,7 +199,10 @@ class TrackingStatusCommand extends BaseCommand {
       final statuses = await get(
         client,
         '/ops/api/services/tracking',
-        (list) => _toStatuses(list, verbose: verbose),
+        (list) => toStatuses(
+          list,
+          verbose: argResults['verbose'] as bool,
+        ),
         token: token,
         format: (result) => result,
       );
@@ -64,7 +213,11 @@ class TrackingStatusCommand extends BaseCommand {
         '/ops/api/services/tracking/$server',
         (meta) {
           final buffer = StringBuffer();
-          _toStatus(buffer, meta, verbose: verbose);
+          toStatus(
+            buffer,
+            meta,
+            verbose: argResults['verbose'] as bool,
+          );
           return buffer.toString();
         },
         token: token,
@@ -77,118 +230,23 @@ class TrackingStatusCommand extends BaseCommand {
   }
 }
 
-class TrackingAddCommand extends BaseCommand {
-  TrackingAddCommand() {
-    argParser
-      ..addOption(
-        'server',
-        abbr: 's',
-        help: 'Server name',
-      )
-      ..addMultiOption(
-        'uuids',
-        abbr: 'u',
-        help: 'List of tracking object uuids',
-      );
-  }
-
-  @override
-  final name = 'add';
-
-  @override
-  final description = 'add is used to add tracking objects to given server';
-
-  @override
-  FutureOr<String> run() async {
-    writeln(highlight('> Tracking add'), stdout);
-    final server = argResults['server'] as String;
-    if (server == null) {
-      usageException(red(' Server name is missing'));
-      return writeln(red(' Server name is missing'), stderr);
-    }
-    final uuids = argResults['uuids'] as List<String>;
-    if (uuids.isEmpty) {
-      usageException(red(' Tracking uuids are missing'));
-      return writeln(red(' Tracking uuids are missing'), stderr);
-    }
-    final token = await AuthUtils.getToken(this);
-    writeln(
-      '  json: ${await post(
-        client,
-        '/ops/api/services/tracking/$server',
-        {
-          'action': 'add_trackings',
-          'uuids': uuids,
-        },
-        (pods) => '$pods',
-        token: token,
-      )}',
-      stdout,
-    );
-    return buffer.toString();
-  }
-}
-
-class TrackingRemoveCommand extends BaseCommand {
-  TrackingRemoveCommand() {
-    argParser
-      ..addOption(
-        'server',
-        abbr: 's',
-        help: 'Server name',
-      )
-      ..addMultiOption(
-        'uuids',
-        abbr: 'u',
-        help: 'List of tracking object uuids',
-      );
-  }
-
-  @override
-  final name = 'remove';
-
-  @override
-  final description = 'remove is used to remove tracking objects from given server';
-
-  @override
-  FutureOr<String> run() async {
-    writeln(highlight('> Tracking remove'), stdout);
-    final name = argResults['server'] as String;
-    if (name == null) {
-      usageException(red(' Server name is missing'));
-      return writeln(red(' Server name is missing'), stderr);
-    }
-    final uuids = argResults['uuids'] as List<String>;
-    if (uuids.isEmpty) {
-      usageException(red(' Tracking uuids are missing'));
-      return writeln(red(' Tracking uuids are missing'), stderr);
-    }
-    final token = await AuthUtils.getToken(this);
-    writeln(
-      '  json: ${await post(
-        client,
-        '/ops/api/services/tracking',
-        {
-          'action': 'remove_trackings',
-          'uuids': uuids,
-        },
-        (pods) => '$pods',
-        token: token,
-      )}',
-      stdout,
-    );
-
-    return buffer.toString();
-  }
-}
-
-class TrackingStartCommand extends BaseCommand {
+class TrackingStartCommand extends TrackingCommandBase {
   TrackingStartCommand() {
     argParser
       ..addOption(
         'server',
         abbr: 's',
         help: 'Server name',
+      )
+      ..addFlag(
+        'all',
+        abbr: 'a',
+        help: 'All servers',
+      )
+      ..addFlag(
+        'verbose',
+        abbr: 'v',
+        help: 'Verbose output',
       );
   }
 
@@ -200,37 +258,43 @@ class TrackingStartCommand extends BaseCommand {
 
   @override
   FutureOr<String> run() async {
-    writeln(highlight('> Tracking remove'), stdout);
-    final token = await AuthUtils.getToken(this);
-    final name = argResults['server'] as String;
-    if (name == null) {
+    final all = argResults['all'] as String;
+    final server = argResults['server'] as String;
+    if (all == null && server == null) {
       usageException(red(' Server name is missing'));
       return writeln(red(' Server name is missing'), stderr);
     }
-    writeln(
-      '  json: ${await post(
-        client,
-        '/ops/api/services/tracking',
-        {
-          'action': 'start',
-        },
-        (pods) => '$pods',
-        token: token,
-      )}',
-      stdout,
+    writeln(highlight('> Start racking $server...'), stdout);
+    final status = await executeOn(
+      server,
+      {
+        'action': 'start',
+      },
+      argResults['verbose'] as bool,
     );
+    writeln(status, stdout);
 
     return buffer.toString();
   }
 }
 
-class TrackingStopCommand extends BaseCommand {
+class TrackingStopCommand extends TrackingCommandBase {
   TrackingStopCommand() {
     argParser
       ..addOption(
         'server',
         abbr: 's',
         help: 'Server name',
+      )
+      ..addFlag(
+        'all',
+        abbr: 'a',
+        help: 'All servers',
+      )
+      ..addFlag(
+        'verbose',
+        abbr: 'v',
+        help: 'Verbose output',
       );
   }
 
@@ -242,126 +306,126 @@ class TrackingStopCommand extends BaseCommand {
 
   @override
   FutureOr<String> run() async {
-    writeln(highlight('> Tracking remove'), stdout);
-    final token = await AuthUtils.getToken(this);
-    final name = argResults['server'] as String;
-    if (name == null) {
+    final all = argResults['all'] as String;
+    final server = argResults['server'] as String;
+    if (all == null && server == null) {
       usageException(red(' Server name is missing'));
       return writeln(red(' Server name is missing'), stderr);
     }
-    writeln(
-      '  json: ${await post(
-        client,
-        '/ops/api/services/tracking',
-        {
-          'action': 'stop',
-        },
-        (pods) => '$pods',
-        token: token,
-      )}',
-      stdout,
+    writeln(highlight('> Stop tracking $server...'), stdout);
+    final status = await executeOn(
+      server,
+      {
+        'action': 'stop',
+      },
+      argResults['verbose'] as bool,
     );
-
+    writeln(status, stdout);
     return buffer.toString();
   }
 }
 
-String _toStatuses(List items, {bool verbose = false}) {
-  final buffer = StringBuffer();
-  for (var instance in items.map((item) => Map.from(item))) {
-    buffer.writeln('  Name ${green(instance.elementAt('name'))}');
-    _toStatus(buffer, instance, indent: 4, verbose: verbose);
+class TrackingAddCommand extends TrackingCommandBase {
+  TrackingAddCommand() {
+    argParser
+      ..addOption(
+        'server',
+        abbr: 's',
+        help: 'Server name',
+      )
+      ..addMultiOption(
+        'uuids',
+        abbr: 'u',
+        help: 'List of tracking object uuids',
+      )
+      ..addFlag(
+        'verbose',
+        abbr: 'v',
+        help: 'Verbose output',
+      );
   }
-  return buffer.toString();
+
+  @override
+  final name = 'add';
+
+  @override
+  final description = 'add is used to add tracking objects to given server';
+
+  @override
+  FutureOr<String> run() async {
+    final server = argResults['server'] as String;
+    if (server == null) {
+      usageException(red(' Server name is missing'));
+      return writeln(red(' Server name is missing'), stderr);
+    }
+    final uuids = argResults['uuids'] as List<String>;
+    if (uuids.isEmpty) {
+      usageException(red(' Tracking uuids are missing'));
+      return writeln(red(' Tracking uuids are missing'), stderr);
+    }
+    writeln(highlight('> Add trackings object to $server...'), stdout);
+    final status = await executeOn(
+      server,
+      {
+        'action': 'add_trackings',
+        'uuids': uuids,
+      },
+      argResults['verbose'] as bool,
+    );
+    writeln(status, stdout);
+    return buffer.toString();
+  }
 }
 
-void _toStatus(StringBuffer buffer, Map instance, {int indent = 2, bool verbose = false}) {
-  final delimiter = fill(51, '-');
-  final columns = delimiter.length;
-  buffer.writeln(instance);
-  final spaces = fill(indent);
-  final trackings = instance.listAt<Map<String, dynamic>>('managerOf');
-  vprint(
-    'Status',
-    instance.elementAt('status'),
-    unit: 'tracking service',
-    max: columns,
-    buffer: buffer,
-    indent: indent,
-  );
-  vprint(
-    'Processed',
-    instance.elementAt<int>('positions/total', defaultValue: 0),
-    unit: 'positions',
-    max: columns,
-    buffer: buffer,
-    indent: indent,
-  );
-  vprint(
-    'Total seen',
-    instance.elementAt<int>('total', defaultValue: 0),
-    unit: 'all tracking objects',
-    max: columns,
-    buffer: buffer,
-    indent: indent,
-  );
-  vprint(
-    'Is managing',
-    trackings.length,
-    unit: '${(instance.elementAt<double>('fractionManaged', defaultValue: 0) * 100).toInt()}% of tracking objects',
-    max: columns,
-    buffer: buffer,
-    indent: indent,
-  );
-  vprint(
-    'PPM',
-    instance.elementAt<double>('positions/positionsPerMinute', defaultValue: 0),
-    unit: 'positions per minute',
-    max: columns,
-    buffer: buffer,
-    indent: indent,
-  );
-  vprint(
-    'APT',
-    instance.elementAt<double>('positions/averageProcessingTimeMillis', defaultValue: 0),
-    unit: 'average processing time in ms',
-    max: columns,
-    buffer: buffer,
-    indent: indent,
-  );
-  if (verbose) {
-    var i = 0;
-    for (var tracking in trackings.map((item) => Map<String, dynamic>.from(item))) {
-      buffer.writeln(gray('${spaces}$delimiter'));
-      vprint(
-        'UUID ${++i}',
-        tracking.elementAt('uuid'),
-        max: columns,
-        buffer: buffer,
-        indent: indent,
+class TrackingRemoveCommand extends TrackingCommandBase {
+  TrackingRemoveCommand() {
+    argParser
+      ..addOption(
+        'server',
+        abbr: 's',
+        help: 'Server name',
+      )
+      ..addMultiOption(
+        'uuids',
+        abbr: 'u',
+        help: 'List of tracking object uuids',
+      )
+      ..addFlag(
+        'verbose',
+        abbr: 'v',
+        help: 'Verbose output',
       );
-      vprint(
-        'Last applied',
-        tracking.elementAt<String>('lastEvent/type', defaultValue: 'none'),
-        unit: 'event ${tracking.elementAt<int>('lastEvent/number')}',
-        max: columns,
-        buffer: buffer,
-        indent: indent,
-      );
-      vprint(
-        'Tracks',
-        tracking.elementAt<int>('trackCount', defaultValue: 0),
-        max: columns,
-        buffer: buffer,
-        indent: indent,
-      );
-      vprint(
-        'Positions',
-        tracking.elementAt<int>('positionCount', defaultValue: 0),
-        max: columns,
-        buffer: buffer,
-        indent: indent,
-      );
+  }
+
+  @override
+  final name = 'remove';
+
+  @override
+  final description = 'remove is used to remove tracking objects from given server';
+
+  @override
+  FutureOr<String> run() async {
+    final server = argResults['server'] as String;
+    if (server == null) {
+      usageException(red(' Server name is missing'));
+      return writeln(red(' Server name is missing'), stderr);
     }
+    final uuids = argResults['uuids'] as List<String>;
+    if (uuids.isEmpty) {
+      usageException(red(' Tracking uuids are missing'));
+      return writeln(red(' Tracking uuids are missing'), stderr);
+    }
+    writeln(highlight('> Remove trackings object from $server...'), stdout);
+    final status = await executeOn(
+      server,
+      {
+        'action': 'remove_trackings',
+        'uuids': uuids,
+      },
+      argResults['verbose'] as bool,
+    );
+    writeln(status, stdout);
+
+    return buffer.toString();
   }
 }

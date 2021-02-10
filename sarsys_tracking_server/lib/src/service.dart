@@ -58,10 +58,10 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
         ))
       ..trackings = (TrackingsMeta()
         ..total = total
-        ..eventsPerMinute = service.positionMetrics.rateExp * 60
-        ..averageProcessingTimeMillis = service.positionMetrics.meanExp.inMilliseconds
+        ..eventsPerMinute = service.trackingMetrics.rateExp * 60
+        ..averageProcessingTimeMillis = service.trackingMetrics.meanExp.inMilliseconds
         ..lastEvent = toEventMeta(
-          service.lastPositionEvent,
+          service.lastTrackingEvent,
           store,
         )
         ..fractionManaged = total > 0 ? managed.length / total : 0);

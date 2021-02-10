@@ -110,18 +110,24 @@ Future main() async {
   });
 
   test("POST /ops/api/services/tracking with 'add_trackings' returns 400 on empty uuids", () async {
-    final response = await harness.agent.post('/ops/api/services/tracking', body: {
-      'action': 'add_trackings',
-      'uuids': [],
-    });
+    final response = await harness.agent.post(
+      '/ops/api/services/tracking/${SarSysOpsHarness.trackingInstance0}',
+      body: {
+        'action': 'add_trackings',
+        'uuids': [],
+      },
+    );
     expect(response.statusCode, 400);
   });
 
   test("POST /ops/api/services/tracking with 'remove_trackings' returns 400 on empty uuids", () async {
-    final response = await harness.agent.post('/ops/api/services/tracking', body: {
-      'action': 'remove_trackings',
-      'uuids': [],
-    });
+    final response = await harness.agent.post(
+      '/ops/api/services/tracking/${SarSysOpsHarness.trackingInstance0}',
+      body: {
+        'action': 'remove_trackings',
+        'uuids': [],
+      },
+    );
     expect(response.statusCode, 400);
   });
 

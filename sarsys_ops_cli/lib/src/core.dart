@@ -23,24 +23,19 @@ void vprint(
   String label,
   Object value, {
   @required StringBuffer buffer,
-  int max = 30,
-  int left = 15,
+  int max = 52,
+  int left = 16,
   int indent = 2,
   String unit = '',
 }) {
   final _value = (value ?? '').toString();
   final length = left + _value.length + 2;
+  final hasUnit = (unit ?? '').isNotEmpty;
   final prefix = '${pad('$label:', indent, left)}${green(_value)}';
-  final rest = (unit ?? '').isEmpty ? 0 : math.max(0, max - length - '$unit'.length);
-  if (rest > 0) {
-    buffer.writeln(
-      '$prefix${rest > 0 ? '${fill(rest)}${gray('($unit)')}' : ''}',
-    );
-  } else {
-    buffer.writeln(
-      '$prefix${rest > 0 ? '${fill(rest)}${gray('($unit)')}' : ''}',
-    );
-  }
+  final rest = hasUnit ? math.max(0, max - length - '$unit'.length) : 0;
+  buffer.writeln(
+    '$prefix${hasUnit ? '${fill(rest)}${gray('($unit)')}' : ''}',
+  );
 }
 
 const defaultConfig = {
@@ -163,7 +158,7 @@ abstract class BaseCommand extends Command<String> {
       );
       buffer.write('  ');
     } else {
-      buffer.write(red('  Failure'));
+      buffer.write(red('  Failure '));
     }
     buffer.write(gray('($result${DateTime.now().difference(tic).inMilliseconds} ms)'));
     return buffer.toString();
@@ -174,6 +169,7 @@ abstract class BaseCommand extends Command<String> {
     String uri,
     dynamic json,
     String Function(dynamic) map, {
+    String Function(String) format,
     String token,
   }) async {
     final tic = DateTime.now();
@@ -188,10 +184,13 @@ abstract class BaseCommand extends Command<String> {
     final response = await request.close();
     final result = '${response.statusCode} ${response.reasonPhrase} in ';
     if (HttpStatus.ok == response.statusCode) {
-      buffer.writeln(green(map(await toContent(response))));
+      final content = map(await toContent(response));
+      buffer.writeln(
+        format == null ? green(content) : format(content),
+      );
       buffer.write('  ');
     } else {
-      buffer.write(red('  Failure'));
+      buffer.write(red('  Failure '));
     }
     buffer.write(gray('($result${DateTime.now().difference(tic).inMilliseconds} ms)'));
     return buffer.toString();
@@ -214,7 +213,7 @@ abstract class BaseCommand extends Command<String> {
     final response = await request.close();
     final reason = '${response.statusCode} ${response.reasonPhrase} in ';
     if (HttpStatus.ok == response.statusCode) {
-      buffer.write(green('$access '));
+      buffer.write(green('$access'));
     } else {
       buffer.write(red('$failure'));
     }
