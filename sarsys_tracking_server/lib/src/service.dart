@@ -119,7 +119,8 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
         ..type = event.type
         ..remote = event.remote
         ..number = event.number.value
-        ..position = store.toPosition(event);
+        ..position = store.toPosition(event)
+        ..timestamp = event.created.millisecondsSinceEpoch;
     }
     return meta;
   }
