@@ -180,44 +180,53 @@ class TrackingServiceCommandsController extends OperationsBaseController {
     String expand,
   ) async {
     final pod = await _getPod(name);
+    final uuids = body.listAt<String>(
+      'uuids',
+      defaultList: [],
+    );
+    final args = {
+      'command': command,
+      'uuids': uuids,
+      'expand': expand,
+    };
     if (pod == null) {
       return _toResponse(
         name: name,
+        args: args,
         method: 'doExecuteByName',
         statusCode: HttpStatus.notFound,
         body: "$type instance '$name' not found",
-        args: {'command': command, 'expand': expand},
       );
     }
     switch (command) {
       case 'start':
-        return doStart(pod, expand);
+        return doStart(
+          pod,
+          expand,
+        );
       case 'stop':
-        return doStop(pod, expand);
+        return doStop(
+          pod,
+          expand,
+        );
       case 'add_trackings':
         return doAddTrackings(
           pod,
-          body.listAt<String>(
-            'uuids',
-            defaultList: [],
-          ),
+          uuids,
           expand,
         );
       case 'remove_trackings':
         return doRemoveTrackings(
           pod,
-          body.listAt<String>(
-            'uuids',
-            defaultList: [],
-          ),
+          uuids,
           expand,
         );
     }
     return _toResponse(
       name: name,
+      args: args,
       method: 'doExecuteByName',
       statusCode: HttpStatus.notFound,
-      args: {'command': command, 'expand': expand},
       body: "$type command instance '$command' not found",
     );
   }
@@ -228,7 +237,10 @@ class TrackingServiceCommandsController extends OperationsBaseController {
   ) async {
     final metas = <Map<String, dynamic>>[];
     for (var pod in pods) {
-      final meta = await _doStart(pod, expand);
+      final meta = await _doStart(
+        pod,
+        expand,
+      );
       metas.add(meta);
     }
     return _toResponse(
@@ -246,7 +258,10 @@ class TrackingServiceCommandsController extends OperationsBaseController {
   ) async {
     final metas = <Map<String, dynamic>>[];
     for (var pod in pods) {
-      final meta = await _doStop(pod, expand);
+      final meta = await _doStop(
+        pod,
+        expand,
+      );
       metas.add(meta);
     }
     return _toResponse(
@@ -350,12 +365,16 @@ class TrackingServiceCommandsController extends OperationsBaseController {
     String expand,
   ) async {
     final name = k8s.toPodName(pod);
-    final args = {'command': 'add_trackings', 'expand': expand};
+    final args = {
+      'command': 'add_trackings',
+      'uuids': uuids,
+      'expand': expand,
+    };
     if (uuids.isEmpty) {
       return _toResponse(
         name: name,
         args: args,
-        method: 'doExecuteByName',
+        method: 'doAddTrackings',
         statusCode: HttpStatus.badRequest,
         body: "One ore more tracing uuids are required ('uuids' was empty)",
       );
@@ -394,12 +413,16 @@ class TrackingServiceCommandsController extends OperationsBaseController {
     String expand,
   ) async {
     final name = k8s.toPodName(pod);
-    final args = {'command': 'remove_trackings', 'expand': expand};
+    final args = {
+      'command': 'remove_trackings',
+      'uuids': uuids,
+      'expand': expand,
+    };
     if (uuids.isEmpty) {
       return _toResponse(
         name: name,
         args: args,
-        method: 'doExecuteByName',
+        method: 'doRemoveTrackings',
         statusCode: HttpStatus.badRequest,
         body: "One ore more tracing uuids are required ('uuids' was empty)",
       );
@@ -560,9 +583,11 @@ class TrackingServiceCommandsController extends OperationsBaseController {
     dynamic body,
   }) {
     logger.fine(
-      Context.toMethod('method', [
+      Context.toMethod(method, [
         'name: $name',
-        ...args.entries.map((entry) => '${entry.key}: ${entry.value}'),
+        ...args.entries.map(
+          (entry) => '${entry.key}: ${entry.value}',
+        ),
         'response: $body',
       ]),
     );
