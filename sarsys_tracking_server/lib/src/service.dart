@@ -45,11 +45,11 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
             tracking.baseEvent,
             store,
           )
-          ..trackCount = tracks.length
-          ..positionCount = positionCount;
+          ..trackCount = Int64(tracks.length)
+          ..positionCount = Int64(positionCount);
       }))
       ..positions = (PositionsMeta()
-        ..total = positionsTotal
+        ..total = Int64(positionsTotal)
         ..eventsPerMinute = service.positionMetrics.rateExp * 60.0
         ..averageProcessingTimeMillis = service.positionMetrics.meanExp.inMilliseconds
         ..lastEvent = toEventMeta(
@@ -57,7 +57,7 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
           store,
         ))
       ..trackings = (TrackingsMeta()
-        ..total = total
+        ..total = Int64(total)
         ..eventsPerMinute = service.trackingMetrics.rateExp * 60.0
         ..averageProcessingTimeMillis = service.trackingMetrics.meanExp.inMilliseconds
         ..lastEvent = toEventMeta(
@@ -111,16 +111,16 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
 
   EventMeta toEventMeta(Event event, EventStore store) {
     final meta = EventMeta()
-      ..number = EventNumber.none.value
-      ..position = EventNumber.none.value;
+      ..number = Int64(EventNumber.none.value)
+      ..position = Int64(EventNumber.none.value);
     if (event != null) {
       meta
         ..uuid = event.uuid
         ..type = event.type
         ..remote = event.remote
-        ..number = event.number.value
-        ..position = store.toPosition(event)
-        ..timestamp = event.created.millisecondsSinceEpoch;
+        ..number = Int64(event.number.value)
+        ..position = Int64(store.toPosition(event))
+        ..timestamp = Int64(event.created.millisecondsSinceEpoch);
     }
     return meta;
   }

@@ -242,10 +242,10 @@ message TrackingMeta {
   string uuid = 1;
 
   // Number of tracks in tracking object
-  int32 trackCount = 2;
+  int64 trackCount = 2;
 
   // Total number of positions in tracking object
-  int32 positionCount = 3;
+  int64 positionCount = 3;
 
   // Last applied tracking event
   EventMeta lastEvent = 4;
@@ -258,7 +258,7 @@ message TrackingMeta {
 message TrackingsMeta {
 
   // Total number of tracking objects heard
-  int32 total = 1;
+  int64 total = 1;
 
   // Number of managed tracking object to total number of tracking objects
   double fractionManaged = 2;
@@ -280,7 +280,7 @@ message TrackingsMeta {
 message PositionsMeta {
 
   // Total number of positions heard
-  int32 total = 1;
+  int64 total = 1;
 
   // Number of positions processed per minute
   double eventsPerMinute = 2;
@@ -309,13 +309,13 @@ message EventMeta {
   bool remote = 3;
 
   // Event number in instance stream
-  int32 number = 4;
+  int64 number = 4;
 
   // Event position in canonical (projection or instance) stream
-  int32 position = 5;
+  int64 position = 5;
 
   // Timestamp in milliseconds from epoc (UTC)
-  int32 timestamp = 6;
+  int64 timestamp = 6;
 
 }
 

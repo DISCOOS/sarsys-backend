@@ -11,6 +11,7 @@ dependencies:
   grpc: ^2.8.0
   logging: ^0.11.4
   protobuf: ^1.1.0
+  fixnum: ^0.10.11
   sarsys_domain:
     path: ../sarsys_domain
   sarsys_http_core:

@@ -504,26 +504,41 @@ class TrackingServiceCommandsController extends OperationsBaseController {
   List<Map<String, dynamic>> _toJsonManagerOf(GetMetaResponse meta) => meta.managerOf
       .map((meta) => <String, dynamic>{
             'uuid': meta.uuid,
-            'trackCount': meta.trackCount,
-            'positionCount': meta.positionCount,
+            'trackCount': meta.trackCount.toInt(),
+            'positionCount': meta.positionCount.toInt(),
             if (meta.lastEvent.uuid.isNotEmpty) 'lastEvent': _toJsonEventMeta(meta.lastEvent),
           })
       .toList();
 
   Map<String, dynamic> _toJsonRepoMeta(RepositoryMeta meta) => {
         'type': meta.type,
+        'queue': {
+          'status': {
+            'idle': meta.queue.status.idle,
+            'ready': meta.queue.status.ready,
+            'disposed': meta.queue.status.disposed,
+          },
+          'pressure': {
+            'total': meta.queue.pressure.total,
+            'maximum': meta.queue.pressure.maximum,
+            'commands': meta.queue.pressure.commands,
+            'exceeded': meta.queue.pressure.exceeded,
+          }
+        },
+        if (meta.lastEvent.uuid.isNotEmpty) 'lastEvent': _toJsonEventMeta(meta.lastEvent),
       };
 
   Map<String, dynamic> _toJsonEventMeta(EventMeta meta) => {
         'type': meta.type,
         'uuid': meta.uuid,
         'remote': meta.remote,
-        'number': meta.number,
-        'position': meta.position,
+        'number': meta.number.toInt(),
+        'position': meta.position.toInt(),
+        'timestamp': meta.timestamp.toInt(),
       };
 
   Map<String, dynamic> _toJsonTrackingsMeta(TrackingsMeta meta) => {
-        'total': meta.total,
+        'total': meta.total.toInt(),
         'fractionManaged': meta.fractionManaged,
         'eventsPerMinute': meta.eventsPerMinute,
         'lastEvent': _toJsonEventMeta(meta.lastEvent),
@@ -531,7 +546,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
       };
 
   Map<String, dynamic> _toJsonPositionsMeta(PositionsMeta meta) => {
-        'total': meta.total,
+        'total': meta.total.toInt(),
         'eventsPerMinute': meta.eventsPerMinute,
         'lastEvent': _toJsonEventMeta(meta.lastEvent),
         'averageProcessingTimeMillis': meta.averageProcessingTimeMillis,

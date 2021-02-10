@@ -7,6 +7,7 @@
 
 import 'dart:core' as $core;
 
+import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
 
 import 'sarsys_tracking_service.pbenum.dart';
@@ -820,11 +821,12 @@ class TrackingMeta extends $pb.GeneratedMessage {
         const $core.bool.fromEnvironment('protobuf.omit_field_names')
             ? ''
             : 'uuid')
-    ..a<$core.int>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'trackCount', $pb.PbFieldType.O3,
+    ..aInt64(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'trackCount',
         protoName: 'trackCount')
-    ..a<$core.int>(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'positionCount', $pb.PbFieldType.O3,
+    ..aInt64(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'positionCount',
         protoName: 'positionCount')
-    ..aOM<EventMeta>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'lastEvent',
+    ..aOM<EventMeta>(
+        4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'lastEvent',
         protoName: 'lastEvent', subBuilder: EventMeta.create)
     ..hasRequiredFields = false;
 
@@ -870,10 +872,10 @@ class TrackingMeta extends $pb.GeneratedMessage {
   void clearUuid() => clearField(1);
 
   @$pb.TagNumber(2)
-  $core.int get trackCount => $_getIZ(1);
+  $fixnum.Int64 get trackCount => $_getI64(1);
   @$pb.TagNumber(2)
-  set trackCount($core.int v) {
-    $_setSignedInt32(1, v);
+  set trackCount($fixnum.Int64 v) {
+    $_setInt64(1, v);
   }
 
   @$pb.TagNumber(2)
@@ -882,10 +884,10 @@ class TrackingMeta extends $pb.GeneratedMessage {
   void clearTrackCount() => clearField(2);
 
   @$pb.TagNumber(3)
-  $core.int get positionCount => $_getIZ(2);
+  $fixnum.Int64 get positionCount => $_getI64(2);
   @$pb.TagNumber(3)
-  set positionCount($core.int v) {
-    $_setSignedInt32(2, v);
+  set positionCount($fixnum.Int64 v) {
+    $_setInt64(2, v);
   }
 
   @$pb.TagNumber(3)
@@ -915,13 +917,13 @@ class TrackingsMeta extends $pb.GeneratedMessage {
               ? ''
               : 'app.sarsys.tracking'),
       createEmptyInstance: create)
-    ..a<$core.int>(
+    ..aInt64(
         1,
         const $core.bool.fromEnvironment('protobuf.omit_field_names')
             ? ''
-            : 'total',
-        $pb.PbFieldType.O3)
-    ..a<$core.double>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'fractionManaged', $pb.PbFieldType.OD,
+            : 'total')
+    ..a<$core.double>(
+        2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'fractionManaged', $pb.PbFieldType.OD,
         protoName: 'fractionManaged')
     ..a<$core.double>(
         3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'eventsPerMinute', $pb.PbFieldType.OD,
@@ -962,10 +964,10 @@ class TrackingsMeta extends $pb.GeneratedMessage {
   static TrackingsMeta _defaultInstance;
 
   @$pb.TagNumber(1)
-  $core.int get total => $_getIZ(0);
+  $fixnum.Int64 get total => $_getI64(0);
   @$pb.TagNumber(1)
-  set total($core.int v) {
-    $_setSignedInt32(0, v);
+  set total($fixnum.Int64 v) {
+    $_setInt64(0, v);
   }
 
   @$pb.TagNumber(1)
@@ -1025,28 +1027,29 @@ class TrackingsMeta extends $pb.GeneratedMessage {
 }
 
 class PositionsMeta extends $pb.GeneratedMessage {
-  static final $pb.BuilderInfo _i =
-      $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'PositionsMeta',
-          package: const $pb.PackageName(
-              const $core.bool.fromEnvironment('protobuf.omit_message_names')
-                  ? ''
-                  : 'app.sarsys.tracking'),
-          createEmptyInstance: create)
-        ..a<$core.int>(
-            1,
-            const $core.bool.fromEnvironment('protobuf.omit_field_names')
-                ? ''
-                : 'total',
-            $pb.PbFieldType.O3)
-        ..a<$core.double>(
-            2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'eventsPerMinute', $pb.PbFieldType.OD,
-            protoName: 'eventsPerMinute')
-        ..a<$core.int>(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'averageProcessingTimeMillis', $pb.PbFieldType.O3,
-            protoName: 'averageProcessingTimeMillis')
-        ..aOM<EventMeta>(
-            4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'lastEvent',
-            protoName: 'lastEvent', subBuilder: EventMeta.create)
-        ..hasRequiredFields = false;
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'PositionsMeta',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'app.sarsys.tracking'),
+      createEmptyInstance: create)
+    ..aInt64(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'total')
+    ..a<$core.double>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'eventsPerMinute', $pb.PbFieldType.OD,
+        protoName: 'eventsPerMinute')
+    ..a<$core.int>(
+        3,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'averageProcessingTimeMillis',
+        $pb.PbFieldType.O3,
+        protoName: 'averageProcessingTimeMillis')
+    ..aOM<EventMeta>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'lastEvent',
+        protoName: 'lastEvent', subBuilder: EventMeta.create)
+    ..hasRequiredFields = false;
 
   PositionsMeta._() : super();
   factory PositionsMeta() => create();
@@ -1078,10 +1081,10 @@ class PositionsMeta extends $pb.GeneratedMessage {
   static PositionsMeta _defaultInstance;
 
   @$pb.TagNumber(1)
-  $core.int get total => $_getIZ(0);
+  $fixnum.Int64 get total => $_getI64(0);
   @$pb.TagNumber(1)
-  set total($core.int v) {
-    $_setSignedInt32(0, v);
+  set total($fixnum.Int64 v) {
+    $_setInt64(0, v);
   }
 
   @$pb.TagNumber(1)
@@ -1153,12 +1156,10 @@ class EventMeta extends $pb.GeneratedMessage {
         const $core.bool.fromEnvironment('protobuf.omit_field_names')
             ? ''
             : 'remote')
-    ..a<$core.int>(
-        4,
-        const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'number',
-        $pb.PbFieldType.O3)
-    ..a<$core.int>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'position', $pb.PbFieldType.O3)
-    ..a<$core.int>(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'timestamp', $pb.PbFieldType.O3)
+    ..aInt64(4,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'number')
+    ..aInt64(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'position')
+    ..aInt64(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'timestamp')
     ..hasRequiredFields = false;
 
   EventMeta._() : super();
@@ -1226,10 +1227,10 @@ class EventMeta extends $pb.GeneratedMessage {
   void clearRemote() => clearField(3);
 
   @$pb.TagNumber(4)
-  $core.int get number => $_getIZ(3);
+  $fixnum.Int64 get number => $_getI64(3);
   @$pb.TagNumber(4)
-  set number($core.int v) {
-    $_setSignedInt32(3, v);
+  set number($fixnum.Int64 v) {
+    $_setInt64(3, v);
   }
 
   @$pb.TagNumber(4)
@@ -1238,10 +1239,10 @@ class EventMeta extends $pb.GeneratedMessage {
   void clearNumber() => clearField(4);
 
   @$pb.TagNumber(5)
-  $core.int get position => $_getIZ(4);
+  $fixnum.Int64 get position => $_getI64(4);
   @$pb.TagNumber(5)
-  set position($core.int v) {
-    $_setSignedInt32(4, v);
+  set position($fixnum.Int64 v) {
+    $_setInt64(4, v);
   }
 
   @$pb.TagNumber(5)
@@ -1250,10 +1251,10 @@ class EventMeta extends $pb.GeneratedMessage {
   void clearPosition() => clearField(5);
 
   @$pb.TagNumber(6)
-  $core.int get timestamp => $_getIZ(5);
+  $fixnum.Int64 get timestamp => $_getI64(5);
   @$pb.TagNumber(6)
-  set timestamp($core.int v) {
-    $_setSignedInt32(5, v);
+  set timestamp($fixnum.Int64 v) {
+    $_setInt64(5, v);
   }
 
   @$pb.TagNumber(6)
