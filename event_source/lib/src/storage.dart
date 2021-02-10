@@ -342,10 +342,10 @@ class Storage {
 
   StreamRequest _checkSlowSave(StreamRequestCompleted result, int limit) {
     final request = result.request;
-    final metric = _metrics['save'].now(request.created);
-    if (metric.duration.inMilliseconds > limit) {
+    final metric = _metrics['save'].next(request.created);
+    if (metric.last.inMilliseconds > limit) {
       _context.warning(
-        'SLOW SAVE: Request ${request.tag} took ${metric.duration.inMilliseconds} ms',
+        'SLOW SAVE: Request ${request.tag} took ${metric.last.inMilliseconds} ms',
         category: 'Storage._checkSlowSave',
       );
     }

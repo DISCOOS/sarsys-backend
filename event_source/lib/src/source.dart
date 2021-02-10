@@ -3127,12 +3127,12 @@ class EventStoreConnection {
 
   FeedResult _checkSlowRead(FeedResult feed, DateTime tic, int limit) {
     if (feed?.isOK == true) {
-      final metric = _metrics['read'].now(tic);
-      if (metric.duration.inMilliseconds > limit) {
+      final metric = _metrics['read'].next(tic);
+      if (metric.last.inMilliseconds > limit) {
         _logger.warning(
           'SLOW READ: Reading ${feed.atomFeed.entries.length} '
           'from ${feed.stream}@${feed.number} in direction ${enumName(feed.direction)} '
-          'took ${metric.duration.inMilliseconds} ms',
+          'took ${metric.last.inMilliseconds} ms',
         );
       }
       _metrics['read'] = metric;
@@ -3142,11 +3142,11 @@ class EventStoreConnection {
 
   WriteResult _checkSlowWrite(WriteResult write, DateTime tic, int limit) {
     if (write?.isCreated == true) {
-      final metric = _metrics['write'].now(tic);
-      if (metric.duration.inMilliseconds > limit) {
+      final metric = _metrics['write'].next(tic);
+      if (metric.last.inMilliseconds > limit) {
         _logger.warning(
           'SLOW WRITE: Writing ${write.events.length} events '
-          'to ${write.stream} took ${metric.duration.inMilliseconds} ms',
+          'to ${write.stream} took ${metric.last.inMilliseconds} ms',
         );
       }
       _metrics['write'] = metric;

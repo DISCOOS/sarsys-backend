@@ -20,11 +20,11 @@ class TrackingServerStatus extends $pb.ProtobufEnum {
       const $core.bool.fromEnvironment('protobuf.omit_enum_names')
           ? ''
           : 'STATUS_READY');
-  static const TrackingServerStatus STATUS_COMPETING = TrackingServerStatus._(
+  static const TrackingServerStatus STATUS_STARTED = TrackingServerStatus._(
       2,
       const $core.bool.fromEnvironment('protobuf.omit_enum_names')
           ? ''
-          : 'STATUS_COMPETING');
+          : 'STATUS_STARTED');
   static const TrackingServerStatus STATUS_STOPPED = TrackingServerStatus._(
       3,
       const $core.bool.fromEnvironment('protobuf.omit_enum_names')
@@ -39,7 +39,7 @@ class TrackingServerStatus extends $pb.ProtobufEnum {
   static const $core.List<TrackingServerStatus> values = <TrackingServerStatus>[
     STATUS_NONE,
     STATUS_READY,
-    STATUS_COMPETING,
+    STATUS_STARTED,
     STATUS_STOPPED,
     STATUS_DISPOSED,
   ];

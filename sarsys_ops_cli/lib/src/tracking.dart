@@ -269,7 +269,6 @@ class TrackingStopCommand extends BaseCommand {
 String _toStatuses(List items, {bool verbose = false}) {
   final buffer = StringBuffer();
   for (var instance in items.map((item) => Map.from(item))) {
-    buffer.writeln(instance);
     buffer.writeln('  Name ${green(instance.elementAt('name'))}');
     _toStatus(buffer, instance, indent: 4, verbose: verbose);
   }
@@ -277,48 +276,92 @@ String _toStatuses(List items, {bool verbose = false}) {
 }
 
 void _toStatus(StringBuffer buffer, Map instance, {int indent = 2, bool verbose = false}) {
-  final spaces = List.filled(indent, ' ').join();
-  final trackings = instance.listAt('managerOf');
-  buffer.writeln('${spaces}Status: ${green(instance.elementAt('status'))} ${gray('(service)')}');
-  buffer.writeln(
-    '${spaces}Processed:'
-    ' ${green(instance.elementAt<int>('positions/total', defaultValue: 0))} '
-    '${gray('(positions)')}',
+  final delimiter = fill(51, '-');
+  final columns = delimiter.length;
+  buffer.writeln(instance);
+  final spaces = fill(indent);
+  final trackings = instance.listAt<Map<String, dynamic>>('managerOf');
+  vprint(
+    'Status',
+    instance.elementAt('status'),
+    unit: 'tracking service',
+    max: columns,
+    buffer: buffer,
+    indent: indent,
   );
-  buffer.writeln('${spaces}Total seen: ${green(instance.elementAt('total'))} ${gray('(all tracking objects)')}');
-  buffer.writeln(
-    '${spaces}Is managing: ${green(trackings.length)} '
-    '${gray('(${(instance.elementAt<int>('fractionManaged:', defaultValue: 0) * 100).toInt()}% of tracking objects)')}',
+  vprint(
+    'Processed',
+    instance.elementAt<int>('positions/total', defaultValue: 0),
+    unit: 'positions',
+    max: columns,
+    buffer: buffer,
+    indent: indent,
   );
-  for (var tracking in trackings.map((item) => Map.from(item))) {
-    final alive = tracking.elementAt<bool>('status/health/alive');
-    final ready = tracking.elementAt<bool>('status/health/ready');
-    //   final alive = tracking.elementAt<bool>('status/health/alive');
-    //   final ready = tracking.elementAt<bool>('status/health/ready');
-    //   if (verbose) {
-    //     buffer.writeln(gray('${spaces}--------------------------------------------'));
-    //     buffer.writeln('${spaces}Name: ${green(tracking.elementAt('name'))}');
-    //     buffer.writeln('${spaces}API');
-    //     buffer.writeln('${spaces}  Alive: ${green(alive)}');
-    //     buffer.writeln('${spaces}  Ready: ${green(alive)}');
-    //     buffer.writeln('${spaces}Deployment');
-    //     final conditions = tracking.listAt('status/conditions');
-    //     for (var condition in conditions.map((item) => Map.from(item))) {
-    //       final status = condition.elementAt<String>('status');
-    //       final acceptable = 'true' == status.toLowerCase();
-    //       buffer.writeln(
-    //         '${spaces}  ${condition['type']}: '
-    //         '${acceptable ? green(status) : red(status)} '
-    //         '${condition.hasPath('message') ? gray('(${condition.elementAt<String>('message')})') : ''}',
-    //       );
-    //     }
-    //   } else {
-    //     final down = !alive || !ready;
-    //     final api = '${alive ? '1' : '0'}/${alive ? '1' : '0'}';
-    //     buffer.writeln(
-    //       '${spaces}${green(tracking.elementAt('name'))} '
-    //       'API: ${down ? red(api) : green(api)} ${gray('(Alive/Ready)')}',
-    //     );
-    //   }
+  vprint(
+    'Total seen',
+    instance.elementAt<int>('total', defaultValue: 0),
+    unit: 'all tracking objects',
+    max: columns,
+    buffer: buffer,
+    indent: indent,
+  );
+  vprint(
+    'Is managing',
+    trackings.length,
+    unit: '${(instance.elementAt<double>('fractionManaged', defaultValue: 0) * 100).toInt()}% of tracking objects',
+    max: columns,
+    buffer: buffer,
+    indent: indent,
+  );
+  vprint(
+    'PPM',
+    instance.elementAt<double>('positions/positionsPerMinute', defaultValue: 0),
+    unit: 'positions per minute',
+    max: columns,
+    buffer: buffer,
+    indent: indent,
+  );
+  vprint(
+    'APT',
+    instance.elementAt<double>('positions/averageProcessingTimeMillis', defaultValue: 0),
+    unit: 'average processing time in ms',
+    max: columns,
+    buffer: buffer,
+    indent: indent,
+  );
+  if (verbose) {
+    var i = 0;
+    for (var tracking in trackings.map((item) => Map<String, dynamic>.from(item))) {
+      buffer.writeln(gray('${spaces}$delimiter'));
+      vprint(
+        'UUID ${++i}',
+        tracking.elementAt('uuid'),
+        max: columns,
+        buffer: buffer,
+        indent: indent,
+      );
+      vprint(
+        'Last applied',
+        tracking.elementAt<String>('lastEvent/type', defaultValue: 'none'),
+        unit: 'event ${tracking.elementAt<int>('lastEvent/number')}',
+        max: columns,
+        buffer: buffer,
+        indent: indent,
+      );
+      vprint(
+        'Tracks',
+        tracking.elementAt<int>('trackCount', defaultValue: 0),
+        max: columns,
+        buffer: buffer,
+        indent: indent,
+      );
+      vprint(
+        'Positions',
+        tracking.elementAt<int>('positionCount', defaultValue: 0),
+        max: columns,
+        buffer: buffer,
+        indent: indent,
+      );
+    }
   }
 }

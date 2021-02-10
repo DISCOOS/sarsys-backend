@@ -36,11 +36,17 @@ Future main() async {
       GetMetaRequest()..expand.add(ExpandFields.EXPAND_FIELDS_REPO),
     );
 
-    expect(response.total, 0);
     expect(response.managerOf, isEmpty);
-    expect(response.fractionManaged, 0);
+    expect(response.trackings.total, 0);
+    expect(response.trackings.eventsPerMinute, 0);
+    expect(response.trackings.averageProcessingTimeMillis, 0);
+    expect(response.trackings.lastEvent.uuid, isEmpty);
+    expect(response.trackings.lastEvent.number, -1);
+    expect(response.trackings.lastEvent.remote, isFalse);
+    expect(response.trackings.lastEvent.position, -1);
+    expect(response.trackings.fractionManaged, 0);
     expect(response.positions.total, 0);
-    expect(response.positions.positionsPerMinute, 0);
+    expect(response.positions.eventsPerMinute, 0);
     expect(response.positions.averageProcessingTimeMillis, 0);
     expect(response.positions.lastEvent.uuid, isEmpty);
     expect(response.positions.lastEvent.number, -1);

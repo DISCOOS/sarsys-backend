@@ -88,9 +88,19 @@ class TrackingService extends MessageHandler<DomainEvent> {
   final Map<String, Set<String>> _sources = {};
   final Logger logger = Logger('$TrackingService');
 
+  /// Get last [Tracking] event processed
+  DomainEvent get lastTrackingEvent => _lastTrackingEvent;
+  DomainEvent _lastTrackingEvent;
+
+  /// Get [Duration] metrics for [Tracking] event processing
+  DurationMetric get trackingMetrics => _metrics['tracking'];
+
   /// Get last [PositionEvent] processed
-  PositionEvent get lastEvent => _lastEvent;
-  PositionEvent _lastEvent;
+  PositionEvent get lastPositionEvent => _lastPositionEvent;
+  PositionEvent _lastPositionEvent;
+
+  /// Get [Duration] metrics for [PositionEvent] event processing
+  DurationMetric get positionMetrics => _metrics['position'];
 
   /// Check if [Tracking] with given [uuid] is managed by this service
   bool isManagerOf(String uuid) => _managed.contains(uuid);
@@ -238,9 +248,10 @@ class TrackingService extends MessageHandler<DomainEvent> {
   final List<DomainEvent> _paused = [];
 
   @override
-  void handle(Object source, DomainEvent message) async {
+  void handle(Object source, DomainEvent event) async {
+    final tic = DateTime.now();
     if (isPaused) {
-      _paused.add(message);
+      _paused.add(event);
       if (_paused.length > maxPaused) {
         _paused.remove(_paused.first);
       }
@@ -248,37 +259,54 @@ class TrackingService extends MessageHandler<DomainEvent> {
     }
     if (isCompeting) {
       try {
-        if (message.remote) {
-          switch (message.runtimeType) {
+        if (event.remote) {
+          switch (event.runtimeType) {
             case TrackingCreated:
-              await _onTrackingCreated(message as TrackingCreated);
+              await _onTrackingCreated(event as TrackingCreated);
               break;
             case TrackingSourceAdded:
-              await _onTrackingSourceAdded(message as TrackingSourceAdded);
+              await _onTrackingSourceAdded(event as TrackingSourceAdded);
               break;
             case TrackingSourceRemoved:
-              await _onTrackingSourceRemoved(message as TrackingSourceRemoved);
+              await _onTrackingSourceRemoved(event as TrackingSourceRemoved);
               break;
             case DevicePositionChanged:
-              await _onDevicePositionChanged(message as DevicePositionChanged);
+              await _onDevicePositionChanged(event as DevicePositionChanged);
               break;
             case TrackingPositionChanged:
-              await _onSourcePositionChanged(message as TrackingPositionChanged);
+              await _onSourcePositionChanged(event as TrackingPositionChanged);
               break;
             case TrackingDeleted:
-              await _onTrackingDeleted(message as TrackingDeleted);
+              await _onTrackingDeleted(event as TrackingDeleted);
               break;
           }
+          // Calculate duration statistics
+          _onProcessed(tic, event);
         }
       } catch (error, stackTrace) {
         logger.severe(
-          'Failed to handle $message: $error with stacktrace: $stackTrace',
+          'Failed to handle $event: $error with stacktrace: $stackTrace',
           error,
           Trace.from(stackTrace),
         );
       }
     }
   }
+
+  void _onProcessed(DateTime tic, DomainEvent event) {
+    if (event is PositionEvent) {
+      _lastPositionEvent = event;
+      _metrics['position'] = _metrics['position'].next(tic);
+    } else {
+      _lastTrackingEvent = event;
+      _metrics['tracking'] = _metrics['tracking'].next(tic);
+    }
+  }
+
+  final _metrics = {
+    'tracking': DurationMetric.zero,
+    'position': DurationMetric.zero,
+  };
 
   Future _replayEvent(DomainEvent event) async {
     if (event is TrackingCreated) {
@@ -478,7 +506,6 @@ class TrackingService extends MessageHandler<DomainEvent> {
         final trx = repo.getTransaction(
           tuuid,
         );
-        _lastEvent = event;
         final position = event.position;
         final positions = track.positions ?? [];
         positions.add(position);

@@ -123,17 +123,18 @@ class TrackingServiceCommandsController extends OperationsBaseController {
   Map<String, Object> _toJsonGetMetaResponse(String name, GetMetaResponse meta, String expand) {
     return {
       'name': name,
-      'total': meta.total,
       'status': _toStatus(meta),
       'managerOf': _toJsonManagerOf(meta),
-      'fractionManaged': meta.fractionManaged,
-      'positions': _toJsonPositionsMeta(meta.positions),
+      'metrics': {
+        'trackings': _toJsonTrackingsMeta(meta.trackings),
+        'positions': _toJsonPositionsMeta(meta.positions),
+      },
       if (shouldExpand(expand, 'repo')) 'repo': _toJsonRepoMeta(meta.repo),
     };
   }
 
   String _toStatus(GetMetaResponse meta) {
-    return enumName(meta.status).split('_').last.toLowerCase();
+    return capitalize(enumName(meta.status).split('_').last);
   }
 
   List<Map<String, dynamic>> _toJsonManagerOf(GetMetaResponse meta) => meta.managerOf
@@ -157,10 +158,18 @@ class TrackingServiceCommandsController extends OperationsBaseController {
         'position': meta.position,
       };
 
+  Map<String, dynamic> _toJsonTrackingsMeta(TrackingsMeta meta) => {
+        'total': meta.total,
+        'fractionManaged': meta.fractionManaged,
+        'eventsPerMinute': meta.eventsPerMinute,
+        'lastEvent': _toJsonEventMeta(meta.lastEvent),
+        'averageProcessingTimeMillis': meta.averageProcessingTimeMillis,
+      };
+
   Map<String, dynamic> _toJsonPositionsMeta(PositionsMeta meta) => {
         'total': meta.total,
+        'eventsPerMinute': meta.eventsPerMinute,
         'lastEvent': _toJsonEventMeta(meta.lastEvent),
-        'positionsPerMinute': meta.positionsPerMinute,
         'averageProcessingTimeMillis': meta.averageProcessingTimeMillis,
       };
 
@@ -540,12 +549,6 @@ class TrackingServiceCommandsController extends OperationsBaseController {
       'name': APISchemaObject.string()
         ..description = 'Tracking service instance name'
         ..isReadOnly = true,
-      'total': APISchemaObject.integer()
-        ..description = 'Total number of tracking objects'
-        ..isReadOnly = true,
-      'fractionManaged': APISchemaObject.integer()
-        ..description = 'Number of managed tracking object to total number of tracking objects'
-        ..isReadOnly = true,
       'status': APISchemaObject.string()
         ..description = 'Tracking service status'
         ..enumerated = [
@@ -556,6 +559,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
           'disposed',
         ]
         ..isReadOnly = true,
+      'trackings': documentTrackingsMeta(context),
       'positions': documentPositionsMeta(context),
       'managerOf': APISchemaObject.array(
         ofSchema: documentTrackingMeta(context),
@@ -566,21 +570,41 @@ class TrackingServiceCommandsController extends OperationsBaseController {
     });
   }
 
+  APISchemaObject documentTrackingsMeta(APIDocumentContext context) => APISchemaObject.object({
+        'total': APISchemaObject.integer()
+          ..description = 'Total number of trackings heard'
+          ..isReadOnly = true,
+        'fractionManaged': APISchemaObject.integer()
+          ..description = 'Number of managed tracking object to total number of tracking objects'
+          ..isReadOnly = true,
+        'eventsPerMinute': APISchemaObject.integer()
+          ..description = 'Number of tracking events processed per minute'
+          ..isReadOnly = true,
+        'averageProcessingTimeMillis': APISchemaObject.number()
+          ..description = 'average processing time in milliseconds'
+          ..isReadOnly = true,
+        'lastEvent': documentEvent(context)
+          ..description = 'Last event applied to tracking object'
+          ..isReadOnly = true,
+      })
+        ..description = 'Tracking processing metadata'
+        ..isReadOnly = true;
+
   APISchemaObject documentPositionsMeta(APIDocumentContext context) => APISchemaObject.object({
         'total': APISchemaObject.integer()
           ..description = 'Total number of positions heard'
           ..isReadOnly = true,
-        'positionsPerMinute': APISchemaObject.integer()
+        'eventsPerMinute': APISchemaObject.integer()
           ..description = 'Number of positions processed per minute'
           ..isReadOnly = true,
         'averageProcessingTimeMillis': APISchemaObject.number()
           ..description = 'verage processing time in milliseconds'
           ..isReadOnly = true,
         'lastEvent': documentEvent(context)
-          ..description = 'Last event applied to tracking object'
+          ..description = 'Last event applied to track in tracking object'
           ..isReadOnly = true,
       })
-        ..description = 'Tracking object metadata'
+        ..description = 'Position processing metadata'
         ..isReadOnly = true;
 
   APISchemaObject documentTrackingMeta(APIDocumentContext context) => APISchemaObject.object({

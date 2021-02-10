@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
@@ -627,53 +628,168 @@ class ExpectedVersion {
   EventNumber toNumber() => EventNumber(value);
 }
 
+/// Class for [Duration] metrics
 class DurationMetric {
   static const limit = 50;
 
-  const DurationMetric()
-      : count = 0,
-        duration = Duration.zero,
-        durationMean = Duration.zero;
+  const DurationMetric([double alpha = 0.8])
+      : t0 = null,
+        tn = null,
+        count = 0,
+        rateExp = 0,
+        alpha = alpha,
+        varianceExp = 0,
+        _dSquaredCum = 0,
+        last = Duration.zero,
+        meanCum = Duration.zero,
+        meanExp = Duration.zero;
 
   const DurationMetric._({
+    this.t0,
+    this.tn,
     this.count = 0,
-    this.duration = Duration.zero,
-    this.durationMean = Duration.zero,
-  });
+    this.alpha = 0.8,
+    this.rateExp = 0,
+    int dSquaredCum = 0,
+    this.varianceExp = 0,
+    this.last = Duration.zero,
+    this.meanCum = Duration.zero,
+    this.meanExp = Duration.zero,
+  }) : _dSquaredCum = dSquaredCum;
 
   static const DurationMetric zero = DurationMetric._();
 
+  /// Number of calculations
   final int count;
-  final Duration duration;
-  final Duration durationMean;
 
-  /// Calculate metric from difference between [tic] and [DateTime.now()]
-  DurationMetric now(DateTime tic) => calc(DateTime.now().difference(tic));
+  /// [DateTime] when first [last] was calculated
+  final DateTime t0;
+
+  /// [DateTime] when [last] was was calculated
+  final DateTime tn;
+
+  /// Last duration added to moving average
+  final Duration last;
+
+  /// Cumulative [last] average
+  final Duration meanCum;
+
+  /// Cumulative average sample variance (n-1)
+  double get varianceCum => count > 1 ? _dSquaredCum / (count - 1) : 0;
+
+  // Auxiliary variable with
+  // previous calc of 'variance * (n-1)'
+  // (sample variance), see
+  // https://nestedsoftware.com/2018/03/27/calculating-standard-deviation-on-streaming-data-253l.23919.html
+  final int _dSquaredCum;
+
+  /// Cumulative standard deviation of sample
+  double get deviationCum => sqrt(varianceCum);
+
+  /// Weight of [Duration] calculated [last]
+  final double alpha;
+
+  /// Complementary weight of previous [Duration]s
+  double get beta => 1 - alpha;
+
+  /// Exponential moving average [last] weighted bv [alpha]
+  final Duration meanExp;
+
+  /// Exponential moving average variance
+  final double varianceExp;
+
+  /// Exponential moving standard deviation
+  double get deviationExp => sqrt(varianceExp);
+
+  /// Check if this is [zero]
+  bool get isZero => t0 == null;
+
+  /// Get [Duration] between [t0] to [tn]
+  Duration get duration => isZero ? Duration.zero : tn.difference(t0);
+
+  /// Get cumulative average of calculations per second from [t0] to [tn]
+  double get rateCum => isZero || t0 == tn ? 0 : count / min(1, duration.inSeconds);
+
+  /// Get exponential moving average of calculations per second from [t0] to [tn]
+  final double rateExp;
+
+  /// Calculate next metric from difference between [tic] and [DateTime.now()]
+  DurationMetric next(DateTime tic) => calc(DateTime.now().difference(tic));
 
   /// Calculate metric from difference between [tic] and [toc]
-  DurationMetric from(DateTime tic, DateTime toc) => calc(toc.difference(tic));
+  DurationMetric difference(DateTime tic, DateTime toc) => calc(toc.difference(tic));
 
   /// Calculate metric.
   DurationMetric calc(Duration duration) {
     final total = count + 1;
+    final now = DateTime.now();
+    final rateExp = _calcRateExp(rateCum);
+    final meanExp = _calcMeanExp(duration);
+    final meanCum = _calcMeanCum(total, duration);
+    final varianceExp = _calcVarianceExp(duration);
+    final dSquaredCum = _calcDSquaredCum(duration, meanCum);
     return DurationMetric._(
+      tn: now,
       count: total,
-      duration: duration,
-
-      /// Calculate iterative mean, see
-      /// http://www.heikohoffmann.de/htmlthesis/node134.html
-      durationMean: durationMean +
-          Duration(
-            milliseconds: 1 ~/ (total) * (duration.inMilliseconds - durationMean.inMilliseconds),
-          ),
+      t0: t0 ?? now,
+      alpha: alpha,
+      last: duration,
+      rateExp: rateExp,
+      meanCum: meanCum,
+      meanExp: meanExp,
+      dSquaredCum: dSquaredCum,
+      varianceExp: varianceExp,
     );
   }
 
   Map<String, dynamic> toMeta() => {
-        'count': count,
-        'duration': '${duration.inMilliseconds} ms',
-        'durationMean': '${durationMean.inMilliseconds} ms',
+        't0': t0?.toIso8601String(),
+        'tn': t0?.toIso8601String(),
+        'last': '${last.inMilliseconds}',
+        'cumulative': {
+          'rate': '${rateCum}',
+          'mean': '${meanCum.inMilliseconds}',
+          'variance': '${varianceCum}',
+          'deviation': '${deviationCum}',
+        },
+        'exponential': {
+          'beta': beta,
+          'alpha': alpha,
+          'rate': '${rateExp}',
+          'mean': '${meanExp.inMilliseconds}',
+          'variance': '${varianceExp}',
+          'deviation': '${deviationExp}',
+        },
       };
+
+  // Calculate cumulative duration mean iteratively, see
+  // http://www.heikohoffmann.de/htmlthesis/node134.html
+  Duration _calcMeanCum(int total, Duration next) =>
+      meanCum +
+      Duration(
+        milliseconds: (next - meanCum).inMilliseconds ~/ (total),
+      );
+
+  // Calculate auxiliary variable for cumulative variances iteratively, see
+  // https://nestedsoftware.com/2018/03/27/calculating-standard-deviation-on-streaming-data-253l.23919.html
+  int _calcDSquaredCum(Duration duration, Duration newMeanCum) =>
+      (duration - newMeanCum).inMilliseconds * (newMeanCum - meanCum).inMilliseconds;
+
+  // Calculate exponential moving duration mean iteratively, see
+  // https://nestedsoftware.com/2018/04/04/exponential-moving-average-on-streaming-data-4hhl.24876.html
+  Duration _calcMeanExp(Duration next) =>
+      meanExp +
+      Duration(
+        milliseconds: ((next - meanExp).inMilliseconds * alpha).toInt(),
+      );
+
+  // Calculate exponential moving rate iteratively, see
+  // https://nestedsoftware.com/2018/04/04/exponential-moving-average-on-streaming-data-4hhl.24876.html
+  double _calcRateExp(double next) => rateExp + (next - rateExp) * alpha;
+
+  // Calculate exponential moving variances iteratively, see
+  // https://nestedsoftware.com/2018/03/27/calculating-standard-deviation-on-streaming-data-253l.23919.html
+  double _calcVarianceExp(Duration next) => (beta * (varianceExp + (alpha * pow((next - meanExp).inMilliseconds, 2))));
 }
 
 /// Get enum value name

@@ -14,6 +14,12 @@ import 'sarsys_tracking_service.pb.dart' as $0;
 export 'sarsys_tracking_service.pb.dart';
 
 class SarSysTrackingServiceClient extends $grpc.Client {
+  static final _$getMeta =
+      $grpc.ClientMethod<$0.GetMetaRequest, $0.GetMetaResponse>(
+          '/app.sarsys.tracking.SarSysTrackingService/GetMeta',
+          ($0.GetMetaRequest value) => value.writeToBuffer(),
+          ($core.List<$core.int> value) =>
+              $0.GetMetaResponse.fromBuffer(value));
   static final _$start =
       $grpc.ClientMethod<$0.StartTrackingRequest, $0.StartTrackingResponse>(
           '/app.sarsys.tracking.SarSysTrackingService/start',
@@ -38,17 +44,16 @@ class SarSysTrackingServiceClient extends $grpc.Client {
           ($0.RemoveTrackingsRequest value) => value.writeToBuffer(),
           ($core.List<$core.int> value) =>
               $0.RemoveTrackingsResponse.fromBuffer(value));
-  static final _$getMeta =
-      $grpc.ClientMethod<$0.GetMetaRequest, $0.GetMetaResponse>(
-          '/app.sarsys.tracking.SarSysTrackingService/GetMeta',
-          ($0.GetMetaRequest value) => value.writeToBuffer(),
-          ($core.List<$core.int> value) =>
-              $0.GetMetaResponse.fromBuffer(value));
 
   SarSysTrackingServiceClient($grpc.ClientChannel channel,
       {$grpc.CallOptions options,
       $core.Iterable<$grpc.ClientInterceptor> interceptors})
       : super(channel, options: options, interceptors: interceptors);
+
+  $grpc.ResponseFuture<$0.GetMetaResponse> getMeta($0.GetMetaRequest request,
+      {$grpc.CallOptions options}) {
+    return $createUnaryCall(_$getMeta, request, options: options);
+  }
 
   $grpc.ResponseFuture<$0.StartTrackingResponse> start(
       $0.StartTrackingRequest request,
@@ -73,17 +78,19 @@ class SarSysTrackingServiceClient extends $grpc.Client {
       {$grpc.CallOptions options}) {
     return $createUnaryCall(_$removeTrackings, request, options: options);
   }
-
-  $grpc.ResponseFuture<$0.GetMetaResponse> getMeta($0.GetMetaRequest request,
-      {$grpc.CallOptions options}) {
-    return $createUnaryCall(_$getMeta, request, options: options);
-  }
 }
 
 abstract class SarSysTrackingServiceBase extends $grpc.Service {
   $core.String get $name => 'app.sarsys.tracking.SarSysTrackingService';
 
   SarSysTrackingServiceBase() {
+    $addMethod($grpc.ServiceMethod<$0.GetMetaRequest, $0.GetMetaResponse>(
+        'GetMeta',
+        getMeta_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.GetMetaRequest.fromBuffer(value),
+        ($0.GetMetaResponse value) => value.writeToBuffer()));
     $addMethod(
         $grpc.ServiceMethod<$0.StartTrackingRequest, $0.StartTrackingResponse>(
             'start',
@@ -120,13 +127,11 @@ abstract class SarSysTrackingServiceBase extends $grpc.Service {
         ($core.List<$core.int> value) =>
             $0.RemoveTrackingsRequest.fromBuffer(value),
         ($0.RemoveTrackingsResponse value) => value.writeToBuffer()));
-    $addMethod($grpc.ServiceMethod<$0.GetMetaRequest, $0.GetMetaResponse>(
-        'GetMeta',
-        getMeta_Pre,
-        false,
-        false,
-        ($core.List<$core.int> value) => $0.GetMetaRequest.fromBuffer(value),
-        ($0.GetMetaResponse value) => value.writeToBuffer()));
+  }
+
+  $async.Future<$0.GetMetaResponse> getMeta_Pre(
+      $grpc.ServiceCall call, $async.Future<$0.GetMetaRequest> request) async {
+    return getMeta(call, await request);
   }
 
   $async.Future<$0.StartTrackingResponse> start_Pre($grpc.ServiceCall call,
@@ -151,11 +156,8 @@ abstract class SarSysTrackingServiceBase extends $grpc.Service {
     return removeTrackings(call, await request);
   }
 
-  $async.Future<$0.GetMetaResponse> getMeta_Pre(
-      $grpc.ServiceCall call, $async.Future<$0.GetMetaRequest> request) async {
-    return getMeta(call, await request);
-  }
-
+  $async.Future<$0.GetMetaResponse> getMeta(
+      $grpc.ServiceCall call, $0.GetMetaRequest request);
   $async.Future<$0.StartTrackingResponse> start(
       $grpc.ServiceCall call, $0.StartTrackingRequest request);
   $async.Future<$0.StopTrackingResponse> stop(
@@ -164,6 +166,4 @@ abstract class SarSysTrackingServiceBase extends $grpc.Service {
       $grpc.ServiceCall call, $0.AddTrackingsRequest request);
   $async.Future<$0.RemoveTrackingsResponse> removeTrackings(
       $grpc.ServiceCall call, $0.RemoveTrackingsRequest request);
-  $async.Future<$0.GetMetaResponse> getMeta(
-      $grpc.ServiceCall call, $0.GetMetaRequest request);
 }

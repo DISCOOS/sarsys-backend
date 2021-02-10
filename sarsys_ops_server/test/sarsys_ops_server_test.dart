@@ -49,14 +49,14 @@ Future main() async {
     );
     expect(metas.length, 1);
     final meta = metas.last;
-    expect(meta.elementAt<String>('status'), 'ready');
-    expect(meta.elementAt<int>('total'), 0);
+    expect(meta.elementAt<String>('status'), 'READY');
     expect(meta.listAt('managerOf'), isEmpty);
-    expect(meta.elementAt<double>('fractionManaged'), 0.0);
-    final positions = meta.mapAt<String, dynamic>('positions');
+    expect(meta.elementAt<int>('metrics/trackings/total'), 0);
+    expect(meta.elementAt<double>('metrics/trackings/fractionManaged'), 0.0);
+    final positions = meta.mapAt<String, dynamic>('metrics/positions');
     expect(positions.elementAt<int>('total'), 0);
-    expect(positions.elementAt<double>('positionsPerMinute'), 0.0);
-    expect(positions.elementAt<double>('averageProcessingTimeMillis'), 0.0);
+    expect(positions.elementAt<double>('eventsPerMinute'), 0.0);
+    expect(positions.elementAt<int>('averageProcessingTimeMillis'), 0.0);
     final lastEvent = positions.mapAt<String, dynamic>('lastEvent');
     expect(lastEvent.elementAt<String>('type'), isEmpty);
     expect(lastEvent.elementAt<String>('uuid'), isEmpty);
@@ -88,7 +88,7 @@ Future main() async {
     expect(response.statusCode, 200, reason: '$body');
     final meta = Map<String, dynamic>.from(body['meta']);
     expect(meta, isNotEmpty);
-    expect(meta.elementAt<String>('status'), 'stopped');
+    expect(meta.elementAt<String>('status'), 'STOPPED');
   });
 
   test("POST with 'stop_all' returns 200", () async {
@@ -106,7 +106,7 @@ Future main() async {
     final metas = List<Map<String, dynamic>>.from(body);
     expect(metas.length, 1);
     final meta = Map<String, dynamic>.from(metas.last['meta']);
-    expect(meta.elementAt<String>('status'), 'stopped');
+    expect(meta.elementAt<String>('status'), 'STOPPED');
   });
 
   test("POST /ops/api/services/tracking with 'add_trackings' returns 400 on empty uuids", () async {
@@ -146,15 +146,15 @@ Future main() async {
     final body = await response.body.decode();
     expect(response.statusCode, 200, reason: '$body');
     final meta = (body as Map).mapAt<String, dynamic>('meta');
-    expect(meta.elementAt<String>('status'), 'ready');
-    expect(meta.elementAt<int>('total'), 2);
+    expect(meta.elementAt<String>('status'), 'READY');
     final managerOf = meta.listAt('managerOf');
     expect(managerOf, hasLength(1));
-    expect(meta.elementAt<double>('fractionManaged'), 0.5);
-    final positions = meta.mapAt<String, dynamic>('positions');
+    expect(meta.elementAt<int>('metrics/trackings/total'), 2);
+    expect(meta.elementAt<double>('metrics/trackings/fractionManaged'), 0.5);
+    final positions = meta.mapAt<String, dynamic>('metrics/positions');
     expect(positions.elementAt<int>('total'), 0);
-    expect(positions.elementAt<double>('positionsPerMinute'), 0.0);
-    expect(positions.elementAt<double>('averageProcessingTimeMillis'), 0.0);
+    expect(positions.elementAt<double>('eventsPerMinute'), 0.0);
+    expect(positions.elementAt<int>('averageProcessingTimeMillis'), 0.0);
     final lastEvent = positions.mapAt<String, dynamic>('lastEvent');
     expect(lastEvent.elementAt<String>('type'), isEmpty);
     expect(lastEvent.elementAt<String>('uuid'), isEmpty);
@@ -172,7 +172,7 @@ Future _testStartService(SarSysOpsHarness harness) async {
   expect(response.statusCode, 200, reason: '$body');
   final meta = Map<String, dynamic>.from(body['meta']);
   expect(meta, isNotEmpty);
-  expect(meta.elementAt<String>('status'), 'competing');
+  expect(meta.elementAt<String>('status'), 'STARTED');
 }
 
 Future _testStartAllService(SarSysOpsHarness harness) async {
@@ -184,7 +184,7 @@ Future _testStartAllService(SarSysOpsHarness harness) async {
   final metas = List<Map<String, dynamic>>.from(body);
   expect(metas.length, 1);
   final meta = Map<String, dynamic>.from(metas.last['meta']);
-  expect(meta.elementAt<String>('status'), 'competing');
+  expect(meta.elementAt<String>('status'), 'STARTED');
 }
 
 Future<List<String>> _testAddTrackings(SarSysOpsHarness harness) async {
@@ -208,15 +208,15 @@ Future<List<String>> _testAddTrackings(SarSysOpsHarness harness) async {
   final body = await response.body.decode();
   expect(response.statusCode, 200, reason: '$body');
   final meta = (body as Map).mapAt<String, dynamic>('meta');
-  expect(meta.elementAt<String>('status'), 'ready');
-  expect(meta.elementAt<int>('total'), 2);
+  expect(meta.elementAt<String>('status'), 'READY');
   final managerOf = meta.listAt('managerOf');
   expect(managerOf, hasLength(2));
-  expect(meta.elementAt<double>('fractionManaged'), 1.0);
-  final positions = meta.mapAt<String, dynamic>('positions');
+  expect(meta.elementAt<int>('metrics/trackings/total'), 2);
+  expect(meta.elementAt<double>('metrics/trackings/fractionManaged'), 1.0);
+  final positions = meta.mapAt<String, dynamic>('metrics/positions');
   expect(positions.elementAt<int>('total'), 0);
-  expect(positions.elementAt<double>('positionsPerMinute'), 0.0);
-  expect(positions.elementAt<double>('averageProcessingTimeMillis'), 0.0);
+  expect(positions.elementAt<double>('eventsPerMinute'), 0.0);
+  expect(positions.elementAt<int>('averageProcessingTimeMillis'), 0.0);
   final lastEvent = positions.mapAt<String, dynamic>('lastEvent');
   expect(lastEvent.elementAt<String>('type'), isEmpty);
   expect(lastEvent.elementAt<String>('uuid'), isEmpty);
