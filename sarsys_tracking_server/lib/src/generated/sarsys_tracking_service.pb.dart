@@ -1133,9 +1133,10 @@ class EventMeta extends $pb.GeneratedMessage {
       const $core.bool.fromEnvironment('protobuf.omit_message_names')
           ? ''
           : 'EventMeta',
-      package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names')
-          ? ''
-          : 'app.sarsys.tracking'),
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'app.sarsys.tracking'),
       createEmptyInstance: create)
     ..aOS(
         1,
@@ -1157,6 +1158,7 @@ class EventMeta extends $pb.GeneratedMessage {
         const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'number',
         $pb.PbFieldType.O3)
     ..a<$core.int>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'position', $pb.PbFieldType.O3)
+    ..a<$core.int>(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'timestamp', $pb.PbFieldType.O3)
     ..hasRequiredFields = false;
 
   EventMeta._() : super();
@@ -1246,6 +1248,18 @@ class EventMeta extends $pb.GeneratedMessage {
   $core.bool hasPosition() => $_has(4);
   @$pb.TagNumber(5)
   void clearPosition() => clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.int get timestamp => $_getIZ(5);
+  @$pb.TagNumber(6)
+  set timestamp($core.int v) {
+    $_setSignedInt32(5, v);
+  }
+
+  @$pb.TagNumber(6)
+  $core.bool hasTimestamp() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearTimestamp() => clearField(6);
 }
 
 class RepositoryMeta extends $pb.GeneratedMessage {

@@ -314,6 +314,9 @@ message EventMeta {
   // Event position in canonical (projection or instance) stream
   int32 position = 5;
 
+  // Timestamp in milliseconds from epoc (UTC)
+  int32 timestamp = 6;
+
 }
 
 

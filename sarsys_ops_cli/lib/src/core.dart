@@ -19,6 +19,20 @@ final green = AnsiPen()..green(bold: true);
 final fill = (int length, [String delimiter = ' ']) => List.filled(length, delimiter).join();
 final pad = (String text, int indent, int max) => '${fill(indent)}$text${fill(math.max(0, max - '$text'.length))}';
 
+String sprint(
+  int length, {
+  @required StringBuffer buffer,
+  int indent = 2,
+  String Function(String) format,
+}) {
+  final separator = fill(length, '-');
+  final spaces = fill(indent);
+  buffer.writeln(
+    format == null ? '$spaces$separator' : format('$spaces$separator'),
+  );
+  return separator;
+}
+
 void vprint(
   String label,
   Object value, {

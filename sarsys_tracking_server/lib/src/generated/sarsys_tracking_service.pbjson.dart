@@ -303,6 +303,7 @@ const EventMeta$json = const {
     const {'1': 'remote', '3': 3, '4': 1, '5': 8, '10': 'remote'},
     const {'1': 'number', '3': 4, '4': 1, '5': 5, '10': 'number'},
     const {'1': 'position', '3': 5, '4': 1, '5': 5, '10': 'position'},
+    const {'1': 'timestamp', '3': 6, '4': 1, '5': 5, '10': 'timestamp'},
   ],
 };
 

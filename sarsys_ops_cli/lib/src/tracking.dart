@@ -51,16 +51,19 @@ abstract class TrackingCommandBase extends BaseCommand {
   String toStatuses(List items, {bool verbose = false}) {
     final buffer = StringBuffer();
     for (var instance in items.map((item) => Map.from(item))) {
+      sprint(60, buffer: buffer, format: highlight);
       vprint('Name', instance.elementAt('name'), buffer: buffer);
-      toStatus(buffer, instance, indent: 4, verbose: verbose);
+      toStatus(buffer, instance, verbose: verbose);
+      buffer.writeln();
     }
     return buffer.toString();
   }
 
   void toStatus(StringBuffer buffer, Map instance, {int indent = 2, bool verbose = false}) {
-    final delimiter = fill(60, '-');
-    final columns = delimiter.length;
+    final separator = fill(60, '-');
+    final columns = separator.length;
     final spaces = fill(indent);
+    buffer.writeln(highlight('$spaces$separator'));
     final trackings = instance.listAt<Map<String, dynamic>>(
       'managerOf',
       defaultList: [],
@@ -75,16 +78,17 @@ abstract class TrackingCommandBase extends BaseCommand {
     );
     vprint(
       'Trackings seen',
-      instance.elementAt<int>('trackings/total', defaultValue: 0),
+      instance.elementAt<int>('metrics/trackings/total', defaultValue: 0),
       unit: 'all tracking objects',
       max: columns,
       buffer: buffer,
       indent: indent,
     );
+    buffer.writeln('$spaces$separator');
     vprint(
       'Is managing',
       trackings.length,
-      unit: '${(instance.elementAt<double>('trackings/fractionManaged', defaultValue: 0) * 100).toInt()}'
+      unit: '${(instance.elementAt<double>('metrics/trackings/fractionManaged', defaultValue: 0) * 100).toInt()}'
           '% of all tracking objects',
       max: columns,
       buffer: buffer,
@@ -92,7 +96,7 @@ abstract class TrackingCommandBase extends BaseCommand {
     );
     vprint(
       'TPM',
-      instance.elementAt<double>('trackings/eventsPerMinute', defaultValue: 0),
+      instance.elementAt<double>('metrics/trackings/eventsPerMinute', defaultValue: 0),
       unit: 'trackings per minute',
       max: columns,
       buffer: buffer,
@@ -100,15 +104,16 @@ abstract class TrackingCommandBase extends BaseCommand {
     );
     vprint(
       'TPT',
-      instance.elementAt<int>('trackings/averageProcessingTimeMillis', defaultValue: 0),
+      instance.elementAt<int>('metrics/trackings/averageProcessingTimeMillis', defaultValue: 0),
       unit: 'average tracking processing in ms',
       max: columns,
       buffer: buffer,
       indent: indent,
     );
+    buffer.writeln('$spaces$separator');
     vprint(
       'Processed',
-      instance.elementAt<int>('positions/total', defaultValue: 0),
+      instance.elementAt<int>('metrics/positions/total', defaultValue: 0),
       unit: 'positions',
       max: columns,
       buffer: buffer,
@@ -116,7 +121,7 @@ abstract class TrackingCommandBase extends BaseCommand {
     );
     vprint(
       'PPM',
-      instance.elementAt<double>('positions/eventsPerMinute', defaultValue: 0),
+      instance.elementAt<double>('metrics/positions/eventsPerMinute', defaultValue: 0),
       unit: 'positions per minute',
       max: columns,
       buffer: buffer,
@@ -124,7 +129,7 @@ abstract class TrackingCommandBase extends BaseCommand {
     );
     vprint(
       'PPT',
-      instance.elementAt<int>('positions/averageProcessingTimeMillis', defaultValue: 0),
+      instance.elementAt<int>('metrics/positions/averageProcessingTimeMillis', defaultValue: 0),
       unit: 'average position processing in ms',
       max: columns,
       buffer: buffer,
@@ -133,7 +138,7 @@ abstract class TrackingCommandBase extends BaseCommand {
     if (verbose) {
       var i = 0;
       for (var tracking in trackings.map((item) => Map<String, dynamic>.from(item))) {
-        buffer.writeln(gray('${spaces}$delimiter'));
+        buffer.writeln(gray('${spaces}$separator'));
         vprint(
           'Tracking',
           tracking.elementAt('uuid'),
@@ -143,9 +148,17 @@ abstract class TrackingCommandBase extends BaseCommand {
           indent: indent,
         );
         vprint(
-          'Last applied',
+          'Applied last',
           tracking.elementAt<String>('lastEvent/type', defaultValue: 'none'),
           unit: 'event ${tracking.elementAt<int>('lastEvent/number')}',
+          max: columns,
+          buffer: buffer,
+          indent: indent,
+        );
+        final ts = tracking.elementAt<int>('lastEvent/timestamp', defaultValue: 0);
+        vprint(
+          'Applied when',
+          DateTime.fromMillisecondsSinceEpoch(ts).toIso8601String(),
           max: columns,
           buffer: buffer,
           indent: indent,
