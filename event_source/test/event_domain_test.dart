@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
 
-import 'package:event_source_test/event_source_test.dart';
 import 'package:meta/meta.dart';
 import 'package:hive/hive.dart';
 import 'package:logging/logging.dart';
@@ -12,12 +11,10 @@ import 'package:async/async.dart';
 import 'package:pedantic/pedantic.dart';
 
 import 'package:event_source/event_source.dart';
+import 'package:event_source_test/event_source_test.dart';
 import 'package:event_source/src/models/aggregate_root_model.dart';
 import 'package:event_source/src/models/event_number_model.dart';
 import 'package:event_source/src/models/snapshot_model.dart';
-
-import 'bar.dart';
-import 'foo.dart';
 
 Future main() async {
   const instances = 2;

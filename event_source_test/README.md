@@ -5,7 +5,7 @@ A test support package for Event Sourcing using `event_source` package
 A simple usage example:
 
 ```dart
-import 'package:sarsys_test/event_source_test.dart';
+import 'package:sarsys_test/event_source_grpc_test.dart';
 
 main() {
   final harness = new EventSourceHarness();

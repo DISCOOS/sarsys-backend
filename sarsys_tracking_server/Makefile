@@ -38,7 +38,17 @@ test:
 
 models:
 	echo "Generating models..."; \
-	protoc --dart_out="generate_kythe_info,grpc:lib/src/generated" -Iprotos protos/sarsys_tracking_service.proto
+	mkdir -p "lib/src/generated"
+	protoc --dart_out="generate_kythe_info,grpc:lib/src/generated" \
+		--proto_path ../event_source_grpc/protos \
+		any.proto \
+		event.proto \
+		metric.proto \
+		aggregate.proto \
+		timestamp.proto \
+		repository.proto \
+		--proto_path protos \
+		tracking_service.proto
 #	rm lib/src/generated/metadata.pb{enum,json}.dart
 	dartfmt -w lib/src/generated
 	echo "[✓] Generating models complete."

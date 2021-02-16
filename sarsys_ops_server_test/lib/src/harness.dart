@@ -3,29 +3,28 @@ import 'dart:io';
 
 import 'package:aqueduct_test/aqueduct_test.dart';
 import 'package:event_source_test/event_source_test.dart';
-import 'package:grpc/grpc.dart';
 import 'package:hive/hive.dart';
 import 'package:path/path.dart' as p;
 import 'package:mockito/mockito.dart';
 import 'package:sarsys_domain/sarsys_domain.dart';
-import 'package:sarsys_http_core/sarsys_http_core.dart';
+import 'package:sarsys_core/sarsys_core.dart';
 
 import 'package:sarsys_ops_server/sarsys_ops_channel.dart';
 import 'package:sarsys_ops_server/sarsys_ops_server.dart';
 import 'package:sarsys_ops_server/src/config.dart';
 import 'package:sarsys_tracking_server/sarsys_tracking_server.dart';
-import 'package:test/test.dart';
+import 'package:sarsys_tracking_server_test/sarsys_tracking_server_test.dart';
 
 class SarSysOpsHarness extends TestHarness<SarSysOpsServerChannel> {
   static const testDataPath = 'test/.hive';
-  static const sub = _SarSysTrackingHarness.sub;
-  static const group = _SarSysTrackingHarness.group;
+  static const sub = SarSysTrackingHarness.sub;
+  static const group = SarSysTrackingHarness.group;
   static const trackingInstance0 = 'sarsys-tracking-server-0';
 
   SarSysTrackingServer get trackingServer => _trackingHarness?.server;
   EventStoreMockServer get esServer => _trackingHarness?.eventStoreMockServer;
   SarSysTrackingServiceClient get trackingClient => _trackingHarness?.grpcClient;
-  _SarSysTrackingHarness _trackingHarness;
+  SarSysTrackingHarness _trackingHarness;
 
   /// Get mocked [K8sApi]
   K8sApi get k8sMockApi => _k8sMockApi;
@@ -43,7 +42,7 @@ class SarSysOpsHarness extends TestHarness<SarSysOpsServerChannel> {
     String namespace = 'sarsys',
     List<String> instances = const [trackingInstance0],
   }) {
-    _trackingHarness = _SarSysTrackingHarness()
+    _trackingHarness = SarSysTrackingHarness()
       ..withTenant()
       ..withPrefix()
       ..withServerPorts(
@@ -105,7 +104,7 @@ class SarSysOpsHarness extends TestHarness<SarSysOpsServerChannel> {
   }) {
     options.configurationFilePath = file;
     _trackingHarness?.install(
-      SarSysOpsConfig(file).tracking,
+      config: SarSysOpsConfig(file).tracking,
     );
     super.install(
       restartForEachTest: restartForEachTest,
@@ -346,143 +345,6 @@ class _K8sMockClientResponse extends Fake implements HttpClientResponse {
   }
 
   final StreamController<List<int>> _controller = StreamController();
-}
-
-class _SarSysTrackingHarness {
-  static const sub = '\$et-TrackingCreated';
-  static const group = 'TrackingService';
-
-  SarSysTrackingServer server;
-  HttpClient httpClient = HttpClient();
-  EventStoreMockServer eventStoreMockServer;
-
-  String _tenant;
-  String get tenant => _tenant;
-  _SarSysTrackingHarness withTenant({String tenant = 'discoos'}) {
-    _tenant = tenant;
-    return this;
-  }
-
-  String _prefix;
-  String get prefix => _prefix;
-  _SarSysTrackingHarness withPrefix({String prefix = 'test'}) {
-    _prefix = prefix;
-    return this;
-  }
-
-  int get healthPort => _healthPort;
-  int _healthPort = 8082;
-
-  int get grpcPort => _grpcPort;
-  int _grpcPort = 8083;
-
-  _SarSysTrackingHarness withServerPorts({
-    int healthPort = 8082,
-    int grpcPort = 8083,
-  }) {
-    assert(_grpcChannel == null, 'withGrpc is already configured');
-    _grpcPort = grpcPort;
-    _healthPort = healthPort;
-    return this;
-  }
-
-  bool _startup = false;
-  _SarSysTrackingHarness withStartupOnBuild() {
-    _startup = true;
-    return this;
-  }
-
-  ClientChannel get grpcChannel => _grpcChannel;
-  ClientChannel _grpcChannel;
-  SarSysTrackingServiceClient get grpcClient => _grpcClient;
-  SarSysTrackingServiceClient _grpcClient;
-  _SarSysTrackingHarness withGrpcClient({int port = 8083}) {
-    _grpcChannel = ClientChannel(
-      '127.0.0.1',
-      port: _grpcPort = port,
-      options: const ChannelOptions(
-        credentials: ChannelCredentials.insecure(),
-      ),
-    );
-    _grpcClient = SarSysTrackingServiceClient(
-      grpcChannel,
-      options: CallOptions(
-        timeout: const Duration(
-          seconds: 30,
-        ),
-      ),
-    );
-    return this;
-  }
-
-  _SarSysTrackingHarness withLogger({bool debug = false}) {
-    if (debug) {
-      Logger.root.level = Level.FINE;
-    }
-    return this;
-  }
-
-  EventStoreMockServer withEventStoreMock() => eventStoreMockServer = EventStoreMockServer(
-        _tenant,
-        _prefix,
-        4000,
-      );
-
-  void install(SarSysTrackingConfig config) {
-    config.grpcPort = _grpcPort;
-    config.healthPort = _healthPort;
-    config.prefix = _prefix;
-    config.tenant = _tenant;
-    config.startup = _startup;
-    config.logging.stdout = false;
-
-    setUpAll(
-      () async => await eventStoreMockServer.open(),
-    );
-
-    setUp(() async {
-      assert(server == null);
-      assert(eventStoreMockServer != null, 'Forgot to call withEventStoreMock()?');
-
-      // Define required projections, streams and subscriptions
-      eventStoreMockServer
-        ..withProjection('\$by_category')
-        ..withProjection('\$by_event_type')
-        ..withStream(typeOf<Device>().toColonCase())
-        ..withStream(typeOf<Tracking>().toColonCase())
-        ..withStream(sub, useInstanceStreams: false, useCanonicalName: false)
-        ..withSubscription(sub, group: group);
-
-      server = SarSysTrackingServer();
-      await server.start(
-        config,
-      );
-      // Assert that all repos have a stream
-      final missing = <String>[];
-      for (var repo in server.manager.repos) {
-        if (!eventStoreMockServer.hasStream(repo.aggregateType.toColonCase())) {
-          missing.add(repo.aggregateType.toString());
-        }
-      }
-      if (missing.isNotEmpty) {
-        throw 'Following streams are not defined: \n\n'
-            '   $missing\n\n'
-            '>> Add missing stream(s) to SarSysHarness.onSetUp()';
-      }
-      return server.manager.readyAsync();
-    });
-
-    tearDown(() async {
-      await server?.stop();
-      server = null;
-      eventStoreMockServer?.clear();
-      return await Hive.deleteFromDisk();
-    });
-
-    tearDownAll(
-      () => eventStoreMockServer.close(),
-    );
-  }
 }
 
 FutureOr<String> createTracking(TrackingRepository repo, TestStream stream, String subscription) async {

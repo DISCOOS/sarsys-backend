@@ -1,10 +1,13 @@
 import 'package:grpc/grpc.dart';
 import 'package:event_source/event_source.dart';
 import 'package:sarsys_domain/sarsys_domain.dart';
-import 'package:sarsys_http_core/sarsys_http_core.dart';
+import 'package:sarsys_core/sarsys_core.dart';
 import 'package:sarsys_tracking_server/sarsys_tracking_server.dart';
 
-import 'generated/sarsys_tracking_service.pbgrpc.dart';
+import 'package:fixnum/fixnum.dart';
+
+import 'generated/tracking_service.pbgrpc.dart';
+import 'utils.dart';
 
 class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
   SarSysTrackingGrpcService(this.server);
@@ -13,13 +16,13 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
   final logger = Logger('$SarSysTrackingGrpcService');
 
   @override
-  Future<GetMetaResponse> getMeta(ServiceCall call, GetMetaRequest request) async {
+  Future<GetTrackingMetaResponse> getMeta(ServiceCall call, GetTrackingMetaRequest request) async {
     final response = await _getMetaData(request.expand);
     _ok('getMeta');
     return response;
   }
 
-  Future<GetMetaResponse> _getMetaData(List<ExpandFields> expand) async {
+  Future<GetTrackingMetaResponse> _getMetaData(List<TrackingExpandFields> expand) async {
     logger.fine(
       Context.toMethod('_getMetaData', ['expand: ${expand.map(enumName).join(',')}']),
     );
@@ -28,8 +31,8 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
     final store = repo.store;
     final total = repo.count();
     final managed = service.managed;
-    final response = GetMetaResponse()
-      ..status = toServiceStatus()
+    final response = GetTrackingMetaResponse()
+      ..status = _toServiceStatus()
       ..managerOf.addAll(managed.map((uuid) {
         final tracking = repo.get(uuid);
         final data = tracking.data;
@@ -41,7 +44,7 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
         positionsTotal += positionCount;
         return TrackingMeta()
           ..uuid = uuid
-          ..lastEvent = toEventMeta(
+          ..lastEvent = toEventMetaFromEvent(
             tracking.baseEvent,
             store,
           )
@@ -52,7 +55,7 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
         ..total = Int64(positionsTotal)
         ..eventsPerMinute = service.positionMetrics.rateExp * 60.0
         ..averageProcessingTimeMillis = service.positionMetrics.meanExp.inMilliseconds
-        ..lastEvent = toEventMeta(
+        ..lastEvent = toEventMetaFromEvent(
           service.lastPositionEvent,
           store,
         ))
@@ -60,69 +63,58 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
         ..total = Int64(total)
         ..eventsPerMinute = service.trackingMetrics.rateExp * 60.0
         ..averageProcessingTimeMillis = service.trackingMetrics.meanExp.inMilliseconds
-        ..lastEvent = toEventMeta(
+        ..lastEvent = toEventMetaFromEvent(
           service.lastTrackingEvent,
           store,
         )
         ..fractionManaged = total > 0 ? managed.length / total : 0);
-    if (expand.contains(ExpandFields.EXPAND_FIELDS_REPO)) {
+    if (withRepoField(expand, TrackingExpandFields.TRACKING_EXPAND_FIELDS_REPO)) {
       final meta = await repo.toMeta(
-        data: false,
-        metrics: false,
+        data: withRepoField(
+          expand,
+          TrackingExpandFields.TRACKING_EXPAND_FIELDS_REPO_DATA,
+        ),
+        items: withRepoField(
+          expand,
+          TrackingExpandFields.TRACKING_EXPAND_FIELDS_REPO_ITEMS,
+        ),
+        queue: withRepoField(
+          expand,
+          TrackingExpandFields.TRACKING_EXPAND_FIELDS_REPO_QUEUE,
+        ),
+        metrics: withRepoField(
+          expand,
+          TrackingExpandFields.TRACKING_EXPAND_FIELDS_REPO_METRICS,
+        ),
         snapshot: false,
         connection: false,
         subscriptions: false,
       );
-      final status = meta.mapAt<String, dynamic>('queue/status');
-      final pressure = meta.mapAt<String, dynamic>('queue/pressure');
-      final lastEvent = store.isEmpty ? null : store.getEvent(store.eventMap.keys.last);
-      response.repo = RepositoryMeta()
-        ..type = meta.elementAt<String>('type')
-        ..lastEvent = toEventMeta(lastEvent, store)
-        ..queue = (RepositoryQueueMeta()
-          ..status = (RepositoryQueueStatusMeta()
-            ..idle = status.elementAt<bool>('idle')
-            ..ready = status.elementAt<bool>('ready')
-            ..disposed = status.elementAt<bool>('disposed'))
-          ..pressure = (RepositoryQueuePressureMeta()
-            ..total = pressure.elementAt<int>('total')
-            ..maximum = pressure.elementAt<int>('maximum')
-            ..commands = pressure.elementAt<int>('command')
-            ..exceeded = pressure.elementAt<bool>('exceeded')));
+      response.repo = toRepoMeta(
+        meta,
+        store,
+      );
     }
     return response;
   }
 
-  TrackingServerStatus toServiceStatus() {
+  bool withRepoField(List<TrackingExpandFields> expand, TrackingExpandFields field) =>
+      expand.contains(TrackingExpandFields.TRACKING_EXPAND_FIELDS_ALL) || expand.contains(field);
+
+  TrackingServerStatus _toServiceStatus() {
     if (service == null) {
-      return TrackingServerStatus.STATUS_NONE;
+      return TrackingServerStatus.TRACKING_STATUS_NONE;
     }
     if (service.isPaused) {
-      return TrackingServerStatus.STATUS_STOPPED;
+      return TrackingServerStatus.TRACKING_STATUS_STOPPED;
     }
-    if (service.isCompeting) {
-      return TrackingServerStatus.STATUS_STARTED;
+    if (service.isStarted) {
+      return TrackingServerStatus.TRACKING_STATUS_STARTED;
     }
     if (service.isDisposed) {
-      return TrackingServerStatus.STATUS_DISPOSED;
+      return TrackingServerStatus.TRACKING_STATUS_DISPOSED;
     }
-    return TrackingServerStatus.STATUS_READY;
-  }
-
-  EventMeta toEventMeta(Event event, EventStore store) {
-    final meta = EventMeta()
-      ..number = Int64(EventNumber.none.value)
-      ..position = Int64(EventNumber.none.value);
-    if (event != null) {
-      meta
-        ..uuid = event.uuid
-        ..type = event.type
-        ..remote = event.remote
-        ..number = Int64(event.number.value)
-        ..position = Int64(store.toPosition(event))
-        ..timestamp = Int64(event.created.millisecondsSinceEpoch);
-    }
-    return meta;
+    return TrackingServerStatus.TRACKING_STATUS_READY;
   }
 
   @override
@@ -148,13 +140,21 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
     logger.fine(
       Context.toMethod('start', ['expand: ${request.expand.map(enumName).join(',')}']),
     );
-    final ok = await service.stop();
-    final response = StopTrackingResponse()
-      ..meta = await _getMetaData(request.expand)
-      ..statusCode = ok ? HttpStatus.ok : HttpStatus.internalServerError
-      ..reasonPhrase = ok ? 'OK' : 'Unable to stop tracking service';
+    final response = StopTrackingResponse();
+    if (service.isStarted) {
+      final ok = await service.stop();
+      response
+        ..meta = await _getMetaData(request.expand)
+        ..statusCode = ok ? HttpStatus.ok : HttpStatus.internalServerError
+        ..reasonPhrase = ok ? 'OK' : 'Unable to stop tracking service';
+    } else {
+      response
+        ..meta = await _getMetaData(request.expand)
+        ..statusCode = HttpStatus.badRequest
+        ..reasonPhrase = 'Not started';
+    }
     _log(
-      'start',
+      'stop',
       response.statusCode,
       response.reasonPhrase,
     );

@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+option java_package = "org.discoos.es.protobuf";
+option java_outer_classname = "DESProto";
+option java_multiple_files = true;
+option objc_class_prefix = "DES";
+option cc_enable_arenas = true;
+
+package org.discoos.es;
+
+import "timestamp.proto";
+
+
+// Message for duration metrics
+message DurationMetricMeta {
+  // Total number of duration measurements
+  int64 count = 1;
+
+  // Timestamp of first measurement in milliseconds from epoc (UTC)
+  google.protobuf.Timestamp t0 = 2;
+
+  // Timestamp of last measurement in milliseconds from epoc (UTC)
+  google.protobuf.Timestamp tn = 3;
+
+  // Last duration measurement
+  int64 last = 4;
+
+  // Total duration between first and last measurement
+  int64 total = 5;
+
+  // Cumulative duration average from t0 to tn
+  DurationCumulativeAverage cumulative = 6;
+
+  // Exponential moving average from t0 to tn
+  DurationCumulativeAverage exponential = 7;
+
+}
+
+message DurationCumulativeAverage {
+  // Cumulative average of calculations per second
+  double rate = 1;
+
+  // Cumulative average
+  double mean = 2;
+
+  // Cumulative average sample variance (n-1)
+  double variance = 3;
+
+  // Cumulative standard deviation of sample
+  double deviation = 4;
+
+}
+
+message DurationExponentialAverage {
+  // Weight of each new duration calculated
+  double alpha = 1;
+
+  // Complementary weight of previous calculations
+  double beta = 2;
+
+  // Exponential moving average of calculations per second
+  double rate = 3;
+
+  // Exponential moving average
+  double mean = 4;
+
+  // Exponential moving average sample variance (n-1)
+  double variance = 5;
+
+  // Exponential standard deviation of sample
+  double deviation = 6;
+
+}

@@ -30,6 +30,8 @@ class EventSourceHarness {
   static bool get exists => _singleton != null;
 
   final Map<int, EventStoreMockServer> _servers = {};
+  int get serverCount => _servers.length;
+  List<int> get ports => _servers.keys.toList();
   EventStoreMockServer server({int port = 4000}) => _servers[port];
 
   final Map<int, EventStoreConnection> _connections = {};
@@ -105,8 +107,10 @@ class EventSourceHarness {
     return this;
   }
 
-  Logger _logger;
+  bool get isDebug => _debug;
   bool _debug = false;
+
+  Logger _logger;
   EventSourceHarness withLogger({bool debug = false, Level level = Level.INFO}) {
     _logger = Logger('$runtimeType');
     if (debug) {
@@ -126,12 +130,16 @@ class EventSourceHarness {
     return this;
   }
 
+  final Map<Type, _RepositoryBuilder> _builders = {};
+  final List<StreamSubscription> _errorDetectors = [];
   Stream<LogRecord> get onRecord => _logger?.onRecord;
 
-  final Map<Type, _RepositoryBuilder> _builders = {};
-  T get<T extends Repository>({int port = 4000, int instance = 1}) => _managers[port][instance - 1].get<T>();
+  T get<T extends Repository>({int port = 4000, int instance = 1}) => manager(
+        port: port,
+        instance: instance,
+      ).get<T>();
 
-  final List<StreamSubscription> _errorDetectors = [];
+  RepositoryManager manager({int port = 4000, int instance = 1}) => _managers[port][instance - 1];
   final Map<int, List<RepositoryManager>> _managers = {};
 
   EventSourceHarness addServer({

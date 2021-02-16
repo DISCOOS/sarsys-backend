@@ -671,7 +671,7 @@ class DurationMetric {
   /// Last duration added to moving average
   final Duration last;
 
-  /// Cumulative [last] average
+  /// Cumulative average of [total]
   final Duration meanCum;
 
   /// Cumulative average sample variance (n-1)
@@ -743,6 +743,7 @@ class DurationMetric {
   }
 
   Map<String, dynamic> toMeta() => {
+        'count': count,
         't0': t0?.toIso8601String(),
         'tn': t0?.toIso8601String(),
         'last': '${last.inMilliseconds}',
