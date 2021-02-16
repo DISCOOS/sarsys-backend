@@ -1,7 +1,7 @@
 import 'package:event_source_test/event_source_test.dart';
 import 'package:grpc/grpc.dart';
 import 'package:hive/hive.dart';
-import 'package:sarsys_http_core/sarsys_http_core.dart';
+import 'package:sarsys_core/sarsys_core.dart';
 import 'package:sarsys_tracking_server/sarsys_tracking_server.dart';
 import 'package:test/test.dart';
 
@@ -10,22 +10,46 @@ import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:sarsys_tracking_server/src/server.dart';
 
 class SarSysTrackingHarness {
+  static const group = 'TrackingService';
+  static const sub = '\$et-TrackingCreated';
+
   SarSysTrackingServer server;
   HttpClient httpClient = HttpClient();
   EventStoreMockServer eventStoreMockServer;
 
-  int get grpcPort => _grpcPort;
-  int _grpcPort = 8083;
+  String _tenant;
+  String get tenant => _tenant;
+  SarSysTrackingHarness withTenant({String tenant = 'discoos'}) {
+    _tenant = tenant;
+    return this;
+  }
+
+  String _prefix;
+  String get prefix => _prefix;
+  SarSysTrackingHarness withPrefix({String prefix = 'test'}) {
+    _prefix = prefix;
+    return this;
+  }
 
   int get healthPort => _healthPort;
   int _healthPort = 8082;
 
+  int get grpcPort => _grpcPort;
+  int _grpcPort = 8083;
+
   SarSysTrackingHarness withServerPorts({
-    int grpcPort = 8083,
     int healthPort = 8082,
+    int grpcPort = 8083,
   }) {
+    assert(_grpcChannel == null, 'withGrpc is already configured');
     _grpcPort = grpcPort;
     _healthPort = healthPort;
+    return this;
+  }
+
+  bool _startup = false;
+  SarSysTrackingHarness withStartupOnBuild() {
+    _startup = true;
     return this;
   }
 
@@ -33,10 +57,10 @@ class SarSysTrackingHarness {
   ClientChannel _grpcChannel;
   SarSysTrackingServiceClient get grpcClient => _grpcClient;
   SarSysTrackingServiceClient _grpcClient;
-  SarSysTrackingHarness withGrpc({int port = 8083}) {
+  SarSysTrackingHarness withGrpcClient({int port = 8083}) {
     _grpcChannel = ClientChannel(
       '127.0.0.1',
-      port: port,
+      port: _grpcPort = port,
       options: const ChannelOptions(
         credentials: ChannelCredentials.insecure(),
       ),
@@ -52,9 +76,7 @@ class SarSysTrackingHarness {
     return this;
   }
 
-  Logger _logger;
   SarSysTrackingHarness withLogger({bool debug = false}) {
-    _logger = Logger('$runtimeType');
     if (debug) {
       Logger.root.level = Level.FINE;
     }
@@ -62,31 +84,41 @@ class SarSysTrackingHarness {
   }
 
   EventStoreMockServer withEventStoreMock() => eventStoreMockServer = EventStoreMockServer(
-        'discoos',
-        'test',
+        _tenant,
+        _prefix,
         4000,
-        logger: _logger,
       );
 
-  void install() {
-    setUpAll(() async {
-      assert(eventStoreMockServer != null, 'Forgot to call withEventStoreMock()?');
-      // Define required projections
-      eventStoreMockServer.withProjection('\$by_category');
-      eventStoreMockServer.withProjection('\$by_event_type');
+  void install({
+    SarSysTrackingConfig config,
+    String file = 'config.src.yaml',
+  }) {
+    config ??= SarSysTrackingConfig.fromFile(file);
+    config.grpcPort = _grpcPort;
+    config.healthPort = _healthPort;
+    config.prefix = _prefix;
+    config.tenant = _tenant;
+    config.startup = _startup;
+    config.logging.stdout = false;
 
-      // Define required streams
-      eventStoreMockServer.withStream(typeOf<Device>().toColonCase());
-      eventStoreMockServer.withStream(typeOf<Tracking>().toColonCase());
-      await eventStoreMockServer.open();
-    });
+    setUpAll(
+      () async => await eventStoreMockServer.open(),
+    );
 
     setUp(() async {
       assert(server == null);
+      assert(eventStoreMockServer != null, 'Forgot to call withEventStoreMock()?');
+
+      // Define required projections, streams and subscriptions
+      eventStoreMockServer
+        ..withProjection('\$by_category')
+        ..withProjection('\$by_event_type')
+        ..withStream(typeOf<Device>().toColonCase())
+        ..withStream(typeOf<Tracking>().toColonCase())
+        ..withStream(sub, useInstanceStreams: false, useCanonicalName: false)
+        ..withSubscription(sub, group: group);
+
       server = SarSysTrackingServer();
-      final config = SarSysTrackingConfig.fromFile('config.src.yaml');
-      config.grpcPort = _grpcPort;
-      config.healthPort = _healthPort;
       await server.start(
         config,
       );
@@ -106,12 +138,15 @@ class SarSysTrackingHarness {
     });
 
     tearDown(() async {
-      await server.stop();
+      await server?.stop();
       server = null;
+      eventStoreMockServer?.clear();
       return await Hive.deleteFromDisk();
     });
 
-    tearDownAll(() async {});
+    tearDownAll(
+      () => eventStoreMockServer.close(),
+    );
   }
 }
 

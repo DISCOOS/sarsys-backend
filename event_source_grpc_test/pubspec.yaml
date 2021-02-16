@@ -1,0 +1,19 @@
+name: event_source_grpc_test
+description: Event Source Grpc test support library
+version: 1.0.0
+author: Kenneth Gulbrandsøy <kenneth@discoos.org>
+homepage: https://github.com/DISCOOS/sarsys-backend
+
+environment:
+  sdk: '>=2.9.0 <3.0.0'
+
+dependencies:
+  event_source_grpc:
+    path: ../event_source_grpc
+
+
+dev_dependencies:
+  pedantic: ^1.9.0
+  test: ^1.0.0
+  event_source_test:
+    path: ../event_source_test

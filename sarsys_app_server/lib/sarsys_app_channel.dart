@@ -3,16 +3,12 @@ import 'dart:convert';
 import 'package:event_source/event_source.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart';
-import 'package:jose/jose.dart';
-import 'package:meta/meta.dart';
-import 'package:aqueduct/aqueduct.dart' as aq;
 import 'package:stack_trace/stack_trace.dart';
-import 'package:uuid/uuid.dart';
 
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
 
-import 'package:sarsys_http_core/sarsys_http_core.dart';
+import 'package:sarsys_core/sarsys_core.dart';
 import 'controllers/domain/controllers.dart';
 import 'controllers/domain/schemas.dart';
 import 'controllers/messaging.dart';
@@ -30,11 +26,8 @@ const List<String> allScopes = [
   'roles:personnel',
 ];
 
-/// This type initializes an application.
-///
-/// Override methods in this class to set up routes and initialize services like
-/// database connections. See http://aqueduct.io/docs/http/channel/.
-class SarSysAppServerChannel extends ApplicationChannel {
+/// This initializes a SARSys http backend apps server
+class SarSysAppServerChannel extends SarSysServerChannelBase {
   /// Channel responsible for distributing messages to client applications
   final MessageChannel messages = MessageChannel(
     handler: WebSocketMessageProcessor(),
@@ -43,11 +36,11 @@ class SarSysAppServerChannel extends ApplicationChannel {
   /// Loaded in [prepare]
   SarSysAppConfig config;
 
-  /// Validates requests against current open api specification
-  JsonValidation requestValidator;
-
   /// Manages an [Repository] for each registered [AggregateRoot]
   RepositoryManager manager;
+
+  /// Validates requests against current open api specification
+  JsonValidation requestValidator;
 
   /// Tracking domain service
   TrackingService trackingService;
@@ -452,7 +445,7 @@ class SarSysAppServerChannel extends ApplicationChannel {
   }
 
   void _loadConfig() {
-    // Parse from config file, given by --config to main.dart or default config.yaml
+    // Parse from config file, given by --config to document.dart or default config.yaml
     config = SarSysAppConfig.fromFile(
       options.configurationFilePath,
     );
@@ -822,9 +815,12 @@ class SarSysAppServerChannel extends ApplicationChannel {
   }
 
   Future _buildSecureRouter() async {
-    router = SecureRouter(
-      config.auth,
-    );
+    router = SecureRouter(config.auth, [
+      'roles:admin',
+      'roles:commander',
+      'roles:unit_leader',
+      'roles:personnel',
+    ]);
     if (config.auth.enabled) {
       await router.prepare();
     }
@@ -869,102 +865,6 @@ class SarSysAppServerChannel extends ApplicationChannel {
   //////////////////////////////////
 
   @override
-  void documentComponents(APIDocumentContext context) {
-    documentResponses(context);
-    documentSchemas(context);
-    documentSecuritySchemas(context);
-    super.documentComponents(context);
-  }
-
-  APIComponentCollection<APIResponse> documentResponses(APIDocumentContext registry) {
-    return registry.responses
-      ..register(
-          "200",
-          APIResponse(
-            "OK. Indicates that the request has succeeded. A 200 response is cacheable by default. "
-            "The meaning of a success depends on the HTTP request method.",
-          ))
-      ..register(
-          "201",
-          APIResponse(
-            "Created. The POST-ed resource was created.",
-          ))
-      ..register(
-          "204",
-          APIResponse(
-            "No Content. The resource was updated.",
-          ))
-      ..register(
-          "400",
-          APIResponse(
-            "Bad request. Request contains wrong or is missing required data",
-          ))
-      ..register(
-          "401",
-          APIResponse(
-            "Unauthorized. The client must authenticate itself to get the requested response.",
-          ))
-      ..register(
-          "403",
-          APIResponse(
-            "Forbidden. The client does not have access rights to the content.",
-          ))
-      ..register(
-          "404",
-          APIResponse(
-            "Not found. The requested resource does not exist in server.",
-          ))
-      ..register(
-          "405",
-          APIResponse(
-            "Method Not Allowed. The request method is known by the server but has been disabled and cannot be used.",
-          ))
-      ..register(
-          "409",
-          APIResponse(
-            "Conflict. This response is sent when a request conflicts with the current state of the server.",
-          ))
-      ..register(
-          "416",
-          APIResponse(
-            "Range Not Satisfiable. Indicates that a server cannot serve the requested ranges. "
-            "The most likely reason is that the document doesn't contain such ranges, "
-            "or that the Range header value, though syntactically correct, doesn't make sense.",
-          ))
-      ..register(
-          "426",
-          APIResponse(
-            "Source or destination resource of a method is locked. Indicates that resource is read-only.",
-          ))
-      ..register(
-          "429",
-          APIResponse(
-            "Too Many Requests. Indicates the user has sent too many requests in a given amount of time "
-            "('rate limiting'). A Retry-After header might be included to this response indicating "
-            "how long to wait before making a new request.",
-          ))
-      ..register(
-          "500",
-          APIResponse(
-            "Internal Server Error. indicates that the server encountered an unexpected condition "
-            "that prevented it from fulfilling the request. This error response is a generic 'catch-all' response",
-          ))
-      ..register(
-          "503",
-          APIResponse(
-            "Service unavailable. The server is currently unable to handle the request due to a temporary "
-            "overloading or maintenance of the server. The implication is that this is a temporary "
-            "condition which will be alleviated after some delay. If known, the length of the delay MAY be "
-            "indicated in a Retry-After header.",
-          ))
-      ..register(
-          "504",
-          APIResponse(
-            "Gateway Timeout server. Indicates that the server, while acting as a gateway or proxy, "
-            "did not get a response in time from the upstream server that it needed in order to complete the request.",
-          ));
-  }
-
   void documentSecuritySchemas(APIDocumentContext context) => context.securitySchemes
     ..register(
         'OpenId Connect',
@@ -987,121 +887,27 @@ class SarSysAppServerChannel extends ApplicationChannel {
           "response `403 Forbidden` regardless of the value in 'X-Passcode'.",
     );
 
-  void documentSchemas(APIDocumentContext context) => context.schema
-    ..register('AggregateResponse', documentAggregateResponse(context))
-    ..register('AggregatePageResponse', documentAggregatePageResponse(context))
-    ..register('EntityResponse', documentEntityResponse(context))
-    ..register('EntityPageResponse', documentEntityPageResponse(context))
-    ..register('ValueResponse', documentValueResponse(context))
-    ..register('ValuePageResponse', documentValuePageResponse(context))
-    ..register('AggregateRef', documentAggregateRef(context))
-    ..register('AggregateList', documentAggregateList(context))
-    ..register('ID', documentID())
-    ..register('UUID', documentUUID())
-    ..register('Conflict', documentConflict(context))
-    ..register('PassCodes', documentPassCodes())
-    ..register('Author', documentAuthor())
-    ..register('Coordinates', documentCoordinates(context))
-    ..register('Geometry', documentGeometry(context))
-    ..register('Point', documentPoint(context))
-    ..register('LineString', documentLineString(context))
-    ..register('Polygon', documentPolygon(context))
-    ..register('MultiPoint', documentMultiPoint(context))
-    ..register('MultiLineString', documentMultiLineString(context))
-    ..register('MultiPolygon', documentMultiPolygon(context))
-    ..register('GeometryCollection', documentGeometryCollection(context))
-    ..register('Feature', documentFeature(context))
-    ..register('FeatureCollection', documentFeatureCollection(context))
-    ..register('Circle', documentCircle(context))
-    ..register('Rectangle', documentRectangle(context))
-    ..register('Position', documentPosition(context))
-    ..register('PositionListResponse', documentPositionListResponse(context))
-    ..register('Message', documentMessage(context));
-}
-
-class RequestContext {
-  const RequestContext({
-    @required this.correlationId,
-    @required this.transactionId,
-    @required this.inStickySession,
-  });
-
-  /// Get current correlation. A correlation id
-  /// is created if header 'x-correlation-id'
-  /// was missing.
-  final String correlationId;
-
-  /// Check if current request is in a sticky session
-  final bool inStickySession;
-
-  /// Get transaction id sticky session
-  final String transactionId;
-}
-
-class SecureRouter extends Router {
-  SecureRouter(this.config) : keyStore = JsonWebKeyStore();
-  final AuthConfig config;
-  final JsonWebKeyStore keyStore;
-  final Map<String, RequestContext> _contexts = {};
-
-  Map<String, RequestContext> getContexts() => Map.unmodifiable(_contexts);
-  RequestContext getContext(String correlationId) => _contexts[correlationId];
-  bool hasContext(String correlationId) => _contexts.containsKey(correlationId);
-
-  Future<RequestOrResponse> setRequest(aq.Request request) async {
-    final correlationId = request.raw.headers.value('x-correlation-id') ?? Uuid().v4();
-    final transactionId = request.raw.cookies
-        // Find cookie for sticky session
-        .where((c) => c.name == 'x-transaction-id')
-        // Get transaction id
-        .map((c) => c.value)
-        .firstOrNull;
-    final inStickySession = transactionId != null;
-    request.addResponseModifier((r) {
-      r.headers['x-correlation-id'] = correlationId;
-      _contexts.remove(correlationId);
-    });
-    _contexts[correlationId] = RequestContext(
-      correlationId: correlationId,
-      transactionId: transactionId,
-      inStickySession: inStickySession,
-    );
-    return request;
-  }
-
-  Future prepare() async {
-    if (config.enabled) {
-      final response = await get('${config.baseUrl}/.well-known/openid-configuration');
-      final body = json.decode(response.body) as Map<String, dynamic>;
-      if (body is Map<String, dynamic>) {
-        if (body.containsKey('jwks_uri')) {
-          keyStore.addKeySetUrl(Uri.parse(body['jwks_uri'] as String));
-          return;
-        }
-      }
-      throw 'Unexpected response from OpenID Connect Provider ${config.baseUrl}: $body';
-    }
-  }
-
-  void secure(String pattern, Controller creator()) {
-    super.route(pattern).linkFunction(setRequest).link(authorizer).link(creator);
-  }
-
-  Controller authorizer() {
-    if (config.enabled) {
-      return Authorizer.bearer(
-        AccessTokenValidator(
-          keyStore,
-          config,
-        ),
-        scopes: config.required,
-      );
-    }
-    return AnyAuthorizer(config.required, [
-      'roles:admin',
-      'roles:commander',
-      'roles:unit_leader',
-      'roles:personnel',
-    ]);
+  @override
+  void documentSchemas(APIDocumentContext context) {
+    super.documentSchemas(context);
+    context.schema
+      ..register('PassCodes', documentPassCodes())
+      ..register('Author', documentAuthor())
+      ..register('Coordinates', documentCoordinates(context))
+      ..register('Geometry', documentGeometry(context))
+      ..register('Point', documentPoint(context))
+      ..register('LineString', documentLineString(context))
+      ..register('Polygon', documentPolygon(context))
+      ..register('MultiPoint', documentMultiPoint(context))
+      ..register('MultiLineString', documentMultiLineString(context))
+      ..register('MultiPolygon', documentMultiPolygon(context))
+      ..register('GeometryCollection', documentGeometryCollection(context))
+      ..register('Feature', documentFeature(context))
+      ..register('FeatureCollection', documentFeatureCollection(context))
+      ..register('Circle', documentCircle(context))
+      ..register('Rectangle', documentRectangle(context))
+      ..register('Position', documentPosition(context))
+      ..register('PositionListResponse', documentPositionListResponse(context))
+      ..register('Message', documentMessage(context));
   }
 }

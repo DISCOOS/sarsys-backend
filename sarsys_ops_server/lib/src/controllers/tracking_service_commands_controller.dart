@@ -2,6 +2,7 @@ import 'package:grpc/grpc.dart' hide Response;
 import 'package:grpc/grpc_connection_interface.dart';
 import 'package:sarsys_ops_server/sarsys_ops_server.dart';
 import 'package:sarsys_ops_server/src/config.dart';
+import 'package:sarsys_core/sarsys_core.dart';
 import 'package:sarsys_tracking_server/sarsys_tracking_server.dart';
 
 import 'operations_base_controller.dart';
@@ -59,13 +60,13 @@ class TrackingServiceCommandsController extends OperationsBaseController {
     );
     final metas = <Map<String, dynamic>>[];
     for (var pod in pods) {
-      final meta = await _doGetMetaByName(pod, expand);
+      final meta = await _doGetTrackingMetaByName(pod, expand);
       metas.add(meta);
     }
     return _toResponse(
       name: 'name',
       body: metas,
-      method: 'doGetMeta',
+      method: 'doGetTrackingMeta',
       args: {'expand': expand},
       statusCode: toStatusCode(
         metas,
@@ -91,12 +92,12 @@ class TrackingServiceCommandsController extends OperationsBaseController {
       return _toResponse(
         name: name,
         args: {'expand': expand},
-        method: 'doGetMetaByName',
+        method: 'doGetTrackingMetaByName',
         statusCode: HttpStatus.notFound,
         body: "$type instance '$name' not found",
       );
     }
-    final meta = await _doGetMetaByName(
+    final meta = await _doGetTrackingMetaByName(
       pod,
       expand,
     );
@@ -104,7 +105,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
       name: name,
       body: meta,
       args: {'expand': expand},
-      method: 'doGetMetaByName',
+      method: 'doGetTrackingMetaByName',
       statusCode: meta.elementAt<int>(
         'error/statusCode',
         defaultValue: HttpStatus.ok,
@@ -112,13 +113,13 @@ class TrackingServiceCommandsController extends OperationsBaseController {
     );
   }
 
-  Future<Map<String, dynamic>> _doGetMetaByName(
+  Future<Map<String, dynamic>> _doGetTrackingMetaByName(
     Map<String, dynamic> pod,
     String expand,
   ) async {
-    final meta = await toClient(pod).getMeta(GetMetaRequest()
+    final meta = await toClient(pod).getMeta(GetTrackingMetaRequest()
       ..expand.addAll([
-        if (shouldExpand(expand, 'repo')) ExpandFields.EXPAND_FIELDS_REPO,
+        if (shouldExpand(expand, 'repo')) TrackingExpandFields.TRACKING_EXPAND_FIELDS_REPO,
       ]));
     return _toJsonMeta(
       k8s.toPodName(pod),
@@ -304,7 +305,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
     final response = await toClient(pod).start(
       StartTrackingRequest()
         ..expand.addAll([
-          if (shouldExpand(expand, 'repo')) ExpandFields.EXPAND_FIELDS_REPO,
+          if (shouldExpand(expand, 'repo')) TrackingExpandFields.TRACKING_EXPAND_FIELDS_REPO,
         ]),
     );
     return {
@@ -342,7 +343,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
     final response = await toClient(pod).stop(
       StopTrackingRequest()
         ..expand.addAll([
-          if (shouldExpand(expand, 'repo')) ExpandFields.EXPAND_FIELDS_REPO,
+          if (shouldExpand(expand, 'repo')) TrackingExpandFields.TRACKING_EXPAND_FIELDS_REPO,
         ]),
     );
     return {
@@ -383,7 +384,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
       AddTrackingsRequest()
         ..uuids.addAll(uuids)
         ..expand.addAll([
-          if (shouldExpand(expand, 'repo')) ExpandFields.EXPAND_FIELDS_REPO,
+          if (shouldExpand(expand, 'repo')) TrackingExpandFields.TRACKING_EXPAND_FIELDS_REPO,
         ]),
     );
     return _toResponse(
@@ -431,7 +432,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
       RemoveTrackingsRequest()
         ..uuids.addAll(uuids)
         ..expand.addAll([
-          if (shouldExpand(expand, 'repo')) ExpandFields.EXPAND_FIELDS_REPO,
+          if (shouldExpand(expand, 'repo')) TrackingExpandFields.TRACKING_EXPAND_FIELDS_REPO,
         ]),
     );
     return _toResponse(
@@ -505,7 +506,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
     return pod;
   }
 
-  Map<String, Object> _toJsonMeta(String name, GetMetaResponse meta, String expand) {
+  Map<String, Object> _toJsonMeta(String name, GetTrackingMetaResponse meta, String expand) {
     return {
       'name': name,
       'status': _toStatus(meta),
@@ -514,22 +515,28 @@ class TrackingServiceCommandsController extends OperationsBaseController {
         'trackings': _toJsonTrackingsMeta(meta.trackings),
         'positions': _toJsonPositionsMeta(meta.positions),
       },
-      if (shouldExpand(expand, 'repo')) 'repo': _toJsonRepoMeta(meta.repo),
+      if (shouldExpand(expand, 'repo'))
+        'repo': _toJsonRepoMeta(
+          meta.repo,
+        ),
     };
   }
 
-  String _toStatus(GetMetaResponse meta) {
+  String _toStatus(GetTrackingMetaResponse meta) {
     return capitalize(
       enumName(meta.status).split('_').last,
     );
   }
 
-  List<Map<String, dynamic>> _toJsonManagerOf(GetMetaResponse meta) => meta.managerOf
+  List<Map<String, dynamic>> _toJsonManagerOf(GetTrackingMetaResponse meta) => meta.managerOf
       .map((meta) => <String, dynamic>{
             'uuid': meta.uuid,
             'trackCount': meta.trackCount.toInt(),
             'positionCount': meta.positionCount.toInt(),
-            if (meta.lastEvent.uuid.isNotEmpty) 'lastEvent': _toJsonEventMeta(meta.lastEvent),
+            if (meta.lastEvent.uuid.isNotEmpty)
+              'lastEvent': _toJsonEventMeta(
+                meta.lastEvent,
+              ),
           })
       .toList();
 
@@ -557,7 +564,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
         'remote': meta.remote,
         'number': meta.number.toInt(),
         'position': meta.position.toInt(),
-        'timestamp': meta.timestamp.toInt(),
+        'timestamp': meta.timestamp.toDateTime().toIso8601String(),
       };
 
   Map<String, dynamic> _toJsonTrackingsMeta(TrackingsMeta meta) => {

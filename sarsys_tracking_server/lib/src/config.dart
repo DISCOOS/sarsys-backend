@@ -1,4 +1,4 @@
-import 'package:sarsys_http_core/sarsys_http_core.dart';
+import 'package:sarsys_core/sarsys_core.dart';
 
 class SarSysTrackingConfig extends SarSysModuleConfig {
   SarSysTrackingConfig();

@@ -1,0 +1,156 @@
+syntax = "proto3";
+
+option java_package = "org.discoos.sarsys.protobuf";
+option java_outer_classname = "SarSysProto";
+option java_multiple_files = true;
+option objc_class_prefix = "SarSys";
+option cc_enable_arenas = true;
+
+package org.discoos.es;
+
+import "metric.proto";
+import "aggregate.proto";
+
+
+service SnapshotService {
+    // Get Snapshot metadata
+    //
+    // Service with return repository metadata for aggregate of given type and uuid.
+    rpc GetRepoMeta(GetSnapshotMetaRequest) returns (GetSnapshotsMetaResponse) {}
+
+
+//    // Execute command on Repository
+//    //
+//    // Service will execute given command on repository for given type.
+//    rpc RepoCommand(RepoCommandRequest) returns (RepoCommandResponse) {}
+//
+//    // Get Snapshot metadata
+//    //
+//    // Get Snapshot metadata.
+//    rpc GetSnapshotsMeta(GetSnapshotsMetaRequest) returns (GetSnapshotsMetaResponse) {}
+//
+//    // Execute command on snapshot(s)
+//    //
+//    // Service will execute given command on snapshot(s) of given aggregate type.
+//    rpc SnapshotCommand(SnapshotCommandRequest) returns (SnapshotCommandResponse) {}
+//
+//    // Download snapshot file data
+//    //
+//    // Service will download snapshot file data for given aggregate type.
+//    rpc DownloadSnapshot(DownloadSnapshotRequest) returns (DownloadSnapshotResponse) {}
+//
+//    // Upload snapshot file as multipart/form-data
+//    //
+//    // Service will upload snapshot file data for given aggregate type.
+//    rpc Upload(UploadSnapshotRequest) returns (UploadSnapshotResponse) {}
+}
+
+message GetSnapshotMetaRequest {
+    // Snapshot for aggregate type
+    string type = 1;
+
+    // Expand response with metadata
+    SnapshotExpandFields expand = 2;
+}
+
+message GetSnapshotsMetaResponse {
+    // Snapshot for aggregate type
+    string type = 1;
+
+    // Snapshot metadata
+    SnapshotMeta meta = 2;
+}
+
+enum SnapshotExpandFields {
+
+    // Only return default fields
+    SNAPSHOT_EXPAND_FIELDS_NONE = 0;
+
+    // Return all available fields
+    SNAPSHOT_EXPAND_FIELDS_ALL = 1;
+
+    // Extend response with aggregate metadata
+    // items fields like lists of aggregates or events
+    SNAPSHOT_EXPAND_FIELDS_ITEMS = 2;
+
+    // Extend response with aggregate data field (if items are expanded)
+    SNAPSHOT_EXPAND_FIELDS_DATA = 3;
+
+    // Extend response with metrics metadata
+    SNAPSHOT_EXPAND_FIELDS_METRICS = 4;
+
+    // Extend response with queues metadata
+    SNAPSHOT_EXPAND_FIELDS_QUEUE = 5;
+
+    // Extend response with connection metadata
+    SNAPSHOT_EXPAND_FIELDS_CONN = 6;
+    
+}
+
+message SnapshotMeta {
+    /// Uuid of this snapshot
+    string uuid = 1;
+
+    /// Uuid of snapshot with highest event number offset
+    string last = 2;
+
+    /// Event number of last event applied to snapshot
+    int64  number = 3;
+
+    /// Event position in stream of last event applied to snapshot
+    int64  position = 4;
+
+    /// Current snapshot configuration
+    SnapshotConfig config = 5;
+
+    SnapshotMetricsMeta metrics = 6;
+
+    AggregateMetaList aggregates = 7;
+
+}
+
+message SnapshotConfig {
+    int32 keep = 1;
+    int32 threshold = 2;
+    bool automatic = 3;
+}
+
+// Repository metrics object metadata
+//
+// Summarises repository metrics object metadata
+message SnapshotMetricsMeta {
+
+    // Total number snapshots
+    int64 snapshots = 1;
+
+    // Cumulative and exponential moving average duration of save operations
+    DurationMetricMeta save = 5;
+
+}
+
+
+//message RepoCommandRequest {
+//    string expand = 1;
+//    string type = 2;
+//}
+//
+//
+//message GetSnapshotsMetaRequest {
+//    message ExpandMessage {}
+//
+//    // Expand response with metadata. Legal values are: 'data', 'items'
+//    ExpandMessage expand = 1;
+//    string type = 2;
+//}
+//
+//// Download snapshot for given aggregate type
+//message DownloadSnapshotRequest {
+//    string type = 1;
+//}
+//
+//message UploadRequest {
+//    string expand = 1;
+//    string type = 2;
+//}
+
+

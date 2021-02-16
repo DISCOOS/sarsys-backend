@@ -568,10 +568,10 @@ packages:
       relative: true
     source: path
     version: "0.0.1"
-  sarsys_http_core:
+  sarsys_http:
     dependency: transitive
     description:
-      path: "../sarsys_http_core"
+      path: "../sarsys_http"
       relative: true
     source: path
     version: "0.0.1"

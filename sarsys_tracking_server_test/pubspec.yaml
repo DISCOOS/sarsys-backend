@@ -11,12 +11,6 @@ dependencies:
   aqueduct_test: ^1.0.0
   event_source_test:
     path: ../event_source_test
-  #  sarsys_domain:
-  #    path: ../sarsys_domain
-  #  sarsys_http_core:
-  #    path: ../sarsys_http_core
-#  sarsys_app_server:
-#    path: ../sarsys_app_server
   sarsys_tracking_server:
     path: ../sarsys_tracking_server
 

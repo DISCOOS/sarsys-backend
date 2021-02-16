@@ -132,7 +132,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
   }
 
   /// Check if service is competing
-  bool get isCompeting => _isCompeting;
+  bool get isStarted => _isCompeting;
   bool _isCompeting = false;
 
   FutureOr<bool> start() async {
@@ -257,7 +257,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
       }
       return;
     }
-    if (isCompeting) {
+    if (isStarted) {
       try {
         if (event.remote) {
           switch (event.runtimeType) {
@@ -339,7 +339,10 @@ class TrackingService extends MessageHandler<DomainEvent> {
 
   FutureOr<Tracking> _tryGet(String uuid) async {
     if (!repo.exists(uuid)) {
-      await repo.catchup();
+      await repo.catchup(
+        master: true,
+        uuids: [uuid],
+      );
     }
     // Only get aggregate if is exists in storage!
     return repo.store.contains(uuid) ? repo.get(uuid) : null;

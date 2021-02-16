@@ -1,0 +1,227 @@
+syntax = "proto3";
+
+option java_package = "org.discoos.sarsys.protobuf";
+option java_outer_classname = "SarSysProto";
+option java_multiple_files = true;
+option objc_class_prefix = "SarSys";
+option cc_enable_arenas = true;
+
+package org.discoos.es;
+
+import "event.proto";
+import "any.proto";
+
+
+service AggregateService {
+    // Get Aggregate metadata
+    //
+    // Service with return aggregate metadata for given aggregate.
+    rpc GetMeta(GetAggregateMetaRequest) returns (GetAggregateMetaResponse) {}
+
+    // Execute replay command on Aggregate
+    //
+    // Service will replay events on given aggregate
+    rpc ReplayEvents(ReplayAggregateEventsRequest) returns (ReplayAggregateEventsResponse) {}
+
+    // Execute catchup command on Aggregate
+    //
+    // Service will force catchup on stream of remote events for given aggregate
+    rpc CatchupEvents(CatchupAggregateEventsRequest) returns (CatchupAggregateEventsResponse) {}
+
+    // Execute replace command on Aggregate
+    //
+    // Service will replace data in given aggregate with given data
+    rpc ReplaceData(ReplaceAggregateDataRequest) returns (ReplaceAggregateDataResponse) {}
+}
+
+message GetAggregateMetaRequest {
+    // Aggregate type
+    string type = 1;
+
+    // Aggregate uuid
+    string uuid = 2;
+
+    // Expand response with metadata
+    repeated AggregateExpandFields expand = 3;
+}
+
+message GetAggregateMetaResponse {
+
+    // Aggregate type
+    string type = 1;
+
+    // Aggregate uuid
+    string uuid = 2;
+
+    // Response status code
+    int32 statusCode = 3;
+
+    // Response status code reason
+    string reasonPhrase = 4;
+
+    // Aggregate metadata
+    AggregateMeta meta = 5;
+}
+
+// Replay events on given aggregate
+message ReplayAggregateEventsRequest {
+
+    // Aggregate type
+    string type = 1;
+
+    // Aggregate uuid
+    string uuid = 2;
+
+    // Expand response with given fields
+    repeated AggregateExpandFields expand = 3;
+
+}
+
+message ReplayAggregateEventsResponse {
+
+    // Aggregate type
+    string type = 1;
+
+    // Aggregate uuid
+    string uuid = 2;
+
+    // Response status code
+    int32 statusCode = 3;
+
+    // Response status code reason
+    string reasonPhrase = 4;
+
+    // Aggregate metadata
+    AggregateMeta meta = 5;
+}
+
+// Catchup on stream of events for given aggregate
+message CatchupAggregateEventsRequest {
+
+    // Aggregate type
+    string type = 1;
+
+    // Aggregate uuid
+    string uuid = 2;
+
+    // Expand response with given fields
+    repeated AggregateExpandFields expand = 3;
+
+}
+
+message CatchupAggregateEventsResponse {
+
+    // Aggregate type
+    string type = 1;
+
+    // Aggregate uuid
+    string uuid = 2;
+
+    // Response status code
+    int32 statusCode = 3;
+
+    // Response status code reason
+    string reasonPhrase = 4;
+
+    // Aggregate metadata
+    AggregateMeta meta = 5;
+}
+
+
+// Replace data in given aggregate
+message ReplaceAggregateDataRequest {
+
+    // Aggregate type
+    string type = 1;
+
+    // Aggregate uuid
+    string uuid = 2;
+
+    // Expand response with given fields
+    repeated AggregateExpandFields expand = 3;
+
+    // Aggregate data, must be packed and unpacked manually
+    google.protobuf.Any data = 4;
+
+    // List of aggregate patches, must be packed and unpacked manually
+    repeated google.protobuf.Any patches = 5;
+}
+
+message ReplaceAggregateDataResponse {
+    // Aggregate type
+    string type = 1;
+
+    // Aggregate uuid
+    string uuid = 2;
+
+    // Response status code
+    int32 statusCode = 3;
+
+    // Response status code reason
+    string reasonPhrase = 4;
+
+    // Aggregate metadata
+    AggregateMeta meta = 5;
+}
+
+
+enum AggregateExpandFields {
+
+    // Only return default fields
+    AGGREGATE_EXPAND_FIELDS_NONE = 0;
+
+    // Return all available fields
+    AGGREGATE_EXPAND_FIELDS_ALL = 1;
+
+    // Extend response with aggregate data field
+    AGGREGATE_EXPAND_FIELDS_DATA = 2;
+
+    // Extend response with aggregate metadata items fields like lists of events
+    AGGREGATE_EXPAND_FIELDS_ITEMS = 3;
+
+}
+
+message AggregateMetaList {
+    int32 count = 1;
+    repeated AggregateMeta items = 2;
+}
+
+// Aggregate object metadata
+//
+// Summarises aggregate object metadata
+message AggregateMeta {
+
+    // Aggregate type
+    string type = 1;
+
+    // Aggregate uuid
+    string uuid = 2;
+
+    // Event that created this aggregate
+    EventMeta createdBy = 3;
+
+    // Event that last changed this aggregate
+    EventMeta changedBy = 4;
+
+    // Event that deleted this aggregate (optional)
+    EventMeta deletedBy = 5;
+
+    // all events applied to this aggregate (optional)
+    EventMetaList applied = 6;
+
+    // Events pending push to remote stream (optional)
+    EventMetaList pending = 7;
+
+    // Events skipped because of unreconciled errors (optional)
+    EventMetaList skipped = 8;
+
+    // Aggregate data, must be packed and unpacked manually
+    google.protobuf.Any data = 9;
+
+    // Aggregate taint data, must be packed and unpacked manually
+    google.protobuf.Any tainted = 10;
+
+    // Aggregate cordon data, must be packed and unpacked manually
+    google.protobuf.Any cordoned = 11;
+
+}

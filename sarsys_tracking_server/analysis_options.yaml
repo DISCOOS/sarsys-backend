@@ -32,12 +32,14 @@ linter:
 #    Comment out since protoc does not honor these
 #    - constant_identifier_names
     - control_flow_in_finally
-    - directives_ordering
+# Dart GRPC code generation is misbehaving
+#    - directives_ordering
     - empty_catches
     - empty_constructor_bodies
     - empty_statements
     - hash_and_equals
-    - implementation_imports
+# Dart GRPC code generation is misbehaving
+#    - implementation_imports
     - invariant_booleans
     - iterable_contains_unrelated_type
     - join_return_with_assignment

@@ -6,7 +6,7 @@ import 'package:grpc/grpc.dart' as grpc;
 import 'package:stack_trace/stack_trace.dart';
 
 import 'package:sarsys_domain/sarsys_domain.dart';
-import 'package:sarsys_http_core/sarsys_http_core.dart';
+import 'package:sarsys_core/sarsys_core.dart';
 
 import 'config.dart';
 import 'service.dart';
@@ -328,7 +328,7 @@ class SarSysTrackingServer {
       error,
       Trace.from(stackTrace),
     );
-    _http.close();
+    _http?.close();
     _grpc?.shutdown();
   }
 }

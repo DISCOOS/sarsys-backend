@@ -1,7 +1,7 @@
 import 'dart:math';
 
 import 'package:args/args.dart';
-import 'package:sarsys_http_core/sarsys_http_core.dart';
+import 'package:sarsys_core/sarsys_core.dart';
 import 'package:sarsys_ops_server/sarsys_ops_server.dart';
 
 Future main(List<String> args) async {

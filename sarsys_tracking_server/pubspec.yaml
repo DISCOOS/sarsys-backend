@@ -12,10 +12,10 @@ dependencies:
   logging: ^0.11.4
   protobuf: ^1.1.0
   fixnum: ^0.10.11
+  sarsys_core:
+    path: ../sarsys_core
   sarsys_domain:
     path: ../sarsys_domain
-  sarsys_http_core:
-    path: ../sarsys_http_core
 
 
 dev_dependencies:

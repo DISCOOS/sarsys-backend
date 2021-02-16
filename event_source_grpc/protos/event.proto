@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+option java_package = "org.discoos.es.protobuf";
+option java_outer_classname = "DESProto";
+option java_multiple_files = true;
+option objc_class_prefix = "DES";
+option cc_enable_arenas = true;
+
+package org.discoos.es;
+
+import "timestamp.proto";
+
+
+// Event object metadata
+//
+// Models event metadata
+message EventMeta {
+
+  // Event type
+  string type = 1;
+
+  // Event uuid
+  string uuid = 2;
+
+  // True if event origin is remote
+  bool remote = 3;
+
+  // Event number in instance stream
+  int64 number = 4;
+
+  // Event position in canonical (projection or instance) stream
+  int64 position = 5;
+
+  // Timestamp in milliseconds from epoc (UTC)
+  google.protobuf.Timestamp timestamp = 6;
+
+}
+
+message EventMetaList {
+  int32 count = 1;
+  repeated EventMeta items = 2;
+}

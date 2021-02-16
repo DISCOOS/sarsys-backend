@@ -1,0 +1,333 @@
+syntax = "proto3";
+
+option java_package = "org.discoos.sarsys.protobuf";
+option java_outer_classname = "SarSysProto";
+option java_multiple_files = true;
+option objc_class_prefix = "SarSys";
+option cc_enable_arenas = true;
+
+package org.discoos.es;
+
+import "event.proto";
+import "metric.proto";
+import "aggregate.proto";
+
+
+service RepositoryService {
+    // Get Repository metadata
+    //
+    // Service with return repository metadata of given type
+    rpc GetMeta(GetRepoMetaRequest) returns (GetRepoMetaResponse) {}
+
+    // Execute replay command on Repository
+    //
+    // Service will replay events from streams on repository of given type
+    rpc ReplayEvents(ReplayRepoEventsRequest) returns (ReplayRepoEventsResponse) {}
+
+    // Execute catchup command on Repository
+    //
+    // Service will force catchup on streams on repository of given type
+    rpc CatchupEvents(CatchupRepoEventsRequest) returns (CatchupRepoEventsResponse) {}
+
+    // Execute repair command on Repository
+    //
+    // Service will attempt to repair repository of given type
+    rpc Repair(RepairRepoRequest) returns (RepairRepoResponse) {}
+
+    // Execute rebuild command on Repository
+    //
+    // Service will attempt to repair repository of given type
+    rpc Rebuild(RebuildRepoRequest) returns (RebuildRepoResponse) {}
+
+}
+
+message GetRepoMetaRequest {
+    // Repository for aggregate type
+    string type = 1;
+
+    // Expand response with metadata
+    repeated RepoExpandFields expand = 2;
+}
+
+message GetRepoMetaResponse {
+    // Repository for aggregate type
+    string type = 1;
+
+    // Response status code
+    int32 statusCode = 2;
+
+    // Response status code reason
+    string reasonPhrase = 3;
+
+    // Repository metadata
+    RepositoryMeta meta = 4;
+}
+
+enum RepoExpandFields {
+
+    // Only return default fields
+    REPO_EXPAND_FIELDS_NONE = 0;
+
+    // Return all available fields
+    REPO_EXPAND_FIELDS_ALL = 1;
+
+    // Extend response with aggregate metadata
+    // items fields like lists of aggregates or events
+    REPO_EXPAND_FIELDS_ITEMS = 2;
+
+    // Extend response with aggregate data field (if items are expanded)
+    REPO_EXPAND_FIELDS_DATA = 3;
+
+    // Extend response with metrics metadata
+    REPO_EXPAND_FIELDS_METRICS = 4;
+
+    // Extend response with queues metadata
+    REPO_EXPAND_FIELDS_QUEUE = 5;
+
+    // Extend response with connection metadata
+    REPO_EXPAND_FIELDS_CONN = 6;
+
+    // Extend response with subscriptions metadata
+    REPO_EXPAND_FIELDS_SUBS = 7;
+
+    // Extend response with snapshots metadata
+    REPO_EXPAND_FIELDS_SNAPSHOT = 8;
+}
+
+
+// Repository object metadata
+//
+// Summarises repository object metadata
+message RepositoryMeta {
+
+    // Aggregate type
+    string type = 1;
+
+    // Last event applied to repository
+    EventMeta lastEvent = 2;
+
+    // Repository queue object metadata
+    RepositoryQueueMeta queue = 3;
+
+    // Repository metrics object metadata
+    RepositoryMetricsMeta metrics = 4;
+
+}
+
+// Repository queue object metadata
+//
+// Summarises repository queue object metadata
+message RepositoryQueueMeta {
+
+    // Repository queue pressure object metadata
+    RepositoryQueuePressureMeta pressure = 1;
+
+    // Repository queue status object metadata
+    RepositoryQueueStatusMeta status = 2;
+
+    // Repository metrics metadata
+    RepositoryMetricsMeta metrics = 3;
+
+}
+
+// Repository queue pressure object metadata
+//
+// Summarises repository queue pressure object metadata
+message RepositoryQueuePressureMeta {
+
+    // Number of pending pushes
+    int32 push = 1;
+
+    // Number of pending commands
+    int32 commands = 2;
+
+    // Total number of pending pushes and commands
+    int32 total = 3;
+
+    // Maximum allowed pressure
+    int32 maximum = 4;
+
+    // True if maximum pressure is exceeded
+    bool exceeded = 5;
+
+}
+
+// Repository queue status object metadata
+//
+// Summarises repository queue status object metadata
+message RepositoryQueueStatusMeta {
+
+    // True if queue is idle
+    bool idle = 1;
+
+    // True if queue is ready to process requests
+    bool ready = 2;
+
+    // True if queue is disposed
+    bool disposed = 3;
+
+}
+
+// Repository metrics object metadata
+//
+// Summarises repository metrics object metadata
+message RepositoryMetricsMeta {
+
+    // Total number of events processed by repository
+    int64 events = 1;
+
+    // Total number of open transactions
+    int32 transactions = 2;
+
+    // Aggregate metrics metadata
+    RepositoryMetricsAggregateMeta aggregates = 4;
+
+    // Cumulative and exponential moving average duration of push operations
+    DurationMetricMeta push = 5;
+
+}
+
+message RepositoryMetricsAggregateMeta {
+    int32 count = 1;
+    int32 changed = 2;
+    AggregateMetaList tainted = 3;
+    AggregateMetaList cordoned = 4;
+}
+
+// Replay events on repository of given type
+message ReplayRepoEventsRequest {
+
+    // Aggregate type
+    string type = 1;
+
+    // Aggregate uuids
+    repeated string uuids = 2;
+
+    // Expand response with given fields
+    repeated RepoExpandFields expand = 3;
+
+}
+
+message ReplayRepoEventsResponse {
+
+    // Aggregate type
+    string type = 1;
+
+    // Aggregate uuids
+    repeated string uuids = 2;
+
+    // Response status code
+    int32 statusCode = 3;
+
+    // Response status code reason
+    string reasonPhrase = 4;
+
+    // Repository metadata
+    RepositoryMeta meta = 5;
+}
+
+// Catchup on streams on repository of given type
+message CatchupRepoEventsRequest {
+
+    // Aggregate type
+    string type = 1;
+
+    // Aggregate uuids
+    repeated string uuids = 2;
+
+    // Expand response with given fields
+    repeated RepoExpandFields expand = 3;
+
+}
+
+message CatchupRepoEventsResponse {
+
+    // Aggregate type
+    string type = 1;
+
+    // Aggregate uuids
+    repeated string uuids = 2;
+
+    // Response status code
+    int32 statusCode = 3;
+
+    // Response status code reason
+    string reasonPhrase = 4;
+
+    // Repository metadata
+    RepositoryMeta meta = 5;
+}
+
+// Repair repository of given type
+message RepairRepoRequest {
+
+    // Aggregate type
+    string type = 1;
+
+    // Replay on master
+    bool master = 2;
+
+    // Expand response with given fields
+    repeated RepoExpandFields expand = 3;
+
+}
+
+message RepairRepoResponse {
+
+    // Aggregate type
+    string type = 1;
+
+    // Response status code
+    int32 statusCode = 3;
+
+    // Response status code reason
+    string reasonPhrase = 4;
+
+    // Repository metadata
+    RepositoryMeta meta = 5;
+
+    // Analysis result before repair
+    AnalysisMeta before = 6;
+
+    // Analysis result after repair
+    AnalysisMeta after = 7;
+
+}
+
+message AnalysisMeta {
+    int32 count = 1;
+    int32 wrong = 2;
+    int32 multiple = 3;
+    repeated string summary = 4;
+}
+
+
+// Repair repository of given type
+message RebuildRepoRequest {
+
+    // Aggregate type
+    string type = 1;
+
+    // Replay on master
+    bool master = 2;
+
+    // Expand response with given fields
+    repeated RepoExpandFields expand = 3;
+
+}
+
+message RebuildRepoResponse {
+
+    // Aggregate type
+    string type = 1;
+
+    // Response status code
+    int32 statusCode = 3;
+
+    // Response status code reason
+    string reasonPhrase = 4;
+
+    // Repository metadata
+    RepositoryMeta meta = 5;
+}
+

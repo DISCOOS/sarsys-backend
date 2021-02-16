@@ -2733,8 +2733,20 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           'aggregates': {
             'count': count(),
             'changed': _aggregates.values.where((aggregate) => aggregate.isChanged).length,
-            'tainted': {'count': store.tainted.length, if (items) 'items': store.tainted},
-            'cordoned': {'count': store.cordoned.length, if (items) 'items': store.cordoned},
+            'tainted': {
+              'count': store.tainted.length,
+              if (items)
+                'items': store.tainted.entries.map(
+                  (e) => {'uuid': e.key, 'value': e.value},
+                )
+            },
+            'cordoned': {
+              'count': store.cordoned.length,
+              if (items)
+                'items': store.cordoned.entries.map(
+                  (e) => {'uuid': e.key, 'value': e.value},
+                )
+            },
           },
           'transactions': _transactions.length,
           'push': _metrics['push'].toMeta(),

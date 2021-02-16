@@ -1,5 +1,4 @@
 import 'package:event_source/event_source.dart';
-import 'package:event_source/src/extension.dart';
 import 'package:event_source/src/error.dart';
 import 'package:event_source_test/src/mock.dart';
 import 'package:event_source_test/event_source_test.dart';
@@ -9,7 +8,6 @@ import 'package:async/async.dart';
 import 'package:pedantic/pedantic.dart';
 
 import 'event_domain_test.dart';
-import 'foo.dart';
 
 Future main() async {
   final harness = EventSourceHarness()
