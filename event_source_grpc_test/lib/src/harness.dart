@@ -112,10 +112,12 @@ class EventSourceGrpcHarness {
   EventSourceGrpcHarness withSnapshotService({
     int keep = 10,
     int threshold = 100,
+    bool automatic = true,
   }) {
     _harness.withSnapshot(
-      threshold: threshold,
       keep: keep,
+      threshold: threshold,
+      automatic: automatic,
     );
     _withSnapshotService = true;
     return this;
@@ -221,6 +223,12 @@ class EventSourceGrpcHarness {
               seconds: 30,
             ),
           ),
+        ),
+      );
+      services.add(
+        SnapshotGrpcService(
+          manager,
+          _harness.hiveDir.path,
         ),
       );
     }

@@ -100,6 +100,7 @@ class EventSourceHarness {
         create,
         keep: _keep,
         threshold: _threshold,
+        automatic: _automatic,
         withSnapshots: _withSnapshots,
         useInstanceStreams: useInstanceStreams,
       ),
@@ -122,10 +123,17 @@ class EventSourceHarness {
 
   int _keep;
   int _threshold;
+  bool _automatic;
   bool _withSnapshots = false;
-  EventSourceHarness withSnapshot({int threshold = 100, int keep = 10}) {
+  EventSourceHarness withSnapshot({
+    int threshold = 100,
+    int keep = 10,
+    bool automatic = true,
+  }) {
+    assert(_builders.isEmpty, 'repositories already registered');
     _keep = keep;
     _threshold = threshold;
+    _automatic = automatic;
     _withSnapshots = true;
     return this;
   }
@@ -160,12 +168,12 @@ class EventSourceHarness {
     return this;
   }
 
+  final hiveDir = Directory('test/.hive');
+
   void install() {
     if (_servers.isEmpty) {
       addServer(port: 4000);
     }
-
-    final hiveDir = Directory('test/.hive');
 
     setUpAll(() async {
       _initHiveDir(hiveDir);
@@ -372,11 +380,13 @@ class _RepositoryBuilder<T extends AggregateRoot> {
     @required this.useInstanceStreams,
     this.keep,
     this.threshold,
+    this.automatic,
     this.withSnapshots,
   }) : _create = create;
   final int keep;
   final int threshold;
   final int instances;
+  final bool automatic;
   final bool withSnapshots;
   final _Creator<T> _create;
   final bool useInstanceStreams;
@@ -387,6 +397,7 @@ class _RepositoryBuilder<T extends AggregateRoot> {
         ? Storage.fromType<T>(
             keep: keep,
             threshold: threshold,
+            automatic: automatic,
             // Servers do no share snapshots
             prefix: '$port',
           )

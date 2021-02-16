@@ -87,11 +87,12 @@ enum RepoExpandFields {
     // Extend response with connection metadata
     REPO_EXPAND_FIELDS_CONN = 6;
 
-    // Extend response with subscriptions metadata
-    REPO_EXPAND_FIELDS_SUBS = 7;
-
     // Extend response with snapshots metadata
-    REPO_EXPAND_FIELDS_SNAPSHOT = 8;
+    REPO_EXPAND_FIELDS_SNAPSHOT = 7;
+
+//    // Extend response with subscriptions metadata
+//    REPO_EXPAND_FIELDS_SUBS = 8;
+//
 }
 
 
@@ -111,6 +112,9 @@ message RepositoryMeta {
 
     // Repository metrics object metadata
     RepositoryMetricsMeta metrics = 4;
+
+    // Connection metrics object metadata
+    ConnectionMetricsMeta connection = 5;
 
 }
 
@@ -192,6 +196,19 @@ message RepositoryMetricsAggregateMeta {
     int32 changed = 2;
     AggregateMetaList tainted = 3;
     AggregateMetaList cordoned = 4;
+}
+
+// Connection metrics object metadata
+//
+// Summarises connection metrics metadata
+message ConnectionMetricsMeta {
+
+    // Cumulative and exponential moving average duration of read operations
+    DurationMetricMeta read = 1;
+
+    // Cumulative and exponential moving average duration of read operations
+    DurationMetricMeta write = 2;
+
 }
 
 // Replay events on repository of given type

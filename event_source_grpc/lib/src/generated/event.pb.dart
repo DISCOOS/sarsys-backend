@@ -10,7 +10,7 @@ import 'dart:core' as $core;
 import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
 
-import 'timestamp.pb.dart' as $3;
+import 'timestamp.pb.dart' as $4;
 
 class EventMeta extends $pb.GeneratedMessage {
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -40,7 +40,7 @@ class EventMeta extends $pb.GeneratedMessage {
     ..aInt64(4,
         const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'number')
     ..aInt64(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'position')
-    ..aOM<$3.Timestamp>(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'timestamp', subBuilder: $3.Timestamp.create)
+    ..aOM<$4.Timestamp>(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'timestamp', subBuilder: $4.Timestamp.create)
     ..hasRequiredFields = false;
 
   EventMeta._() : super();
@@ -132,9 +132,9 @@ class EventMeta extends $pb.GeneratedMessage {
   void clearPosition() => clearField(5);
 
   @$pb.TagNumber(6)
-  $3.Timestamp get timestamp => $_getN(5);
+  $4.Timestamp get timestamp => $_getN(5);
   @$pb.TagNumber(6)
-  set timestamp($3.Timestamp v) {
+  set timestamp($4.Timestamp v) {
     setField(6, v);
   }
 
@@ -143,7 +143,7 @@ class EventMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(6)
   void clearTimestamp() => clearField(6);
   @$pb.TagNumber(6)
-  $3.Timestamp ensureTimestamp() => $_ensure(5);
+  $4.Timestamp ensureTimestamp() => $_ensure(5);
 }
 
 class EventMetaList extends $pb.GeneratedMessage {

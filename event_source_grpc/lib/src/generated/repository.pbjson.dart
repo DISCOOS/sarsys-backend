@@ -15,8 +15,7 @@ const RepoExpandFields$json = const {
     const {'1': 'REPO_EXPAND_FIELDS_METRICS', '2': 4},
     const {'1': 'REPO_EXPAND_FIELDS_QUEUE', '2': 5},
     const {'1': 'REPO_EXPAND_FIELDS_CONN', '2': 6},
-    const {'1': 'REPO_EXPAND_FIELDS_SUBS', '2': 7},
-    const {'1': 'REPO_EXPAND_FIELDS_SNAPSHOT', '2': 8},
+    const {'1': 'REPO_EXPAND_FIELDS_SNAPSHOT', '2': 7},
   ],
 };
 
@@ -79,6 +78,14 @@ const RepositoryMeta$json = const {
       '5': 11,
       '6': '.org.discoos.es.RepositoryMetricsMeta',
       '10': 'metrics'
+    },
+    const {
+      '1': 'connection',
+      '3': 5,
+      '4': 1,
+      '5': 11,
+      '6': '.org.discoos.es.ConnectionMetricsMeta',
+      '10': 'connection'
     },
   ],
 };
@@ -177,6 +184,28 @@ const RepositoryMetricsAggregateMeta$json = const {
       '5': 11,
       '6': '.org.discoos.es.AggregateMetaList',
       '10': 'cordoned'
+    },
+  ],
+};
+
+const ConnectionMetricsMeta$json = const {
+  '1': 'ConnectionMetricsMeta',
+  '2': const [
+    const {
+      '1': 'read',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.org.discoos.es.DurationMetricMeta',
+      '10': 'read'
+    },
+    const {
+      '1': 'write',
+      '3': 2,
+      '4': 1,
+      '5': 11,
+      '6': '.org.discoos.es.DurationMetricMeta',
+      '10': 'write'
     },
   ],
 };

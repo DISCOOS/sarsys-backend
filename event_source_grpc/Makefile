@@ -33,6 +33,7 @@ models:
 		any.proto \
 		timestamp.proto \
 		event.proto \
+		file.proto \
 		metric.proto \
 		aggregate.proto \
 		repository.proto \

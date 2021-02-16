@@ -32,7 +32,7 @@ message DurationMetricMeta {
   DurationCumulativeAverage cumulative = 6;
 
   // Exponential moving average from t0 to tn
-  DurationCumulativeAverage exponential = 7;
+  DurationExponentialAverage exponential = 7;
 
 }
 
@@ -41,7 +41,7 @@ message DurationCumulativeAverage {
   double rate = 1;
 
   // Cumulative average
-  double mean = 2;
+  int64 mean = 2;
 
   // Cumulative average sample variance (n-1)
   double variance = 3;
@@ -62,7 +62,7 @@ message DurationExponentialAverage {
   double rate = 3;
 
   // Exponential moving average
-  double mean = 4;
+  int64 mean = 4;
 
   // Exponential moving average sample variance (n-1)
   double variance = 5;

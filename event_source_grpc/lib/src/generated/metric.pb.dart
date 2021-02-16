@@ -10,7 +10,7 @@ import 'dart:core' as $core;
 import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
 
-import 'timestamp.pb.dart' as $3;
+import 'timestamp.pb.dart' as $4;
 
 class DurationMetricMeta extends $pb.GeneratedMessage {
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -27,16 +27,16 @@ class DurationMetricMeta extends $pb.GeneratedMessage {
         const $core.bool.fromEnvironment('protobuf.omit_field_names')
             ? ''
             : 'count')
-    ..aOM<$3.Timestamp>(
+    ..aOM<$4.Timestamp>(
         2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 't0',
-        subBuilder: $3.Timestamp.create)
-    ..aOM<$3.Timestamp>(3,
+        subBuilder: $4.Timestamp.create)
+    ..aOM<$4.Timestamp>(3,
         const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'tn',
-        subBuilder: $3.Timestamp.create)
+        subBuilder: $4.Timestamp.create)
     ..aInt64(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'last')
     ..aInt64(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'total')
     ..aOM<DurationCumulativeAverage>(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'cumulative', subBuilder: DurationCumulativeAverage.create)
-    ..aOM<DurationCumulativeAverage>(7, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'exponential', subBuilder: DurationCumulativeAverage.create)
+    ..aOM<DurationExponentialAverage>(7, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'exponential', subBuilder: DurationExponentialAverage.create)
     ..hasRequiredFields = false;
 
   DurationMetricMeta._() : super();
@@ -81,9 +81,9 @@ class DurationMetricMeta extends $pb.GeneratedMessage {
   void clearCount() => clearField(1);
 
   @$pb.TagNumber(2)
-  $3.Timestamp get t0 => $_getN(1);
+  $4.Timestamp get t0 => $_getN(1);
   @$pb.TagNumber(2)
-  set t0($3.Timestamp v) {
+  set t0($4.Timestamp v) {
     setField(2, v);
   }
 
@@ -92,12 +92,12 @@ class DurationMetricMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(2)
   void clearT0() => clearField(2);
   @$pb.TagNumber(2)
-  $3.Timestamp ensureT0() => $_ensure(1);
+  $4.Timestamp ensureT0() => $_ensure(1);
 
   @$pb.TagNumber(3)
-  $3.Timestamp get tn => $_getN(2);
+  $4.Timestamp get tn => $_getN(2);
   @$pb.TagNumber(3)
-  set tn($3.Timestamp v) {
+  set tn($4.Timestamp v) {
     setField(3, v);
   }
 
@@ -106,7 +106,7 @@ class DurationMetricMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(3)
   void clearTn() => clearField(3);
   @$pb.TagNumber(3)
-  $3.Timestamp ensureTn() => $_ensure(2);
+  $4.Timestamp ensureTn() => $_ensure(2);
 
   @$pb.TagNumber(4)
   $fixnum.Int64 get last => $_getI64(3);
@@ -147,9 +147,9 @@ class DurationMetricMeta extends $pb.GeneratedMessage {
   DurationCumulativeAverage ensureCumulative() => $_ensure(5);
 
   @$pb.TagNumber(7)
-  DurationCumulativeAverage get exponential => $_getN(6);
+  DurationExponentialAverage get exponential => $_getN(6);
   @$pb.TagNumber(7)
-  set exponential(DurationCumulativeAverage v) {
+  set exponential(DurationExponentialAverage v) {
     setField(7, v);
   }
 
@@ -158,7 +158,7 @@ class DurationMetricMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(7)
   void clearExponential() => clearField(7);
   @$pb.TagNumber(7)
-  DurationCumulativeAverage ensureExponential() => $_ensure(6);
+  DurationExponentialAverage ensureExponential() => $_ensure(6);
 }
 
 class DurationCumulativeAverage extends $pb.GeneratedMessage {
@@ -166,9 +166,10 @@ class DurationCumulativeAverage extends $pb.GeneratedMessage {
       const $core.bool.fromEnvironment('protobuf.omit_message_names')
           ? ''
           : 'DurationCumulativeAverage',
-      package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names')
-          ? ''
-          : 'org.discoos.es'),
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'org.discoos.es'),
       createEmptyInstance: create)
     ..a<$core.double>(
         1,
@@ -176,12 +177,11 @@ class DurationCumulativeAverage extends $pb.GeneratedMessage {
             ? ''
             : 'rate',
         $pb.PbFieldType.OD)
-    ..a<$core.double>(
+    ..aInt64(
         2,
         const $core.bool.fromEnvironment('protobuf.omit_field_names')
             ? ''
-            : 'mean',
-        $pb.PbFieldType.OD)
+            : 'mean')
     ..a<$core.double>(
         3,
         const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'variance',
@@ -233,10 +233,10 @@ class DurationCumulativeAverage extends $pb.GeneratedMessage {
   void clearRate() => clearField(1);
 
   @$pb.TagNumber(2)
-  $core.double get mean => $_getN(1);
+  $fixnum.Int64 get mean => $_getI64(1);
   @$pb.TagNumber(2)
-  set mean($core.double v) {
-    $_setDouble(1, v);
+  set mean($fixnum.Int64 v) {
+    $_setInt64(1, v);
   }
 
   @$pb.TagNumber(2)
@@ -295,7 +295,7 @@ class DurationExponentialAverage extends $pb.GeneratedMessage {
         3,
         const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'rate',
         $pb.PbFieldType.OD)
-    ..a<$core.double>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'mean', $pb.PbFieldType.OD)
+    ..aInt64(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'mean')
     ..a<$core.double>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'variance', $pb.PbFieldType.OD)
     ..a<$core.double>(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'deviation', $pb.PbFieldType.OD)
     ..hasRequiredFields = false;
@@ -368,10 +368,10 @@ class DurationExponentialAverage extends $pb.GeneratedMessage {
   void clearRate() => clearField(3);
 
   @$pb.TagNumber(4)
-  $core.double get mean => $_getN(3);
+  $fixnum.Int64 get mean => $_getI64(3);
   @$pb.TagNumber(4)
-  set mean($core.double v) {
-    $_setDouble(3, v);
+  set mean($fixnum.Int64 v) {
+    $_setInt64(3, v);
   }
 
   @$pb.TagNumber(4)

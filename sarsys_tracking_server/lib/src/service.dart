@@ -17,6 +17,14 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
 
   @override
   Future<GetTrackingMetaResponse> getMeta(ServiceCall call, GetTrackingMetaRequest request) async {
+    if (call.isTimedOut) {
+      final response = GetTrackingMetaResponse();
+      call.sendTrailers(
+        status: StatusCode.deadlineExceeded,
+        message: _timeout('getMeta'),
+      );
+      return response;
+    }
     final response = await _getMetaData(request.expand);
     _ok('getMeta');
     return response;
@@ -123,7 +131,19 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
       Context.toMethod('start', ['expand: ${request.expand.map(enumName).join(',')}']),
     );
     final ok = await service.start();
-    final response = StartTrackingResponse()
+    final response = StartTrackingResponse();
+    if (call.isTimedOut) {
+      final reason = _timeout('start');
+      response
+        ..reasonPhrase = reason
+        ..statusCode = StatusCode.deadlineExceeded;
+      call.sendTrailers(
+        message: reason,
+        status: StatusCode.deadlineExceeded,
+      );
+      return response;
+    }
+    response
       ..meta = await _getMetaData(request.expand)
       ..statusCode = ok ? HttpStatus.ok : HttpStatus.internalServerError
       ..reasonPhrase = ok ? 'OK' : 'Unable to start tracking service';
@@ -141,6 +161,17 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
       Context.toMethod('start', ['expand: ${request.expand.map(enumName).join(',')}']),
     );
     final response = StopTrackingResponse();
+    if (call.isTimedOut) {
+      final reason = _timeout('stop');
+      response
+        ..reasonPhrase = reason
+        ..statusCode = StatusCode.deadlineExceeded;
+      call.sendTrailers(
+        message: reason,
+        status: StatusCode.deadlineExceeded,
+      );
+      return response;
+    }
     if (service.isStarted) {
       final ok = await service.stop();
       response
@@ -171,6 +202,18 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
         'expand: ${request.expand.map(enumName).join(',')}',
       ]),
     );
+    final response = AddTrackingsResponse();
+    if (call.isTimedOut) {
+      final reason = _timeout('addTrackings');
+      response
+        ..reasonPhrase = reason
+        ..statusCode = StatusCode.deadlineExceeded;
+      call.sendTrailers(
+        message: reason,
+        status: StatusCode.deadlineExceeded,
+      );
+      return response;
+    }
     for (var uuid in uuids) {
       if (!service.isManagerOf(uuid)) {
         final ok = await service.addTracking(uuid);
@@ -179,7 +222,7 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
         }
       }
     }
-    final response = AddTrackingsResponse()
+    response
       ..uuids.addAll(uuids)
       ..failed.addAll(failed)
       ..meta = await _getMetaData(request.expand);
@@ -216,6 +259,18 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
         'expand: ${request.expand.map(enumName).join(',')}',
       ]),
     );
+    final response = RemoveTrackingsResponse();
+    if (call.isTimedOut) {
+      final reason = _timeout('removeTrackings');
+      response
+        ..reasonPhrase = reason
+        ..statusCode = StatusCode.deadlineExceeded;
+      call.sendTrailers(
+        message: reason,
+        status: StatusCode.deadlineExceeded,
+      );
+      return response;
+    }
 
     for (var uuid in uuids) {
       final ok = await service.removeTracking(uuid);
@@ -223,7 +278,7 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
         failed.add(uuid);
       }
     }
-    final response = RemoveTrackingsResponse()
+    response
       ..uuids.addAll(uuids)
       ..failed.addAll(failed)
       ..meta = await _getMetaData(request.expand);
@@ -249,6 +304,14 @@ class SarSysTrackingGrpcService extends SarSysTrackingServiceBase {
     return response
       ..statusCode = HttpStatus.notFound
       ..reasonPhrase = 'Not found: ${uuids.join(',')}';
+  }
+
+  String _timeout(String method) {
+    return _log(
+      method,
+      HttpStatus.gatewayTimeout,
+      'Gateway Timeout Error',
+    );
   }
 
   String _ok(String method) {

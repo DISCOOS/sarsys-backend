@@ -14,4 +14,5 @@ export 'src/generated/snapshot.pb.dart';
 export 'src/generated/snapshot.pbgrpc.dart';
 export 'src/generated/timestamp.pb.dart';
 export 'src/repository.dart';
+export 'src/snapshot.dart';
 export 'src/utils.dart';

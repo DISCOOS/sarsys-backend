@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+option java_package = "org.discoos.io.protobuf";
+option java_outer_classname = "DESProto";
+option java_multiple_files = true;
+option objc_class_prefix = "DIO";
+option cc_enable_arenas = true;
+
+package org.discoos.io;
+
+
+// File chunk message
+//
+// Models a chunk of file content in bytes
+message FileChunk {
+
+  // File content chunk as bytes of chunkSize
+  bytes content = 1;
+
+  // Total size of file in bytes
+  uint64 fileSize = 2;
+
+  // Size of each chunk in number of bytes
+  uint64 chunkSize = 3;
+
+  /// Name of file
+  string fileName = 4;
+
+}
+

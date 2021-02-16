@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:event_source_grpc/event_source_grpc.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart';
 import 'package:grpc/grpc.dart' as grpc;
@@ -44,7 +45,10 @@ class SarSysTrackingServer {
 
     // Start grpc service
     _grpc = grpc.Server([
+      AggregateGrpcService(manager),
+      RepositoryGrpcService(manager),
       SarSysTrackingGrpcService(this),
+      SnapshotGrpcService(manager, config.data.path),
     ]);
 
     return _grpc.serve(

@@ -10,8 +10,8 @@ import 'dart:core' as $core;
 import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
 
-import 'event.pb.dart' as $5;
-import 'metric.pb.dart' as $6;
+import 'event.pb.dart' as $6;
+import 'metric.pb.dart' as $7;
 import 'aggregate.pb.dart' as $0;
 
 import 'repository.pbenum.dart';
@@ -192,28 +192,28 @@ class GetRepoMetaResponse extends $pb.GeneratedMessage {
 }
 
 class RepositoryMeta extends $pb.GeneratedMessage {
-  static final $pb.BuilderInfo _i =
-      $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'RepositoryMeta',
-          package: const $pb.PackageName(
-              const $core.bool.fromEnvironment('protobuf.omit_message_names')
-                  ? ''
-                  : 'org.discoos.es'),
-          createEmptyInstance: create)
-        ..aOS(
-            1,
-            const $core.bool.fromEnvironment('protobuf.omit_field_names')
-                ? ''
-                : 'type')
-        ..aOM<$5.EventMeta>(
-            2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'lastEvent',
-            protoName: 'lastEvent', subBuilder: $5.EventMeta.create)
-        ..aOM<RepositoryQueueMeta>(
-            3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'queue',
-            subBuilder: RepositoryQueueMeta.create)
-        ..aOM<RepositoryMetricsMeta>(
-            4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'metrics',
-            subBuilder: RepositoryMetricsMeta.create)
-        ..hasRequiredFields = false;
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'RepositoryMeta',
+      package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'org.discoos.es'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'type')
+    ..aOM<$6.EventMeta>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'lastEvent',
+        protoName: 'lastEvent', subBuilder: $6.EventMeta.create)
+    ..aOM<RepositoryQueueMeta>(
+        3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'queue',
+        subBuilder: RepositoryQueueMeta.create)
+    ..aOM<RepositoryMetricsMeta>(
+        4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'metrics',
+        subBuilder: RepositoryMetricsMeta.create)
+    ..aOM<ConnectionMetricsMeta>(
+        5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'connection',
+        subBuilder: ConnectionMetricsMeta.create)
+    ..hasRequiredFields = false;
 
   RepositoryMeta._() : super();
   factory RepositoryMeta() => create();
@@ -257,9 +257,9 @@ class RepositoryMeta extends $pb.GeneratedMessage {
   void clearType() => clearField(1);
 
   @$pb.TagNumber(2)
-  $5.EventMeta get lastEvent => $_getN(1);
+  $6.EventMeta get lastEvent => $_getN(1);
   @$pb.TagNumber(2)
-  set lastEvent($5.EventMeta v) {
+  set lastEvent($6.EventMeta v) {
     setField(2, v);
   }
 
@@ -268,7 +268,7 @@ class RepositoryMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(2)
   void clearLastEvent() => clearField(2);
   @$pb.TagNumber(2)
-  $5.EventMeta ensureLastEvent() => $_ensure(1);
+  $6.EventMeta ensureLastEvent() => $_ensure(1);
 
   @$pb.TagNumber(3)
   RepositoryQueueMeta get queue => $_getN(2);
@@ -297,6 +297,20 @@ class RepositoryMeta extends $pb.GeneratedMessage {
   void clearMetrics() => clearField(4);
   @$pb.TagNumber(4)
   RepositoryMetricsMeta ensureMetrics() => $_ensure(3);
+
+  @$pb.TagNumber(5)
+  ConnectionMetricsMeta get connection => $_getN(4);
+  @$pb.TagNumber(5)
+  set connection(ConnectionMetricsMeta v) {
+    setField(5, v);
+  }
+
+  @$pb.TagNumber(5)
+  $core.bool hasConnection() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearConnection() => clearField(5);
+  @$pb.TagNumber(5)
+  ConnectionMetricsMeta ensureConnection() => $_ensure(4);
 }
 
 class RepositoryQueueMeta extends $pb.GeneratedMessage {
@@ -631,9 +645,9 @@ class RepositoryMetricsMeta extends $pb.GeneratedMessage {
         ..aOM<RepositoryMetricsAggregateMeta>(
             4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'aggregates',
             subBuilder: RepositoryMetricsAggregateMeta.create)
-        ..aOM<$6.DurationMetricMeta>(
+        ..aOM<$7.DurationMetricMeta>(
             5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'push',
-            subBuilder: $6.DurationMetricMeta.create)
+            subBuilder: $7.DurationMetricMeta.create)
         ..hasRequiredFields = false;
 
   RepositoryMetricsMeta._() : super();
@@ -706,9 +720,9 @@ class RepositoryMetricsMeta extends $pb.GeneratedMessage {
   RepositoryMetricsAggregateMeta ensureAggregates() => $_ensure(2);
 
   @$pb.TagNumber(5)
-  $6.DurationMetricMeta get push => $_getN(3);
+  $7.DurationMetricMeta get push => $_getN(3);
   @$pb.TagNumber(5)
-  set push($6.DurationMetricMeta v) {
+  set push($7.DurationMetricMeta v) {
     setField(5, v);
   }
 
@@ -717,7 +731,7 @@ class RepositoryMetricsMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(5)
   void clearPush() => clearField(5);
   @$pb.TagNumber(5)
-  $6.DurationMetricMeta ensurePush() => $_ensure(3);
+  $7.DurationMetricMeta ensurePush() => $_ensure(3);
 }
 
 class RepositoryMetricsAggregateMeta extends $pb.GeneratedMessage {
@@ -831,6 +845,87 @@ class RepositoryMetricsAggregateMeta extends $pb.GeneratedMessage {
   void clearCordoned() => clearField(4);
   @$pb.TagNumber(4)
   $0.AggregateMetaList ensureCordoned() => $_ensure(3);
+}
+
+class ConnectionMetricsMeta extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'ConnectionMetricsMeta',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'org.discoos.es'),
+      createEmptyInstance: create)
+    ..aOM<$7.DurationMetricMeta>(
+        1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'read',
+        subBuilder: $7.DurationMetricMeta.create)
+    ..aOM<$7.DurationMetricMeta>(
+        2,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'write',
+        subBuilder: $7.DurationMetricMeta.create)
+    ..hasRequiredFields = false;
+
+  ConnectionMetricsMeta._() : super();
+  factory ConnectionMetricsMeta() => create();
+  factory ConnectionMetricsMeta.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+  factory ConnectionMetricsMeta.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  ConnectionMetricsMeta clone() =>
+      ConnectionMetricsMeta()..mergeFromMessage(this);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  ConnectionMetricsMeta copyWith(
+          void Function(ConnectionMetricsMeta) updates) =>
+      super.copyWith((message) => updates(
+          message as ConnectionMetricsMeta)); // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static ConnectionMetricsMeta create() => ConnectionMetricsMeta._();
+  ConnectionMetricsMeta createEmptyInstance() => create();
+  static $pb.PbList<ConnectionMetricsMeta> createRepeated() =>
+      $pb.PbList<ConnectionMetricsMeta>();
+  @$core.pragma('dart2js:noInline')
+  static ConnectionMetricsMeta getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ConnectionMetricsMeta>(create);
+  static ConnectionMetricsMeta _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $7.DurationMetricMeta get read => $_getN(0);
+  @$pb.TagNumber(1)
+  set read($7.DurationMetricMeta v) {
+    setField(1, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasRead() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRead() => clearField(1);
+  @$pb.TagNumber(1)
+  $7.DurationMetricMeta ensureRead() => $_ensure(0);
+
+  @$pb.TagNumber(2)
+  $7.DurationMetricMeta get write => $_getN(1);
+  @$pb.TagNumber(2)
+  set write($7.DurationMetricMeta v) {
+    setField(2, v);
+  }
+
+  @$pb.TagNumber(2)
+  $core.bool hasWrite() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearWrite() => clearField(2);
+  @$pb.TagNumber(2)
+  $7.DurationMetricMeta ensureWrite() => $_ensure(1);
 }
 
 class ReplayRepoEventsRequest extends $pb.GeneratedMessage {
