@@ -29,7 +29,6 @@ void main() {
 
   test('GRPC GetMeta with empty repo returns 404', () async {
     // Arrange
-    final uuid = Uuid().v4();
     final client = harness.client<RepositoryServiceClient>();
 
     final response = await client.getMeta(

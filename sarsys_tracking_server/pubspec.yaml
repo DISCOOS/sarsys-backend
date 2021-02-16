@@ -16,6 +16,8 @@ dependencies:
     path: ../sarsys_core
   sarsys_domain:
     path: ../sarsys_domain
+  event_source_grpc:
+    path: ../event_source_grpc
 
 
 dev_dependencies:

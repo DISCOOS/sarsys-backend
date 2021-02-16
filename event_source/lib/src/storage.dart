@@ -558,7 +558,7 @@ class Storage {
   /// Get metadata for snapshot with given [uuid]
   Future<Map<String, dynamic>> toMeta(
     String uuid, {
-    Type type,
+    String type,
     EventNumber current,
     bool data = false,
     bool items = false,
@@ -571,6 +571,7 @@ class Storage {
       'uuid': uuid,
       'last': last?.uuid,
       'number': snapshot?.number?.value,
+      'position': snapshot?.number?.position,
       'timestamp': snapshot?.timestamp?.toIso8601String(),
       'config': {
         'keep': keep,
@@ -595,7 +596,7 @@ class Storage {
               ...snapshot.aggregates.values
                   .map((a) => {
                         'uuid': a.uuid,
-                        if (type != null) 'type': '$type',
+                        if (type != null) 'type': type,
                         'number': a.number.value,
                         'created': <String, dynamic>{
                           'uuid': a.createdBy?.uuid,

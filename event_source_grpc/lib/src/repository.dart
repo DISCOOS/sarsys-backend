@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:event_source/event_source.dart';
+import 'package:grpc/grpc.dart';
 import 'package:grpc/src/server/call.dart';
 import 'package:logging/logging.dart';
 
@@ -15,12 +16,25 @@ class RepositoryGrpcService extends RepositoryServiceBase {
 
   @override
   Future<GetRepoMetaResponse> getMeta(ServiceCall call, GetRepoMetaRequest request) async {
+    final type = request.type;
     final response = GetRepoMetaResponse()
-      ..type = request.type
+      ..type = type
       ..statusCode = HttpStatus.ok
       ..reasonPhrase = 'OK';
-    final type = request.type;
+
+    if (call.isTimedOut) {
+      final reason = _timeout('getMeta');
+      response
+        ..reasonPhrase = reason
+        ..statusCode = StatusCode.deadlineExceeded;
+      call.sendTrailers(
+        message: reason,
+        status: StatusCode.deadlineExceeded,
+      );
+      return response;
+    }
     final repo = manager.getFromTypeName(type);
+
     if (repo == null) {
       _notFound(
         'getMeta',
@@ -75,10 +89,7 @@ class RepositoryGrpcService extends RepositoryServiceBase {
         expand,
         RepoExpandFields.REPO_EXPAND_FIELDS_CONN,
       ),
-      subscriptions: withRepoField(
-        expand,
-        RepoExpandFields.REPO_EXPAND_FIELDS_SUBS,
-      ),
+      subscriptions: false,
     );
   }
 
@@ -87,11 +98,24 @@ class RepositoryGrpcService extends RepositoryServiceBase {
     ServiceCall call,
     RebuildRepoRequest request,
   ) async {
+    final type = request.type;
     final response = RebuildRepoResponse()
-      ..type = request.type
+      ..type = type
       ..statusCode = HttpStatus.ok
       ..reasonPhrase = 'OK';
-    final type = request.type;
+
+    if (call.isTimedOut) {
+      final reason = _timeout('rebuild');
+      response
+        ..reasonPhrase = reason
+        ..statusCode = StatusCode.deadlineExceeded;
+      call.sendTrailers(
+        message: reason,
+        status: StatusCode.deadlineExceeded,
+      );
+      return response;
+    }
+
     final repo = manager.getFromTypeName(type);
     if (repo == null) {
       _notFound(
@@ -129,11 +153,24 @@ class RepositoryGrpcService extends RepositoryServiceBase {
     ServiceCall call,
     RepairRepoRequest request,
   ) async {
+    final type = request.type;
     final response = RepairRepoResponse()
-      ..type = request.type
+      ..type = type
       ..statusCode = HttpStatus.ok
       ..reasonPhrase = 'OK';
-    final type = request.type;
+
+    if (call.isTimedOut) {
+      final reason = _timeout('repair');
+      response
+        ..reasonPhrase = reason
+        ..statusCode = StatusCode.deadlineExceeded;
+      call.sendTrailers(
+        message: reason,
+        status: StatusCode.deadlineExceeded,
+      );
+      return response;
+    }
+
     final repo = manager.getFromTypeName(type);
     if (repo == null) {
       _notFound(
@@ -191,11 +228,24 @@ class RepositoryGrpcService extends RepositoryServiceBase {
     ServiceCall call,
     CatchupRepoEventsRequest request,
   ) async {
+    final type = request.type;
     final response = CatchupRepoEventsResponse()
-      ..type = request.type
+      ..type = type
       ..statusCode = HttpStatus.ok
       ..reasonPhrase = 'OK';
-    final type = request.type;
+
+    if (call.isTimedOut) {
+      final reason = _timeout('catchupEvents');
+      response
+        ..reasonPhrase = reason
+        ..statusCode = StatusCode.deadlineExceeded;
+      call.sendTrailers(
+        message: reason,
+        status: StatusCode.deadlineExceeded,
+      );
+      return response;
+    }
+
     final repo = manager.getFromTypeName(type);
     if (repo == null) {
       _notFound(
@@ -252,11 +302,24 @@ class RepositoryGrpcService extends RepositoryServiceBase {
     ServiceCall call,
     ReplayRepoEventsRequest request,
   ) async {
+    final type = request.type;
     final response = ReplayRepoEventsResponse()
-      ..type = request.type
+      ..type = type
       ..statusCode = HttpStatus.ok
       ..reasonPhrase = 'OK';
-    final type = request.type;
+
+    if (call.isTimedOut) {
+      final reason = _timeout('catchupEvents');
+      response
+        ..reasonPhrase = reason
+        ..statusCode = StatusCode.deadlineExceeded;
+      call.sendTrailers(
+        message: reason,
+        status: StatusCode.deadlineExceeded,
+      );
+      return response;
+    }
+
     final repo = manager.getFromTypeName(type);
     if (repo == null) {
       _notFound(
@@ -320,6 +383,14 @@ class RepositoryGrpcService extends RepositoryServiceBase {
     }
     // Only get aggregate if is exists in storage!
     return repo.store.contains(uuid) ? repo.get(uuid) : null;
+  }
+
+  String _timeout(String method) {
+    return _log(
+      method,
+      HttpStatus.gatewayTimeout,
+      'Gateway Timeout Error',
+    );
   }
 
   String _notFound(String method, String message) {

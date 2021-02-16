@@ -222,7 +222,7 @@ class SnapshotFileController extends ResourceController {
               await snapshots.toMeta(
                 repo.snapshot?.uuid,
                 current: repo.number,
-                type: repo.aggregateType,
+                type: '${repo.aggregateType}',
                 data: shouldExpand(expand, 'data'),
                 items: shouldExpand(expand, 'items'),
               ),

@@ -45,14 +45,9 @@ class RepoExpandFields extends $pb.ProtobufEnum {
       const $core.bool.fromEnvironment('protobuf.omit_enum_names')
           ? ''
           : 'REPO_EXPAND_FIELDS_CONN');
-  static const RepoExpandFields REPO_EXPAND_FIELDS_SUBS = RepoExpandFields._(
-      7,
-      const $core.bool.fromEnvironment('protobuf.omit_enum_names')
-          ? ''
-          : 'REPO_EXPAND_FIELDS_SUBS');
   static const RepoExpandFields REPO_EXPAND_FIELDS_SNAPSHOT =
       RepoExpandFields._(
-          8,
+          7,
           const $core.bool.fromEnvironment('protobuf.omit_enum_names')
               ? ''
               : 'REPO_EXPAND_FIELDS_SNAPSHOT');
@@ -65,7 +60,6 @@ class RepoExpandFields extends $pb.ProtobufEnum {
     REPO_EXPAND_FIELDS_METRICS,
     REPO_EXPAND_FIELDS_QUEUE,
     REPO_EXPAND_FIELDS_CONN,
-    REPO_EXPAND_FIELDS_SUBS,
     REPO_EXPAND_FIELDS_SNAPSHOT,
   ];
 

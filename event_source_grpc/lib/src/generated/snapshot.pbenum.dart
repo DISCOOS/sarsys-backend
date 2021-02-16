@@ -40,18 +40,6 @@ class SnapshotExpandFields extends $pb.ProtobufEnum {
           const $core.bool.fromEnvironment('protobuf.omit_enum_names')
               ? ''
               : 'SNAPSHOT_EXPAND_FIELDS_METRICS');
-  static const SnapshotExpandFields SNAPSHOT_EXPAND_FIELDS_QUEUE =
-      SnapshotExpandFields._(
-          5,
-          const $core.bool.fromEnvironment('protobuf.omit_enum_names')
-              ? ''
-              : 'SNAPSHOT_EXPAND_FIELDS_QUEUE');
-  static const SnapshotExpandFields SNAPSHOT_EXPAND_FIELDS_CONN =
-      SnapshotExpandFields._(
-          6,
-          const $core.bool.fromEnvironment('protobuf.omit_enum_names')
-              ? ''
-              : 'SNAPSHOT_EXPAND_FIELDS_CONN');
 
   static const $core.List<SnapshotExpandFields> values = <SnapshotExpandFields>[
     SNAPSHOT_EXPAND_FIELDS_NONE,
@@ -59,8 +47,6 @@ class SnapshotExpandFields extends $pb.ProtobufEnum {
     SNAPSHOT_EXPAND_FIELDS_ITEMS,
     SNAPSHOT_EXPAND_FIELDS_DATA,
     SNAPSHOT_EXPAND_FIELDS_METRICS,
-    SNAPSHOT_EXPAND_FIELDS_QUEUE,
-    SNAPSHOT_EXPAND_FIELDS_CONN,
   ];
 
   static final $core.Map<$core.int, SnapshotExpandFields> _byValue =

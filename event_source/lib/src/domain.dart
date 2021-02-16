@@ -2762,7 +2762,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           items: items,
           current: number,
           metrics: metrics,
-          type: aggregateType,
+          type: '$aggregateType',
         ),
       if (connection) 'connection': store.connection.toMeta(),
       if (subscriptions) 'subscriptions': _toSubscriptionMeta(),

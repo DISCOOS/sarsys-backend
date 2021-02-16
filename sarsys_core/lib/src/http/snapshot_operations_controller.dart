@@ -15,6 +15,7 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
           options: [
             'data',
             'items',
+            'metrics',
           ],
           actions: [
             'save',
@@ -55,9 +56,11 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
       return Response.ok(
         await snapshots.toMeta(
           repository.snapshot?.uuid,
-          type: repository.aggregateType,
+          current: repository.number,
+          type: '${repository.aggregateType}',
           data: shouldExpand(expand, 'data'),
           items: shouldExpand(expand, 'items'),
+          metrics: shouldExpand(expand, 'metrics'),
         ),
       );
     } on InvalidOperation catch (e) {
@@ -148,7 +151,7 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
       await snapshots.toMeta(
         repository.snapshot?.uuid,
         current: repository.number,
-        type: repository.aggregateType,
+        type: '${repository.aggregateType}',
         data: shouldExpand(expand, 'data'),
         items: shouldExpand(expand, 'items'),
       ),
@@ -187,7 +190,7 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
       await snapshots.toMeta(
         next,
         current: repository.number,
-        type: repository.aggregateType,
+        type: '${repository.aggregateType}',
         data: shouldExpand(expand, 'data'),
         items: shouldExpand(expand, 'items'),
       ),

@@ -8,6 +8,7 @@ option cc_enable_arenas = true;
 
 package org.discoos.es;
 
+import "file.proto";
 import "metric.proto";
 import "aggregate.proto";
 
@@ -15,34 +16,29 @@ import "aggregate.proto";
 service SnapshotService {
     // Get Snapshot metadata
     //
-    // Service with return repository metadata for aggregate of given type and uuid.
-    rpc GetRepoMeta(GetSnapshotMetaRequest) returns (GetSnapshotsMetaResponse) {}
+    // Service with return snapshot metadata for repository of given type
+    rpc GetMeta(GetSnapshotMetaRequest) returns (GetSnapshotMetaResponse) {}
 
+    // Execute configure snapshot command
+    //
+    // Service will configure snapshots of repository of given type
+    rpc Configure(ConfigureSnapshotRequest) returns (ConfigureSnapshotResponse) {}
 
-//    // Execute command on Repository
-//    //
-//    // Service will execute given command on repository for given type.
-//    rpc RepoCommand(RepoCommandRequest) returns (RepoCommandResponse) {}
-//
-//    // Get Snapshot metadata
-//    //
-//    // Get Snapshot metadata.
-//    rpc GetSnapshotsMeta(GetSnapshotsMetaRequest) returns (GetSnapshotsMetaResponse) {}
-//
-//    // Execute command on snapshot(s)
-//    //
-//    // Service will execute given command on snapshot(s) of given aggregate type.
-//    rpc SnapshotCommand(SnapshotCommandRequest) returns (SnapshotCommandResponse) {}
-//
-//    // Download snapshot file data
-//    //
-//    // Service will download snapshot file data for given aggregate type.
-//    rpc DownloadSnapshot(DownloadSnapshotRequest) returns (DownloadSnapshotResponse) {}
-//
-//    // Upload snapshot file as multipart/form-data
-//    //
-//    // Service will upload snapshot file data for given aggregate type.
-//    rpc Upload(UploadSnapshotRequest) returns (UploadSnapshotResponse) {}
+    // Execute save snapshot command
+    //
+    // Service will save snapshot of repository of given type
+    rpc Save(SaveSnapshotRequest) returns (SaveSnapshotResponse) {}
+
+    // Download snapshot file data
+    //
+    // Service will download snapshot file data for given aggregate type.
+    rpc Download(DownloadSnapshotRequest) returns (stream org.discoos.io.FileChunk) {}
+
+    // Upload snapshot file data and load last snapshot in it
+    //
+    // Service will upload snapshot file data for given aggregate type.
+    rpc Upload(stream SnapshotChunk) returns (UploadSnapshotResponse) {}
+
 }
 
 message GetSnapshotMetaRequest {
@@ -50,15 +46,21 @@ message GetSnapshotMetaRequest {
     string type = 1;
 
     // Expand response with metadata
-    SnapshotExpandFields expand = 2;
+    repeated SnapshotExpandFields expand = 2;
 }
 
-message GetSnapshotsMetaResponse {
+message GetSnapshotMetaResponse {
     // Snapshot for aggregate type
     string type = 1;
 
+    // Response status code
+    int32 statusCode = 2;
+
+    // Response status code reason
+    string reasonPhrase = 3;
+
     // Snapshot metadata
-    SnapshotMeta meta = 2;
+    SnapshotMeta meta = 4;
 }
 
 enum SnapshotExpandFields {
@@ -79,33 +81,32 @@ enum SnapshotExpandFields {
     // Extend response with metrics metadata
     SNAPSHOT_EXPAND_FIELDS_METRICS = 4;
 
-    // Extend response with queues metadata
-    SNAPSHOT_EXPAND_FIELDS_QUEUE = 5;
-
-    // Extend response with connection metadata
-    SNAPSHOT_EXPAND_FIELDS_CONN = 6;
-    
 }
 
 message SnapshotMeta {
+    // Snapshot for aggregate type
+    string type = 1;
+
     /// Uuid of this snapshot
-    string uuid = 1;
+    string uuid = 2;
 
     /// Uuid of snapshot with highest event number offset
-    string last = 2;
+    string last = 3;
 
     /// Event number of last event applied to snapshot
-    int64  number = 3;
+    int64  number = 4;
 
     /// Event position in stream of last event applied to snapshot
-    int64  position = 4;
+    int64  position = 5;
 
     /// Current snapshot configuration
-    SnapshotConfig config = 5;
+    SnapshotConfig config = 6;
 
-    SnapshotMetricsMeta metrics = 6;
+    /// Snapshot metrics metadata
+    SnapshotMetricsMeta metrics = 7;
 
-    AggregateMetaList aggregates = 7;
+    /// List of aggregate metadata
+    AggregateMetaList aggregates = 8;
 
 }
 
@@ -123,34 +124,119 @@ message SnapshotMetricsMeta {
     // Total number snapshots
     int64 snapshots = 1;
 
+    // Number of events after last save
+    int64 unsaved = 2;
+
+    // Number of events missing from snapshot
+    int64 missing = 3;
+
+    // Flag indicating if snapshot is partial
+    bool isPartial = 4;
+
     // Cumulative and exponential moving average duration of save operations
     DurationMetricMeta save = 5;
 
 }
 
+// Configure snapshots of repository of given type
+message ConfigureSnapshotRequest {
 
-//message RepoCommandRequest {
-//    string expand = 1;
-//    string type = 2;
-//}
-//
-//
-//message GetSnapshotsMetaRequest {
-//    message ExpandMessage {}
-//
-//    // Expand response with metadata. Legal values are: 'data', 'items'
-//    ExpandMessage expand = 1;
-//    string type = 2;
-//}
-//
-//// Download snapshot for given aggregate type
-//message DownloadSnapshotRequest {
-//    string type = 1;
-//}
-//
-//message UploadRequest {
-//    string expand = 1;
-//    string type = 2;
-//}
+    // Aggregate type
+    string type = 1;
 
+    // Flag to activate automatic snapshots
+    bool automatic = 2;
 
+    // Number of snapshots to keep before deleting
+    int32 keep = 3;
+
+    // Maximum number of events applied to repository before next snapshot is taken
+    int32 threshold = 4;
+
+    // Expand response with given fields
+    repeated SnapshotExpandFields expand = 5;
+
+}
+
+message ConfigureSnapshotResponse {
+
+    // Aggregate type
+    string type = 1;
+
+    // Response status code
+    int32 statusCode = 2;
+
+    // Response status code reason
+    string reasonPhrase = 3;
+
+    // Snapshot metadata
+    SnapshotMeta meta = 4;
+}
+
+// Save snapshot of repository of given type
+message SaveSnapshotRequest {
+
+    // Aggregate type
+    string type = 1;
+
+    // Flag to force save
+    bool force = 2;
+
+    // Expand response with given fields
+    repeated SnapshotExpandFields expand = 3;
+
+}
+
+message SaveSnapshotResponse {
+
+    // Aggregate type
+    string type = 1;
+
+    // Response status code
+    int32 statusCode = 2;
+
+    // Response status code reason
+    string reasonPhrase = 3;
+
+    // Snapshot metadata
+    SnapshotMeta meta = 4;
+}
+
+// Download snapshot for given aggregate type
+message DownloadSnapshotRequest {
+
+    // Aggregate type
+    string type = 1;
+
+    // Size of each chunk in number of bytes
+    uint64 chunkSize = 2;
+
+}
+
+message SnapshotChunk {
+
+    // Aggregate type
+    string type = 1;
+
+    // Snapshot file chunk
+    org.discoos.io.FileChunk chunk = 3;
+}
+
+message UploadSnapshotResponse {
+
+    // Aggregate type
+    string type = 1;
+
+    // Size of each chunk in number of bytes
+    uint64 chunkSize = 2;
+
+    // Response status code
+    int32 statusCode = 3;
+
+    // Response status code reason
+    string reasonPhrase = 4;
+
+    // Snapshot metadata
+    SnapshotMeta meta = 5;
+
+}

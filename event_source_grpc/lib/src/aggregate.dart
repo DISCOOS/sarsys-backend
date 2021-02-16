@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:event_source/event_source.dart';
+import 'package:grpc/grpc.dart';
 import 'package:grpc/src/server/call.dart';
 import 'package:logging/logging.dart';
 
@@ -20,6 +21,17 @@ class AggregateGrpcService extends AggregateServiceBase {
       ..uuid = request.uuid
       ..statusCode = HttpStatus.ok
       ..reasonPhrase = 'OK';
+    if (call.isTimedOut) {
+      final reason = _timeout('getMeta');
+      response
+        ..reasonPhrase = reason
+        ..statusCode = StatusCode.deadlineExceeded;
+      call.sendTrailers(
+        message: reason,
+        status: StatusCode.deadlineExceeded,
+      );
+      return response;
+    }
     final type = request.type;
     final uuid = request.uuid;
     final repo = manager.getFromTypeName(type);
@@ -42,7 +54,7 @@ class AggregateGrpcService extends AggregateServiceBase {
         ..statusCode = HttpStatus.notFound
         ..reasonPhrase = 'Repository for aggregate $type not found';
     }
-    response.meta = toAggregateMeta(
+    response.meta = toAggregateMetaFromRoot(
       aggregate,
       repo.store,
       expand: request.expand,
@@ -65,6 +77,17 @@ class AggregateGrpcService extends AggregateServiceBase {
       ..uuid = request.uuid
       ..statusCode = HttpStatus.ok
       ..reasonPhrase = 'OK';
+    if (call.isTimedOut) {
+      final reason = _timeout('replaceData');
+      response
+        ..reasonPhrase = reason
+        ..statusCode = StatusCode.deadlineExceeded;
+      call.sendTrailers(
+        message: reason,
+        status: StatusCode.deadlineExceeded,
+      );
+      return response;
+    }
     final type = request.type;
     final uuid = request.uuid;
     final repo = manager.getFromTypeName(type);
@@ -101,7 +124,7 @@ class AggregateGrpcService extends AggregateServiceBase {
       patches: patches,
       data: Map<String, dynamic>.from(data),
     );
-    response.meta = toAggregateMeta(
+    response.meta = toAggregateMetaFromRoot(
       aggregate,
       repo.store,
       expand: request.expand,
@@ -119,13 +142,25 @@ class AggregateGrpcService extends AggregateServiceBase {
     ServiceCall call,
     CatchupAggregateEventsRequest request,
   ) async {
-    final response = CatchupAggregateEventsResponse()
-      ..type = request.type
-      ..uuid = request.uuid
-      ..statusCode = HttpStatus.ok
-      ..reasonPhrase = 'OK';
     final type = request.type;
     final uuid = request.uuid;
+    final response = CatchupAggregateEventsResponse()
+      ..type = type
+      ..uuid = uuid
+      ..statusCode = HttpStatus.ok
+      ..reasonPhrase = 'OK';
+    if (call.isTimedOut) {
+      final reason = _timeout('catchupEvents');
+      response
+        ..reasonPhrase = reason
+        ..statusCode = StatusCode.deadlineExceeded;
+      call.sendTrailers(
+        message: reason,
+        status: StatusCode.deadlineExceeded,
+      );
+      return response;
+    }
+
     final repo = manager.getFromTypeName(type);
     if (repo == null) {
       _notFound(
@@ -154,7 +189,7 @@ class AggregateGrpcService extends AggregateServiceBase {
     );
 
     // Return result
-    response.meta = toAggregateMeta(
+    response.meta = toAggregateMetaFromRoot(
       aggregate,
       repo.store,
       expand: request.expand,
@@ -172,13 +207,25 @@ class AggregateGrpcService extends AggregateServiceBase {
     ServiceCall call,
     ReplayAggregateEventsRequest request,
   ) async {
-    final response = ReplayAggregateEventsResponse()
-      ..type = request.type
-      ..uuid = request.uuid
-      ..statusCode = HttpStatus.ok
-      ..reasonPhrase = 'OK';
     final type = request.type;
     final uuid = request.uuid;
+    final response = ReplayAggregateEventsResponse()
+      ..type = type
+      ..uuid = uuid
+      ..statusCode = HttpStatus.ok
+      ..reasonPhrase = 'OK';
+    if (call.isTimedOut) {
+      final reason = _timeout('replayEvents');
+      response
+        ..reasonPhrase = reason
+        ..statusCode = StatusCode.deadlineExceeded;
+      call.sendTrailers(
+        message: reason,
+        status: StatusCode.deadlineExceeded,
+      );
+      return response;
+    }
+
     final repo = manager.getFromTypeName(type);
     if (repo == null) {
       _notFound(
@@ -207,7 +254,7 @@ class AggregateGrpcService extends AggregateServiceBase {
     );
 
     // Return result
-    response.meta = toAggregateMeta(
+    response.meta = toAggregateMetaFromRoot(
       aggregate,
       repo.store,
       expand: request.expand,
@@ -230,6 +277,14 @@ class AggregateGrpcService extends AggregateServiceBase {
     }
     // Only get aggregate if is exists in storage!
     return repo.store.contains(uuid) ? repo.get(uuid) : null;
+  }
+
+  String _timeout(String method) {
+    return _log(
+      method,
+      HttpStatus.gatewayTimeout,
+      'Gateway Timeout Error',
+    );
   }
 
   String _notFound(String method, String message) {

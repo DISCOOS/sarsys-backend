@@ -11,7 +11,8 @@ import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
 
 import 'aggregate.pb.dart' as $0;
-import 'metric.pb.dart' as $6;
+import 'metric.pb.dart' as $7;
+import 'file.pb.dart' as $3;
 
 import 'snapshot.pbenum.dart';
 
@@ -32,13 +33,12 @@ class GetSnapshotMetaRequest extends $pb.GeneratedMessage {
         const $core.bool.fromEnvironment('protobuf.omit_field_names')
             ? ''
             : 'type')
-    ..e<SnapshotExpandFields>(
+    ..pc<SnapshotExpandFields>(
         2,
         const $core.bool.fromEnvironment('protobuf.omit_field_names')
             ? ''
             : 'expand',
-        $pb.PbFieldType.OE,
-        defaultOrMaker: SnapshotExpandFields.SNAPSHOT_EXPAND_FIELDS_NONE,
+        $pb.PbFieldType.PE,
         valueOf: SnapshotExpandFields.valueOf,
         enumValues: SnapshotExpandFields.values)
     ..hasRequiredFields = false;
@@ -87,23 +87,14 @@ class GetSnapshotMetaRequest extends $pb.GeneratedMessage {
   void clearType() => clearField(1);
 
   @$pb.TagNumber(2)
-  SnapshotExpandFields get expand => $_getN(1);
-  @$pb.TagNumber(2)
-  set expand(SnapshotExpandFields v) {
-    setField(2, v);
-  }
-
-  @$pb.TagNumber(2)
-  $core.bool hasExpand() => $_has(1);
-  @$pb.TagNumber(2)
-  void clearExpand() => clearField(2);
+  $core.List<SnapshotExpandFields> get expand => $_getList(1);
 }
 
-class GetSnapshotsMetaResponse extends $pb.GeneratedMessage {
+class GetSnapshotMetaResponse extends $pb.GeneratedMessage {
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       const $core.bool.fromEnvironment('protobuf.omit_message_names')
           ? ''
-          : 'GetSnapshotsMetaResponse',
+          : 'GetSnapshotMetaResponse',
       package: const $pb.PackageName(
           const $core.bool.fromEnvironment('protobuf.omit_message_names')
               ? ''
@@ -114,44 +105,44 @@ class GetSnapshotsMetaResponse extends $pb.GeneratedMessage {
         const $core.bool.fromEnvironment('protobuf.omit_field_names')
             ? ''
             : 'type')
-    ..aOM<SnapshotMeta>(
-        2,
-        const $core.bool.fromEnvironment('protobuf.omit_field_names')
-            ? ''
-            : 'meta',
+    ..a<$core.int>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'statusCode', $pb.PbFieldType.O3,
+        protoName: 'statusCode')
+    ..aOS(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'reasonPhrase',
+        protoName: 'reasonPhrase')
+    ..aOM<SnapshotMeta>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'meta',
         subBuilder: SnapshotMeta.create)
     ..hasRequiredFields = false;
 
-  GetSnapshotsMetaResponse._() : super();
-  factory GetSnapshotsMetaResponse() => create();
-  factory GetSnapshotsMetaResponse.fromBuffer($core.List<$core.int> i,
+  GetSnapshotMetaResponse._() : super();
+  factory GetSnapshotMetaResponse() => create();
+  factory GetSnapshotMetaResponse.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
-  factory GetSnapshotsMetaResponse.fromJson($core.String i,
+  factory GetSnapshotMetaResponse.fromJson($core.String i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromJson(i, r);
   @$core.Deprecated('Using this can add significant overhead to your binary. '
       'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
       'Will be removed in next major version')
-  GetSnapshotsMetaResponse clone() =>
-      GetSnapshotsMetaResponse()..mergeFromMessage(this);
+  GetSnapshotMetaResponse clone() =>
+      GetSnapshotMetaResponse()..mergeFromMessage(this);
   @$core.Deprecated('Using this can add significant overhead to your binary. '
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
-  GetSnapshotsMetaResponse copyWith(
-          void Function(GetSnapshotsMetaResponse) updates) =>
-      super.copyWith((message) => updates(message
-          as GetSnapshotsMetaResponse)); // ignore: deprecated_member_use
+  GetSnapshotMetaResponse copyWith(
+          void Function(GetSnapshotMetaResponse) updates) =>
+      super.copyWith((message) => updates(
+          message as GetSnapshotMetaResponse)); // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
-  static GetSnapshotsMetaResponse create() => GetSnapshotsMetaResponse._();
-  GetSnapshotsMetaResponse createEmptyInstance() => create();
-  static $pb.PbList<GetSnapshotsMetaResponse> createRepeated() =>
-      $pb.PbList<GetSnapshotsMetaResponse>();
+  static GetSnapshotMetaResponse create() => GetSnapshotMetaResponse._();
+  GetSnapshotMetaResponse createEmptyInstance() => create();
+  static $pb.PbList<GetSnapshotMetaResponse> createRepeated() =>
+      $pb.PbList<GetSnapshotMetaResponse>();
   @$core.pragma('dart2js:noInline')
-  static GetSnapshotsMetaResponse getDefault() => _defaultInstance ??=
-      $pb.GeneratedMessage.$_defaultFor<GetSnapshotsMetaResponse>(create);
-  static GetSnapshotsMetaResponse _defaultInstance;
+  static GetSnapshotMetaResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetSnapshotMetaResponse>(create);
+  static GetSnapshotMetaResponse _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -166,18 +157,42 @@ class GetSnapshotsMetaResponse extends $pb.GeneratedMessage {
   void clearType() => clearField(1);
 
   @$pb.TagNumber(2)
-  SnapshotMeta get meta => $_getN(1);
+  $core.int get statusCode => $_getIZ(1);
   @$pb.TagNumber(2)
-  set meta(SnapshotMeta v) {
-    setField(2, v);
+  set statusCode($core.int v) {
+    $_setSignedInt32(1, v);
   }
 
   @$pb.TagNumber(2)
-  $core.bool hasMeta() => $_has(1);
+  $core.bool hasStatusCode() => $_has(1);
   @$pb.TagNumber(2)
-  void clearMeta() => clearField(2);
-  @$pb.TagNumber(2)
-  SnapshotMeta ensureMeta() => $_ensure(1);
+  void clearStatusCode() => clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get reasonPhrase => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set reasonPhrase($core.String v) {
+    $_setString(2, v);
+  }
+
+  @$pb.TagNumber(3)
+  $core.bool hasReasonPhrase() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearReasonPhrase() => clearField(3);
+
+  @$pb.TagNumber(4)
+  SnapshotMeta get meta => $_getN(3);
+  @$pb.TagNumber(4)
+  set meta(SnapshotMeta v) {
+    setField(4, v);
+  }
+
+  @$pb.TagNumber(4)
+  $core.bool hasMeta() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearMeta() => clearField(4);
+  @$pb.TagNumber(4)
+  SnapshotMeta ensureMeta() => $_ensure(3);
 }
 
 class SnapshotMeta extends $pb.GeneratedMessage {
@@ -194,22 +209,23 @@ class SnapshotMeta extends $pb.GeneratedMessage {
         1,
         const $core.bool.fromEnvironment('protobuf.omit_field_names')
             ? ''
-            : 'uuid')
+            : 'type')
     ..aOS(
         2,
         const $core.bool.fromEnvironment('protobuf.omit_field_names')
             ? ''
-            : 'last')
-    ..aInt64(
+            : 'uuid')
+    ..aOS(
         3,
         const $core.bool.fromEnvironment('protobuf.omit_field_names')
             ? ''
-            : 'number')
-    ..aInt64(4,
-        const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'position')
-    ..aOM<SnapshotConfig>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'config', subBuilder: SnapshotConfig.create)
-    ..aOM<SnapshotMetricsMeta>(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'metrics', subBuilder: SnapshotMetricsMeta.create)
-    ..aOM<$0.AggregateMetaList>(7, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'aggregates', subBuilder: $0.AggregateMetaList.create)
+            : 'last')
+    ..aInt64(
+        4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'number')
+    ..aInt64(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'position')
+    ..aOM<SnapshotConfig>(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'config', subBuilder: SnapshotConfig.create)
+    ..aOM<SnapshotMetricsMeta>(7, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'metrics', subBuilder: SnapshotMetricsMeta.create)
+    ..aOM<$0.AggregateMetaList>(8, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'aggregates', subBuilder: $0.AggregateMetaList.create)
     ..hasRequiredFields = false;
 
   SnapshotMeta._() : super();
@@ -242,94 +258,106 @@ class SnapshotMeta extends $pb.GeneratedMessage {
   static SnapshotMeta _defaultInstance;
 
   @$pb.TagNumber(1)
-  $core.String get uuid => $_getSZ(0);
+  $core.String get type => $_getSZ(0);
   @$pb.TagNumber(1)
-  set uuid($core.String v) {
+  set type($core.String v) {
     $_setString(0, v);
   }
 
   @$pb.TagNumber(1)
-  $core.bool hasUuid() => $_has(0);
+  $core.bool hasType() => $_has(0);
   @$pb.TagNumber(1)
-  void clearUuid() => clearField(1);
+  void clearType() => clearField(1);
 
   @$pb.TagNumber(2)
-  $core.String get last => $_getSZ(1);
+  $core.String get uuid => $_getSZ(1);
   @$pb.TagNumber(2)
-  set last($core.String v) {
+  set uuid($core.String v) {
     $_setString(1, v);
   }
 
   @$pb.TagNumber(2)
-  $core.bool hasLast() => $_has(1);
+  $core.bool hasUuid() => $_has(1);
   @$pb.TagNumber(2)
-  void clearLast() => clearField(2);
+  void clearUuid() => clearField(2);
 
   @$pb.TagNumber(3)
-  $fixnum.Int64 get number => $_getI64(2);
+  $core.String get last => $_getSZ(2);
   @$pb.TagNumber(3)
-  set number($fixnum.Int64 v) {
-    $_setInt64(2, v);
+  set last($core.String v) {
+    $_setString(2, v);
   }
 
   @$pb.TagNumber(3)
-  $core.bool hasNumber() => $_has(2);
+  $core.bool hasLast() => $_has(2);
   @$pb.TagNumber(3)
-  void clearNumber() => clearField(3);
+  void clearLast() => clearField(3);
 
   @$pb.TagNumber(4)
-  $fixnum.Int64 get position => $_getI64(3);
+  $fixnum.Int64 get number => $_getI64(3);
   @$pb.TagNumber(4)
-  set position($fixnum.Int64 v) {
+  set number($fixnum.Int64 v) {
     $_setInt64(3, v);
   }
 
   @$pb.TagNumber(4)
-  $core.bool hasPosition() => $_has(3);
+  $core.bool hasNumber() => $_has(3);
   @$pb.TagNumber(4)
-  void clearPosition() => clearField(4);
+  void clearNumber() => clearField(4);
 
   @$pb.TagNumber(5)
-  SnapshotConfig get config => $_getN(4);
+  $fixnum.Int64 get position => $_getI64(4);
   @$pb.TagNumber(5)
-  set config(SnapshotConfig v) {
-    setField(5, v);
+  set position($fixnum.Int64 v) {
+    $_setInt64(4, v);
   }
 
   @$pb.TagNumber(5)
-  $core.bool hasConfig() => $_has(4);
+  $core.bool hasPosition() => $_has(4);
   @$pb.TagNumber(5)
-  void clearConfig() => clearField(5);
-  @$pb.TagNumber(5)
-  SnapshotConfig ensureConfig() => $_ensure(4);
+  void clearPosition() => clearField(5);
 
   @$pb.TagNumber(6)
-  SnapshotMetricsMeta get metrics => $_getN(5);
+  SnapshotConfig get config => $_getN(5);
   @$pb.TagNumber(6)
-  set metrics(SnapshotMetricsMeta v) {
+  set config(SnapshotConfig v) {
     setField(6, v);
   }
 
   @$pb.TagNumber(6)
-  $core.bool hasMetrics() => $_has(5);
+  $core.bool hasConfig() => $_has(5);
   @$pb.TagNumber(6)
-  void clearMetrics() => clearField(6);
+  void clearConfig() => clearField(6);
   @$pb.TagNumber(6)
-  SnapshotMetricsMeta ensureMetrics() => $_ensure(5);
+  SnapshotConfig ensureConfig() => $_ensure(5);
 
   @$pb.TagNumber(7)
-  $0.AggregateMetaList get aggregates => $_getN(6);
+  SnapshotMetricsMeta get metrics => $_getN(6);
   @$pb.TagNumber(7)
-  set aggregates($0.AggregateMetaList v) {
+  set metrics(SnapshotMetricsMeta v) {
     setField(7, v);
   }
 
   @$pb.TagNumber(7)
-  $core.bool hasAggregates() => $_has(6);
+  $core.bool hasMetrics() => $_has(6);
   @$pb.TagNumber(7)
-  void clearAggregates() => clearField(7);
+  void clearMetrics() => clearField(7);
   @$pb.TagNumber(7)
-  $0.AggregateMetaList ensureAggregates() => $_ensure(6);
+  SnapshotMetricsMeta ensureMetrics() => $_ensure(6);
+
+  @$pb.TagNumber(8)
+  $0.AggregateMetaList get aggregates => $_getN(7);
+  @$pb.TagNumber(8)
+  set aggregates($0.AggregateMetaList v) {
+    setField(8, v);
+  }
+
+  @$pb.TagNumber(8)
+  $core.bool hasAggregates() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearAggregates() => clearField(8);
+  @$pb.TagNumber(8)
+  $0.AggregateMetaList ensureAggregates() => $_ensure(7);
 }
 
 class SnapshotConfig extends $pb.GeneratedMessage {
@@ -425,27 +453,34 @@ class SnapshotConfig extends $pb.GeneratedMessage {
 }
 
 class SnapshotMetricsMeta extends $pb.GeneratedMessage {
-  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
-      const $core.bool.fromEnvironment('protobuf.omit_message_names')
-          ? ''
-          : 'SnapshotMetricsMeta',
-      package: const $pb.PackageName(
-          const $core.bool.fromEnvironment('protobuf.omit_message_names')
-              ? ''
-              : 'org.discoos.es'),
-      createEmptyInstance: create)
-    ..aInt64(
-        1,
-        const $core.bool.fromEnvironment('protobuf.omit_field_names')
-            ? ''
-            : 'snapshots')
-    ..aOM<$6.DurationMetricMeta>(
-        5,
-        const $core.bool.fromEnvironment('protobuf.omit_field_names')
-            ? ''
-            : 'save',
-        subBuilder: $6.DurationMetricMeta.create)
-    ..hasRequiredFields = false;
+  static final $pb.BuilderInfo
+      _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'SnapshotMetricsMeta',
+          package: const $pb.PackageName(
+              const $core.bool.fromEnvironment('protobuf.omit_message_names')
+                  ? ''
+                  : 'org.discoos.es'),
+          createEmptyInstance: create)
+        ..aInt64(
+            1,
+            const $core.bool.fromEnvironment('protobuf.omit_field_names')
+                ? ''
+                : 'snapshots')
+        ..aInt64(
+            2,
+            const $core.bool.fromEnvironment('protobuf.omit_field_names')
+                ? ''
+                : 'unsaved')
+        ..aInt64(
+            3,
+            const $core.bool.fromEnvironment('protobuf.omit_field_names')
+                ? ''
+                : 'missing')
+        ..aOB(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'isPartial',
+            protoName: 'isPartial')
+        ..aOM<$7.DurationMetricMeta>(
+            5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'save',
+            subBuilder: $7.DurationMetricMeta.create)
+        ..hasRequiredFields = false;
 
   SnapshotMetricsMeta._() : super();
   factory SnapshotMetricsMeta() => create();
@@ -488,17 +523,745 @@ class SnapshotMetricsMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(1)
   void clearSnapshots() => clearField(1);
 
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get unsaved => $_getI64(1);
+  @$pb.TagNumber(2)
+  set unsaved($fixnum.Int64 v) {
+    $_setInt64(1, v);
+  }
+
+  @$pb.TagNumber(2)
+  $core.bool hasUnsaved() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearUnsaved() => clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get missing => $_getI64(2);
+  @$pb.TagNumber(3)
+  set missing($fixnum.Int64 v) {
+    $_setInt64(2, v);
+  }
+
+  @$pb.TagNumber(3)
+  $core.bool hasMissing() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearMissing() => clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.bool get isPartial => $_getBF(3);
+  @$pb.TagNumber(4)
+  set isPartial($core.bool v) {
+    $_setBool(3, v);
+  }
+
+  @$pb.TagNumber(4)
+  $core.bool hasIsPartial() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearIsPartial() => clearField(4);
+
   @$pb.TagNumber(5)
-  $6.DurationMetricMeta get save => $_getN(1);
+  $7.DurationMetricMeta get save => $_getN(4);
   @$pb.TagNumber(5)
-  set save($6.DurationMetricMeta v) {
+  set save($7.DurationMetricMeta v) {
     setField(5, v);
   }
 
   @$pb.TagNumber(5)
-  $core.bool hasSave() => $_has(1);
+  $core.bool hasSave() => $_has(4);
   @$pb.TagNumber(5)
   void clearSave() => clearField(5);
   @$pb.TagNumber(5)
-  $6.DurationMetricMeta ensureSave() => $_ensure(1);
+  $7.DurationMetricMeta ensureSave() => $_ensure(4);
+}
+
+class ConfigureSnapshotRequest extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'ConfigureSnapshotRequest',
+      package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'org.discoos.es'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'type')
+    ..aOB(
+        2,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'automatic')
+    ..a<$core.int>(
+        3,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'keep',
+        $pb.PbFieldType.O3)
+    ..a<$core.int>(
+        4,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'threshold',
+        $pb.PbFieldType.O3)
+    ..pc<SnapshotExpandFields>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'expand', $pb.PbFieldType.PE,
+        valueOf: SnapshotExpandFields.valueOf,
+        enumValues: SnapshotExpandFields.values)
+    ..hasRequiredFields = false;
+
+  ConfigureSnapshotRequest._() : super();
+  factory ConfigureSnapshotRequest() => create();
+  factory ConfigureSnapshotRequest.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+  factory ConfigureSnapshotRequest.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  ConfigureSnapshotRequest clone() =>
+      ConfigureSnapshotRequest()..mergeFromMessage(this);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  ConfigureSnapshotRequest copyWith(
+          void Function(ConfigureSnapshotRequest) updates) =>
+      super.copyWith((message) => updates(message
+          as ConfigureSnapshotRequest)); // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static ConfigureSnapshotRequest create() => ConfigureSnapshotRequest._();
+  ConfigureSnapshotRequest createEmptyInstance() => create();
+  static $pb.PbList<ConfigureSnapshotRequest> createRepeated() =>
+      $pb.PbList<ConfigureSnapshotRequest>();
+  @$core.pragma('dart2js:noInline')
+  static ConfigureSnapshotRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ConfigureSnapshotRequest>(create);
+  static ConfigureSnapshotRequest _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get type => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set type($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasType() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearType() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.bool get automatic => $_getBF(1);
+  @$pb.TagNumber(2)
+  set automatic($core.bool v) {
+    $_setBool(1, v);
+  }
+
+  @$pb.TagNumber(2)
+  $core.bool hasAutomatic() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearAutomatic() => clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get keep => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set keep($core.int v) {
+    $_setSignedInt32(2, v);
+  }
+
+  @$pb.TagNumber(3)
+  $core.bool hasKeep() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearKeep() => clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.int get threshold => $_getIZ(3);
+  @$pb.TagNumber(4)
+  set threshold($core.int v) {
+    $_setSignedInt32(3, v);
+  }
+
+  @$pb.TagNumber(4)
+  $core.bool hasThreshold() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearThreshold() => clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.List<SnapshotExpandFields> get expand => $_getList(4);
+}
+
+class ConfigureSnapshotResponse extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'ConfigureSnapshotResponse',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'org.discoos.es'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'type')
+    ..a<$core.int>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'statusCode', $pb.PbFieldType.O3,
+        protoName: 'statusCode')
+    ..aOS(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'reasonPhrase',
+        protoName: 'reasonPhrase')
+    ..aOM<SnapshotMeta>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'meta',
+        subBuilder: SnapshotMeta.create)
+    ..hasRequiredFields = false;
+
+  ConfigureSnapshotResponse._() : super();
+  factory ConfigureSnapshotResponse() => create();
+  factory ConfigureSnapshotResponse.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+  factory ConfigureSnapshotResponse.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  ConfigureSnapshotResponse clone() =>
+      ConfigureSnapshotResponse()..mergeFromMessage(this);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  ConfigureSnapshotResponse copyWith(
+          void Function(ConfigureSnapshotResponse) updates) =>
+      super.copyWith((message) => updates(message
+          as ConfigureSnapshotResponse)); // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static ConfigureSnapshotResponse create() => ConfigureSnapshotResponse._();
+  ConfigureSnapshotResponse createEmptyInstance() => create();
+  static $pb.PbList<ConfigureSnapshotResponse> createRepeated() =>
+      $pb.PbList<ConfigureSnapshotResponse>();
+  @$core.pragma('dart2js:noInline')
+  static ConfigureSnapshotResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ConfigureSnapshotResponse>(create);
+  static ConfigureSnapshotResponse _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get type => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set type($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasType() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearType() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.int get statusCode => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set statusCode($core.int v) {
+    $_setSignedInt32(1, v);
+  }
+
+  @$pb.TagNumber(2)
+  $core.bool hasStatusCode() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearStatusCode() => clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get reasonPhrase => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set reasonPhrase($core.String v) {
+    $_setString(2, v);
+  }
+
+  @$pb.TagNumber(3)
+  $core.bool hasReasonPhrase() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearReasonPhrase() => clearField(3);
+
+  @$pb.TagNumber(4)
+  SnapshotMeta get meta => $_getN(3);
+  @$pb.TagNumber(4)
+  set meta(SnapshotMeta v) {
+    setField(4, v);
+  }
+
+  @$pb.TagNumber(4)
+  $core.bool hasMeta() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearMeta() => clearField(4);
+  @$pb.TagNumber(4)
+  SnapshotMeta ensureMeta() => $_ensure(3);
+}
+
+class SaveSnapshotRequest extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'SaveSnapshotRequest',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'org.discoos.es'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'type')
+    ..aOB(
+        2,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'force')
+    ..pc<SnapshotExpandFields>(
+        3,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'expand',
+        $pb.PbFieldType.PE,
+        valueOf: SnapshotExpandFields.valueOf,
+        enumValues: SnapshotExpandFields.values)
+    ..hasRequiredFields = false;
+
+  SaveSnapshotRequest._() : super();
+  factory SaveSnapshotRequest() => create();
+  factory SaveSnapshotRequest.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+  factory SaveSnapshotRequest.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  SaveSnapshotRequest clone() => SaveSnapshotRequest()..mergeFromMessage(this);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  SaveSnapshotRequest copyWith(void Function(SaveSnapshotRequest) updates) =>
+      super.copyWith((message) => updates(
+          message as SaveSnapshotRequest)); // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static SaveSnapshotRequest create() => SaveSnapshotRequest._();
+  SaveSnapshotRequest createEmptyInstance() => create();
+  static $pb.PbList<SaveSnapshotRequest> createRepeated() =>
+      $pb.PbList<SaveSnapshotRequest>();
+  @$core.pragma('dart2js:noInline')
+  static SaveSnapshotRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SaveSnapshotRequest>(create);
+  static SaveSnapshotRequest _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get type => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set type($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasType() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearType() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.bool get force => $_getBF(1);
+  @$pb.TagNumber(2)
+  set force($core.bool v) {
+    $_setBool(1, v);
+  }
+
+  @$pb.TagNumber(2)
+  $core.bool hasForce() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearForce() => clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.List<SnapshotExpandFields> get expand => $_getList(2);
+}
+
+class SaveSnapshotResponse extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'SaveSnapshotResponse',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'org.discoos.es'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'type')
+    ..a<$core.int>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'statusCode', $pb.PbFieldType.O3,
+        protoName: 'statusCode')
+    ..aOS(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'reasonPhrase',
+        protoName: 'reasonPhrase')
+    ..aOM<SnapshotMeta>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'meta',
+        subBuilder: SnapshotMeta.create)
+    ..hasRequiredFields = false;
+
+  SaveSnapshotResponse._() : super();
+  factory SaveSnapshotResponse() => create();
+  factory SaveSnapshotResponse.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+  factory SaveSnapshotResponse.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  SaveSnapshotResponse clone() =>
+      SaveSnapshotResponse()..mergeFromMessage(this);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  SaveSnapshotResponse copyWith(void Function(SaveSnapshotResponse) updates) =>
+      super.copyWith((message) => updates(
+          message as SaveSnapshotResponse)); // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static SaveSnapshotResponse create() => SaveSnapshotResponse._();
+  SaveSnapshotResponse createEmptyInstance() => create();
+  static $pb.PbList<SaveSnapshotResponse> createRepeated() =>
+      $pb.PbList<SaveSnapshotResponse>();
+  @$core.pragma('dart2js:noInline')
+  static SaveSnapshotResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SaveSnapshotResponse>(create);
+  static SaveSnapshotResponse _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get type => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set type($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasType() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearType() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.int get statusCode => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set statusCode($core.int v) {
+    $_setSignedInt32(1, v);
+  }
+
+  @$pb.TagNumber(2)
+  $core.bool hasStatusCode() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearStatusCode() => clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get reasonPhrase => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set reasonPhrase($core.String v) {
+    $_setString(2, v);
+  }
+
+  @$pb.TagNumber(3)
+  $core.bool hasReasonPhrase() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearReasonPhrase() => clearField(3);
+
+  @$pb.TagNumber(4)
+  SnapshotMeta get meta => $_getN(3);
+  @$pb.TagNumber(4)
+  set meta(SnapshotMeta v) {
+    setField(4, v);
+  }
+
+  @$pb.TagNumber(4)
+  $core.bool hasMeta() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearMeta() => clearField(4);
+  @$pb.TagNumber(4)
+  SnapshotMeta ensureMeta() => $_ensure(3);
+}
+
+class DownloadSnapshotRequest extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'DownloadSnapshotRequest',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'org.discoos.es'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'type')
+    ..a<$fixnum.Int64>(
+        2,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'chunkSize',
+        $pb.PbFieldType.OU6,
+        protoName: 'chunkSize',
+        defaultOrMaker: $fixnum.Int64.ZERO)
+    ..hasRequiredFields = false;
+
+  DownloadSnapshotRequest._() : super();
+  factory DownloadSnapshotRequest() => create();
+  factory DownloadSnapshotRequest.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+  factory DownloadSnapshotRequest.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  DownloadSnapshotRequest clone() =>
+      DownloadSnapshotRequest()..mergeFromMessage(this);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  DownloadSnapshotRequest copyWith(
+          void Function(DownloadSnapshotRequest) updates) =>
+      super.copyWith((message) => updates(
+          message as DownloadSnapshotRequest)); // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static DownloadSnapshotRequest create() => DownloadSnapshotRequest._();
+  DownloadSnapshotRequest createEmptyInstance() => create();
+  static $pb.PbList<DownloadSnapshotRequest> createRepeated() =>
+      $pb.PbList<DownloadSnapshotRequest>();
+  @$core.pragma('dart2js:noInline')
+  static DownloadSnapshotRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<DownloadSnapshotRequest>(create);
+  static DownloadSnapshotRequest _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get type => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set type($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasType() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearType() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get chunkSize => $_getI64(1);
+  @$pb.TagNumber(2)
+  set chunkSize($fixnum.Int64 v) {
+    $_setInt64(1, v);
+  }
+
+  @$pb.TagNumber(2)
+  $core.bool hasChunkSize() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearChunkSize() => clearField(2);
+}
+
+class SnapshotChunk extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'SnapshotChunk',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'org.discoos.es'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'type')
+    ..aOM<$3.FileChunk>(
+        3,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'chunk',
+        subBuilder: $3.FileChunk.create)
+    ..hasRequiredFields = false;
+
+  SnapshotChunk._() : super();
+  factory SnapshotChunk() => create();
+  factory SnapshotChunk.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+  factory SnapshotChunk.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  SnapshotChunk clone() => SnapshotChunk()..mergeFromMessage(this);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  SnapshotChunk copyWith(void Function(SnapshotChunk) updates) =>
+      super.copyWith((message) =>
+          updates(message as SnapshotChunk)); // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static SnapshotChunk create() => SnapshotChunk._();
+  SnapshotChunk createEmptyInstance() => create();
+  static $pb.PbList<SnapshotChunk> createRepeated() =>
+      $pb.PbList<SnapshotChunk>();
+  @$core.pragma('dart2js:noInline')
+  static SnapshotChunk getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SnapshotChunk>(create);
+  static SnapshotChunk _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get type => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set type($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasType() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearType() => clearField(1);
+
+  @$pb.TagNumber(3)
+  $3.FileChunk get chunk => $_getN(1);
+  @$pb.TagNumber(3)
+  set chunk($3.FileChunk v) {
+    setField(3, v);
+  }
+
+  @$pb.TagNumber(3)
+  $core.bool hasChunk() => $_has(1);
+  @$pb.TagNumber(3)
+  void clearChunk() => clearField(3);
+  @$pb.TagNumber(3)
+  $3.FileChunk ensureChunk() => $_ensure(1);
+}
+
+class UploadSnapshotResponse extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'UploadSnapshotResponse',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'org.discoos.es'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'type')
+    ..a<$fixnum.Int64>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'chunkSize', $pb.PbFieldType.OU6,
+        protoName: 'chunkSize', defaultOrMaker: $fixnum.Int64.ZERO)
+    ..a<$core.int>(
+        3,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'statusCode',
+        $pb.PbFieldType.O3,
+        protoName: 'statusCode')
+    ..aOS(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'reasonPhrase', protoName: 'reasonPhrase')
+    ..aOM<SnapshotMeta>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'meta', subBuilder: SnapshotMeta.create)
+    ..hasRequiredFields = false;
+
+  UploadSnapshotResponse._() : super();
+  factory UploadSnapshotResponse() => create();
+  factory UploadSnapshotResponse.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+  factory UploadSnapshotResponse.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  UploadSnapshotResponse clone() =>
+      UploadSnapshotResponse()..mergeFromMessage(this);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  UploadSnapshotResponse copyWith(
+          void Function(UploadSnapshotResponse) updates) =>
+      super.copyWith((message) => updates(
+          message as UploadSnapshotResponse)); // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static UploadSnapshotResponse create() => UploadSnapshotResponse._();
+  UploadSnapshotResponse createEmptyInstance() => create();
+  static $pb.PbList<UploadSnapshotResponse> createRepeated() =>
+      $pb.PbList<UploadSnapshotResponse>();
+  @$core.pragma('dart2js:noInline')
+  static UploadSnapshotResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<UploadSnapshotResponse>(create);
+  static UploadSnapshotResponse _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get type => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set type($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasType() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearType() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get chunkSize => $_getI64(1);
+  @$pb.TagNumber(2)
+  set chunkSize($fixnum.Int64 v) {
+    $_setInt64(1, v);
+  }
+
+  @$pb.TagNumber(2)
+  $core.bool hasChunkSize() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearChunkSize() => clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get statusCode => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set statusCode($core.int v) {
+    $_setSignedInt32(2, v);
+  }
+
+  @$pb.TagNumber(3)
+  $core.bool hasStatusCode() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearStatusCode() => clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get reasonPhrase => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set reasonPhrase($core.String v) {
+    $_setString(3, v);
+  }
+
+  @$pb.TagNumber(4)
+  $core.bool hasReasonPhrase() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearReasonPhrase() => clearField(4);
+
+  @$pb.TagNumber(5)
+  SnapshotMeta get meta => $_getN(4);
+  @$pb.TagNumber(5)
+  set meta(SnapshotMeta v) {
+    setField(5, v);
+  }
+
+  @$pb.TagNumber(5)
+  $core.bool hasMeta() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearMeta() => clearField(5);
+  @$pb.TagNumber(5)
+  SnapshotMeta ensureMeta() => $_ensure(4);
 }
