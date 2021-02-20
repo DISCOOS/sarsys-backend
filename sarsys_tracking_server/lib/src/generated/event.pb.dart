@@ -145,3 +145,73 @@ class EventMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(6)
   $3.Timestamp ensureTimestamp() => $_ensure(5);
 }
+
+class EventMetaList extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'EventMetaList',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'org.discoos.es'),
+      createEmptyInstance: create)
+    ..a<$core.int>(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'count',
+        $pb.PbFieldType.O3)
+    ..pc<EventMeta>(
+        2,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'items',
+        $pb.PbFieldType.PM,
+        subBuilder: EventMeta.create)
+    ..hasRequiredFields = false;
+
+  EventMetaList._() : super();
+  factory EventMetaList() => create();
+  factory EventMetaList.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+  factory EventMetaList.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  EventMetaList clone() => EventMetaList()..mergeFromMessage(this);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  EventMetaList copyWith(void Function(EventMetaList) updates) =>
+      super.copyWith((message) =>
+          updates(message as EventMetaList)); // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static EventMetaList create() => EventMetaList._();
+  EventMetaList createEmptyInstance() => create();
+  static $pb.PbList<EventMetaList> createRepeated() =>
+      $pb.PbList<EventMetaList>();
+  @$core.pragma('dart2js:noInline')
+  static EventMetaList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<EventMetaList>(create);
+  static EventMetaList _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get count => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set count($core.int v) {
+    $_setSignedInt32(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasCount() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearCount() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.List<EventMeta> get items => $_getList(1);
+}

@@ -5,10 +5,10 @@ import 'package:sarsys_ops_server/src/config.dart';
 import 'package:sarsys_core/sarsys_core.dart';
 import 'package:sarsys_tracking_server/sarsys_tracking_server.dart';
 
-import 'operations_base_controller.dart';
+import 'component_base_controller.dart';
 
-class TrackingServiceCommandsController extends OperationsBaseController {
-  TrackingServiceCommandsController(
+class TrackingGrpcServiceController extends ComponentBaseController {
+  TrackingGrpcServiceController(
     this.k8s,
     this.channels,
     SarSysOpsConfig config,
@@ -17,7 +17,12 @@ class TrackingServiceCommandsController extends OperationsBaseController {
           'TrackingService',
           config,
           options: [
+            'all',
             'repo',
+            'repo:data',
+            'repo:items',
+            'repo:queue',
+            'repo:metrics',
           ],
           actions: [
             'stop_all',
@@ -32,17 +37,19 @@ class TrackingServiceCommandsController extends OperationsBaseController {
             'add_trackings',
             'remove_trackings',
           ],
-          tag: 'Tracking',
+          tag: 'Services',
           context: context,
+          modules: [
+            'sarsys-tracking-server',
+          ],
         );
-
-  static const String module = 'sarsys-tracking-server';
 
   final K8sApi k8s;
   final Map<String, ClientChannel> channels;
   final Map<String, SarSysTrackingServiceClient> _clients = {};
 
   @override
+  @Scope(['roles:admin'])
   @Operation.get()
   Future<Response> getMeta({
     @Bind.query('expand') String expand,
@@ -54,27 +61,30 @@ class TrackingServiceCommandsController extends OperationsBaseController {
   Future<Response> doGetMeta(String expand) async {
     final pods = await k8s.getPodsFromNs(
       k8s.namespace,
-      labels: [
-        'module=$module',
-      ],
+      labels: toModuleLabels(),
     );
-    final metas = <Map<String, dynamic>>[];
+    final names = [];
+    final items = <Map<String, dynamic>>[];
     for (var pod in pods) {
-      final meta = await _doGetTrackingMetaByName(pod, expand);
-      metas.add(meta);
+      final meta = await _doGetMetaByName(pod, expand);
+      items.add(meta);
+      names.add(k8s.toPodName(pod));
     }
-    return _toResponse(
-      name: 'name',
-      body: metas,
-      method: 'doGetTrackingMeta',
+    return toResponse(
+      body: toJsonItemsMeta(
+        items,
+      ),
+      name: '$names',
+      method: 'doGetMeta',
       args: {'expand': expand},
       statusCode: toStatusCode(
-        metas,
+        items,
       ),
     );
   }
 
   @override
+  @Scope(['roles:admin'])
   @Operation.get('name')
   Future<Response> getMetaByName(
     @Bind.path('name') String name, {
@@ -88,24 +98,24 @@ class TrackingServiceCommandsController extends OperationsBaseController {
     final pod = await _getPod(
       name,
     );
-    if (pod == null) {
-      return _toResponse(
+    if (pod?.isNotEmpty != true) {
+      return toResponse(
         name: name,
+        method: 'doGetMetaByName',
         args: {'expand': expand},
-        method: 'doGetTrackingMetaByName',
         statusCode: HttpStatus.notFound,
-        body: "$type instance '$name' not found",
+        body: "$target instance '$name' not found",
       );
     }
-    final meta = await _doGetTrackingMetaByName(
+    final meta = await _doGetMetaByName(
       pod,
       expand,
     );
-    return _toResponse(
+    return toResponse(
       name: name,
       body: meta,
       args: {'expand': expand},
-      method: 'doGetTrackingMetaByName',
+      method: 'doGetMetaByName',
       statusCode: meta.elementAt<int>(
         'error/statusCode',
         defaultValue: HttpStatus.ok,
@@ -113,22 +123,35 @@ class TrackingServiceCommandsController extends OperationsBaseController {
     );
   }
 
-  Future<Map<String, dynamic>> _doGetTrackingMetaByName(
+  Future<Map<String, dynamic>> _doGetMetaByName(
     Map<String, dynamic> pod,
     String expand,
   ) async {
     final meta = await toClient(pod).getMeta(GetTrackingMetaRequest()
-      ..expand.addAll([
-        if (shouldExpand(expand, 'repo')) TrackingExpandFields.TRACKING_EXPAND_FIELDS_REPO,
-      ]));
-    return _toJsonMeta(
+      ..expand.addAll(
+        toRepoFields(expand),
+      ));
+    return _toJsonInstanceMeta(
       k8s.toPodName(pod),
       meta,
-      expand,
     );
   }
 
+  List<TrackingExpandFields> toRepoFields(String expand) {
+    final all = shouldExpand(expand, 'all');
+    return [
+      if (all || shouldExpand(expand, 'repo')) ...[
+        TrackingExpandFields.TRACKING_EXPAND_FIELDS_REPO,
+        if (all || shouldExpand(expand, 'repo:data')) TrackingExpandFields.TRACKING_EXPAND_FIELDS_REPO_DATA,
+        if (all || shouldExpand(expand, 'repo:items')) TrackingExpandFields.TRACKING_EXPAND_FIELDS_REPO_ITEMS,
+        if (all || shouldExpand(expand, 'repo:queue')) TrackingExpandFields.TRACKING_EXPAND_FIELDS_REPO_QUEUE,
+        if (all || shouldExpand(expand, 'repo:metrics')) TrackingExpandFields.TRACKING_EXPAND_FIELDS_REPO_METRICS,
+      ],
+    ];
+  }
+
   @override
+  @Scope(['roles:admin'])
   @Operation.post()
   Future<Response> execute(
     @Bind.body() Map<String, dynamic> body, {
@@ -144,9 +167,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
   ) async {
     final pods = await k8s.getPodsFromNs(
       k8s.namespace,
-      labels: [
-        'module=$module',
-      ],
+      labels: toModuleLabels(),
     );
     switch (command) {
       case 'start_all':
@@ -154,16 +175,17 @@ class TrackingServiceCommandsController extends OperationsBaseController {
       case 'stop_all':
         return doStopAll(pods, expand);
     }
-    return _toResponse(
-      name: 'all',
-      method: 'execute',
+    return toResponse(
+      method: 'doExecute',
       statusCode: HttpStatus.notFound,
-      body: "$type command '$command' not found",
+      name: '${pods.map(k8s.toPodName).toList()}',
+      body: "$target command '$command' not found",
       args: {'command': command, 'expand': expand},
     );
   }
 
   @override
+  @Scope(['roles:admin'])
   @Operation.post('name')
   Future<Response> executeByName(
     @Bind.path('name') String name,
@@ -181,22 +203,33 @@ class TrackingServiceCommandsController extends OperationsBaseController {
     String expand,
   ) async {
     final pod = await _getPod(name);
+    if (pod?.isNotEmpty != true) {
+      return toResponse(
+        name: name,
+        args: {
+          'expand': expand,
+        },
+        statusCode: HttpStatus.notFound,
+        method: 'doExecuteByName',
+        body: "$target instance '$name' not found",
+      );
+    }
     final uuids = body.listAt<String>(
       'uuids',
       defaultList: [],
     );
     final args = {
-      'command': command,
       'uuids': uuids,
       'expand': expand,
+      'command': command,
     };
     if (pod == null) {
-      return _toResponse(
+      return toResponse(
         name: name,
         args: args,
         method: 'doExecuteByName',
         statusCode: HttpStatus.notFound,
-        body: "$type instance '$name' not found",
+        body: "$target instance '$name' not found",
       );
     }
     switch (command) {
@@ -223,12 +256,12 @@ class TrackingServiceCommandsController extends OperationsBaseController {
           expand,
         );
     }
-    return _toResponse(
+    return toResponse(
       name: name,
       args: args,
       method: 'doExecuteByName',
       statusCode: HttpStatus.notFound,
-      body: "$type command instance '$command' not found",
+      body: "$target instance command '$command' not found",
     );
   }
 
@@ -236,20 +269,26 @@ class TrackingServiceCommandsController extends OperationsBaseController {
     List<Map<String, dynamic>> pods,
     String expand,
   ) async {
-    final metas = <Map<String, dynamic>>[];
+    final names = [];
+    final items = <Map<String, dynamic>>[];
     for (var pod in pods) {
       final meta = await _doStart(
         pod,
         expand,
       );
-      metas.add(meta);
+      items.add(meta);
+      names.add(
+        k8s.toPodName(pod),
+      );
     }
-    return _toResponse(
-      name: 'all',
-      body: metas,
+    return toResponse(
+      body: toJsonItemsMeta(
+        items,
+      ),
+      name: '$names',
       method: 'doStartAll',
       args: {'expand': expand},
-      statusCode: toStatusCode(metas),
+      statusCode: toStatusCode(items),
     );
   }
 
@@ -257,31 +296,27 @@ class TrackingServiceCommandsController extends OperationsBaseController {
     List<Map<String, dynamic>> pods,
     String expand,
   ) async {
-    final metas = <Map<String, dynamic>>[];
+    final names = [];
+    final items = <Map<String, dynamic>>[];
     for (var pod in pods) {
       final meta = await _doStop(
         pod,
         expand,
       );
-      metas.add(meta);
+      items.add(meta);
+      names.add(
+        k8s.toPodName(pod),
+      );
     }
-    return _toResponse(
-      name: 'all',
-      body: metas,
+    return toResponse(
+      body: toJsonItemsMeta(
+        items,
+      ),
+      name: '$names',
       method: 'doStopAll',
       args: {'expand': expand},
-      statusCode: toStatusCode(metas),
+      statusCode: toStatusCode(items),
     );
-  }
-
-  int toStatusCode(List<Map<String, dynamic>> metas) {
-    final errors = metas
-        .where((meta) => meta.hasPath('error'))
-        .map(
-          (meta) => meta.elementAt<int>('error/statusCode'),
-        )
-        .toList();
-    return errors.isEmpty ? HttpStatus.ok : (errors.length == 1 ? errors.first : HttpStatus.partialContent);
   }
 
   Future<Response> doStart(
@@ -289,7 +324,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
     String expand,
   ) async {
     final meta = await _doStart(pod, expand);
-    return _toResponse(
+    return toResponse(
       body: meta,
       method: 'doStart',
       name: k8s.toPodName(pod),
@@ -304,22 +339,18 @@ class TrackingServiceCommandsController extends OperationsBaseController {
   ) async {
     final response = await toClient(pod).start(
       StartTrackingRequest()
-        ..expand.addAll([
-          if (shouldExpand(expand, 'repo')) TrackingExpandFields.TRACKING_EXPAND_FIELDS_REPO,
-        ]),
+        ..expand.addAll(
+          toRepoFields(expand),
+        ),
     );
-    return {
-      'meta': _toJsonMeta(
+    return toJsonCommandMeta(
+      _toJsonInstanceMeta(
         k8s.toPodName(pod),
         response.meta,
-        expand,
       ),
-      if (response.statusCode != HttpStatus.ok)
-        'error': {
-          'statusCode': response.statusCode,
-          'reasonPhrase': response.reasonPhrase,
-        }
-    };
+      response.statusCode,
+      response.reasonPhrase,
+    );
   }
 
   Future<Response> doStop(
@@ -327,7 +358,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
     String expand,
   ) async {
     final meta = await _doStop(pod, expand);
-    return _toResponse(
+    return toResponse(
       body: meta,
       method: 'doStop',
       name: k8s.toPodName(pod),
@@ -342,22 +373,18 @@ class TrackingServiceCommandsController extends OperationsBaseController {
   ) async {
     final response = await toClient(pod).stop(
       StopTrackingRequest()
-        ..expand.addAll([
-          if (shouldExpand(expand, 'repo')) TrackingExpandFields.TRACKING_EXPAND_FIELDS_REPO,
-        ]),
+        ..expand.addAll(
+          toRepoFields(expand),
+        ),
     );
-    return {
-      'meta': _toJsonMeta(
+    return toJsonCommandMeta(
+      _toJsonInstanceMeta(
         k8s.toPodName(pod),
         response.meta,
-        expand,
       ),
-      if (response.statusCode != HttpStatus.ok)
-        'error': {
-          'statusCode': response.statusCode,
-          'reasonPhrase': response.reasonPhrase,
-        }
-    };
+      response.statusCode,
+      response.reasonPhrase,
+    );
   }
 
   Future<Response> doAddTrackings(
@@ -372,7 +399,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
       'expand': expand,
     };
     if (uuids.isEmpty) {
-      return _toResponse(
+      return toResponse(
         name: name,
         args: args,
         method: 'doAddTrackings',
@@ -383,27 +410,27 @@ class TrackingServiceCommandsController extends OperationsBaseController {
     final response = await toClient(pod).addTrackings(
       AddTrackingsRequest()
         ..uuids.addAll(uuids)
-        ..expand.addAll([
-          if (shouldExpand(expand, 'repo')) TrackingExpandFields.TRACKING_EXPAND_FIELDS_REPO,
-        ]),
+        ..expand.addAll(
+          toRepoFields(expand),
+        ),
     );
-    return _toResponse(
+    return toResponse(
       name: name,
       args: args,
       method: 'doAddTrackings',
-      body: {
-        'meta': _toJsonMeta(
+      body: toJsonCommandMeta(
+        _toJsonInstanceMeta(
           k8s.toPodName(pod),
           response.meta,
-          expand,
         ),
-        if (response.failed.isNotEmpty)
-          'error': {
-            'failed': response.failed,
-            'statusCode': response.statusCode,
-            'reasonPhrase': response.reasonPhrase,
-          }
-      },
+        response.statusCode,
+        response.reasonPhrase,
+        () => {
+          'failed': response.failed,
+          'statusCode': response.statusCode,
+          'reasonPhrase': response.reasonPhrase,
+        },
+      ),
       statusCode: response.statusCode,
     );
   }
@@ -420,7 +447,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
       'expand': expand,
     };
     if (uuids.isEmpty) {
-      return _toResponse(
+      return toResponse(
         name: name,
         args: args,
         method: 'doRemoveTrackings',
@@ -431,27 +458,27 @@ class TrackingServiceCommandsController extends OperationsBaseController {
     final response = await toClient(pod).removeTrackings(
       RemoveTrackingsRequest()
         ..uuids.addAll(uuids)
-        ..expand.addAll([
-          if (shouldExpand(expand, 'repo')) TrackingExpandFields.TRACKING_EXPAND_FIELDS_REPO,
-        ]),
+        ..expand.addAll(
+          toRepoFields(expand),
+        ),
     );
-    return _toResponse(
+    return toResponse(
       name: name,
       args: args,
       method: 'doRemoveTrackings',
-      body: {
-        'meta': _toJsonMeta(
+      body: toJsonCommandMeta(
+        _toJsonInstanceMeta(
           k8s.toPodName(pod),
           response.meta,
-          expand,
         ),
-        if (response.failed.isNotEmpty)
-          'error': {
-            'failed': response.failed,
-            'statusCode': response.statusCode,
-            'reasonPhrase': response.reasonPhrase,
-          }
-      },
+        response.statusCode,
+        response.reasonPhrase,
+        () => {
+          'failed': response.failed,
+          'statusCode': response.statusCode,
+          'reasonPhrase': response.reasonPhrase,
+        },
+      ),
       statusCode: response.statusCode,
     );
   }
@@ -459,7 +486,6 @@ class TrackingServiceCommandsController extends OperationsBaseController {
   SarSysTrackingServiceClient toClient(Map<String, dynamic> pod) {
     final uri = k8s.toPodUri(
       pod,
-      deployment: module,
       port: config.tracking.grpcPort,
     );
     final channel = channels.putIfAbsent(
@@ -493,115 +519,22 @@ class TrackingServiceCommandsController extends OperationsBaseController {
   }
 
   Future<Map<String, dynamic>> _getPod(String name) async {
-    final pods = await k8s.getPodsFromNs(
+    return await k8s.getPodInNs(
       k8s.namespace,
-      labels: [
-        'module=$module',
-      ],
+      name,
     );
-    final Map<String, dynamic> pod = pods.firstWhere(
-      (pod) => name == k8s.toPodName(pod),
-      orElse: () => null,
-    );
-    return pod;
   }
 
-  Map<String, Object> _toJsonMeta(String name, GetTrackingMetaResponse meta, String expand) {
-    return {
-      'name': name,
-      'status': _toStatus(meta),
-      'managerOf': _toJsonManagerOf(meta),
-      'metrics': {
-        'trackings': _toJsonTrackingsMeta(meta.trackings),
-        'positions': _toJsonPositionsMeta(meta.positions),
-      },
-      if (shouldExpand(expand, 'repo'))
-        'repo': _toJsonRepoMeta(
-          meta.repo,
+  Map<String, dynamic> _toJsonInstanceMeta(String name, GetTrackingMetaResponse meta) {
+    return toProto3JsonInstanceMeta(
+      name,
+      meta,
+      (json) => json
+        ..update(
+          'status',
+          (value) => capitalize(enumName(meta.status).split('_').last),
+          ifAbsent: () => 'None',
         ),
-    };
-  }
-
-  String _toStatus(GetTrackingMetaResponse meta) {
-    return capitalize(
-      enumName(meta.status).split('_').last,
-    );
-  }
-
-  List<Map<String, dynamic>> _toJsonManagerOf(GetTrackingMetaResponse meta) => meta.managerOf
-      .map((meta) => <String, dynamic>{
-            'uuid': meta.uuid,
-            'trackCount': meta.trackCount.toInt(),
-            'positionCount': meta.positionCount.toInt(),
-            if (meta.lastEvent.uuid.isNotEmpty)
-              'lastEvent': _toJsonEventMeta(
-                meta.lastEvent,
-              ),
-          })
-      .toList();
-
-  Map<String, dynamic> _toJsonRepoMeta(RepositoryMeta meta) => {
-        'type': meta.type,
-        'queue': {
-          'status': {
-            'idle': meta.queue.status.idle,
-            'ready': meta.queue.status.ready,
-            'disposed': meta.queue.status.disposed,
-          },
-          'pressure': {
-            'total': meta.queue.pressure.total,
-            'maximum': meta.queue.pressure.maximum,
-            'commands': meta.queue.pressure.commands,
-            'exceeded': meta.queue.pressure.exceeded,
-          }
-        },
-        if (meta.lastEvent.uuid.isNotEmpty) 'lastEvent': _toJsonEventMeta(meta.lastEvent),
-      };
-
-  Map<String, dynamic> _toJsonEventMeta(EventMeta meta) => {
-        'type': meta.type,
-        'uuid': meta.uuid,
-        'remote': meta.remote,
-        'number': meta.number.toInt(),
-        'position': meta.position.toInt(),
-        'timestamp': meta.timestamp.toDateTime().toIso8601String(),
-      };
-
-  Map<String, dynamic> _toJsonTrackingsMeta(TrackingsMeta meta) => {
-        'total': meta.total.toInt(),
-        'fractionManaged': meta.fractionManaged,
-        'eventsPerMinute': meta.eventsPerMinute,
-        'lastEvent': _toJsonEventMeta(meta.lastEvent),
-        'averageProcessingTimeMillis': meta.averageProcessingTimeMillis,
-      };
-
-  Map<String, dynamic> _toJsonPositionsMeta(PositionsMeta meta) => {
-        'total': meta.total.toInt(),
-        'eventsPerMinute': meta.eventsPerMinute,
-        'lastEvent': _toJsonEventMeta(meta.lastEvent),
-        'averageProcessingTimeMillis': meta.averageProcessingTimeMillis,
-      };
-
-  Response _toResponse({
-    @required String name,
-    @required String method,
-    @required int statusCode,
-    @required Map<String, dynamic> args,
-    dynamic body,
-  }) {
-    logger.fine(
-      Context.toMethod(method, [
-        'name: $name',
-        ...args.entries.map(
-          (entry) => '${entry.key}: ${entry.value}',
-        ),
-        'response: $body',
-      ]),
-    );
-    return Response(
-      statusCode,
-      {},
-      body,
     );
   }
 
@@ -619,7 +552,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
       };
 
   @override
-  APISchemaObject documentMeta(APIDocumentContext context) {
+  APISchemaObject documentInstanceMeta(APIDocumentContext context) {
     return APISchemaObject.object({
       'name': APISchemaObject.string()
         ..description = 'Tracking service instance name'
@@ -629,8 +562,8 @@ class TrackingServiceCommandsController extends OperationsBaseController {
         ..enumerated = [
           'none',
           'ready',
-          'competing',
-          'paused',
+          'started',
+          'stopped',
           'disposed',
         ]
         ..isReadOnly = true,
@@ -656,7 +589,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
           ..description = 'Number of tracking events processed per minute'
           ..isReadOnly = true,
         'averageProcessingTimeMillis': APISchemaObject.number()
-          ..description = 'average processing time in milliseconds'
+          ..description = 'Average processing time in milliseconds'
           ..isReadOnly = true,
         'lastEvent': documentEvent(context)
           ..description = 'Last event applied to tracking object'
@@ -673,7 +606,7 @@ class TrackingServiceCommandsController extends OperationsBaseController {
           ..description = 'Number of positions processed per minute'
           ..isReadOnly = true,
         'averageProcessingTimeMillis': APISchemaObject.number()
-          ..description = 'verage processing time in milliseconds'
+          ..description = 'Average processing time in milliseconds'
           ..isReadOnly = true,
         'lastEvent': documentEvent(context)
           ..description = 'Last event applied to track in tracking object'

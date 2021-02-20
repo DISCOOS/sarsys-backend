@@ -568,11 +568,11 @@ class Storage {
     final withSnapshot = snapshot != null;
     final withNumber = withSnapshot && current != null;
     return {
-      'uuid': uuid,
-      'last': last?.uuid,
-      'number': snapshot?.number?.value,
-      'position': snapshot?.number?.position,
-      'timestamp': snapshot?.timestamp?.toIso8601String(),
+      if (uuid != null) 'uuid': uuid,
+      if (last != null) 'last': last?.uuid,
+      if (snapshot?.number != null) 'number': snapshot?.number?.value,
+      if (snapshot?.number != null) 'position': snapshot?.number?.position,
+      if (snapshot?.timestamp != null) 'timestamp': snapshot?.timestamp?.toIso8601String(),
       'config': {
         'keep': keep,
         'automatic': automatic,
@@ -598,16 +598,23 @@ class Storage {
                         'uuid': a.uuid,
                         if (type != null) 'type': type,
                         'number': a.number.value,
-                        'created': <String, dynamic>{
-                          'uuid': a.createdBy?.uuid,
-                          'type': '${a.createdBy?.type}',
+                        'position': a.number.position,
+                        'createdBy': <String, dynamic>{
+                          'uuid': a.createdBy.uuid,
+                          'type': '${a.createdBy.type}',
                           'timestamp': a.createdWhen.toIso8601String(),
                         },
-                        'changed': <String, dynamic>{
-                          'uuid': a.changedBy?.uuid,
-                          'type': '${a.changedBy?.type}',
+                        'changedBy': <String, dynamic>{
+                          'uuid': a.changedBy.uuid,
+                          'type': '${a.changedBy.type}',
                           'timestamp': a.changedWhen.toIso8601String(),
                         },
+                        if (a.deletedBy != null)
+                          'deletedBy': <String, dynamic>{
+                            'uuid': a.deletedBy.uuid,
+                            'type': '${a.deletedBy.type}',
+                            'timestamp': a.deletedWhen.toIso8601String(),
+                          },
                         if (data) 'data': a.data,
                       })
                   .toList(),

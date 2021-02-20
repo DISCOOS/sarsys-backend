@@ -13,33 +13,33 @@ import 'package:grpc/service_api.dart' as $grpc;
 import 'aggregate.pb.dart' as $0;
 export 'aggregate.pb.dart';
 
-class AggregateServiceClient extends $grpc.Client {
+class AggregateGrpcServiceClient extends $grpc.Client {
   static final _$getMeta = $grpc.ClientMethod<$0.GetAggregateMetaRequest,
           $0.GetAggregateMetaResponse>(
-      '/org.discoos.es.AggregateService/GetMeta',
+      '/org.discoos.es.AggregateGrpcService/GetMeta',
       ($0.GetAggregateMetaRequest value) => value.writeToBuffer(),
       ($core.List<$core.int> value) =>
           $0.GetAggregateMetaResponse.fromBuffer(value));
   static final _$replayEvents = $grpc.ClientMethod<
           $0.ReplayAggregateEventsRequest, $0.ReplayAggregateEventsResponse>(
-      '/org.discoos.es.AggregateService/ReplayEvents',
+      '/org.discoos.es.AggregateGrpcService/ReplayEvents',
       ($0.ReplayAggregateEventsRequest value) => value.writeToBuffer(),
       ($core.List<$core.int> value) =>
           $0.ReplayAggregateEventsResponse.fromBuffer(value));
   static final _$catchupEvents = $grpc.ClientMethod<
           $0.CatchupAggregateEventsRequest, $0.CatchupAggregateEventsResponse>(
-      '/org.discoos.es.AggregateService/CatchupEvents',
+      '/org.discoos.es.AggregateGrpcService/CatchupEvents',
       ($0.CatchupAggregateEventsRequest value) => value.writeToBuffer(),
       ($core.List<$core.int> value) =>
           $0.CatchupAggregateEventsResponse.fromBuffer(value));
   static final _$replaceData = $grpc.ClientMethod<
           $0.ReplaceAggregateDataRequest, $0.ReplaceAggregateDataResponse>(
-      '/org.discoos.es.AggregateService/ReplaceData',
+      '/org.discoos.es.AggregateGrpcService/ReplaceData',
       ($0.ReplaceAggregateDataRequest value) => value.writeToBuffer(),
       ($core.List<$core.int> value) =>
           $0.ReplaceAggregateDataResponse.fromBuffer(value));
 
-  AggregateServiceClient($grpc.ClientChannel channel,
+  AggregateGrpcServiceClient($grpc.ClientChannel channel,
       {$grpc.CallOptions options,
       $core.Iterable<$grpc.ClientInterceptor> interceptors})
       : super(channel, options: options, interceptors: interceptors);
@@ -69,10 +69,10 @@ class AggregateServiceClient extends $grpc.Client {
   }
 }
 
-abstract class AggregateServiceBase extends $grpc.Service {
-  $core.String get $name => 'org.discoos.es.AggregateService';
+abstract class AggregateGrpcServiceBase extends $grpc.Service {
+  $core.String get $name => 'org.discoos.es.AggregateGrpcService';
 
-  AggregateServiceBase() {
+  AggregateGrpcServiceBase() {
     $addMethod($grpc.ServiceMethod<$0.GetAggregateMetaRequest,
             $0.GetAggregateMetaResponse>(
         'GetMeta',

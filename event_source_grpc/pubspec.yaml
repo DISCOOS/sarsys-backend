@@ -9,6 +9,7 @@ environment:
 
 dependencies:
   grpc: ^2.8.0
+  strings: ^0.1.2
   protobuf: ^1.1.0
   fixnum: ^0.10.11
   stack_trace: ^1.9.6

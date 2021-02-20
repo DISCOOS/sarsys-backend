@@ -36,7 +36,7 @@ class DurationMetricMeta extends $pb.GeneratedMessage {
     ..aInt64(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'last')
     ..aInt64(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'total')
     ..aOM<DurationCumulativeAverage>(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'cumulative', subBuilder: DurationCumulativeAverage.create)
-    ..aOM<DurationCumulativeAverage>(7, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'exponential', subBuilder: DurationCumulativeAverage.create)
+    ..aOM<DurationExponentialAverage>(7, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'exponential', subBuilder: DurationExponentialAverage.create)
     ..hasRequiredFields = false;
 
   DurationMetricMeta._() : super();
@@ -147,9 +147,9 @@ class DurationMetricMeta extends $pb.GeneratedMessage {
   DurationCumulativeAverage ensureCumulative() => $_ensure(5);
 
   @$pb.TagNumber(7)
-  DurationCumulativeAverage get exponential => $_getN(6);
+  DurationExponentialAverage get exponential => $_getN(6);
   @$pb.TagNumber(7)
-  set exponential(DurationCumulativeAverage v) {
+  set exponential(DurationExponentialAverage v) {
     setField(7, v);
   }
 
@@ -158,7 +158,7 @@ class DurationMetricMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(7)
   void clearExponential() => clearField(7);
   @$pb.TagNumber(7)
-  DurationCumulativeAverage ensureExponential() => $_ensure(6);
+  DurationExponentialAverage ensureExponential() => $_ensure(6);
 }
 
 class DurationCumulativeAverage extends $pb.GeneratedMessage {
@@ -166,9 +166,10 @@ class DurationCumulativeAverage extends $pb.GeneratedMessage {
       const $core.bool.fromEnvironment('protobuf.omit_message_names')
           ? ''
           : 'DurationCumulativeAverage',
-      package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names')
-          ? ''
-          : 'org.discoos.es'),
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'org.discoos.es'),
       createEmptyInstance: create)
     ..a<$core.double>(
         1,
@@ -176,12 +177,11 @@ class DurationCumulativeAverage extends $pb.GeneratedMessage {
             ? ''
             : 'rate',
         $pb.PbFieldType.OD)
-    ..a<$core.double>(
+    ..aInt64(
         2,
         const $core.bool.fromEnvironment('protobuf.omit_field_names')
             ? ''
-            : 'mean',
-        $pb.PbFieldType.OD)
+            : 'mean')
     ..a<$core.double>(
         3,
         const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'variance',
@@ -233,10 +233,10 @@ class DurationCumulativeAverage extends $pb.GeneratedMessage {
   void clearRate() => clearField(1);
 
   @$pb.TagNumber(2)
-  $core.double get mean => $_getN(1);
+  $fixnum.Int64 get mean => $_getI64(1);
   @$pb.TagNumber(2)
-  set mean($core.double v) {
-    $_setDouble(1, v);
+  set mean($fixnum.Int64 v) {
+    $_setInt64(1, v);
   }
 
   @$pb.TagNumber(2)
@@ -295,7 +295,7 @@ class DurationExponentialAverage extends $pb.GeneratedMessage {
         3,
         const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'rate',
         $pb.PbFieldType.OD)
-    ..a<$core.double>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'mean', $pb.PbFieldType.OD)
+    ..aInt64(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'mean')
     ..a<$core.double>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'variance', $pb.PbFieldType.OD)
     ..a<$core.double>(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'deviation', $pb.PbFieldType.OD)
     ..hasRequiredFields = false;
@@ -368,10 +368,10 @@ class DurationExponentialAverage extends $pb.GeneratedMessage {
   void clearRate() => clearField(3);
 
   @$pb.TagNumber(4)
-  $core.double get mean => $_getN(3);
+  $fixnum.Int64 get mean => $_getI64(3);
   @$pb.TagNumber(4)
-  set mean($core.double v) {
-    $_setDouble(3, v);
+  set mean($fixnum.Int64 v) {
+    $_setInt64(3, v);
   }
 
   @$pb.TagNumber(4)

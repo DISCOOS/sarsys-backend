@@ -1,8 +1,9 @@
 import 'package:sarsys_core/sarsys_core.dart';
 
-import 'controllers.dart';
+import '../http/controllers.dart';
 
 /// A [ResourceController] for [AggregateRoot] operations requests
+@Deprecated("Use AggregateGrpcServiceController in package 'event_source_grpc' instead")
 class AggregateOperationsController extends SystemOperationsBaseController {
   AggregateOperationsController(
     RepositoryManager manager, {

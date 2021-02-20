@@ -9,7 +9,7 @@ import 'harness.dart';
 
 Future main() async {
   final harness = SarSysCliHarness()
-    ..withModules()
+    ..withTrackingServer()
     ..withLogger(debug: false)
     ..withContext(
       apiSpecPath: '../sarsys_ops_server/web/sarsys-ops.json',

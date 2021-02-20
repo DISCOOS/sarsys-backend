@@ -13,31 +13,31 @@ import "metric.proto";
 import "aggregate.proto";
 
 
-service SnapshotService {
+service SnapshotGrpcService {
     // Get Snapshot metadata
     //
     // Service with return snapshot metadata for repository of given type
     rpc GetMeta(GetSnapshotMetaRequest) returns (GetSnapshotMetaResponse) {}
-
-    // Execute configure snapshot command
-    //
-    // Service will configure snapshots of repository of given type
-    rpc Configure(ConfigureSnapshotRequest) returns (ConfigureSnapshotResponse) {}
 
     // Execute save snapshot command
     //
     // Service will save snapshot of repository of given type
     rpc Save(SaveSnapshotRequest) returns (SaveSnapshotResponse) {}
 
-    // Download snapshot file data
-    //
-    // Service will download snapshot file data for given aggregate type.
-    rpc Download(DownloadSnapshotRequest) returns (stream org.discoos.io.FileChunk) {}
-
     // Upload snapshot file data and load last snapshot in it
     //
     // Service will upload snapshot file data for given aggregate type.
     rpc Upload(stream SnapshotChunk) returns (UploadSnapshotResponse) {}
+
+    // Execute configure snapshot command
+    //
+    // Service will configure snapshots of repository of given type
+    rpc Configure(ConfigureSnapshotRequest) returns (ConfigureSnapshotResponse) {}
+
+    // Download snapshot file data
+    //
+    // Service will download snapshot file data for given aggregate type.
+    rpc Download(DownloadSnapshotRequest) returns (stream org.discoos.io.FileChunk) {}
 
 }
 

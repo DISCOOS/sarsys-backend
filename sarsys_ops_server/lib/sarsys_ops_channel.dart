@@ -4,12 +4,16 @@ import 'package:event_source/event_source.dart';
 import 'package:grpc/grpc.dart';
 import 'package:hive/hive.dart';
 import 'package:sarsys_ops_server/src/controllers/module_status_controller.dart';
+import 'package:sarsys_ops_server/src/controllers/snapshot_grpc_file_service_controller.dart';
+import 'package:sarsys_ops_server/src/controllers/snapshot_grpc_service_controller.dart';
 import 'package:sarsys_ops_server/src/k8s/k8s_api.dart';
 import 'package:stack_trace/stack_trace.dart';
 
 import 'sarsys_ops_server.dart';
 import 'src/config.dart';
-import 'src/controllers/tracking_service_commands_controller.dart';
+import 'src/controllers/aggregate_grpc_service_controller.dart';
+import 'src/controllers/repository_grpc_service_controller.dart';
+import 'src/controllers/tracking_grpc_service_controller.dart';
 
 /// MUST BE used when bootstrapping Aqueduct
 const int isolateStartupTimeout = 30;
@@ -94,8 +98,53 @@ class SarSysOpsServerChannel extends SarSysServerChannelBase {
         () => ModuleStatusController(k8s, config),
       )
       ..secure(
+        '/ops/api/services/aggregate/:type/:uuid[/:name]',
+        () => AggregateGrpcServiceController(
+          k8s,
+          channels,
+          config,
+          options.context,
+        ),
+      )
+      ..secure(
+        '/ops/api/services/repository/:type[/:name]',
+        () => RepositoryGrpcServiceController(
+          k8s,
+          channels,
+          config,
+          options.context,
+        ),
+      )
+      ..secure(
+        '/ops/api/services/snapshot/:type[/:name]',
+        () => SnapshotGrpcServiceController(
+          k8s,
+          channels,
+          config,
+          options.context,
+        ),
+      )
+      ..secure(
+        '/ops/api/services/snapshot/upload/:type[/:name]',
+        () => SnapshotGrpcFileServiceController(
+          k8s,
+          channels,
+          config,
+          options.context,
+        ),
+      )
+      ..secure(
+        '/ops/api/services/snapshot/download/:type/:name',
+        () => SnapshotGrpcFileServiceController(
+          k8s,
+          channels,
+          config,
+          options.context,
+        ),
+      )
+      ..secure(
         '/ops/api/services/tracking[/:name]',
-        () => TrackingServiceCommandsController(
+        () => TrackingGrpcServiceController(
           k8s,
           channels,
           config,

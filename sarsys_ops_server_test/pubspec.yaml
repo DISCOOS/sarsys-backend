@@ -16,6 +16,8 @@ dependencies:
     path: ../sarsys_ops_server
   event_source_test:
     path: ../event_source_test
+  event_source_grpc_test:
+    path: ../event_source_grpc_test
   sarsys_tracking_server_test:
     path: ../sarsys_tracking_server_test
 

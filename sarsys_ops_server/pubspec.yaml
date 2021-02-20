@@ -12,6 +12,8 @@ dependencies:
   logging: ^0.11.4
   protobuf: ^1.1.0
   stack_trace: ^1.9.6
+  event_source_grpc:
+    path: ../event_source_grpc
   sarsys_app_server:
     path: ../sarsys_app_server
   sarsys_tracking_server:

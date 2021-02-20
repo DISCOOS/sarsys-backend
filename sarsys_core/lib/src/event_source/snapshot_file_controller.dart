@@ -4,6 +4,7 @@ import 'package:sarsys_core/sarsys_core.dart';
 import 'package:stack_trace/stack_trace.dart';
 
 /// A [ResourceController] for [SnapshotModel] operations requests on [Storage]
+@Deprecated("Use SnapshotGrpcFileServiceController in package 'event_source_grpc' instead")
 class SnapshotFileController extends ResourceController {
   SnapshotFileController(
     this.manager, {

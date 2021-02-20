@@ -38,6 +38,8 @@ abstract class SarSysServerChannelBase extends ApplicationChannel {
 
   @mustCallSuper
   void documentSchemas(APIDocumentContext context) => context.schema
+    ..register('ID', documentID())
+    ..register('UUID', documentUUID())
     ..register('AggregateResponse', documentAggregateResponse(context))
     ..register('AggregatePageResponse', documentAggregatePageResponse(context))
     ..register('EntityResponse', documentEntityResponse(context))

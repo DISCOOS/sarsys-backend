@@ -21,8 +21,14 @@ class SarSysOpsHarness extends TestHarness<SarSysOpsServerChannel> {
   static const group = SarSysTrackingHarness.group;
   static const trackingInstance0 = 'sarsys-tracking-server-0';
 
+  final EventStoreMockServer _eventStoreMockServer = EventStoreMockServer(
+    'discoos',
+    'test',
+    4000,
+  );
+
   SarSysTrackingServer get trackingServer => _trackingHarness?.server;
-  EventStoreMockServer get esServer => _trackingHarness?.eventStoreMockServer;
+  EventStoreMockServer get eventStoreServer => _trackingHarness?.eventStoreMockServer;
   SarSysTrackingServiceClient get trackingClient => _trackingHarness?.grpcClient;
   SarSysTrackingHarness _trackingHarness;
 
@@ -35,7 +41,21 @@ class SarSysOpsHarness extends TestHarness<SarSysOpsServerChannel> {
   List<String> get instances => _instances;
   List<String> _instances;
 
-  SarSysOpsHarness withModules({
+  SarSysOpsHarness withSnapshots({
+    int threshold = 100,
+    int keep = 10,
+    bool automatic = true,
+  }) {
+    assert(_trackingHarness != null, 'withTrackingServer() is not called');
+    _trackingHarness.withSnapshots(
+      keep: keep,
+      automatic: automatic,
+      threshold: threshold,
+    );
+    return this;
+  }
+
+  SarSysOpsHarness withTrackingServer({
     bool debug = false,
     int grpcPort = 8083,
     int healthPort = 8084,
@@ -49,7 +69,7 @@ class SarSysOpsHarness extends TestHarness<SarSysOpsServerChannel> {
         grpcPort: grpcPort,
         healthPort: healthPort,
       )
-      ..withEventStoreMock()
+      ..withEventStoreMock(_eventStoreMockServer)
       ..withLogger(debug: debug)
       ..withGrpcClient(port: grpcPort);
 
@@ -195,22 +215,15 @@ class _K8sMockClient extends Fake implements HttpClient {
     if (url.path.endsWith('/api')) {
       return _K8sMockGetApiClientRequest(url);
     } else if (url.path.endsWith('/api/v1/namespaces/$namespace/pods') && url.query.isEmpty) {
-      return _K8sMockGetPodsFromNsClientRequest(
-        url,
-        'GET',
-        namespace,
-        names,
-        [],
-      );
+      return _K8sMockGetPodsFromNsClientRequest(url, 'GET', namespace, names, []);
     } else if (url.path.endsWith('/api/v1/namespaces/$namespace/pods') && url.query.startsWith('labelSelector=')) {
       final labels = Uri.decodeQueryComponent(url.query.split('?labelSelector=').last).split(',');
-      return _K8sMockGetPodsFromNsClientRequest(
-        url,
-        'GET',
-        namespace,
-        names,
-        labels,
-      );
+      return _K8sMockGetPodsFromNsClientRequest(url, 'GET', namespace, names, labels);
+    } else if (url.path.startsWith('/api/v1/namespaces/$namespace/pods/')) {
+      final name = url.pathSegments.last;
+      if (names.contains(name)) {
+        return _K8sMockGetPodInNsClientRequest(url, 'GET', namespace, name);
+      }
     }
     return _K8sMockClientRequest(
       url,
@@ -235,6 +248,52 @@ class _K8sMockClientRequest extends Fake implements HttpClientRequest {
   Future<HttpClientResponse> close() async {
     return response;
   }
+
+  static String toModule(String name) {
+    final parts = name.split('-');
+    if (int.tryParse(parts.last) != null) {
+      return parts.sublist(0, parts.length - 1).join('-');
+    }
+    return name;
+  }
+
+  static bool isLabelMatch(List<String> labelSelectors, String name) {
+    if (labelSelectors.isEmpty) {
+      return true;
+    }
+    final module = toModule(name);
+    return labelSelectors.any(
+      (selector) => selector.endsWith(module),
+    );
+  }
+}
+
+class _K8sMockGetPodInNsClientRequest extends _K8sMockClientRequest {
+  _K8sMockGetPodInNsClientRequest(
+    Uri uri,
+    String method,
+    String namespace,
+    String name,
+  ) : super(
+            uri,
+            method,
+            _K8sMockClientResponse.ok({
+              'metadata': {
+                'name': name,
+                'namespace': namespace,
+                'labels': {'module': _K8sMockClientRequest.toModule(name)}
+              },
+              'status': {
+                'conditions': [
+                  {
+                    'type': 'Unknown',
+                    'status': 'Unknown',
+                    'reason': 'EMPTY_LIST',
+                    'message': 'No conditions found',
+                  }
+                ],
+              }
+            }));
 }
 
 class _K8sMockGetPodsFromNsClientRequest extends _K8sMockClientRequest {
@@ -249,12 +308,12 @@ class _K8sMockGetPodsFromNsClientRequest extends _K8sMockClientRequest {
             method,
             _K8sMockClientResponse.ok({
               'items': names
-                  .where((name) => isLabelMatch(labelSelectors, name))
+                  .where((name) => _K8sMockClientRequest.isLabelMatch(labelSelectors, name))
                   .map((name) => {
                         'metadata': {
                           'name': name,
                           'namespace': namespace,
-                          'labels': {'module': _toModule(name)}
+                          'labels': {'module': _K8sMockClientRequest.toModule(name)}
                         },
                         'status': {
                           'conditions': [
@@ -269,24 +328,6 @@ class _K8sMockGetPodsFromNsClientRequest extends _K8sMockClientRequest {
                       })
                   .toList(),
             }));
-
-  static String _toModule(String name) {
-    final parts = name.split('-');
-    if (int.tryParse(parts.last) != null) {
-      return parts.sublist(0, parts.length - 1).join('-');
-    }
-    return name;
-  }
-
-  static bool isLabelMatch(List<String> labelSelectors, String name) {
-    if (labelSelectors.isEmpty) {
-      return true;
-    }
-    final module = _toModule(name);
-    return labelSelectors.any(
-      (selector) => selector.endsWith(module),
-    );
-  }
 }
 
 class _K8sMockGetApiClientRequest extends _K8sMockClientRequest {
@@ -345,6 +386,14 @@ class _K8sMockClientResponse extends Fake implements HttpClientResponse {
   }
 
   final StreamController<List<int>> _controller = StreamController();
+}
+
+FutureOr<String> createDevice(DeviceRepository repo) async {
+  final uuid = Uuid().v4();
+  await repo.execute(CreateDevice({
+    'uuid': '$uuid',
+  }));
+  return uuid;
 }
 
 FutureOr<String> createTracking(TrackingRepository repo, TestStream stream, String subscription) async {

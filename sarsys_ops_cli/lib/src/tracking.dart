@@ -78,7 +78,7 @@ abstract class TrackingCommandBase extends BaseCommand {
     );
     vprint(
       'Trackings seen',
-      instance.elementAt<int>('metrics/trackings/total', defaultValue: 0),
+      instance.elementAt<int>('trackings/total', defaultValue: 0),
       unit: 'all tracking objects',
       max: columns,
       buffer: buffer,
@@ -88,7 +88,7 @@ abstract class TrackingCommandBase extends BaseCommand {
     vprint(
       'Is managing',
       trackings.length,
-      unit: '${(instance.elementAt<double>('metrics/trackings/fractionManaged', defaultValue: 0) * 100).toInt()}'
+      unit: '${(instance.elementAt<double>('trackings/fractionManaged', defaultValue: 0) * 100).toInt()}'
           '% of all tracking objects',
       max: columns,
       buffer: buffer,
@@ -96,7 +96,7 @@ abstract class TrackingCommandBase extends BaseCommand {
     );
     vprint(
       'TPM',
-      instance.elementAt<double>('metrics/trackings/eventsPerMinute', defaultValue: 0).toStringAsFixed(1),
+      instance.elementAt<double>('trackings/eventsPerMinute', defaultValue: 0).toStringAsFixed(1),
       unit: 'trackings per minute',
       max: columns,
       buffer: buffer,
@@ -104,7 +104,7 @@ abstract class TrackingCommandBase extends BaseCommand {
     );
     vprint(
       'TPT',
-      instance.elementAt<int>('metrics/trackings/averageProcessingTimeMillis', defaultValue: 0),
+      instance.elementAt<int>('trackings/averageProcessingTimeMillis', defaultValue: 0),
       unit: 'average tracking processing in ms',
       max: columns,
       buffer: buffer,
@@ -113,7 +113,7 @@ abstract class TrackingCommandBase extends BaseCommand {
     buffer.writeln('$spaces$separator');
     vprint(
       'Processed',
-      instance.elementAt<int>('metrics/positions/total', defaultValue: 0),
+      instance.elementAt<int>('positions/total', defaultValue: 0),
       unit: 'positions',
       max: columns,
       buffer: buffer,
@@ -121,7 +121,7 @@ abstract class TrackingCommandBase extends BaseCommand {
     );
     vprint(
       'PPM',
-      instance.elementAt<double>('metrics/positions/eventsPerMinute', defaultValue: 0).toStringAsFixed(1),
+      instance.elementAt<double>('positions/eventsPerMinute', defaultValue: 0).toStringAsFixed(1),
       unit: 'positions per minute',
       max: columns,
       buffer: buffer,
@@ -129,7 +129,7 @@ abstract class TrackingCommandBase extends BaseCommand {
     );
     vprint(
       'PPT',
-      instance.elementAt<int>('metrics/positions/averageProcessingTimeMillis', defaultValue: 0),
+      instance.elementAt<int>('positions/averageProcessingTimeMillis', defaultValue: 0),
       unit: 'average position processing in ms',
       max: columns,
       buffer: buffer,

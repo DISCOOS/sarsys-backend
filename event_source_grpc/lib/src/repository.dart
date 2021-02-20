@@ -9,7 +9,7 @@ import 'package:logging/logging.dart';
 import 'generated/repository.pbgrpc.dart';
 import 'utils.dart';
 
-class RepositoryGrpcService extends RepositoryServiceBase {
+class RepositoryGrpcService extends RepositoryGrpcServiceBase {
   RepositoryGrpcService(this.manager);
   final RepositoryManager manager;
   final logger = Logger('$RepositoryGrpcService');
@@ -33,8 +33,8 @@ class RepositoryGrpcService extends RepositoryServiceBase {
       );
       return response;
     }
-    final repo = manager.getFromTypeName(type);
 
+    final repo = manager.getFromTypeName(type);
     if (repo == null) {
       _notFound(
         'getMeta',

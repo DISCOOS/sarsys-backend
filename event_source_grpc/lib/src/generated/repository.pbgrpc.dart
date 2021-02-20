@@ -13,39 +13,39 @@ import 'package:grpc/service_api.dart' as $grpc;
 import 'repository.pb.dart' as $1;
 export 'repository.pb.dart';
 
-class RepositoryServiceClient extends $grpc.Client {
+class RepositoryGrpcServiceClient extends $grpc.Client {
   static final _$getMeta =
       $grpc.ClientMethod<$1.GetRepoMetaRequest, $1.GetRepoMetaResponse>(
-          '/org.discoos.es.RepositoryService/GetMeta',
+          '/org.discoos.es.RepositoryGrpcService/GetMeta',
           ($1.GetRepoMetaRequest value) => value.writeToBuffer(),
           ($core.List<$core.int> value) =>
               $1.GetRepoMetaResponse.fromBuffer(value));
   static final _$replayEvents = $grpc.ClientMethod<$1.ReplayRepoEventsRequest,
           $1.ReplayRepoEventsResponse>(
-      '/org.discoos.es.RepositoryService/ReplayEvents',
+      '/org.discoos.es.RepositoryGrpcService/ReplayEvents',
       ($1.ReplayRepoEventsRequest value) => value.writeToBuffer(),
       ($core.List<$core.int> value) =>
           $1.ReplayRepoEventsResponse.fromBuffer(value));
   static final _$catchupEvents = $grpc.ClientMethod<$1.CatchupRepoEventsRequest,
           $1.CatchupRepoEventsResponse>(
-      '/org.discoos.es.RepositoryService/CatchupEvents',
+      '/org.discoos.es.RepositoryGrpcService/CatchupEvents',
       ($1.CatchupRepoEventsRequest value) => value.writeToBuffer(),
       ($core.List<$core.int> value) =>
           $1.CatchupRepoEventsResponse.fromBuffer(value));
   static final _$repair =
       $grpc.ClientMethod<$1.RepairRepoRequest, $1.RepairRepoResponse>(
-          '/org.discoos.es.RepositoryService/Repair',
+          '/org.discoos.es.RepositoryGrpcService/Repair',
           ($1.RepairRepoRequest value) => value.writeToBuffer(),
           ($core.List<$core.int> value) =>
               $1.RepairRepoResponse.fromBuffer(value));
   static final _$rebuild =
       $grpc.ClientMethod<$1.RebuildRepoRequest, $1.RebuildRepoResponse>(
-          '/org.discoos.es.RepositoryService/Rebuild',
+          '/org.discoos.es.RepositoryGrpcService/Rebuild',
           ($1.RebuildRepoRequest value) => value.writeToBuffer(),
           ($core.List<$core.int> value) =>
               $1.RebuildRepoResponse.fromBuffer(value));
 
-  RepositoryServiceClient($grpc.ClientChannel channel,
+  RepositoryGrpcServiceClient($grpc.ClientChannel channel,
       {$grpc.CallOptions options,
       $core.Iterable<$grpc.ClientInterceptor> interceptors})
       : super(channel, options: options, interceptors: interceptors);
@@ -81,10 +81,10 @@ class RepositoryServiceClient extends $grpc.Client {
   }
 }
 
-abstract class RepositoryServiceBase extends $grpc.Service {
-  $core.String get $name => 'org.discoos.es.RepositoryService';
+abstract class RepositoryGrpcServiceBase extends $grpc.Service {
+  $core.String get $name => 'org.discoos.es.RepositoryGrpcService';
 
-  RepositoryServiceBase() {
+  RepositoryGrpcServiceBase() {
     $addMethod(
         $grpc.ServiceMethod<$1.GetRepoMetaRequest, $1.GetRepoMetaResponse>(
             'GetMeta',

@@ -30,7 +30,7 @@ void main() {
   test('GRPC GetMeta with empty repo returns 404', () async {
     // Arrange
     final uuid = Uuid().v4();
-    final client = harness.client<AggregateServiceClient>();
+    final client = harness.client<AggregateGrpcServiceClient>();
 
     final response = await client.getMeta(
       GetAggregateMetaRequest()
@@ -51,7 +51,7 @@ void main() {
     final foo = repo.get(uuid, data: {'property11': 'value11'});
     final data1 = foo.data;
     await repo.push(foo);
-    final client = harness.client<AggregateServiceClient>();
+    final client = harness.client<AggregateGrpcServiceClient>();
 
     // Act
     final response = await client.getMeta(
@@ -68,7 +68,7 @@ void main() {
     expect(response.uuid, uuid);
     expect(response.statusCode, 200);
     expect(response.reasonPhrase, 'OK');
-    expect(toJsonFromAny(response.meta.data), equals(data1));
+    expect(response.meta.data.toProto3Json(), equals(data1));
   });
 
   test('GRPC ReplayEvents returns 200', () async {
@@ -79,7 +79,7 @@ void main() {
     final foo = repo.get(uuid, data: {'property11': 'value11'});
     final data1 = foo.data;
     await repo.push(foo);
-    final client = harness.client<AggregateServiceClient>();
+    final client = harness.client<AggregateGrpcServiceClient>();
 
     // Act
     final response = await client.replayEvents(
@@ -96,7 +96,7 @@ void main() {
     expect(response.uuid, uuid);
     expect(response.statusCode, 200);
     expect(response.reasonPhrase, 'OK');
-    expect(toJsonFromAny(response.meta.data), equals(data1));
+    expect(response.meta.data.toProto3Json(), equals(data1));
   });
 
   test('GRPC CatchupEvents returns 200', () async {
@@ -107,7 +107,7 @@ void main() {
     final foo = repo.get(uuid, data: {'property11': 'value11'});
     final data1 = foo.data;
     await repo.push(foo);
-    final client = harness.client<AggregateServiceClient>();
+    final client = harness.client<AggregateGrpcServiceClient>();
 
     // Act
     final response = await client.catchupEvents(
@@ -124,7 +124,7 @@ void main() {
     expect(response.uuid, uuid);
     expect(response.statusCode, 200);
     expect(response.reasonPhrase, 'OK');
-    expect(toJsonFromAny(response.meta.data), equals(data1));
+    expect(response.meta.data.toProto3Json(), equals(data1));
   });
 
   test('GRPC ReplaceData returns 200', () async {
@@ -133,9 +133,8 @@ void main() {
     await repo.readyAsync();
     final uuid = Uuid().v4();
     final foo = repo.get(uuid, data: {'property11': 'value11'});
-    final data1 = foo.data;
     await repo.push(foo);
-    final client = harness.client<AggregateServiceClient>();
+    final client = harness.client<AggregateGrpcServiceClient>();
 
     // Act
     final data2 = {'uuid': uuid, 'property11': 'value12'};
@@ -143,7 +142,7 @@ void main() {
       ReplaceAggregateDataRequest()
         ..type = 'Foo'
         ..uuid = uuid
-        ..data = toAnyFromJson(data2)
+        ..data = toValueFromJson(data2)
         ..expand.add(
           AggregateExpandFields.AGGREGATE_EXPAND_FIELDS_ALL,
         ),
@@ -154,7 +153,7 @@ void main() {
     expect(response.uuid, uuid);
     expect(response.statusCode, 200);
     expect(response.reasonPhrase, 'OK');
-    expect(toJsonFromAny(response.meta.data), equals(data1));
+    expect(response.meta.data.toProto3Json(), equals(data2));
     expect(repo.get(uuid).data, equals(data2));
   });
 }

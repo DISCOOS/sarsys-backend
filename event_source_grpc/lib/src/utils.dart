@@ -1,39 +1,26 @@
-import 'dart:convert';
+import 'dart:ffi';
 
+export 'package:strings/strings.dart';
 import 'package:event_source/event_source.dart';
 import 'package:event_source_grpc/event_source_grpc.dart';
 import 'package:fixnum/fixnum.dart';
-import 'generated/any.pb.dart';
+import 'package:protobuf/protobuf.dart';
 import 'generated/aggregate.pb.dart';
 import 'generated/event.pb.dart';
 import 'generated/repository.pb.dart';
 import 'generated/snapshot.pb.dart';
 import 'generated/timestamp.pb.dart';
 
-const _codec = Utf8Codec();
-
-Any toAnyFromJson(
-  dynamic json, {
-  String scheme = 'org.discoos.es',
-  String type,
-}) =>
-    Any()
-      ..typeUrl = '$scheme/${type ?? (json is List ? 'json.list' : 'json.map')}'
-      ..value = _codec.encode(jsonEncode(json));
-
-dynamic toJsonFromAny<T>(Any json) {
-  final type = json.typeUrl.split('/').last;
-  switch (type) {
-    case 'json.list':
-      return List.from(
-        jsonDecode(_codec.decode(json.value)),
-      );
-    case 'json.map':
-    default:
-      return Map.from(
-        jsonDecode(_codec.decode(json.value)),
-      );
+Value toValueFromJson(dynamic json) {
+  if (json is List) {
+    return Value()..listValue = (ListValue()..values.addAll(json.map(toValueFromJson)));
   }
+  if (json is Map<String, dynamic>) {
+    return Value()..mergeFromProto3Json(Map<String, dynamic>.from(json));
+  }
+  throw ArgumentError(
+    'Only List and Map<String,dynamic> are supported types, found type ${json?.runtimeType}',
+  );
 }
 
 bool withRepoField(List<RepoExpandFields> expand, RepoExpandFields field) =>
@@ -56,10 +43,11 @@ RepositoryMeta toRepoMeta(
   EventStore store,
 ) {
   final type = repo.elementAt<String>('type');
-  final lastEvent = store.isEmpty ? null : store.getEvent(store.eventMap.keys.last);
   return RepositoryMeta()
-    ..type = repo.elementAt<String>('type')
-    ..lastEvent = toEventMetaFromEvent(lastEvent, store)
+    ..type = type
+    ..lastEvent = toEventMetaFromMap(
+      repo.mapAt<String, dynamic>('lastEvent'),
+    )
     ..queue = toRepoQueueMeta(
       repo.mapAt<String, dynamic>('queue'),
     )
@@ -68,7 +56,7 @@ RepositoryMeta toRepoMeta(
       repo.mapAt<String, dynamic>('metrics'),
     )
     ..connection = toConnectionMetricsMeta(
-      repo.mapAt<String, dynamic>('connection'),
+      repo.mapAt<String, dynamic>('connection/metrics'),
     );
 }
 
@@ -89,21 +77,19 @@ ConnectionMetricsMeta toConnectionMetricsMeta(Map<String, dynamic> metrics) {
 RepositoryQueueMeta toRepoQueueMeta(Map<String, dynamic> queue) {
   final meta = RepositoryQueueMeta();
   if (queue != null) {
-    final status = queue.mapAt<String, dynamic>('status');
-    if (status != null) {
+    meta.setIfExists<Map>(queue, 'status', (status) {
       meta.status = (RepositoryQueueStatusMeta()
         ..idle = status.elementAt<bool>('idle')
         ..ready = status.elementAt<bool>('ready')
         ..disposed = status.elementAt<bool>('disposed'));
-    }
-    final pressure = queue.mapAt<String, dynamic>('pressure');
-    if (pressure != null) {
+    });
+    meta.setIfExists<Map>(queue, 'pressure', (pressure) {
       meta.pressure = (RepositoryQueuePressureMeta()
         ..total = pressure.elementAt<int>('total')
         ..maximum = pressure.elementAt<int>('maximum')
         ..commands = pressure.elementAt<int>('command')
         ..exceeded = pressure.elementAt<bool>('exceeded'));
-    }
+    });
   }
   return meta;
 }
@@ -115,8 +101,7 @@ RepositoryMetricsMeta toRepoMetricsMeta(
   final meta = RepositoryMetricsMeta();
   if (metrics != null) {
     meta..events = Int64(metrics.elementAt<int>('events'));
-    final aggregates = metrics.mapAt<String, dynamic>('aggregates');
-    if (aggregates != null) {
+    meta.setIfExists<Map>(metrics, 'aggregates', (aggregates) {
       meta.aggregates = (RepositoryMetricsAggregateMeta()
         ..count = aggregates.elementAt<int>('count')
         ..changed = aggregates.elementAt<int>('changed')
@@ -126,7 +111,7 @@ RepositoryMetricsMeta toRepoMetricsMeta(
           metrics.listAt('tainted/items', defaultList: []),
           (item) => AggregateMeta()
             ..uuid = item['uuid']
-            ..tainted = toAnyFromJson(item['value']),
+            ..taint = toValueFromJson(item['taint']),
         )
         ..cordoned = toAggregateMetaList(
           type,
@@ -134,13 +119,10 @@ RepositoryMetricsMeta toRepoMetricsMeta(
           metrics.listAt('cordoned/items', defaultList: []),
           (item) => AggregateMeta()
             ..uuid = item['uuid']
-            ..cordoned = toAnyFromJson(item['value']),
+            ..cordon = toValueFromJson(item['cordon']),
         ));
-    }
-    final push = metrics.mapAt<String, dynamic>('push');
-    if (push != null) {
-      meta.push = toDurationMetricMeta(push);
-    }
+    });
+    meta.setIfExists<Map>(metrics, 'push', (push) => meta.push = toDurationMetricMeta(push));
   }
   return meta;
 }
@@ -207,9 +189,9 @@ AggregateMeta toAggregateMetaFromRoot(
     ..createdBy = toEventMetaFromEvent(aggregate.createdBy, store)
     ..changedBy = toEventMetaFromEvent(aggregate.changedBy, store);
   if (store.isTainted(uuid)) {
-    meta.tainted = toAnyFromJson(store.tainted[uuid]);
+    meta.taint = toValueFromJson(store.tainted[uuid]);
   } else if (store.isCordoned(uuid)) {
-    meta.cordoned = toAnyFromJson(store.cordoned[uuid]);
+    meta.cordon = toValueFromJson(store.cordoned[uuid]);
   }
   final applied = aggregate.applied;
   final skipped = aggregate.skipped;
@@ -245,7 +227,7 @@ AggregateMeta toAggregateMetaFromRoot(
     AggregateExpandFields.AGGREGATE_EXPAND_FIELDS_DATA,
   );
   if (withData) {
-    meta.data = toAnyFromJson(
+    meta.data = toValueFromJson(
       aggregate.data,
     );
   }
@@ -253,62 +235,9 @@ AggregateMeta toAggregateMetaFromRoot(
 }
 
 AggregateMeta toAggregateMetaFromMap(
-  Map<String, dynamic> aggregate, {
-  EventStore store,
-  List<AggregateExpandFields> expand = const [],
-}) {
-  final uuid = aggregate.elementAt<String>('uuid');
-  final meta = AggregateMeta()
-    ..uuid = uuid
-    ..type = '${aggregate.runtimeType}'
-    ..createdBy = toEventMetaFromMap(
-      aggregate.mapAt<String, dynamic>('created'),
-    )
-    ..changedBy = toEventMetaFromMap(
-      aggregate.mapAt<String, dynamic>('changed'),
-    );
-  var withItems = withAggregateField(
-    expand,
-    AggregateExpandFields.AGGREGATE_EXPAND_FIELDS_ITEMS,
-  );
-  if (withItems) {
-    final applied = aggregate.listAt('applied', defaultList: []);
-    final skipped = aggregate.listAt('skipped', defaultList: []);
-    final pending = aggregate.listAt('changed', defaultList: []);
-    if (applied.isNotEmpty) {
-      meta.applied = EventMetaList()
-        ..count = applied.length
-        ..items.addAll(
-          applied.map((e) => toEventMetaFromMap(e)).toList(),
-        );
-    }
-    if (pending.isNotEmpty) {
-      meta.pending = EventMetaList()
-        ..count = pending.length
-        ..items.addAll(
-          pending.map((e) => toEventMetaFromMap(e)).toList(),
-        );
-    }
-    if (skipped.isNotEmpty) {
-      meta.skipped = EventMetaList()
-        ..count = skipped.length
-        ..items.addAll(
-          skipped.map(
-            (uuid) => toEventMetaFromEvent(store.getEvent(uuid), store),
-          ),
-        );
-    }
-  }
-  var withData = withAggregateField(
-    expand,
-    AggregateExpandFields.AGGREGATE_EXPAND_FIELDS_DATA,
-  );
-  if (withData) {
-    meta.data = toAnyFromJson(
-      aggregate.mapAt('data'),
-    );
-  }
-  return meta;
+  Map<String, dynamic> aggregate,
+) {
+  return AggregateMeta()..mergeFromProto3Json(aggregate);
 }
 
 EventMeta toEventMetaFromEvent(Event event, EventStore store) {
@@ -328,16 +257,15 @@ EventMeta toEventMetaFromEvent(Event event, EventStore store) {
 }
 
 EventMeta toEventMetaFromMap(Map<String, dynamic> event) {
-  final meta = EventMeta()
-    ..uuid = event.elementAt<String>('uuid')
-    ..type = event.elementAt<String>('type')
-    ..number = Int64(event.elementAt<int>('number', defaultValue: -1))
-    ..position = Int64(event.elementAt<int>('position', defaultValue: -1));
-  if (event.hasPath('remote')) {
-    meta.remote = event.elementAt<bool>('remote');
-  }
-  if (event.hasPath('created')) {
-    meta.timestamp = Timestamp.fromDateTime(DateTime.parse(event.elementAt<String>('created')));
+  final meta = EventMeta();
+  if (event != null) {
+    meta
+      ..uuid = event.elementAt<String>('uuid')
+      ..type = event.elementAt<String>('type')
+      ..number = Int64(event.elementAt<int>('number', defaultValue: -1))
+      ..position = Int64(event.elementAt<int>('position', defaultValue: -1));
+    meta.setIfExists<bool>(event, 'remote', (remote) => meta.remote = remote);
+    meta.setIfExists<String>(event, 'created', (ts) => meta.timestamp = Timestamp.fromDateTime(DateTime.parse(ts)));
   }
   return meta;
 }
@@ -350,10 +278,10 @@ SnapshotMeta toSnapshotMeta(
   Map<String, dynamic> repo,
   EventStore store,
 ) {
-  final meta = SnapshotMeta()
-    ..type = type
-    ..number = Int64(repo.elementAt<int>('number'))
-    ..position = Int64(repo.elementAt<int>('position'))
+  final meta = SnapshotMeta()..type = capitalize(type);
+  meta.setIfExists<int>(repo, 'number', (value) => meta.number = Int64(value));
+  meta.setIfExists<int>(repo, 'position', (value) => meta.number = Int64(value));
+  meta
     ..metrics = toSnapshotMetricsMeta(
       repo.mapAt<String, dynamic>('metrics'),
     )
@@ -362,8 +290,7 @@ SnapshotMeta toSnapshotMeta(
       repo.elementAt<int>('aggregates/count', defaultValue: 0),
       repo.listAt('aggregates/items', defaultList: []),
       (item) => toAggregateMetaFromMap(
-        Map.from(item),
-        store: store,
+        Map<String, dynamic>.from(item),
       ),
     );
   if (repo.hasPath('uuid')) {
@@ -379,16 +306,17 @@ SnapshotMetricsMeta toSnapshotMetricsMeta(
   if (metrics != null) {
     meta.snapshots = Int64(metrics.elementAt<int>('snapshots'));
     meta.isPartial = metrics.elementAt<bool>('partial', defaultValue: false);
-    if (metrics.hasPath('unsaved')) {
-      meta.unsaved = Int64(metrics.elementAt<int>('unsaved'));
-    }
-    if (metrics.hasPath('missing')) {
-      meta.missing = Int64(metrics.elementAt<int>('missing'));
-    }
-    final save = metrics.mapAt<String, dynamic>('save');
-    if (save != null) {
-      meta.save = toDurationMetricMeta(save);
-    }
+    meta.setIfExists<int>(metrics, 'unsaved', (unsaved) => meta.unsaved = Int64(unsaved));
+    meta.setIfExists<Map>(metrics, 'partial', (partial) => meta.missing = Int64(partial.elementAt<int>('missing')));
+    meta.setIfExists<Map>(metrics, 'save', (save) => meta.save = toDurationMetricMeta(save));
   }
   return meta;
+}
+
+extension GeneratedMessageX on GeneratedMessage {
+  void setIfExists<T>(Map<String, dynamic> map, String path, void Function(T) set) {
+    if (map.hasPath(path)) {
+      set(map.elementAt<T>(path));
+    }
+  }
 }

@@ -13,7 +13,7 @@ import "metric.proto";
 import "aggregate.proto";
 
 
-service RepositoryService {
+service RepositoryGrpcService {
     // Get Repository metadata
     //
     // Service with return repository metadata of given type
@@ -95,121 +95,6 @@ enum RepoExpandFields {
 //
 }
 
-
-// Repository object metadata
-//
-// Summarises repository object metadata
-message RepositoryMeta {
-
-    // Aggregate type
-    string type = 1;
-
-    // Last event applied to repository
-    EventMeta lastEvent = 2;
-
-    // Repository queue object metadata
-    RepositoryQueueMeta queue = 3;
-
-    // Repository metrics object metadata
-    RepositoryMetricsMeta metrics = 4;
-
-    // Connection metrics object metadata
-    ConnectionMetricsMeta connection = 5;
-
-}
-
-// Repository queue object metadata
-//
-// Summarises repository queue object metadata
-message RepositoryQueueMeta {
-
-    // Repository queue pressure object metadata
-    RepositoryQueuePressureMeta pressure = 1;
-
-    // Repository queue status object metadata
-    RepositoryQueueStatusMeta status = 2;
-
-    // Repository metrics metadata
-    RepositoryMetricsMeta metrics = 3;
-
-}
-
-// Repository queue pressure object metadata
-//
-// Summarises repository queue pressure object metadata
-message RepositoryQueuePressureMeta {
-
-    // Number of pending pushes
-    int32 push = 1;
-
-    // Number of pending commands
-    int32 commands = 2;
-
-    // Total number of pending pushes and commands
-    int32 total = 3;
-
-    // Maximum allowed pressure
-    int32 maximum = 4;
-
-    // True if maximum pressure is exceeded
-    bool exceeded = 5;
-
-}
-
-// Repository queue status object metadata
-//
-// Summarises repository queue status object metadata
-message RepositoryQueueStatusMeta {
-
-    // True if queue is idle
-    bool idle = 1;
-
-    // True if queue is ready to process requests
-    bool ready = 2;
-
-    // True if queue is disposed
-    bool disposed = 3;
-
-}
-
-// Repository metrics object metadata
-//
-// Summarises repository metrics object metadata
-message RepositoryMetricsMeta {
-
-    // Total number of events processed by repository
-    int64 events = 1;
-
-    // Total number of open transactions
-    int32 transactions = 2;
-
-    // Aggregate metrics metadata
-    RepositoryMetricsAggregateMeta aggregates = 4;
-
-    // Cumulative and exponential moving average duration of push operations
-    DurationMetricMeta push = 5;
-
-}
-
-message RepositoryMetricsAggregateMeta {
-    int32 count = 1;
-    int32 changed = 2;
-    AggregateMetaList tainted = 3;
-    AggregateMetaList cordoned = 4;
-}
-
-// Connection metrics object metadata
-//
-// Summarises connection metrics metadata
-message ConnectionMetricsMeta {
-
-    // Cumulative and exponential moving average duration of read operations
-    DurationMetricMeta read = 1;
-
-    // Cumulative and exponential moving average duration of read operations
-    DurationMetricMeta write = 2;
-
-}
 
 // Replay events on repository of given type
 message ReplayRepoEventsRequest {
@@ -346,5 +231,120 @@ message RebuildRepoResponse {
 
     // Repository metadata
     RepositoryMeta meta = 5;
+}
+
+// Repository object metadata
+//
+// Summarises repository object metadata
+message RepositoryMeta {
+
+    // Aggregate type
+    string type = 1;
+
+    // Last event applied to repository
+    EventMeta lastEvent = 2;
+
+    // Repository queue object metadata
+    RepositoryQueueMeta queue = 3;
+
+    // Repository metrics object metadata
+    RepositoryMetricsMeta metrics = 4;
+
+    // Connection metrics object metadata
+    ConnectionMetricsMeta connection = 5;
+
+}
+
+// Repository queue object metadata
+//
+// Summarises repository queue object metadata
+message RepositoryQueueMeta {
+
+    // Repository queue pressure object metadata
+    RepositoryQueuePressureMeta pressure = 1;
+
+    // Repository queue status object metadata
+    RepositoryQueueStatusMeta status = 2;
+
+    // Repository metrics metadata
+    RepositoryMetricsMeta metrics = 3;
+
+}
+
+// Repository queue pressure object metadata
+//
+// Summarises repository queue pressure object metadata
+message RepositoryQueuePressureMeta {
+
+    // Number of pending pushes
+    int32 push = 1;
+
+    // Number of pending commands
+    int32 commands = 2;
+
+    // Total number of pending pushes and commands
+    int32 total = 3;
+
+    // Maximum allowed pressure
+    int32 maximum = 4;
+
+    // True if maximum pressure is exceeded
+    bool exceeded = 5;
+
+}
+
+// Repository queue status object metadata
+//
+// Summarises repository queue status object metadata
+message RepositoryQueueStatusMeta {
+
+    // True if queue is idle
+    bool idle = 1;
+
+    // True if queue is ready to process requests
+    bool ready = 2;
+
+    // True if queue is disposed
+    bool disposed = 3;
+
+}
+
+// Repository metrics object metadata
+//
+// Summarises repository metrics object metadata
+message RepositoryMetricsMeta {
+
+    // Total number of events processed by repository
+    int64 events = 1;
+
+    // Total number of open transactions
+    int32 transactions = 2;
+
+    // Aggregate metrics metadata
+    RepositoryMetricsAggregateMeta aggregates = 4;
+
+    // Cumulative and exponential moving average duration of push operations
+    DurationMetricMeta push = 5;
+
+}
+
+message RepositoryMetricsAggregateMeta {
+    int32 count = 1;
+    int32 changed = 2;
+    AggregateMetaList tainted = 3;
+    AggregateMetaList cordoned = 4;
+}
+
+// Connection metrics object metadata
+//
+// Summarises connection metrics metadata
+message ConnectionMetricsMeta {
+
+    // Cumulative and exponential moving average duration of read operations
+    DurationMetricMeta read = 1;
+
+    // Cumulative and exponential moving average duration of read operations
+    DurationMetricMeta write = 2;
+
 }
 

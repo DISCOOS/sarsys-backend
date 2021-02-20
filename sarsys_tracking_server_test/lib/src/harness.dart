@@ -12,6 +12,7 @@ import 'package:sarsys_tracking_server/src/server.dart';
 class SarSysTrackingHarness {
   static const group = 'TrackingService';
   static const sub = '\$et-TrackingCreated';
+  static const testDataPath = 'test/.hive';
 
   SarSysTrackingServer server;
   HttpClient httpClient = HttpClient();
@@ -44,6 +45,22 @@ class SarSysTrackingHarness {
     assert(_grpcChannel == null, 'withGrpc is already configured');
     _grpcPort = grpcPort;
     _healthPort = healthPort;
+    return this;
+  }
+
+  int _keep;
+  int _threshold;
+  bool _automatic;
+  bool _withSnapshots = false;
+  SarSysTrackingHarness withSnapshots({
+    int threshold = 100,
+    int keep = 10,
+    bool automatic = true,
+  }) {
+    _keep = keep;
+    _automatic = automatic;
+    _threshold = threshold;
+    _withSnapshots = true;
     return this;
   }
 
@@ -83,7 +100,8 @@ class SarSysTrackingHarness {
     return this;
   }
 
-  EventStoreMockServer withEventStoreMock() => eventStoreMockServer = EventStoreMockServer(
+  EventStoreMockServer withEventStoreMock([EventStoreMockServer server]) => eventStoreMockServer ??= server ??
+      EventStoreMockServer(
         _tenant,
         _prefix,
         4000,
@@ -100,6 +118,14 @@ class SarSysTrackingHarness {
     config.tenant = _tenant;
     config.startup = _startup;
     config.logging.stdout = false;
+    if (_withSnapshots) {
+      config.data.path = testDataPath;
+      config.data.enabled = true;
+      config.data.snapshots.keep = _keep;
+      config.data.snapshots.enabled = true;
+      config.data.snapshots.threshold = _threshold;
+      config.data.snapshots.automatic = _automatic;
+    }
 
     setUpAll(
       () async => await eventStoreMockServer.open(),
@@ -144,9 +170,10 @@ class SarSysTrackingHarness {
       return await Hive.deleteFromDisk();
     });
 
-    tearDownAll(
-      () => eventStoreMockServer.close(),
-    );
+    tearDownAll(() async {
+      await _grpcChannel.terminate();
+      return eventStoreMockServer.close();
+    });
   }
 }
 

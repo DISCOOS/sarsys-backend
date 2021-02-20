@@ -14,38 +14,38 @@ import 'snapshot.pb.dart' as $2;
 import 'file.pb.dart' as $3;
 export 'snapshot.pb.dart';
 
-class SnapshotServiceClient extends $grpc.Client {
+class SnapshotGrpcServiceClient extends $grpc.Client {
   static final _$getMeta =
       $grpc.ClientMethod<$2.GetSnapshotMetaRequest, $2.GetSnapshotMetaResponse>(
-          '/org.discoos.es.SnapshotService/GetMeta',
+          '/org.discoos.es.SnapshotGrpcService/GetMeta',
           ($2.GetSnapshotMetaRequest value) => value.writeToBuffer(),
           ($core.List<$core.int> value) =>
               $2.GetSnapshotMetaResponse.fromBuffer(value));
   static final _$configure = $grpc.ClientMethod<$2.ConfigureSnapshotRequest,
           $2.ConfigureSnapshotResponse>(
-      '/org.discoos.es.SnapshotService/Configure',
+      '/org.discoos.es.SnapshotGrpcService/Configure',
       ($2.ConfigureSnapshotRequest value) => value.writeToBuffer(),
       ($core.List<$core.int> value) =>
           $2.ConfigureSnapshotResponse.fromBuffer(value));
   static final _$save =
       $grpc.ClientMethod<$2.SaveSnapshotRequest, $2.SaveSnapshotResponse>(
-          '/org.discoos.es.SnapshotService/Save',
+          '/org.discoos.es.SnapshotGrpcService/Save',
           ($2.SaveSnapshotRequest value) => value.writeToBuffer(),
           ($core.List<$core.int> value) =>
               $2.SaveSnapshotResponse.fromBuffer(value));
   static final _$download =
       $grpc.ClientMethod<$2.DownloadSnapshotRequest, $3.FileChunk>(
-          '/org.discoos.es.SnapshotService/Download',
+          '/org.discoos.es.SnapshotGrpcService/Download',
           ($2.DownloadSnapshotRequest value) => value.writeToBuffer(),
           ($core.List<$core.int> value) => $3.FileChunk.fromBuffer(value));
   static final _$upload =
       $grpc.ClientMethod<$2.SnapshotChunk, $2.UploadSnapshotResponse>(
-          '/org.discoos.es.SnapshotService/Upload',
+          '/org.discoos.es.SnapshotGrpcService/Upload',
           ($2.SnapshotChunk value) => value.writeToBuffer(),
           ($core.List<$core.int> value) =>
               $2.UploadSnapshotResponse.fromBuffer(value));
 
-  SnapshotServiceClient($grpc.ClientChannel channel,
+  SnapshotGrpcServiceClient($grpc.ClientChannel channel,
       {$grpc.CallOptions options,
       $core.Iterable<$grpc.ClientInterceptor> interceptors})
       : super(channel, options: options, interceptors: interceptors);
@@ -83,10 +83,10 @@ class SnapshotServiceClient extends $grpc.Client {
   }
 }
 
-abstract class SnapshotServiceBase extends $grpc.Service {
-  $core.String get $name => 'org.discoos.es.SnapshotService';
+abstract class SnapshotGrpcServiceBase extends $grpc.Service {
+  $core.String get $name => 'org.discoos.es.SnapshotGrpcService';
 
-  SnapshotServiceBase() {
+  SnapshotGrpcServiceBase() {
     $addMethod($grpc.ServiceMethod<$2.GetSnapshotMetaRequest,
             $2.GetSnapshotMetaResponse>(
         'GetMeta',
