@@ -106,8 +106,49 @@ class K8sApi {
     return Uri.parse(uri.startsWith('/') ? '$baseUrl$uri' : '$baseUrl/$uri');
   }
 
+  Future<Map<String, dynamic>> getPodInNs(
+    String ns,
+    String name,
+  ) async {
+    Map<String, dynamic> pod;
+    logger.fine(
+      '${Context.toMethod('getPodFromNs', [
+        'namespace: $ns',
+        'name: $name',
+        'isAuthorized: $isAuthorized',
+      ])}...',
+    );
+    try {
+      final uri = '/api/v1/namespaces/$ns/pods/$name';
+      final response = await getUri(uri);
+      logger.info('$uri ${response.statusCode} ${response.reasonPhrase}');
+      pod = Map<String, dynamic>.from(
+        await toContent(response, defaultValue: {}),
+      );
+      logger.fine('$uri Has content ${pod.runtimeType}');
+      logger.fine(
+        '${Context.toMethod('getPodInNs', ['result: $pod'])}',
+      );
+    } catch (error, stackTrace) {
+      logger.severe(
+        '${Context.toMethod('getPodInNs', [
+          'namespace: $ns',
+          'name: $name',
+          'isAuthorized: $isAuthorized',
+        ])}',
+        error,
+        stackTrace ?? Trace.current(1),
+      );
+    }
+    logger.fine(
+      '${Context.toMethod('getPodInNs')}...done',
+    );
+    return pod;
+  }
+
   Future<List<Map<String, dynamic>>> getPodsFromNs(
     String ns, {
+    String name,
     List<String> labels = const [],
   }) async {
     final pods = <Map<String, dynamic>>[];
@@ -117,6 +158,7 @@ class K8sApi {
     logger.fine(
       '${Context.toMethod('getPodsFromNs', [
         'namespace: $ns',
+        'name: $name',
         'isAuthorized: $isAuthorized',
         'labelSelector: $labelSelector',
       ])}...',
@@ -132,7 +174,9 @@ class K8sApi {
       final items = json.listAt('items');
       if (items != null) {
         pods.addAll(
-          List<Map<String, dynamic>>.from(items),
+          List<Map<String, dynamic>>.from(items).where(
+            (pod) => name == null || pod.elementAt('metadata/name') == name,
+          ),
         );
       }
       logger.fine(

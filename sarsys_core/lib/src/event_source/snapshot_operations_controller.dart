@@ -1,8 +1,9 @@
 import 'package:sarsys_core/sarsys_core.dart';
 
-import 'controllers.dart';
+import '../http/controllers.dart';
 
 /// A [ResourceController] for [SnapshotModel] operations requests on [Storage]
+@Deprecated("Use SnapshotGrpcServiceController in package 'event_source_grpc' instead")
 class SnapshotOperationsController extends SystemOperationsBaseController {
   SnapshotOperationsController(
     RepositoryManager manager, {
@@ -257,7 +258,7 @@ class SnapshotOperationsController extends SystemOperationsBaseController {
         'snapshots': APISchemaObject.integer()
           ..description = 'Number of snapshots'
           ..isReadOnly = true,
-        'save': SystemOperationsBaseController.documentDurationMetric('Save'),
+        'save': documentDurationMetric('Save'),
       })
         ..description = 'Snapshot metrics'
         ..isReadOnly = true,

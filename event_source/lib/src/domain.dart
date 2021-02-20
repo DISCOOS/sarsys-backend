@@ -789,21 +789,11 @@ class Transaction {
       'maxAttempts': _maxAttempts,
       'changes': {
         'count': _changes.length,
-        if (items)
-          'items': _changes
-              .map(
-                (e) => repo.store.toJsonEvent(e, patches: data),
-              )
-              .toList(),
+        if (items) 'items': _changes.map((e) => repo.store.toJsonEvent(e, patches: data)).toList(),
       },
       'conflicts': {
         'count': conflicting.length,
-        if (items)
-          'items': conflicting
-              .map(
-                (e) => repo.store.toJsonEvent(e, patches: data),
-              )
-              .toList(),
+        if (items) 'items': conflicting.map((e) => repo.store.toJsonEvent(e, patches: data)).toList(),
       },
       'status': {
         'isStarted': isStarted,
@@ -941,15 +931,25 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     }
   }
 
-  /// Get current event number, see [EventStore.last].
+  /// Get [number] of last event applied
+  /// to repository, see [EventStore.last].
   ///
   /// If reset is performed without replay,
   /// [EventNumber.none] is returned
   /// regardless of [EventStore.last].
   ///
   EventNumber get number {
-    // TODO: Use event position from canonical stream
     return _aggregates.values.where((a) => !a.isNew).isEmpty ? EventNumber.none : store.last();
+  }
+
+  /// Get last event applied to repository,
+  /// see [EventStore.lastEvent].
+  ///
+  /// If reset is performed without replay,
+  /// null is returned regardless of [EventStore.lastEvent].
+  ///
+  Event get lastEvent {
+    return _aggregates.values.where((a) => !a.isNew).isEmpty ? null : store.lastEvent();
   }
 
   /// Maximum backoff duration between retries
@@ -2726,7 +2726,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   }) async {
     return {
       'type': '$aggregateType',
-      'number': number.value,
+      'lastEvent': store.toJsonEvent(lastEvent, patches: data),
       if (metrics)
         'metrics': {
           'events': store.length,
@@ -2737,14 +2737,14 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
               'count': store.tainted.length,
               if (items)
                 'items': store.tainted.entries.map(
-                  (e) => {'uuid': e.key, 'value': e.value},
+                  (e) => {'uuid': e.key, 'taint': e.value},
                 )
             },
             'cordoned': {
               'count': store.cordoned.length,
               if (items)
                 'items': store.cordoned.entries.map(
-                  (e) => {'uuid': e.key, 'value': e.value},
+                  (e) => {'uuid': e.key, 'cordon': e.value},
                 )
             },
           },
@@ -2918,8 +2918,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// [Message] to [DomainEvent] processors
   final Map<String, ProcessCallback> _processors;
 
-  /// Get last [applied] event that
-  /// is confirmed to be remote.
+  /// Get last event [applied] to this aggregate.
   DomainEvent get baseEvent {
     return _applied.isEmpty
         // from snapshot if exists
@@ -4005,14 +4004,20 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     return <String, dynamic>{
       'uuid': uuid,
       'number': number.value,
-      'created': store.toJsonEvent(
+      'position': store.toJsonEvent(baseEvent),
+      'createdBy': store.toJsonEvent(
         createdBy,
         patches: data,
       ),
-      'changed': store.toJsonEvent(
+      'changedBy': store.toJsonEvent(
         changedBy,
         patches: data,
       ),
+      if (deletedBy != null)
+        'deletedBy': store.toJsonEvent(
+          deletedBy,
+          patches: data,
+        ),
       'modifications': modifications,
       if (store?.isTainted(uuid) == true) 'tainted': store?.tainted[uuid],
       if (store?.isCordoned(uuid) == true) 'cordoned': store?.cordoned[uuid],
@@ -4020,16 +4025,6 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         'count': _applied?.length,
         if (items)
           'items': _applied.keys
-              .map((uuid) => _applied[uuid])
-              .map(
-                (e) => store.toJsonEvent(e, patches: data),
-              )
-              .toList(),
-      },
-      'skipped': <String, dynamic>{
-        'count': skipped?.length,
-        if (items)
-          'items': skipped
               .map((uuid) => _applied[uuid])
               .map(
                 (e) => store.toJsonEvent(e, patches: data),
@@ -4047,6 +4042,18 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
                 .toList(),
           ],
       },
+      'skipped': <String, dynamic>{
+        'count': skipped?.length,
+        if (items)
+          'items': skipped
+              .map((uuid) => _applied[uuid])
+              .map(
+                (e) => store.toJsonEvent(e, patches: data),
+              )
+              .toList(),
+      },
+      if (store.isTainted(uuid)) 'taint': store.tainted[uuid],
+      if (store.isCordoned(uuid)) 'cordon': store.cordoned[uuid],
       if (data) 'data': this.data,
     };
   }

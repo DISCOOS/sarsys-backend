@@ -13,7 +13,7 @@ import 'package:stack_trace/stack_trace.dart';
 import 'generated/snapshot.pbgrpc.dart';
 import 'utils.dart';
 
-class SnapshotGrpcService extends SnapshotServiceBase {
+class SnapshotGrpcService extends SnapshotGrpcServiceBase {
   SnapshotGrpcService(this.manager, this.dataPath);
   final String dataPath;
   final RepositoryManager manager;
@@ -21,15 +21,18 @@ class SnapshotGrpcService extends SnapshotServiceBase {
 
   @override
   Future<GetSnapshotMetaResponse> getMeta(ServiceCall call, GetSnapshotMetaRequest request) async {
-    final type = request.type;
+    final type = capitalize(request.type);
     final response = GetSnapshotMetaResponse()
       ..type = type
+      ..meta = (SnapshotMeta()..type = type)
       ..statusCode = HttpStatus.ok
       ..reasonPhrase = 'OK';
 
     if (call.isTimedOut) {
       final reason = _timeout('getMeta');
       response
+        ..type = type
+        ..meta = (SnapshotMeta()..type = type)
         ..reasonPhrase = reason
         ..statusCode = StatusCode.deadlineExceeded;
       call.sendTrailers(
@@ -45,8 +48,9 @@ class SnapshotGrpcService extends SnapshotServiceBase {
         'Repository for aggregate $type not found',
       );
       return response
+        ..type = type
         ..statusCode = HttpStatus.notFound
-        ..reasonPhrase = 'Snapshot for aggregate $type not found';
+        ..reasonPhrase = 'Repository for aggregate $type not found';
     }
     final snapshots = repo.store.snapshots;
     if (snapshots == null) {
@@ -55,6 +59,8 @@ class SnapshotGrpcService extends SnapshotServiceBase {
         'Snapshots not activated for repository $type',
       );
       return response
+        ..type = type
+        ..meta = (SnapshotMeta()..type = type)
         ..statusCode = HttpStatus.badRequest
         ..reasonPhrase = 'Snapshots not activated for repository $type';
     }
@@ -105,15 +111,18 @@ class SnapshotGrpcService extends SnapshotServiceBase {
     ServiceCall call,
     ConfigureSnapshotRequest request,
   ) async {
-    final type = request.type;
+    final type = capitalize(request.type);
     final response = ConfigureSnapshotResponse()
       ..type = type
+      ..meta = (SnapshotMeta()..type = type)
       ..statusCode = HttpStatus.ok
       ..reasonPhrase = 'OK';
 
     if (call.isTimedOut) {
       final reason = _timeout('configure');
       response
+        ..type = type
+        ..meta = (SnapshotMeta()..type = type)
         ..reasonPhrase = reason
         ..statusCode = StatusCode.deadlineExceeded;
       call.sendTrailers(
@@ -130,8 +139,10 @@ class SnapshotGrpcService extends SnapshotServiceBase {
         'Repository for aggregate $type not found',
       );
       return response
+        ..type = type
+        ..meta = (SnapshotMeta()..type = type)
         ..statusCode = HttpStatus.notFound
-        ..reasonPhrase = 'Snapshot for aggregate $type not found';
+        ..reasonPhrase = 'Repository for aggregate $type not found';
     }
     final snapshots = repo.store.snapshots;
     if (snapshots == null) {
@@ -140,6 +151,8 @@ class SnapshotGrpcService extends SnapshotServiceBase {
         'Snapshots not activated for repository $type',
       );
       return response
+        ..type = type
+        ..meta = (SnapshotMeta()..type = type)
         ..statusCode = HttpStatus.badRequest
         ..reasonPhrase = 'Snapshots not activated for repository $type';
     }
@@ -153,7 +166,15 @@ class SnapshotGrpcService extends SnapshotServiceBase {
     final uuid = repo.snapshot?.uuid;
     if (uuid == null) {
       response
-        ..meta = SnapshotMeta()
+        ..type = type
+        ..meta = (SnapshotMeta()
+          ..type = type
+          ..config = (SnapshotConfig()
+            ..mergeFromProto3Json({
+              'keep': snapshots.keep,
+              'automatic': snapshots.automatic,
+              'threshold': snapshots.threshold,
+            })))
         ..reasonPhrase = 'No snapshot'
         ..statusCode = HttpStatus.noContent;
     } else {
@@ -183,16 +204,19 @@ class SnapshotGrpcService extends SnapshotServiceBase {
     ServiceCall call,
     SaveSnapshotRequest request,
   ) async {
-    final type = request.type;
+    final type = capitalize(request.type);
     final force = request.force;
     final response = SaveSnapshotResponse()
       ..type = type
+      ..meta = (SnapshotMeta()..type = type)
       ..statusCode = HttpStatus.ok
       ..reasonPhrase = 'Snapshot saved (force was $force)';
 
     if (call.isTimedOut) {
       final reason = _timeout('save');
       response
+        ..type = type
+        ..meta = (SnapshotMeta()..type = type)
         ..reasonPhrase = reason
         ..statusCode = StatusCode.deadlineExceeded;
       call.sendTrailers(
@@ -206,11 +230,13 @@ class SnapshotGrpcService extends SnapshotServiceBase {
     if (repo == null) {
       _notFound(
         'save',
-        'Snapshot for aggregate $type not found',
+        'Repository for aggregate $type not found',
       );
       return response
+        ..type = type
+        ..meta = (SnapshotMeta()..type = type)
         ..statusCode = HttpStatus.notFound
-        ..reasonPhrase = 'Snapshot for aggregate $type not found';
+        ..reasonPhrase = 'Repository for aggregate $type not found';
     }
     final snapshots = repo.store.snapshots;
     if (snapshots == null) {
@@ -219,6 +245,8 @@ class SnapshotGrpcService extends SnapshotServiceBase {
         'Snapshots not activated for repository $type',
       );
       return response
+        ..type = type
+        ..meta = (SnapshotMeta()..type = type)
         ..statusCode = HttpStatus.badRequest
         ..reasonPhrase = 'Snapshots not activated for repository $type';
     }
@@ -227,6 +255,8 @@ class SnapshotGrpcService extends SnapshotServiceBase {
     final next = repo.save(force: force).uuid;
     if (prev == next) {
       response
+        ..type = type
+        ..meta = (SnapshotMeta()..type = type)
         ..statusCode = HttpStatus.noContent
         ..reasonPhrase = 'Snapshot not saved (force was $force)';
     } else {
@@ -254,7 +284,7 @@ class SnapshotGrpcService extends SnapshotServiceBase {
 
   @override
   Stream<FileChunk> download(ServiceCall call, DownloadSnapshotRequest request) async* {
-    final type = request.type;
+    final type = capitalize(request.type);
 
     if (call.isTimedOut) {
       call.sendTrailers(
@@ -269,7 +299,7 @@ class SnapshotGrpcService extends SnapshotServiceBase {
       call.sendTrailers(
         message: _notFound(
           'download',
-          'Snapshot for aggregate $type not found',
+          'Repository for aggregate $type not found',
         ),
         status: StatusCode.notFound,
       );
@@ -344,6 +374,7 @@ class SnapshotGrpcService extends SnapshotServiceBase {
       );
       return UploadSnapshotResponse()
         ..type = type
+        ..meta = (SnapshotMeta()..type = type)
         ..chunkSize = first.chunk.chunkSize
         ..reasonPhrase = reason
         ..statusCode = StatusCode.deadlineExceeded;
@@ -357,6 +388,7 @@ class SnapshotGrpcService extends SnapshotServiceBase {
       );
       return UploadSnapshotResponse()
         ..type = type
+        ..meta = (SnapshotMeta()..type = type)
         ..chunkSize = first.chunk.chunkSize
         ..statusCode = HttpStatus.notFound
         ..reasonPhrase = 'Snapshot for aggregate $type not found';
@@ -369,6 +401,7 @@ class SnapshotGrpcService extends SnapshotServiceBase {
       );
       return UploadSnapshotResponse()
         ..type = type
+        ..meta = (SnapshotMeta()..type = type)
         ..chunkSize = first.chunk.chunkSize
         ..statusCode = HttpStatus.badRequest
         ..reasonPhrase = 'Snapshots not activated for repository $type';
@@ -419,6 +452,7 @@ class SnapshotGrpcService extends SnapshotServiceBase {
         if (next.type != type) {
           return UploadSnapshotResponse()
             ..type = type
+            ..meta = (SnapshotMeta()..type = type)
             ..chunkSize = first.chunk.chunkSize
             ..statusCode = HttpStatus.badRequest
             ..reasonPhrase = _badRequest(
@@ -440,6 +474,7 @@ class SnapshotGrpcService extends SnapshotServiceBase {
       } else {
         return UploadSnapshotResponse()
           ..type = type
+          ..meta = (SnapshotMeta()..type = type)
           ..chunkSize = first.chunk.chunkSize
           ..statusCode = HttpStatus.badRequest
           ..reasonPhrase = _badRequest(
@@ -460,6 +495,7 @@ class SnapshotGrpcService extends SnapshotServiceBase {
         );
         return UploadSnapshotResponse()
           ..type = type
+          ..meta = (SnapshotMeta()..type = type)
           ..reasonPhrase = 'Uploading $type snapshots...DONE'
           ..statusCode = HttpStatus.ok
           ..chunkSize = first.chunk.chunkSize

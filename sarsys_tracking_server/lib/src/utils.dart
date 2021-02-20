@@ -1,37 +1,23 @@
-import 'dart:convert';
-
 import 'package:event_source/event_source.dart';
 import 'package:fixnum/fixnum.dart';
-import 'generated/any.pb.dart';
+import 'package:protobuf/protobuf.dart';
+import 'generated/metric.pb.dart';
+import 'generated/struct.pb.dart';
 import 'generated/aggregate.pb.dart';
 import 'generated/event.pb.dart';
 import 'generated/repository.pb.dart';
 import 'generated/timestamp.pb.dart';
 
-const _codec = Utf8Codec();
-
-Any toAnyFromJson(
-  dynamic json, {
-  String scheme = 'org.discoos.es',
-  String type,
-}) =>
-    Any()
-      ..typeUrl = '$scheme/${type ?? (json is List ? 'json.list' : 'json.map')}'
-      ..value = _codec.encode(jsonEncode(json));
-
-dynamic toJsonFromAny<T>(Any json) {
-  final type = json.typeUrl.split('/').last;
-  switch (type) {
-    case 'json.list':
-      return List.from(
-        jsonDecode(_codec.decode(json.value)),
-      );
-    case 'json.map':
-    default:
-      return Map.from(
-        jsonDecode(_codec.decode(json.value)),
-      );
+Value toValueFromJson(dynamic json) {
+  if (json is List) {
+    return Value()..listValue = (ListValue()..values.addAll(json.map(toValueFromJson)));
   }
+  if (json is Map<String, dynamic>) {
+    return Value()..mergeFromProto3Json(Map<String, dynamic>.from(json));
+  }
+  throw ArgumentError(
+    'Only List and Map<String,dynamic> are supported types, found type ${json?.runtimeType}',
+  );
 }
 
 RepositoryMeta toRepoMeta(
@@ -80,9 +66,8 @@ RepositoryMetricsMeta toRepoMetricsMeta(
 ) {
   final meta = RepositoryMetricsMeta();
   if (metrics != null) {
-    meta.events = Int64(metrics.elementAt<int>('events'));
-    final aggregates = metrics.mapAt<String, dynamic>('aggregates');
-    if (aggregates != null) {
+    meta..events = Int64(metrics.elementAt<int>('events'));
+    meta.setIfExists<Map>(metrics, 'aggregates', (aggregates) {
       meta.aggregates = (RepositoryMetricsAggregateMeta()
         ..count = aggregates.elementAt<int>('count')
         ..changed = aggregates.elementAt<int>('changed')
@@ -92,7 +77,7 @@ RepositoryMetricsMeta toRepoMetricsMeta(
           metrics.listAt('tainted/items', defaultList: []),
           (item) => AggregateMeta()
             ..uuid = item['uuid']
-            ..tainted = toAnyFromJson(item['value']),
+            ..taint = toValueFromJson(item['taint']),
         )
         ..cordoned = toAggregateMetaList(
           type,
@@ -100,10 +85,43 @@ RepositoryMetricsMeta toRepoMetricsMeta(
           metrics.listAt('cordoned/items', defaultList: []),
           (item) => AggregateMeta()
             ..uuid = item['uuid']
-            ..cordoned = toAnyFromJson(item['value']),
+            ..cordon = toValueFromJson(item['cordon']),
         ));
-    }
+    });
+    meta.setIfExists<Map>(metrics, 'push', (push) => meta.push = toDurationMetricMeta(push));
   }
+  return meta;
+}
+
+DurationMetricMeta toDurationMetricMeta(Map<String, dynamic> metrics) {
+  final meta = DurationMetricMeta()
+    ..last = Int64(metrics.elementAt<int>('last'))
+    ..count = Int64(metrics.elementAt<int>('count'))
+    ..total = Int64(metrics.elementAt<int>('total'))
+    ..cumulative = (DurationCumulativeAverage()
+      ..rate = metrics.elementAt<double>('cumulative/rate')
+      ..mean = Int64(metrics.elementAt<int>('cumulative/mean'))
+      ..variance = metrics.elementAt<double>('cumulative/variance')
+      ..deviation = metrics.elementAt<double>('cumulative/deviation'))
+    ..exponential = (DurationExponentialAverage()
+      ..beta = metrics.elementAt<double>('exponential/beta')
+      ..alpha = metrics.elementAt<double>('exponential/alpha')
+      ..rate = metrics.elementAt<double>('exponential/rate')
+      ..mean = Int64(metrics.elementAt<int>('exponential/mean'))
+      ..variance = metrics.elementAt<double>('exponential/variance')
+      ..deviation = metrics.elementAt<double>('exponential/deviation'));
+
+  if (metrics.hasPath('t0')) {
+    meta.t0 = Timestamp.fromDateTime(
+      DateTime.parse(metrics.elementAt<String>('t0')),
+    );
+  }
+  if (metrics.hasPath('tn')) {
+    meta.tn = Timestamp.fromDateTime(
+      DateTime.parse(metrics.elementAt<String>('tn')),
+    );
+  }
+
   return meta;
 }
 
@@ -154,3 +172,11 @@ EventMeta toEventMetaFromEvent(Event event, EventStore store) {
 //   }
 //   return meta;
 // }
+
+extension GeneratedMessageX on GeneratedMessage {
+  void setIfExists<T>(Map<String, dynamic> map, String path, void Function(T) set) {
+    if (map.hasPath(path)) {
+      set(map.elementAt<T>(path));
+    }
+  }
+}

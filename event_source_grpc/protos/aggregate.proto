@@ -9,10 +9,10 @@ option cc_enable_arenas = true;
 package org.discoos.es;
 
 import "event.proto";
-import "any.proto";
+import "struct.proto";
 
 
-service AggregateService {
+service AggregateGrpcService {
     // Get Aggregate metadata
     //
     // Service with return aggregate metadata for given aggregate.
@@ -140,11 +140,11 @@ message ReplaceAggregateDataRequest {
     // Expand response with given fields
     repeated AggregateExpandFields expand = 3;
 
-    // Aggregate data, must be packed and unpacked manually
-    google.protobuf.Any data = 4;
+    // Aggregate data
+    google.protobuf.Value data = 4;
 
-    // List of aggregate patches, must be packed and unpacked manually
-    repeated google.protobuf.Any patches = 5;
+    // List of aggregate patches
+    repeated google.protobuf.Value patches = 5;
 }
 
 message ReplaceAggregateDataResponse {
@@ -197,31 +197,37 @@ message AggregateMeta {
     // Aggregate uuid
     string uuid = 2;
 
+    // Event number in instance stream
+    int64 number = 3;
+
+    // Position in canonical stream
+    int64 position = 4;
+
     // Event that created this aggregate
-    EventMeta createdBy = 3;
+    EventMeta createdBy = 5;
 
     // Event that last changed this aggregate
-    EventMeta changedBy = 4;
+    EventMeta changedBy = 6;
 
     // Event that deleted this aggregate (optional)
-    EventMeta deletedBy = 5;
+    EventMeta deletedBy = 7;
 
-    // all events applied to this aggregate (optional)
-    EventMetaList applied = 6;
+    // All events applied to this aggregate (optional)
+    EventMetaList applied = 8;
 
     // Events pending push to remote stream (optional)
-    EventMetaList pending = 7;
+    EventMetaList pending = 9;
 
     // Events skipped because of unreconciled errors (optional)
-    EventMetaList skipped = 8;
+    EventMetaList skipped = 10;
 
-    // Aggregate data, must be packed and unpacked manually
-    google.protobuf.Any data = 9;
+    // Aggregate taint information
+    google.protobuf.Value taint = 11;
 
-    // Aggregate taint data, must be packed and unpacked manually
-    google.protobuf.Any tainted = 10;
+    // Aggregate cordon information
+    google.protobuf.Value cordon = 12;
 
-    // Aggregate cordon data, must be packed and unpacked manually
-    google.protobuf.Any cordoned = 11;
+    // Aggregate data
+    google.protobuf.Value data = 13;
 
 }

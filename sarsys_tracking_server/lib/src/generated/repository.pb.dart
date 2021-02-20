@@ -33,13 +33,12 @@ class GetRepoMetaRequest extends $pb.GeneratedMessage {
         const $core.bool.fromEnvironment('protobuf.omit_field_names')
             ? ''
             : 'type')
-    ..e<RepoExpandFields>(
+    ..pc<RepoExpandFields>(
         2,
         const $core.bool.fromEnvironment('protobuf.omit_field_names')
             ? ''
             : 'expand',
-        $pb.PbFieldType.OE,
-        defaultOrMaker: RepoExpandFields.REPO_EXPAND_FIELDS_NONE,
+        $pb.PbFieldType.PE,
         valueOf: RepoExpandFields.valueOf,
         enumValues: RepoExpandFields.values)
     ..hasRequiredFields = false;
@@ -86,16 +85,7 @@ class GetRepoMetaRequest extends $pb.GeneratedMessage {
   void clearType() => clearField(1);
 
   @$pb.TagNumber(2)
-  RepoExpandFields get expand => $_getN(1);
-  @$pb.TagNumber(2)
-  set expand(RepoExpandFields v) {
-    setField(2, v);
-  }
-
-  @$pb.TagNumber(2)
-  $core.bool hasExpand() => $_has(1);
-  @$pb.TagNumber(2)
-  void clearExpand() => clearField(2);
+  $core.List<RepoExpandFields> get expand => $_getList(1);
 }
 
 class GetRepoMetaResponse extends $pb.GeneratedMessage {
@@ -113,11 +103,11 @@ class GetRepoMetaResponse extends $pb.GeneratedMessage {
         const $core.bool.fromEnvironment('protobuf.omit_field_names')
             ? ''
             : 'type')
-    ..aOM<RepositoryMeta>(
-        2,
-        const $core.bool.fromEnvironment('protobuf.omit_field_names')
-            ? ''
-            : 'meta',
+    ..a<$core.int>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'statusCode', $pb.PbFieldType.O3,
+        protoName: 'statusCode')
+    ..aOS(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'reasonPhrase',
+        protoName: 'reasonPhrase')
+    ..aOM<RepositoryMeta>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'meta',
         subBuilder: RepositoryMeta.create)
     ..hasRequiredFields = false;
 
@@ -163,43 +153,961 @@ class GetRepoMetaResponse extends $pb.GeneratedMessage {
   void clearType() => clearField(1);
 
   @$pb.TagNumber(2)
-  RepositoryMeta get meta => $_getN(1);
+  $core.int get statusCode => $_getIZ(1);
   @$pb.TagNumber(2)
-  set meta(RepositoryMeta v) {
-    setField(2, v);
+  set statusCode($core.int v) {
+    $_setSignedInt32(1, v);
   }
 
   @$pb.TagNumber(2)
-  $core.bool hasMeta() => $_has(1);
+  $core.bool hasStatusCode() => $_has(1);
   @$pb.TagNumber(2)
-  void clearMeta() => clearField(2);
+  void clearStatusCode() => clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get reasonPhrase => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set reasonPhrase($core.String v) {
+    $_setString(2, v);
+  }
+
+  @$pb.TagNumber(3)
+  $core.bool hasReasonPhrase() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearReasonPhrase() => clearField(3);
+
+  @$pb.TagNumber(4)
+  RepositoryMeta get meta => $_getN(3);
+  @$pb.TagNumber(4)
+  set meta(RepositoryMeta v) {
+    setField(4, v);
+  }
+
+  @$pb.TagNumber(4)
+  $core.bool hasMeta() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearMeta() => clearField(4);
+  @$pb.TagNumber(4)
+  RepositoryMeta ensureMeta() => $_ensure(3);
+}
+
+class ReplayRepoEventsRequest extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'ReplayRepoEventsRequest',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'org.discoos.es'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'type')
+    ..pPS(
+        2,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'uuids')
+    ..pc<RepoExpandFields>(
+        3,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'expand',
+        $pb.PbFieldType.PE,
+        valueOf: RepoExpandFields.valueOf,
+        enumValues: RepoExpandFields.values)
+    ..hasRequiredFields = false;
+
+  ReplayRepoEventsRequest._() : super();
+  factory ReplayRepoEventsRequest() => create();
+  factory ReplayRepoEventsRequest.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+  factory ReplayRepoEventsRequest.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  ReplayRepoEventsRequest clone() =>
+      ReplayRepoEventsRequest()..mergeFromMessage(this);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  ReplayRepoEventsRequest copyWith(
+          void Function(ReplayRepoEventsRequest) updates) =>
+      super.copyWith((message) => updates(
+          message as ReplayRepoEventsRequest)); // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static ReplayRepoEventsRequest create() => ReplayRepoEventsRequest._();
+  ReplayRepoEventsRequest createEmptyInstance() => create();
+  static $pb.PbList<ReplayRepoEventsRequest> createRepeated() =>
+      $pb.PbList<ReplayRepoEventsRequest>();
+  @$core.pragma('dart2js:noInline')
+  static ReplayRepoEventsRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReplayRepoEventsRequest>(create);
+  static ReplayRepoEventsRequest _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get type => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set type($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasType() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearType() => clearField(1);
+
   @$pb.TagNumber(2)
-  RepositoryMeta ensureMeta() => $_ensure(1);
+  $core.List<$core.String> get uuids => $_getList(1);
+
+  @$pb.TagNumber(3)
+  $core.List<RepoExpandFields> get expand => $_getList(2);
+}
+
+class ReplayRepoEventsResponse extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'ReplayRepoEventsResponse',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'org.discoos.es'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'type')
+    ..pPS(
+        2,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'uuids')
+    ..a<$core.int>(
+        3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'statusCode', $pb.PbFieldType.O3,
+        protoName: 'statusCode')
+    ..aOS(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'reasonPhrase',
+        protoName: 'reasonPhrase')
+    ..aOM<RepositoryMeta>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'meta', subBuilder: RepositoryMeta.create)
+    ..hasRequiredFields = false;
+
+  ReplayRepoEventsResponse._() : super();
+  factory ReplayRepoEventsResponse() => create();
+  factory ReplayRepoEventsResponse.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+  factory ReplayRepoEventsResponse.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  ReplayRepoEventsResponse clone() =>
+      ReplayRepoEventsResponse()..mergeFromMessage(this);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  ReplayRepoEventsResponse copyWith(
+          void Function(ReplayRepoEventsResponse) updates) =>
+      super.copyWith((message) => updates(message
+          as ReplayRepoEventsResponse)); // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static ReplayRepoEventsResponse create() => ReplayRepoEventsResponse._();
+  ReplayRepoEventsResponse createEmptyInstance() => create();
+  static $pb.PbList<ReplayRepoEventsResponse> createRepeated() =>
+      $pb.PbList<ReplayRepoEventsResponse>();
+  @$core.pragma('dart2js:noInline')
+  static ReplayRepoEventsResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReplayRepoEventsResponse>(create);
+  static ReplayRepoEventsResponse _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get type => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set type($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasType() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearType() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.List<$core.String> get uuids => $_getList(1);
+
+  @$pb.TagNumber(3)
+  $core.int get statusCode => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set statusCode($core.int v) {
+    $_setSignedInt32(2, v);
+  }
+
+  @$pb.TagNumber(3)
+  $core.bool hasStatusCode() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearStatusCode() => clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get reasonPhrase => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set reasonPhrase($core.String v) {
+    $_setString(3, v);
+  }
+
+  @$pb.TagNumber(4)
+  $core.bool hasReasonPhrase() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearReasonPhrase() => clearField(4);
+
+  @$pb.TagNumber(5)
+  RepositoryMeta get meta => $_getN(4);
+  @$pb.TagNumber(5)
+  set meta(RepositoryMeta v) {
+    setField(5, v);
+  }
+
+  @$pb.TagNumber(5)
+  $core.bool hasMeta() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearMeta() => clearField(5);
+  @$pb.TagNumber(5)
+  RepositoryMeta ensureMeta() => $_ensure(4);
+}
+
+class CatchupRepoEventsRequest extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'CatchupRepoEventsRequest',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'org.discoos.es'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'type')
+    ..pPS(
+        2,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'uuids')
+    ..pc<RepoExpandFields>(
+        3,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'expand',
+        $pb.PbFieldType.PE,
+        valueOf: RepoExpandFields.valueOf,
+        enumValues: RepoExpandFields.values)
+    ..hasRequiredFields = false;
+
+  CatchupRepoEventsRequest._() : super();
+  factory CatchupRepoEventsRequest() => create();
+  factory CatchupRepoEventsRequest.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+  factory CatchupRepoEventsRequest.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  CatchupRepoEventsRequest clone() =>
+      CatchupRepoEventsRequest()..mergeFromMessage(this);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  CatchupRepoEventsRequest copyWith(
+          void Function(CatchupRepoEventsRequest) updates) =>
+      super.copyWith((message) => updates(message
+          as CatchupRepoEventsRequest)); // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static CatchupRepoEventsRequest create() => CatchupRepoEventsRequest._();
+  CatchupRepoEventsRequest createEmptyInstance() => create();
+  static $pb.PbList<CatchupRepoEventsRequest> createRepeated() =>
+      $pb.PbList<CatchupRepoEventsRequest>();
+  @$core.pragma('dart2js:noInline')
+  static CatchupRepoEventsRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<CatchupRepoEventsRequest>(create);
+  static CatchupRepoEventsRequest _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get type => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set type($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasType() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearType() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.List<$core.String> get uuids => $_getList(1);
+
+  @$pb.TagNumber(3)
+  $core.List<RepoExpandFields> get expand => $_getList(2);
+}
+
+class CatchupRepoEventsResponse extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'CatchupRepoEventsResponse',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'org.discoos.es'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'type')
+    ..pPS(
+        2,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'uuids')
+    ..a<$core.int>(
+        3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'statusCode', $pb.PbFieldType.O3,
+        protoName: 'statusCode')
+    ..aOS(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'reasonPhrase',
+        protoName: 'reasonPhrase')
+    ..aOM<RepositoryMeta>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'meta', subBuilder: RepositoryMeta.create)
+    ..hasRequiredFields = false;
+
+  CatchupRepoEventsResponse._() : super();
+  factory CatchupRepoEventsResponse() => create();
+  factory CatchupRepoEventsResponse.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+  factory CatchupRepoEventsResponse.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  CatchupRepoEventsResponse clone() =>
+      CatchupRepoEventsResponse()..mergeFromMessage(this);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  CatchupRepoEventsResponse copyWith(
+          void Function(CatchupRepoEventsResponse) updates) =>
+      super.copyWith((message) => updates(message
+          as CatchupRepoEventsResponse)); // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static CatchupRepoEventsResponse create() => CatchupRepoEventsResponse._();
+  CatchupRepoEventsResponse createEmptyInstance() => create();
+  static $pb.PbList<CatchupRepoEventsResponse> createRepeated() =>
+      $pb.PbList<CatchupRepoEventsResponse>();
+  @$core.pragma('dart2js:noInline')
+  static CatchupRepoEventsResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<CatchupRepoEventsResponse>(create);
+  static CatchupRepoEventsResponse _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get type => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set type($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasType() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearType() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.List<$core.String> get uuids => $_getList(1);
+
+  @$pb.TagNumber(3)
+  $core.int get statusCode => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set statusCode($core.int v) {
+    $_setSignedInt32(2, v);
+  }
+
+  @$pb.TagNumber(3)
+  $core.bool hasStatusCode() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearStatusCode() => clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get reasonPhrase => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set reasonPhrase($core.String v) {
+    $_setString(3, v);
+  }
+
+  @$pb.TagNumber(4)
+  $core.bool hasReasonPhrase() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearReasonPhrase() => clearField(4);
+
+  @$pb.TagNumber(5)
+  RepositoryMeta get meta => $_getN(4);
+  @$pb.TagNumber(5)
+  set meta(RepositoryMeta v) {
+    setField(5, v);
+  }
+
+  @$pb.TagNumber(5)
+  $core.bool hasMeta() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearMeta() => clearField(5);
+  @$pb.TagNumber(5)
+  RepositoryMeta ensureMeta() => $_ensure(4);
+}
+
+class RepairRepoRequest extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'RepairRepoRequest',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'org.discoos.es'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'type')
+    ..aOB(
+        2,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'master')
+    ..pc<RepoExpandFields>(
+        3,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'expand',
+        $pb.PbFieldType.PE,
+        valueOf: RepoExpandFields.valueOf,
+        enumValues: RepoExpandFields.values)
+    ..hasRequiredFields = false;
+
+  RepairRepoRequest._() : super();
+  factory RepairRepoRequest() => create();
+  factory RepairRepoRequest.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+  factory RepairRepoRequest.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  RepairRepoRequest clone() => RepairRepoRequest()..mergeFromMessage(this);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  RepairRepoRequest copyWith(void Function(RepairRepoRequest) updates) =>
+      super.copyWith((message) => updates(
+          message as RepairRepoRequest)); // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static RepairRepoRequest create() => RepairRepoRequest._();
+  RepairRepoRequest createEmptyInstance() => create();
+  static $pb.PbList<RepairRepoRequest> createRepeated() =>
+      $pb.PbList<RepairRepoRequest>();
+  @$core.pragma('dart2js:noInline')
+  static RepairRepoRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RepairRepoRequest>(create);
+  static RepairRepoRequest _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get type => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set type($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasType() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearType() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.bool get master => $_getBF(1);
+  @$pb.TagNumber(2)
+  set master($core.bool v) {
+    $_setBool(1, v);
+  }
+
+  @$pb.TagNumber(2)
+  $core.bool hasMaster() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearMaster() => clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.List<RepoExpandFields> get expand => $_getList(2);
+}
+
+class RepairRepoResponse extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'RepairRepoResponse',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'org.discoos.es'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'type')
+    ..a<$core.int>(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'statusCode', $pb.PbFieldType.O3,
+        protoName: 'statusCode')
+    ..aOS(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'reasonPhrase',
+        protoName: 'reasonPhrase')
+    ..aOM<RepositoryMeta>(
+        5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'meta',
+        subBuilder: RepositoryMeta.create)
+    ..aOM<AnalysisMeta>(
+        6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'before',
+        subBuilder: AnalysisMeta.create)
+    ..aOM<AnalysisMeta>(7, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'after', subBuilder: AnalysisMeta.create)
+    ..hasRequiredFields = false;
+
+  RepairRepoResponse._() : super();
+  factory RepairRepoResponse() => create();
+  factory RepairRepoResponse.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+  factory RepairRepoResponse.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  RepairRepoResponse clone() => RepairRepoResponse()..mergeFromMessage(this);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  RepairRepoResponse copyWith(void Function(RepairRepoResponse) updates) =>
+      super.copyWith((message) => updates(
+          message as RepairRepoResponse)); // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static RepairRepoResponse create() => RepairRepoResponse._();
+  RepairRepoResponse createEmptyInstance() => create();
+  static $pb.PbList<RepairRepoResponse> createRepeated() =>
+      $pb.PbList<RepairRepoResponse>();
+  @$core.pragma('dart2js:noInline')
+  static RepairRepoResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RepairRepoResponse>(create);
+  static RepairRepoResponse _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get type => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set type($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasType() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearType() => clearField(1);
+
+  @$pb.TagNumber(3)
+  $core.int get statusCode => $_getIZ(1);
+  @$pb.TagNumber(3)
+  set statusCode($core.int v) {
+    $_setSignedInt32(1, v);
+  }
+
+  @$pb.TagNumber(3)
+  $core.bool hasStatusCode() => $_has(1);
+  @$pb.TagNumber(3)
+  void clearStatusCode() => clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get reasonPhrase => $_getSZ(2);
+  @$pb.TagNumber(4)
+  set reasonPhrase($core.String v) {
+    $_setString(2, v);
+  }
+
+  @$pb.TagNumber(4)
+  $core.bool hasReasonPhrase() => $_has(2);
+  @$pb.TagNumber(4)
+  void clearReasonPhrase() => clearField(4);
+
+  @$pb.TagNumber(5)
+  RepositoryMeta get meta => $_getN(3);
+  @$pb.TagNumber(5)
+  set meta(RepositoryMeta v) {
+    setField(5, v);
+  }
+
+  @$pb.TagNumber(5)
+  $core.bool hasMeta() => $_has(3);
+  @$pb.TagNumber(5)
+  void clearMeta() => clearField(5);
+  @$pb.TagNumber(5)
+  RepositoryMeta ensureMeta() => $_ensure(3);
+
+  @$pb.TagNumber(6)
+  AnalysisMeta get before => $_getN(4);
+  @$pb.TagNumber(6)
+  set before(AnalysisMeta v) {
+    setField(6, v);
+  }
+
+  @$pb.TagNumber(6)
+  $core.bool hasBefore() => $_has(4);
+  @$pb.TagNumber(6)
+  void clearBefore() => clearField(6);
+  @$pb.TagNumber(6)
+  AnalysisMeta ensureBefore() => $_ensure(4);
+
+  @$pb.TagNumber(7)
+  AnalysisMeta get after => $_getN(5);
+  @$pb.TagNumber(7)
+  set after(AnalysisMeta v) {
+    setField(7, v);
+  }
+
+  @$pb.TagNumber(7)
+  $core.bool hasAfter() => $_has(5);
+  @$pb.TagNumber(7)
+  void clearAfter() => clearField(7);
+  @$pb.TagNumber(7)
+  AnalysisMeta ensureAfter() => $_ensure(5);
+}
+
+class AnalysisMeta extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'AnalysisMeta',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'org.discoos.es'),
+      createEmptyInstance: create)
+    ..a<$core.int>(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'count',
+        $pb.PbFieldType.O3)
+    ..a<$core.int>(
+        2,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'wrong',
+        $pb.PbFieldType.O3)
+    ..a<$core.int>(
+        3,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'multiple',
+        $pb.PbFieldType.O3)
+    ..pPS(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'summary')
+    ..hasRequiredFields = false;
+
+  AnalysisMeta._() : super();
+  factory AnalysisMeta() => create();
+  factory AnalysisMeta.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+  factory AnalysisMeta.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  AnalysisMeta clone() => AnalysisMeta()..mergeFromMessage(this);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  AnalysisMeta copyWith(void Function(AnalysisMeta) updates) =>
+      super.copyWith((message) =>
+          updates(message as AnalysisMeta)); // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static AnalysisMeta create() => AnalysisMeta._();
+  AnalysisMeta createEmptyInstance() => create();
+  static $pb.PbList<AnalysisMeta> createRepeated() =>
+      $pb.PbList<AnalysisMeta>();
+  @$core.pragma('dart2js:noInline')
+  static AnalysisMeta getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<AnalysisMeta>(create);
+  static AnalysisMeta _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get count => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set count($core.int v) {
+    $_setSignedInt32(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasCount() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearCount() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.int get wrong => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set wrong($core.int v) {
+    $_setSignedInt32(1, v);
+  }
+
+  @$pb.TagNumber(2)
+  $core.bool hasWrong() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearWrong() => clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get multiple => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set multiple($core.int v) {
+    $_setSignedInt32(2, v);
+  }
+
+  @$pb.TagNumber(3)
+  $core.bool hasMultiple() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearMultiple() => clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.List<$core.String> get summary => $_getList(3);
+}
+
+class RebuildRepoRequest extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'RebuildRepoRequest',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'org.discoos.es'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'type')
+    ..aOB(
+        2,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'master')
+    ..pc<RepoExpandFields>(
+        3,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'expand',
+        $pb.PbFieldType.PE,
+        valueOf: RepoExpandFields.valueOf,
+        enumValues: RepoExpandFields.values)
+    ..hasRequiredFields = false;
+
+  RebuildRepoRequest._() : super();
+  factory RebuildRepoRequest() => create();
+  factory RebuildRepoRequest.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+  factory RebuildRepoRequest.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  RebuildRepoRequest clone() => RebuildRepoRequest()..mergeFromMessage(this);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  RebuildRepoRequest copyWith(void Function(RebuildRepoRequest) updates) =>
+      super.copyWith((message) => updates(
+          message as RebuildRepoRequest)); // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static RebuildRepoRequest create() => RebuildRepoRequest._();
+  RebuildRepoRequest createEmptyInstance() => create();
+  static $pb.PbList<RebuildRepoRequest> createRepeated() =>
+      $pb.PbList<RebuildRepoRequest>();
+  @$core.pragma('dart2js:noInline')
+  static RebuildRepoRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RebuildRepoRequest>(create);
+  static RebuildRepoRequest _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get type => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set type($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasType() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearType() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.bool get master => $_getBF(1);
+  @$pb.TagNumber(2)
+  set master($core.bool v) {
+    $_setBool(1, v);
+  }
+
+  @$pb.TagNumber(2)
+  $core.bool hasMaster() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearMaster() => clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.List<RepoExpandFields> get expand => $_getList(2);
+}
+
+class RebuildRepoResponse extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'RebuildRepoResponse',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'org.discoos.es'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'type')
+    ..a<$core.int>(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'statusCode', $pb.PbFieldType.O3,
+        protoName: 'statusCode')
+    ..aOS(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'reasonPhrase',
+        protoName: 'reasonPhrase')
+    ..aOM<RepositoryMeta>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'meta',
+        subBuilder: RepositoryMeta.create)
+    ..hasRequiredFields = false;
+
+  RebuildRepoResponse._() : super();
+  factory RebuildRepoResponse() => create();
+  factory RebuildRepoResponse.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+  factory RebuildRepoResponse.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  RebuildRepoResponse clone() => RebuildRepoResponse()..mergeFromMessage(this);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  RebuildRepoResponse copyWith(void Function(RebuildRepoResponse) updates) =>
+      super.copyWith((message) => updates(
+          message as RebuildRepoResponse)); // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static RebuildRepoResponse create() => RebuildRepoResponse._();
+  RebuildRepoResponse createEmptyInstance() => create();
+  static $pb.PbList<RebuildRepoResponse> createRepeated() =>
+      $pb.PbList<RebuildRepoResponse>();
+  @$core.pragma('dart2js:noInline')
+  static RebuildRepoResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RebuildRepoResponse>(create);
+  static RebuildRepoResponse _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get type => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set type($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasType() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearType() => clearField(1);
+
+  @$pb.TagNumber(3)
+  $core.int get statusCode => $_getIZ(1);
+  @$pb.TagNumber(3)
+  set statusCode($core.int v) {
+    $_setSignedInt32(1, v);
+  }
+
+  @$pb.TagNumber(3)
+  $core.bool hasStatusCode() => $_has(1);
+  @$pb.TagNumber(3)
+  void clearStatusCode() => clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get reasonPhrase => $_getSZ(2);
+  @$pb.TagNumber(4)
+  set reasonPhrase($core.String v) {
+    $_setString(2, v);
+  }
+
+  @$pb.TagNumber(4)
+  $core.bool hasReasonPhrase() => $_has(2);
+  @$pb.TagNumber(4)
+  void clearReasonPhrase() => clearField(4);
+
+  @$pb.TagNumber(5)
+  RepositoryMeta get meta => $_getN(3);
+  @$pb.TagNumber(5)
+  set meta(RepositoryMeta v) {
+    setField(5, v);
+  }
+
+  @$pb.TagNumber(5)
+  $core.bool hasMeta() => $_has(3);
+  @$pb.TagNumber(5)
+  void clearMeta() => clearField(5);
+  @$pb.TagNumber(5)
+  RepositoryMeta ensureMeta() => $_ensure(3);
 }
 
 class RepositoryMeta extends $pb.GeneratedMessage {
-  static final $pb.BuilderInfo _i =
-      $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'RepositoryMeta',
-          package: const $pb.PackageName(
-              const $core.bool.fromEnvironment('protobuf.omit_message_names')
-                  ? ''
-                  : 'org.discoos.es'),
-          createEmptyInstance: create)
-        ..aOS(
-            1,
-            const $core.bool.fromEnvironment('protobuf.omit_field_names')
-                ? ''
-                : 'type')
-        ..aOM<$5.EventMeta>(
-            2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'lastEvent',
-            protoName: 'lastEvent', subBuilder: $5.EventMeta.create)
-        ..aOM<RepositoryQueueMeta>(
-            3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'queue',
-            subBuilder: RepositoryQueueMeta.create)
-        ..aOM<RepositoryMetricsMeta>(
-            4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'metrics',
-            subBuilder: RepositoryMetricsMeta.create)
-        ..hasRequiredFields = false;
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'RepositoryMeta',
+      package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'org.discoos.es'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'type')
+    ..aOM<$5.EventMeta>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'lastEvent',
+        protoName: 'lastEvent', subBuilder: $5.EventMeta.create)
+    ..aOM<RepositoryQueueMeta>(
+        3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'queue',
+        subBuilder: RepositoryQueueMeta.create)
+    ..aOM<RepositoryMetricsMeta>(
+        4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'metrics',
+        subBuilder: RepositoryMetricsMeta.create)
+    ..aOM<ConnectionMetricsMeta>(
+        5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'connection',
+        subBuilder: ConnectionMetricsMeta.create)
+    ..hasRequiredFields = false;
 
   RepositoryMeta._() : super();
   factory RepositoryMeta() => create();
@@ -283,6 +1191,20 @@ class RepositoryMeta extends $pb.GeneratedMessage {
   void clearMetrics() => clearField(4);
   @$pb.TagNumber(4)
   RepositoryMetricsMeta ensureMetrics() => $_ensure(3);
+
+  @$pb.TagNumber(5)
+  ConnectionMetricsMeta get connection => $_getN(4);
+  @$pb.TagNumber(5)
+  set connection(ConnectionMetricsMeta v) {
+    setField(5, v);
+  }
+
+  @$pb.TagNumber(5)
+  $core.bool hasConnection() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearConnection() => clearField(5);
+  @$pb.TagNumber(5)
+  ConnectionMetricsMeta ensureConnection() => $_ensure(4);
 }
 
 class RepositoryQueueMeta extends $pb.GeneratedMessage {
@@ -817,4 +1739,85 @@ class RepositoryMetricsAggregateMeta extends $pb.GeneratedMessage {
   void clearCordoned() => clearField(4);
   @$pb.TagNumber(4)
   $0.AggregateMetaList ensureCordoned() => $_ensure(3);
+}
+
+class ConnectionMetricsMeta extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'ConnectionMetricsMeta',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'org.discoos.es'),
+      createEmptyInstance: create)
+    ..aOM<$6.DurationMetricMeta>(
+        1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'read',
+        subBuilder: $6.DurationMetricMeta.create)
+    ..aOM<$6.DurationMetricMeta>(
+        2,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'write',
+        subBuilder: $6.DurationMetricMeta.create)
+    ..hasRequiredFields = false;
+
+  ConnectionMetricsMeta._() : super();
+  factory ConnectionMetricsMeta() => create();
+  factory ConnectionMetricsMeta.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+  factory ConnectionMetricsMeta.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  ConnectionMetricsMeta clone() =>
+      ConnectionMetricsMeta()..mergeFromMessage(this);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  ConnectionMetricsMeta copyWith(
+          void Function(ConnectionMetricsMeta) updates) =>
+      super.copyWith((message) => updates(
+          message as ConnectionMetricsMeta)); // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static ConnectionMetricsMeta create() => ConnectionMetricsMeta._();
+  ConnectionMetricsMeta createEmptyInstance() => create();
+  static $pb.PbList<ConnectionMetricsMeta> createRepeated() =>
+      $pb.PbList<ConnectionMetricsMeta>();
+  @$core.pragma('dart2js:noInline')
+  static ConnectionMetricsMeta getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ConnectionMetricsMeta>(create);
+  static ConnectionMetricsMeta _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $6.DurationMetricMeta get read => $_getN(0);
+  @$pb.TagNumber(1)
+  set read($6.DurationMetricMeta v) {
+    setField(1, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasRead() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRead() => clearField(1);
+  @$pb.TagNumber(1)
+  $6.DurationMetricMeta ensureRead() => $_ensure(0);
+
+  @$pb.TagNumber(2)
+  $6.DurationMetricMeta get write => $_getN(1);
+  @$pb.TagNumber(2)
+  set write($6.DurationMetricMeta v) {
+    setField(2, v);
+  }
+
+  @$pb.TagNumber(2)
+  $core.bool hasWrite() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearWrite() => clearField(2);
+  @$pb.TagNumber(2)
+  $6.DurationMetricMeta ensureWrite() => $_ensure(1);
 }

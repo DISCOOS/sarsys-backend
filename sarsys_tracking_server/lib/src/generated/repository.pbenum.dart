@@ -40,6 +40,17 @@ class RepoExpandFields extends $pb.ProtobufEnum {
       const $core.bool.fromEnvironment('protobuf.omit_enum_names')
           ? ''
           : 'REPO_EXPAND_FIELDS_QUEUE');
+  static const RepoExpandFields REPO_EXPAND_FIELDS_CONN = RepoExpandFields._(
+      6,
+      const $core.bool.fromEnvironment('protobuf.omit_enum_names')
+          ? ''
+          : 'REPO_EXPAND_FIELDS_CONN');
+  static const RepoExpandFields REPO_EXPAND_FIELDS_SNAPSHOT =
+      RepoExpandFields._(
+          7,
+          const $core.bool.fromEnvironment('protobuf.omit_enum_names')
+              ? ''
+              : 'REPO_EXPAND_FIELDS_SNAPSHOT');
 
   static const $core.List<RepoExpandFields> values = <RepoExpandFields>[
     REPO_EXPAND_FIELDS_NONE,
@@ -48,6 +59,8 @@ class RepoExpandFields extends $pb.ProtobufEnum {
     REPO_EXPAND_FIELDS_DATA,
     REPO_EXPAND_FIELDS_METRICS,
     REPO_EXPAND_FIELDS_QUEUE,
+    REPO_EXPAND_FIELDS_CONN,
+    REPO_EXPAND_FIELDS_SNAPSHOT,
   ];
 
   static final $core.Map<$core.int, RepoExpandFields> _byValue =

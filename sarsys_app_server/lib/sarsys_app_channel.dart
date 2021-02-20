@@ -117,46 +117,6 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
                 messages,
               ))
       ..secure(
-          '/api/repositories/:type',
-          () => RepositoryOperationsController(
-                manager,
-                tag: 'System',
-                config: config,
-                context: options.context,
-              ))
-      ..secure(
-          '/api/aggregates/:type/:uuid',
-          () => AggregateOperationsController(
-                manager,
-                tag: 'System',
-                config: config,
-                context: options.context,
-              ))
-      ..secure(
-          '/api/snapshots/:type',
-          () => SnapshotOperationsController(
-                manager,
-                tag: 'System',
-                config: config,
-                context: options.context,
-              ))
-      ..secure(
-          '/api/snapshots/:type/upload',
-          () => SnapshotFileController(
-                manager,
-                tag: 'System',
-                config: config,
-                context: options.context,
-              ))
-      ..secure(
-          '/api/snapshots/:type/download',
-          () => SnapshotFileController(
-                manager,
-                tag: 'System',
-                config: config,
-                context: options.context,
-              ))
-      ..secure(
           '/api/app-configs[/:uuid]',
           () => AppConfigController(
                 manager.get<AppConfigRepository>(),

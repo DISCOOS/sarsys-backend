@@ -23,3 +23,18 @@ const EventMeta$json = const {
     },
   ],
 };
+
+const EventMetaList$json = const {
+  '1': 'EventMetaList',
+  '2': const [
+    const {'1': 'count', '3': 1, '4': 1, '5': 5, '10': 'count'},
+    const {
+      '1': 'items',
+      '3': 2,
+      '4': 3,
+      '5': 11,
+      '6': '.org.discoos.es.EventMeta',
+      '10': 'items'
+    },
+  ],
+};

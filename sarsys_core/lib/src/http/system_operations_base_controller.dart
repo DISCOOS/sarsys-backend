@@ -197,20 +197,4 @@ abstract class SystemOperationsBaseController<T> extends ResourceController {
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
     });
   }
-
-  static APISchemaObject documentDurationMetric(String name) {
-    return APISchemaObject.object({
-      'count': APISchemaObject.integer()
-        ..description = 'Number of measurements'
-        ..isReadOnly = true,
-      'duration': APISchemaObject.integer()
-        ..description = 'Last $name time in ms'
-        ..isReadOnly = true,
-      'durationAverage': APISchemaObject.integer()
-        ..description = '$name time average'
-        ..isReadOnly = true,
-    })
-      ..description = '$name metrics'
-      ..isReadOnly = true;
-  }
 }

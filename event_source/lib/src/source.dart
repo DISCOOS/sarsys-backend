@@ -204,7 +204,7 @@ class EventStore {
 
   /// Get [Event] position in [canonicalStream]
   int toPosition(Event event) {
-    final offset = _snapshot?.number?.position ?? 0;
+    final offset = _snapshot?.number?.position ?? -1;
     final position = _events.keys.toList().indexOf(event.uuid);
     return position > -1 ? offset + position + 1 : -1;
   }
@@ -214,15 +214,17 @@ class EventStore {
     Event event, {
     bool patches = false,
   }) {
-    return <String, dynamic>{
-      'uuid': event?.uuid,
-      'type': '${event?.type}',
-      'number': '${event?.number}',
-      'remote': '${event?.remote}',
-      'position': '${toPosition(event)}',
-      'timestamp': event?.created?.toIso8601String(),
-      if (patches) 'patches': event?.patches,
-    };
+    if (event != null) {
+      return <String, dynamic>{
+        'uuid': event.uuid,
+        'type': event.type,
+        'remote': event.remote,
+        'number': event.number.value,
+        'position': toPosition(event),
+        'timestamp': event.created.toIso8601String()
+      };
+    }
+    return null;
   }
 
   /// Get snapshots [Storage] instance
@@ -242,6 +244,69 @@ class EventStore {
   SnapshotModel get snapshot => _snapshot;
   SnapshotModel _snapshot;
 
+  /// Get last event in stream
+  ///
+  /// If AggregateRoot [uuid] is given, the aggregate
+  /// instance stream number is returned. This event
+  /// is the same as for the [canonicalStream] if
+  /// [useInstanceStreams] is false.
+  ///
+  /// If [stream] is given, this takes precedence and
+  /// returns the event for this stream.
+  ///
+  /// If stream or uuid does not exist, nul is returned.
+  ///
+  Event lastEvent({String stream, String uuid}) {
+    return _toEvent(stream, uuid, (events) => events.last);
+  }
+
+  /// Get first event in stream
+  ///
+  /// If AggregateRoot [uuid] is given, the first event in
+  /// aggregate instance stream is returned. This event
+  /// is the same as for the [canonicalStream] if
+  /// [useInstanceStreams] is false.
+  ///
+  /// If [stream] is given, this takes precedence and
+  /// returns the event for this stream.
+  ///
+  /// If stream or uuid does not exist, null is returned.
+  ///
+  Event firstEvent({String stream, String uuid}) {
+    return _toEvent(stream, uuid, (events) => events.first);
+  }
+
+  Event _toEvent(
+    String stream,
+    String uuid,
+    SourceEvent Function(Iterable<SourceEvent>) lookup,
+  ) {
+    if (stream != canonicalStream) {
+      final isInstance = (uuid != null || stream != null);
+      if (isInstance) {
+        assert(useInstanceStreams, 'only allowed when instance streams are used');
+        // Stream takes precedence over uuid
+        if (stream != null) {
+          uuid = toAggregateUuid(stream);
+        }
+        if (_aggregates.containsKey(uuid)) {
+          if (_aggregates[uuid].isNotEmpty) {
+            return lookup(_aggregates[uuid]);
+          } else if (_snapshot != null) {
+            final aggregate = _snapshot.aggregates[uuid];
+            return aggregate.deletedBy ?? aggregate.changedBy;
+          }
+        }
+        return null;
+      }
+    }
+    if (uuid == null || _snapshot == null) {
+      return getEvent(_events.keys.last);
+    }
+    final aggregate = _snapshot.aggregates[uuid];
+    return aggregate?.deletedBy ?? aggregate?.changedBy;
+  }
+
   /// Get number of last event in stream
   ///
   /// If AggregateRoot [uuid] is given, the aggregate
@@ -258,7 +323,7 @@ class EventStore {
     return _toNumber(stream, uuid, (events) => events.last.number);
   }
 
-  /// Get number of first event in store
+  /// Get number of first event in stream
   ///
   /// If AggregateRoot [uuid] is given, the aggregate
   /// instance stream number is returned. This numbers

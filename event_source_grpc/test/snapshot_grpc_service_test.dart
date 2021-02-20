@@ -33,14 +33,14 @@ void main() {
 
   test('GRPC GetMeta with no snapshot returns 404', () async {
     // Arrange
-    final client = harness.client<SnapshotServiceClient>();
+    final client = harness.client<SnapshotGrpcServiceClient>();
 
     final response = await client.getMeta(
       GetSnapshotMetaRequest()..type = 'Bar',
     );
     expect(response.type, 'Bar');
     expect(response.statusCode, 404);
-    expect(response.reasonPhrase, 'Snapshot for aggregate Bar not found');
+    expect(response.reasonPhrase, 'Repository for aggregate Bar not found');
   });
 
   test('GRPC GetMeta returns 200 when snapshot exists', () async {
@@ -52,7 +52,7 @@ void main() {
     await repo.push(foo);
     repo.save(force: true);
     await repo.store.snapshots.onIdle;
-    final client = harness.client<SnapshotServiceClient>();
+    final client = harness.client<SnapshotGrpcServiceClient>();
 
     // Act
     final response = await client.getMeta(
@@ -72,7 +72,7 @@ void main() {
 
   test('GRPC Configure returns 204 when no snapshot', () async {
     // Arrange
-    final client = harness.client<SnapshotServiceClient>();
+    final client = harness.client<SnapshotGrpcServiceClient>();
 
     // Act
     final response = await client.configure(
@@ -102,7 +102,7 @@ void main() {
     await repo.push(foo);
     repo.save(force: true);
     await repo.store.snapshots.onIdle;
-    final client = harness.client<SnapshotServiceClient>();
+    final client = harness.client<SnapshotGrpcServiceClient>();
 
     // Act
     final response = await client.save(
@@ -132,7 +132,7 @@ void main() {
   test('GRPC Upload returns 200', () async {
     // Arrange
     final chunks = await _download(harness, 100);
-    final client = harness.client<SnapshotServiceClient>();
+    final client = harness.client<SnapshotGrpcServiceClient>();
 
     // Act
     final response = await client.upload(
@@ -167,7 +167,7 @@ Future<List<List<int>>> _download(EventSourceGrpcHarness harness, int chunkSize)
   await repo.push(foo);
   repo.save(force: true);
   await repo.store.snapshots.onIdle;
-  final client = harness.client<SnapshotServiceClient>();
+  final client = harness.client<SnapshotGrpcServiceClient>();
 
   final response = client.download(
     DownloadSnapshotRequest()

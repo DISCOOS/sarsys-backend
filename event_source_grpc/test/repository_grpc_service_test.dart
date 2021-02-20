@@ -29,7 +29,7 @@ void main() {
 
   test('GRPC GetMeta with empty repo returns 404', () async {
     // Arrange
-    final client = harness.client<RepositoryServiceClient>();
+    final client = harness.client<RepositoryGrpcServiceClient>();
 
     final response = await client.getMeta(
       GetRepoMetaRequest()..type = 'Bar',
@@ -46,7 +46,7 @@ void main() {
     final uuid = Uuid().v4();
     final foo = repo.get(uuid, data: {'property11': 'value11'});
     await repo.push(foo);
-    final client = harness.client<RepositoryServiceClient>();
+    final client = harness.client<RepositoryGrpcServiceClient>();
 
     // Act
     final response = await client.getMeta(
@@ -71,7 +71,7 @@ void main() {
     final uuid = Uuid().v4();
     final foo = repo.get(uuid, data: {'property11': 'value11'});
     await repo.push(foo);
-    final client = harness.client<RepositoryServiceClient>();
+    final client = harness.client<RepositoryGrpcServiceClient>();
 
     // Act
     final response = await client.replayEvents(
@@ -97,7 +97,7 @@ void main() {
     final uuid = Uuid().v4();
     final foo = repo.get(uuid, data: {'property11': 'value11'});
     await repo.push(foo);
-    final client = harness.client<RepositoryServiceClient>();
+    final client = harness.client<RepositoryGrpcServiceClient>();
 
     // Act
     final response = await client.catchupEvents(
@@ -123,7 +123,7 @@ void main() {
     final uuid = Uuid().v4();
     final foo = repo.get(uuid, data: {'property11': 'value11'});
     await repo.push(foo);
-    final client = harness.client<RepositoryServiceClient>();
+    final client = harness.client<RepositoryGrpcServiceClient>();
 
     // Act
     final response = await client.repair(
@@ -149,7 +149,7 @@ void main() {
     final uuid = Uuid().v4();
     final foo = repo.get(uuid, data: {'property11': 'value11'});
     await repo.push(foo);
-    final client = harness.client<RepositoryServiceClient>();
+    final client = harness.client<RepositoryGrpcServiceClient>();
 
     // Act
     final response = await client.rebuild(

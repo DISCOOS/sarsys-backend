@@ -219,17 +219,384 @@ APISchemaObject documentValueResponse(
       ..description = 'Value Object Response'
       ..isReadOnly = true;
 
+APISchemaObject documentAggregate(
+  APIDocumentContext context, {
+  String type,
+  bool readOnly = true,
+}) =>
+    APISchemaObject.object({
+      'type': APISchemaObject.string()
+        ..description = '${type ?? 'Aggregate'} Type'
+        ..isReadOnly = readOnly,
+      'uuid': documentUUID()
+        ..description = 'Globally unique aggregate id'
+        ..isReadOnly = readOnly,
+      'number': APISchemaObject.integer()
+        ..description = 'Number of last event applied to aggregate (can be used as version)'
+        ..isReadOnly = true,
+      'position': APISchemaObject.integer()
+        ..description = 'Position in canonical stream of last event applied to aggregate'
+        ..isReadOnly = true,
+      'modifications': APISchemaObject.integer()
+        ..description = 'Number of modifications since creation'
+        ..isReadOnly = true,
+      'createdBy': documentEvent(context)
+        ..description = 'Event that created this aggregate'
+        ..isReadOnly = readOnly,
+      'changedBy': documentEvent(context)
+        ..description = 'Event that last changed this aggregate'
+        ..isReadOnly = readOnly,
+      'deletedBy': documentEvent(context)
+        ..description = 'Event that deleted this aggregate (optional)'
+        ..isReadOnly = readOnly,
+      'applied': documentEventList(context)
+        ..description = 'All events applied to this aggregate (optional)'
+        ..isReadOnly = readOnly,
+      'pending': documentEventList(context)
+        ..description = 'Events pending push to remote stream (optional)'
+        ..isReadOnly = readOnly,
+      'skipped': documentEventList(context)
+        ..description = 'Events skipped because of unreconciled errors (optional)'
+        ..isReadOnly = readOnly,
+      'taint': APISchemaObject.freeForm()
+        ..description = ' Aggregate taint information'
+        ..isReadOnly = readOnly,
+      'cordon': APISchemaObject.freeForm()
+        ..description = ' Aggregate cordon information'
+        ..isReadOnly = readOnly,
+      'data': APISchemaObject.freeForm()
+        ..description = 'Aggregate data'
+        ..isReadOnly = readOnly,
+    });
+
+APISchemaObject documentRepositoryMeta(APIDocumentContext context) {
+  return APISchemaObject.object({
+    'type': APISchemaObject.string()
+      ..description = 'Aggregate Type'
+      ..isReadOnly = true,
+    'lastEvent': documentEvent(context)
+      ..description = 'Last event applied to repository'
+      ..isReadOnly = true,
+    'queue': documentRepositoryQueue(),
+    'metrics': documentRepositoryMetrics(),
+    'snapshot': documentSnapshot(context),
+    'connection': documentConnection(context),
+    'subscriptions': documentRepositorySubscriptions(context),
+  });
+}
+
+APISchemaObject documentRepositoryQueue() {
+  return APISchemaObject.object({
+    'pressure': APISchemaObject.object({
+      'push': APISchemaObject.integer()
+        ..description = 'Number of pending pushes'
+        ..isReadOnly = true,
+      'command': APISchemaObject.integer()
+        ..description = 'Number of pending commands'
+        ..isReadOnly = true,
+      'total': APISchemaObject.integer()
+        ..description = 'Total pressure'
+        ..isReadOnly = true,
+      'maximum': APISchemaObject.integer()
+        ..description = 'Maximum allowed pressure'
+        ..isReadOnly = true,
+      'exceeded': APISchemaObject.boolean()
+        ..description = 'True if maximum pressure is exceeded'
+        ..isReadOnly = true,
+    })
+      ..description = 'Queue pressure data'
+      ..isReadOnly = true,
+    'status': APISchemaObject.object({
+      'idle': APISchemaObject.boolean()
+        ..description = 'True if queue is idle'
+        ..isReadOnly = true,
+      'ready': APISchemaObject.boolean()
+        ..description = 'True if queue is ready to process requests'
+        ..isReadOnly = true,
+      'disposed': APISchemaObject.boolean()
+        ..description = 'True if queue is disposed'
+        ..isReadOnly = true,
+    })
+      ..description = 'Queue status'
+      ..isReadOnly = true,
+  })
+    ..description = 'Queue metadata'
+    ..isReadOnly = true;
+}
+
+APISchemaObject documentRepositoryMetrics() {
+  return APISchemaObject.object({
+    'events': APISchemaObject.integer()
+      ..description = 'Number of events'
+      ..isReadOnly = true,
+    'aggregates': APISchemaObject.object({
+      'count': APISchemaObject.integer()
+        ..description = 'Number of aggregates'
+        ..isReadOnly = true,
+      'changed': APISchemaObject.integer()
+        ..description = 'Number of aggregates with local changes'
+        ..isReadOnly = true,
+      'tainted': APISchemaObject.object({
+        'count': APISchemaObject.integer()
+          ..description = 'Number of tainted aggregates'
+          ..isReadOnly = true,
+        'items': APISchemaObject.array(
+          ofSchema: APISchemaObject.object({
+            'uuid': documentUUID()
+              ..description = 'Globally unique aggregate id'
+              ..isReadOnly = true,
+            'taint': APISchemaObject.freeForm()
+              ..description = 'Taint reason'
+              ..isReadOnly = true,
+          })
+            ..description = 'Tainted aggregate'
+            ..isReadOnly = true,
+        )
+          ..description = 'List of tainted aggregates'
+          ..isReadOnly = true,
+      })
+        ..description = 'Tainted aggregates'
+        ..isReadOnly = true,
+      'cordoned': APISchemaObject.object({
+        'count': APISchemaObject.integer()
+          ..description = 'Number of cordoned aggregates'
+          ..isReadOnly = true,
+        'items': APISchemaObject.array(
+          ofSchema: APISchemaObject.object({
+            'uuid': documentUUID()
+              ..description = 'Globally unique aggregate id'
+              ..isReadOnly = true,
+            'cordon': APISchemaObject.freeForm()
+              ..description = 'Cordon reason'
+              ..isReadOnly = true,
+          })
+            ..description = 'Cordoned aggregate'
+            ..isReadOnly = true,
+        )
+          ..description = 'List of cordoned aggregates'
+          ..isReadOnly = true,
+      })
+        ..description = 'Cordoned aggregates'
+        ..isReadOnly = true,
+    })
+      ..description = 'Aggregates metrics metadata'
+      ..isReadOnly = true,
+    'transactions': APISchemaObject.integer()
+      ..description = 'Number of open transactions'
+      ..isReadOnly = true,
+    'push': documentDurationMetric('push')
+      ..description = 'Number of open transactions'
+      ..isReadOnly = true,
+  })
+    ..description = 'Repository metrics metadata'
+    ..isReadOnly = true;
+}
+
+APISchemaObject documentSnapshot(APIDocumentContext context) {
+  return APISchemaObject.object({
+    'uuid': documentUUID()
+      ..description = 'Globally unique Snapshot id'
+      ..isReadOnly = true,
+    'number': APISchemaObject.integer()
+      ..description = 'Snapshot event number'
+      ..isReadOnly = true,
+    'position': APISchemaObject.integer()
+      ..description = 'Snapshot event position in projection if using instance streams'
+      ..isReadOnly = true,
+    'config': APISchemaObject.object({
+      'keep': APISchemaObject.integer()
+        ..description = 'Number of snapshots to keep until deleting oldest'
+        ..isReadOnly = true,
+      'threshold': APISchemaObject.integer()
+        ..description = 'Number of unsaved events before saving to next snapshot'
+        ..isReadOnly = true,
+      'automatic': APISchemaObject.integer()
+        ..description = 'Control flag for automatic snapshots when threshold is reached'
+        ..isReadOnly = true,
+    })
+      ..description = 'Snapshot configuration'
+      ..isReadOnly = true,
+    'metrics': APISchemaObject.object({
+      'snapshots': APISchemaObject.integer()
+        ..description = 'Number of snapshots stored'
+        ..isReadOnly = true,
+      'unsaved': APISchemaObject.integer()
+        ..description = 'Number of unsaved events'
+        ..isReadOnly = true,
+      'partial': APISchemaObject.object({
+        'missing': APISchemaObject.integer()
+          ..description = 'Number of missing events in snapshot'
+          ..isReadOnly = true,
+      })
+        ..description = 'Snapshot contains partial state if defined'
+        ..isReadOnly = true,
+      'save': documentDurationMetric('Save'),
+    })
+      ..description = 'Snapshot metrics'
+      ..isReadOnly = true,
+    'aggregates': APISchemaObject.object({
+      'count': APISchemaObject.integer()
+        ..description = 'Total number aggregates in snapshot'
+        ..isReadOnly = true,
+      'items': APISchemaObject.array(
+        ofSchema: documentAggregate(context),
+      )..description = 'Array of skipped events',
+    }),
+  })
+    ..description = 'Queue pressure data'
+    ..isReadOnly = true;
+}
+
+APISchemaObject documentConnection(APIDocumentContext context) {
+  return APISchemaObject.object({
+    'metrics': APISchemaObject.object({
+      'read': documentDurationMetric('Read'),
+      'write': documentDurationMetric('Write'),
+    })
+      ..description = 'Connection metrics'
+      ..isReadOnly = true,
+  });
+}
+
+APISchemaObject documentRepositorySubscriptions(APIDocumentContext context) {
+  return APISchemaObject.object({
+    'catchup': APISchemaObject.object({
+      'isAutomatic': APISchemaObject.boolean()
+        ..description = 'True if automatic catchup is activated'
+        ..isReadOnly = true,
+      'exists': APISchemaObject.boolean()
+        ..description = 'True if subscription exists'
+        ..isReadOnly = true,
+      'last': documentEvent(context)
+        ..description = 'Last event processed'
+        ..isReadOnly = true,
+      'status': APISchemaObject.object({
+        'isPaused': APISchemaObject.boolean()
+          ..description = 'True if subscription is paused'
+          ..isReadOnly = true,
+        'isCancelled': APISchemaObject.boolean()
+          ..description = 'True if subscription is cancelled'
+          ..isReadOnly = true,
+        'isCompeting': APISchemaObject.boolean()
+          ..description = 'True if subscription is competing (pulling when false)'
+          ..isReadOnly = true,
+      })
+        ..description = 'Catchup subscription status'
+        ..isReadOnly = true,
+      'metrics': APISchemaObject.object({
+        'processed': APISchemaObject.integer()
+          ..description = 'Number of events processed'
+          ..isReadOnly = true,
+        'reconnects': APISchemaObject.integer()
+          ..description = 'Number of reconnections'
+          ..isReadOnly = true,
+      })
+        ..description = 'Catchup subscription statistics'
+        ..isReadOnly = true
+    })
+      ..description = 'Catchup subscription'
+      ..isReadOnly = true,
+    'push': APISchemaObject.object({
+      'exists': APISchemaObject.boolean()
+        ..description = 'True if subscription exists'
+        ..isReadOnly = true,
+      'isPaused': APISchemaObject.boolean()
+        ..description = 'True if subscription is paused'
+        ..isReadOnly = true,
+    })
+      ..description = 'Request queue subscription status'
+      ..isReadOnly = true,
+  });
+}
+
+APISchemaObject documentSnapshotMeta(APIDocumentContext context) {
+  return APISchemaObject.object({
+    'last': documentUUID()
+      ..description = 'Uuid of snapshot last saved'
+      ..isReadOnly = true,
+    'uuid': documentUUID()
+      ..description = 'Snapshot uuid'
+      ..isReadOnly = true,
+    'number': APISchemaObject.integer()
+      ..description = 'Snapshot event number '
+          '(or position in projection if using instance-streams)'
+      ..isReadOnly = true,
+    'timestamp': APISchemaObject.string()
+      ..description = 'When snapshot was saved'
+      ..format = 'date-time',
+    'unsaved': APISchemaObject.integer()
+      ..description = 'Number of unsaved events'
+      ..isReadOnly = true,
+    'partial': APISchemaObject.object({
+      'missing': APISchemaObject.integer()
+        ..description = 'Number of missing events in snapshot'
+        ..isReadOnly = true,
+    })
+      ..description = 'Snapshot contains partial state if defined'
+      ..isReadOnly = true,
+    'config': APISchemaObject.object({
+      'keep': APISchemaObject.integer()
+        ..description = 'Number of snapshots to keep until deleting oldest'
+        ..isReadOnly = true,
+      'threshold': APISchemaObject.integer()
+        ..description = 'Number of unsaved events before saving to next snapshot'
+        ..isReadOnly = true,
+      'automatic': APISchemaObject.integer()
+        ..description = 'Control flag for automatic snapshots when threshold is reached'
+        ..isReadOnly = true,
+    })
+      ..description = 'Snapshots configuration'
+      ..isReadOnly = true,
+    'metrics': APISchemaObject.object({
+      'snapshots': APISchemaObject.integer()
+        ..description = 'Number of snapshots'
+        ..isReadOnly = true,
+      'save': documentDurationMetric('Save'),
+    })
+      ..description = 'Snapshot metrics'
+      ..isReadOnly = true,
+    'aggregates': APISchemaObject.object({
+      'count': APISchemaObject.integer()
+        ..description = 'Total number aggregates in snapshot'
+        ..isReadOnly = true,
+      'items': APISchemaObject.array(
+        ofSchema: documentAggregate(context),
+      )..description = 'Array of skipped events',
+    }),
+  })
+    ..description = 'Queue pressure data'
+    ..isReadOnly = true;
+}
+
+APISchemaObject documentEventList(
+  APIDocumentContext context, {
+  String type,
+  bool readOnly = true,
+}) =>
+    APISchemaObject.object({
+      'count': APISchemaObject.integer()
+        ..description = 'Number of events'
+        ..isReadOnly = readOnly,
+      'items': APISchemaObject.array(
+        ofSchema: documentEvent(context, type: type, readOnly: readOnly),
+      )
+        ..description = 'Events in list'
+        ..isReadOnly = readOnly
+    })
+      ..description = 'List of events'
+      ..isReadOnly = readOnly;
+
 APISchemaObject documentEvent(
   APIDocumentContext context, {
   String type,
   bool readOnly = true,
 }) =>
     APISchemaObject.object({
-      'uuid': documentUUID()
-        ..description = 'Globally unique event id'
-        ..isReadOnly = readOnly,
       'type': APISchemaObject.string()
         ..description = '${type ?? 'Event'} Type'
+        ..isReadOnly = readOnly,
+      'uuid': documentUUID()
+        ..description = 'Globally unique event id'
         ..isReadOnly = readOnly,
       'number': APISchemaObject.integer()
         ..description = 'Event number in instance stream'
@@ -245,6 +612,20 @@ APISchemaObject documentEvent(
         ..format = 'date-time'
         ..isReadOnly = readOnly,
     });
+
+APISchemaObject documentDurationMetric(String name) => APISchemaObject.object({
+      'count': APISchemaObject.integer()
+        ..description = 'Number of measurements'
+        ..isReadOnly = true,
+      'duration': APISchemaObject.integer()
+        ..description = 'Last $name time in ms'
+        ..isReadOnly = true,
+      'durationAverage': APISchemaObject.integer()
+        ..description = '$name time average'
+        ..isReadOnly = true,
+    })
+      ..description = '$name metrics'
+      ..isReadOnly = true;
 
 APISchemaObject documentConflict(
   APIDocumentContext context,

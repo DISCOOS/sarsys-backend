@@ -14,6 +14,8 @@ const RepoExpandFields$json = const {
     const {'1': 'REPO_EXPAND_FIELDS_DATA', '2': 3},
     const {'1': 'REPO_EXPAND_FIELDS_METRICS', '2': 4},
     const {'1': 'REPO_EXPAND_FIELDS_QUEUE', '2': 5},
+    const {'1': 'REPO_EXPAND_FIELDS_CONN', '2': 6},
+    const {'1': 'REPO_EXPAND_FIELDS_SNAPSHOT', '2': 7},
   ],
 };
 
@@ -24,7 +26,7 @@ const GetRepoMetaRequest$json = const {
     const {
       '1': 'expand',
       '3': 2,
-      '4': 1,
+      '4': 3,
       '5': 14,
       '6': '.org.discoos.es.RepoExpandFields',
       '10': 'expand'
@@ -36,9 +38,171 @@ const GetRepoMetaResponse$json = const {
   '1': 'GetRepoMetaResponse',
   '2': const [
     const {'1': 'type', '3': 1, '4': 1, '5': 9, '10': 'type'},
+    const {'1': 'statusCode', '3': 2, '4': 1, '5': 5, '10': 'statusCode'},
+    const {'1': 'reasonPhrase', '3': 3, '4': 1, '5': 9, '10': 'reasonPhrase'},
     const {
       '1': 'meta',
-      '3': 2,
+      '3': 4,
+      '4': 1,
+      '5': 11,
+      '6': '.org.discoos.es.RepositoryMeta',
+      '10': 'meta'
+    },
+  ],
+};
+
+const ReplayRepoEventsRequest$json = const {
+  '1': 'ReplayRepoEventsRequest',
+  '2': const [
+    const {'1': 'type', '3': 1, '4': 1, '5': 9, '10': 'type'},
+    const {'1': 'uuids', '3': 2, '4': 3, '5': 9, '10': 'uuids'},
+    const {
+      '1': 'expand',
+      '3': 3,
+      '4': 3,
+      '5': 14,
+      '6': '.org.discoos.es.RepoExpandFields',
+      '10': 'expand'
+    },
+  ],
+};
+
+const ReplayRepoEventsResponse$json = const {
+  '1': 'ReplayRepoEventsResponse',
+  '2': const [
+    const {'1': 'type', '3': 1, '4': 1, '5': 9, '10': 'type'},
+    const {'1': 'uuids', '3': 2, '4': 3, '5': 9, '10': 'uuids'},
+    const {'1': 'statusCode', '3': 3, '4': 1, '5': 5, '10': 'statusCode'},
+    const {'1': 'reasonPhrase', '3': 4, '4': 1, '5': 9, '10': 'reasonPhrase'},
+    const {
+      '1': 'meta',
+      '3': 5,
+      '4': 1,
+      '5': 11,
+      '6': '.org.discoos.es.RepositoryMeta',
+      '10': 'meta'
+    },
+  ],
+};
+
+const CatchupRepoEventsRequest$json = const {
+  '1': 'CatchupRepoEventsRequest',
+  '2': const [
+    const {'1': 'type', '3': 1, '4': 1, '5': 9, '10': 'type'},
+    const {'1': 'uuids', '3': 2, '4': 3, '5': 9, '10': 'uuids'},
+    const {
+      '1': 'expand',
+      '3': 3,
+      '4': 3,
+      '5': 14,
+      '6': '.org.discoos.es.RepoExpandFields',
+      '10': 'expand'
+    },
+  ],
+};
+
+const CatchupRepoEventsResponse$json = const {
+  '1': 'CatchupRepoEventsResponse',
+  '2': const [
+    const {'1': 'type', '3': 1, '4': 1, '5': 9, '10': 'type'},
+    const {'1': 'uuids', '3': 2, '4': 3, '5': 9, '10': 'uuids'},
+    const {'1': 'statusCode', '3': 3, '4': 1, '5': 5, '10': 'statusCode'},
+    const {'1': 'reasonPhrase', '3': 4, '4': 1, '5': 9, '10': 'reasonPhrase'},
+    const {
+      '1': 'meta',
+      '3': 5,
+      '4': 1,
+      '5': 11,
+      '6': '.org.discoos.es.RepositoryMeta',
+      '10': 'meta'
+    },
+  ],
+};
+
+const RepairRepoRequest$json = const {
+  '1': 'RepairRepoRequest',
+  '2': const [
+    const {'1': 'type', '3': 1, '4': 1, '5': 9, '10': 'type'},
+    const {'1': 'master', '3': 2, '4': 1, '5': 8, '10': 'master'},
+    const {
+      '1': 'expand',
+      '3': 3,
+      '4': 3,
+      '5': 14,
+      '6': '.org.discoos.es.RepoExpandFields',
+      '10': 'expand'
+    },
+  ],
+};
+
+const RepairRepoResponse$json = const {
+  '1': 'RepairRepoResponse',
+  '2': const [
+    const {'1': 'type', '3': 1, '4': 1, '5': 9, '10': 'type'},
+    const {'1': 'statusCode', '3': 3, '4': 1, '5': 5, '10': 'statusCode'},
+    const {'1': 'reasonPhrase', '3': 4, '4': 1, '5': 9, '10': 'reasonPhrase'},
+    const {
+      '1': 'meta',
+      '3': 5,
+      '4': 1,
+      '5': 11,
+      '6': '.org.discoos.es.RepositoryMeta',
+      '10': 'meta'
+    },
+    const {
+      '1': 'before',
+      '3': 6,
+      '4': 1,
+      '5': 11,
+      '6': '.org.discoos.es.AnalysisMeta',
+      '10': 'before'
+    },
+    const {
+      '1': 'after',
+      '3': 7,
+      '4': 1,
+      '5': 11,
+      '6': '.org.discoos.es.AnalysisMeta',
+      '10': 'after'
+    },
+  ],
+};
+
+const AnalysisMeta$json = const {
+  '1': 'AnalysisMeta',
+  '2': const [
+    const {'1': 'count', '3': 1, '4': 1, '5': 5, '10': 'count'},
+    const {'1': 'wrong', '3': 2, '4': 1, '5': 5, '10': 'wrong'},
+    const {'1': 'multiple', '3': 3, '4': 1, '5': 5, '10': 'multiple'},
+    const {'1': 'summary', '3': 4, '4': 3, '5': 9, '10': 'summary'},
+  ],
+};
+
+const RebuildRepoRequest$json = const {
+  '1': 'RebuildRepoRequest',
+  '2': const [
+    const {'1': 'type', '3': 1, '4': 1, '5': 9, '10': 'type'},
+    const {'1': 'master', '3': 2, '4': 1, '5': 8, '10': 'master'},
+    const {
+      '1': 'expand',
+      '3': 3,
+      '4': 3,
+      '5': 14,
+      '6': '.org.discoos.es.RepoExpandFields',
+      '10': 'expand'
+    },
+  ],
+};
+
+const RebuildRepoResponse$json = const {
+  '1': 'RebuildRepoResponse',
+  '2': const [
+    const {'1': 'type', '3': 1, '4': 1, '5': 9, '10': 'type'},
+    const {'1': 'statusCode', '3': 3, '4': 1, '5': 5, '10': 'statusCode'},
+    const {'1': 'reasonPhrase', '3': 4, '4': 1, '5': 9, '10': 'reasonPhrase'},
+    const {
+      '1': 'meta',
+      '3': 5,
       '4': 1,
       '5': 11,
       '6': '.org.discoos.es.RepositoryMeta',
@@ -74,6 +238,14 @@ const RepositoryMeta$json = const {
       '5': 11,
       '6': '.org.discoos.es.RepositoryMetricsMeta',
       '10': 'metrics'
+    },
+    const {
+      '1': 'connection',
+      '3': 5,
+      '4': 1,
+      '5': 11,
+      '6': '.org.discoos.es.ConnectionMetricsMeta',
+      '10': 'connection'
     },
   ],
 };
@@ -172,6 +344,28 @@ const RepositoryMetricsAggregateMeta$json = const {
       '5': 11,
       '6': '.org.discoos.es.AggregateMetaList',
       '10': 'cordoned'
+    },
+  ],
+};
+
+const ConnectionMetricsMeta$json = const {
+  '1': 'ConnectionMetricsMeta',
+  '2': const [
+    const {
+      '1': 'read',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.org.discoos.es.DurationMetricMeta',
+      '10': 'read'
+    },
+    const {
+      '1': 'write',
+      '3': 2,
+      '4': 1,
+      '5': 11,
+      '6': '.org.discoos.es.DurationMetricMeta',
+      '10': 'write'
     },
   ],
 };

@@ -40,7 +40,7 @@ const DurationMetricMeta$json = const {
       '3': 7,
       '4': 1,
       '5': 11,
-      '6': '.org.discoos.es.DurationCumulativeAverage',
+      '6': '.org.discoos.es.DurationExponentialAverage',
       '10': 'exponential'
     },
   ],
@@ -50,7 +50,7 @@ const DurationCumulativeAverage$json = const {
   '1': 'DurationCumulativeAverage',
   '2': const [
     const {'1': 'rate', '3': 1, '4': 1, '5': 1, '10': 'rate'},
-    const {'1': 'mean', '3': 2, '4': 1, '5': 1, '10': 'mean'},
+    const {'1': 'mean', '3': 2, '4': 1, '5': 3, '10': 'mean'},
     const {'1': 'variance', '3': 3, '4': 1, '5': 1, '10': 'variance'},
     const {'1': 'deviation', '3': 4, '4': 1, '5': 1, '10': 'deviation'},
   ],
@@ -62,7 +62,7 @@ const DurationExponentialAverage$json = const {
     const {'1': 'alpha', '3': 1, '4': 1, '5': 1, '10': 'alpha'},
     const {'1': 'beta', '3': 2, '4': 1, '5': 1, '10': 'beta'},
     const {'1': 'rate', '3': 3, '4': 1, '5': 1, '10': 'rate'},
-    const {'1': 'mean', '3': 4, '4': 1, '5': 1, '10': 'mean'},
+    const {'1': 'mean', '3': 4, '4': 1, '5': 3, '10': 'mean'},
     const {'1': 'variance', '3': 5, '4': 1, '5': 1, '10': 'variance'},
     const {'1': 'deviation', '3': 6, '4': 1, '5': 1, '10': 'deviation'},
   ],

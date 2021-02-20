@@ -22,7 +22,13 @@ class EventSourceGrpcHarness {
   static EventSourceGrpcHarness get instance => _singleton;
   static bool get exists => _singleton != null;
 
-  final EventSourceHarness _harness;
+  EventSourceGrpcHarness withEventSourceHarness([EventSourceHarness harness]) {
+    _harness = harness ?? _harness;
+    return this;
+  }
+
+  EventSourceHarness _harness;
+
   EventStoreMockServer server({int port = 4000}) => _harness.server(port: port);
 
   EventStoreConnection connection({int port = 4000}) => _harness.connection(port: port);
@@ -184,7 +190,7 @@ class EventSourceGrpcHarness {
     if (_withAggregateService) {
       _open(
         port,
-        (channel) => AggregateServiceClient(
+        (channel) => AggregateGrpcServiceClient(
           channel,
           options: CallOptions(
             timeout: const Duration(
@@ -200,7 +206,7 @@ class EventSourceGrpcHarness {
     if (_withRepositoryService) {
       _open(
         port,
-        (channel) => RepositoryServiceClient(
+        (channel) => RepositoryGrpcServiceClient(
           channel,
           options: CallOptions(
             timeout: const Duration(
@@ -216,7 +222,7 @@ class EventSourceGrpcHarness {
     if (_withSnapshotService) {
       _open(
         port,
-        (channel) => SnapshotServiceClient(
+        (channel) => SnapshotGrpcServiceClient(
           channel,
           options: CallOptions(
             timeout: const Duration(

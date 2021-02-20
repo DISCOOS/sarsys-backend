@@ -9,7 +9,7 @@ import 'package:logging/logging.dart';
 import 'generated/aggregate.pbgrpc.dart';
 import 'utils.dart';
 
-class AggregateGrpcService extends AggregateServiceBase {
+class AggregateGrpcService extends AggregateGrpcServiceBase {
   AggregateGrpcService(this.manager);
   final RepositoryManager manager;
   final logger = Logger('$AggregateGrpcService');
@@ -38,21 +38,21 @@ class AggregateGrpcService extends AggregateServiceBase {
     if (repo == null) {
       _notFound(
         'getMeta',
-        'Aggregate $type not found',
-      );
-      return response
-        ..statusCode = HttpStatus.notFound
-        ..reasonPhrase = 'Aggregate $type not found';
-    }
-    final aggregate = await _tryGet(type, uuid);
-    if (aggregate == null) {
-      _notFound(
-        'getMeta',
         'Repository for aggregate $type not found',
       );
       return response
         ..statusCode = HttpStatus.notFound
         ..reasonPhrase = 'Repository for aggregate $type not found';
+    }
+    final aggregate = await _tryGet(type, uuid);
+    if (aggregate == null) {
+      _notFound(
+        'getMeta',
+        'Aggregate $type $uuid not found',
+      );
+      return response
+        ..statusCode = HttpStatus.notFound
+        ..reasonPhrase = 'Aggregate $type $uuid not found';
     }
     response.meta = toAggregateMetaFromRoot(
       aggregate,
@@ -94,21 +94,21 @@ class AggregateGrpcService extends AggregateServiceBase {
     if (repo == null) {
       _notFound(
         'replaceData',
-        'Aggregate $type not found',
-      );
-      return response
-        ..statusCode = HttpStatus.notFound
-        ..reasonPhrase = 'Aggregate $type not found';
-    }
-    final aggregate = await _tryGet(type, uuid);
-    if (aggregate == null) {
-      _notFound(
-        'replaceData',
         'Repository for aggregate $type not found',
       );
       return response
         ..statusCode = HttpStatus.notFound
         ..reasonPhrase = 'Repository for aggregate $type not found';
+    }
+    var aggregate = await _tryGet(type, uuid);
+    if (aggregate == null) {
+      _notFound(
+        'replaceData',
+        'Aggregate $type $uuid not found',
+      );
+      return response
+        ..statusCode = HttpStatus.notFound
+        ..reasonPhrase = 'Aggregate $type $uuid not found';
     }
 
     // Reset error states
@@ -116,9 +116,9 @@ class AggregateGrpcService extends AggregateServiceBase {
     repo.store.uncordon(uuid);
 
     // Replace with data or patches
-    final data = request.hasField(4) ? toJsonFromAny(request.data) : null;
-    final patches = request.hasField(5) ? toJsonFromAny(request.data) : null;
-    repo.replace(
+    final data = request.hasField(4) ? request.data.toProto3Json() : null;
+    final patches = request.hasField(5) ? request.patches.map((v) => v.toProto3Json()) : null;
+    aggregate = repo.replace(
       uuid,
       strict: false,
       patches: patches,
@@ -165,21 +165,21 @@ class AggregateGrpcService extends AggregateServiceBase {
     if (repo == null) {
       _notFound(
         'catchupEvents',
-        'Aggregate $type not found',
-      );
-      return response
-        ..statusCode = HttpStatus.notFound
-        ..reasonPhrase = 'Aggregate $type not found';
-    }
-    final aggregate = await _tryGet(type, uuid);
-    if (aggregate == null) {
-      _notFound(
-        'catchupEvents',
         'Repository for aggregate $type not found',
       );
       return response
         ..statusCode = HttpStatus.notFound
         ..reasonPhrase = 'Repository for aggregate $type not found';
+    }
+    final aggregate = await _tryGet(type, uuid);
+    if (aggregate == null) {
+      _notFound(
+        'catchupEvents',
+        'Aggregate $type $uuid not found',
+      );
+      return response
+        ..statusCode = HttpStatus.notFound
+        ..reasonPhrase = 'Aggregate $type $uuid not found';
     }
 
     // Execute
@@ -230,21 +230,21 @@ class AggregateGrpcService extends AggregateServiceBase {
     if (repo == null) {
       _notFound(
         'replayEvents',
-        'Aggregate $type not found',
-      );
-      return response
-        ..statusCode = HttpStatus.notFound
-        ..reasonPhrase = 'Aggregate $type not found';
-    }
-    final aggregate = await _tryGet(type, uuid);
-    if (aggregate == null) {
-      _notFound(
-        'replayEvents',
         'Repository for aggregate $type not found',
       );
       return response
         ..statusCode = HttpStatus.notFound
         ..reasonPhrase = 'Repository for aggregate $type not found';
+    }
+    final aggregate = await _tryGet(type, uuid);
+    if (aggregate == null) {
+      _notFound(
+        'replayEvents',
+        'Aggregate $type $uuid not found',
+      );
+      return response
+        ..statusCode = HttpStatus.notFound
+        ..reasonPhrase = 'Aggregate $type $uuid not found';
     }
 
     // Execute

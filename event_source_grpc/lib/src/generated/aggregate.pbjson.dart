@@ -135,7 +135,7 @@ const ReplaceAggregateDataRequest$json = const {
       '3': 4,
       '4': 1,
       '5': 11,
-      '6': '.google.protobuf.Any',
+      '6': '.google.protobuf.Value',
       '10': 'data'
     },
     const {
@@ -143,7 +143,7 @@ const ReplaceAggregateDataRequest$json = const {
       '3': 5,
       '4': 3,
       '5': 11,
-      '6': '.google.protobuf.Any',
+      '6': '.google.protobuf.Value',
       '10': 'patches'
     },
   ],
@@ -187,9 +187,11 @@ const AggregateMeta$json = const {
   '2': const [
     const {'1': 'type', '3': 1, '4': 1, '5': 9, '10': 'type'},
     const {'1': 'uuid', '3': 2, '4': 1, '5': 9, '10': 'uuid'},
+    const {'1': 'number', '3': 3, '4': 1, '5': 3, '10': 'number'},
+    const {'1': 'position', '3': 4, '4': 1, '5': 3, '10': 'position'},
     const {
       '1': 'createdBy',
-      '3': 3,
+      '3': 5,
       '4': 1,
       '5': 11,
       '6': '.org.discoos.es.EventMeta',
@@ -197,7 +199,7 @@ const AggregateMeta$json = const {
     },
     const {
       '1': 'changedBy',
-      '3': 4,
+      '3': 6,
       '4': 1,
       '5': 11,
       '6': '.org.discoos.es.EventMeta',
@@ -205,7 +207,7 @@ const AggregateMeta$json = const {
     },
     const {
       '1': 'deletedBy',
-      '3': 5,
+      '3': 7,
       '4': 1,
       '5': 11,
       '6': '.org.discoos.es.EventMeta',
@@ -213,7 +215,7 @@ const AggregateMeta$json = const {
     },
     const {
       '1': 'applied',
-      '3': 6,
+      '3': 8,
       '4': 1,
       '5': 11,
       '6': '.org.discoos.es.EventMetaList',
@@ -221,7 +223,7 @@ const AggregateMeta$json = const {
     },
     const {
       '1': 'pending',
-      '3': 7,
+      '3': 9,
       '4': 1,
       '5': 11,
       '6': '.org.discoos.es.EventMetaList',
@@ -229,35 +231,35 @@ const AggregateMeta$json = const {
     },
     const {
       '1': 'skipped',
-      '3': 8,
+      '3': 10,
       '4': 1,
       '5': 11,
       '6': '.org.discoos.es.EventMetaList',
       '10': 'skipped'
     },
     const {
-      '1': 'data',
-      '3': 9,
-      '4': 1,
-      '5': 11,
-      '6': '.google.protobuf.Any',
-      '10': 'data'
-    },
-    const {
-      '1': 'tainted',
-      '3': 10,
-      '4': 1,
-      '5': 11,
-      '6': '.google.protobuf.Any',
-      '10': 'tainted'
-    },
-    const {
-      '1': 'cordoned',
+      '1': 'taint',
       '3': 11,
       '4': 1,
       '5': 11,
-      '6': '.google.protobuf.Any',
-      '10': 'cordoned'
+      '6': '.google.protobuf.Value',
+      '10': 'taint'
+    },
+    const {
+      '1': 'cordon',
+      '3': 12,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Value',
+      '10': 'cordon'
+    },
+    const {
+      '1': 'data',
+      '3': 13,
+      '4': 1,
+      '5': 11,
+      '6': '.google.protobuf.Value',
+      '10': 'data'
     },
   ],
 };

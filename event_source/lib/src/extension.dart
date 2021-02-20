@@ -65,6 +65,20 @@ extension MapX on Map {
               ? element[index]
               : defaultValue;
     });
+    if (found is String) {
+      switch (T) {
+        case int:
+          found = int.parse(
+            found.toString(),
+          );
+          break;
+        case double:
+          found = double.parse(
+            found.toString(),
+          );
+          break;
+      }
+    }
     return (found ?? defaultValue) as T;
   }
 
