@@ -581,7 +581,7 @@ abstract class ComponentBaseController extends ResourceController {
   Map<String, dynamic> toProto3JsonInstanceMeta(
     String name,
     GeneratedMessage meta, [
-    Map<String, String> Function(Map<String, String>) map,
+    Map<String, dynamic> Function(Map<String, dynamic>) map,
   ]) {
     final json = Map<String, dynamic>.from(
       meta.toProto3Json(),
