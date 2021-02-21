@@ -33,6 +33,9 @@ abstract class StatusBaseController extends ResourceController with RequestValid
   @override
   final List<Validator> validators;
 
+  @override
+  Logger get logger => Logger('$runtimeType');
+
   //////////////////////////////////
   // Status Operations
   //////////////////////////////////

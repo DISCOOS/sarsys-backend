@@ -28,6 +28,9 @@ abstract class ComponentBaseController extends ResourceController {
 
   final Map<String, dynamic> context;
 
+  @override
+  Logger get logger => Logger('$runtimeType');
+
   bool isModule(String name) => modules.contains(name);
   String toModuleLabel(String module) => 'module=$module';
   List<String> toModuleLabels() => modules.map(toModuleLabel).toList();

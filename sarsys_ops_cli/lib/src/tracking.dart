@@ -252,7 +252,7 @@ class TrackingStatusCommand extends TrackingCommandBase {
     if (server == null) {
       json = await get(
         client,
-        '/ops/api/services/tracking?extend=metrics',
+        '/ops/api/services/tracking?expand=metrics',
         (list) => jsonEncode(list),
         token: token,
         format: (result) => result,
@@ -260,7 +260,7 @@ class TrackingStatusCommand extends TrackingCommandBase {
     } else {
       json = await get(
         client,
-        '/ops/api/services/tracking/$server?extend=metrics',
+        '/ops/api/services/tracking/$server?expand=metrics',
         (meta) => jsonEncode(meta),
         token: token,
         format: (result) => result,
@@ -277,7 +277,7 @@ class TrackingStatusCommand extends TrackingCommandBase {
     if (server == null) {
       final statuses = await get(
         client,
-        '/ops/api/services/tracking?extend=metrics',
+        '/ops/api/services/tracking?expand=metrics',
         (meta) => toStatuses(
           Map.from(meta).listAt('items'),
           verbose: argResults['verbose'] as bool,
@@ -289,7 +289,7 @@ class TrackingStatusCommand extends TrackingCommandBase {
     } else {
       final status = await get(
         client,
-        '/ops/api/services/tracking/$server?extend=metrics',
+        '/ops/api/services/tracking/$server?expand=metrics',
         (meta) {
           final buffer = StringBuffer();
           toStatus(
