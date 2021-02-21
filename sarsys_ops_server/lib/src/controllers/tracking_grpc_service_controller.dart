@@ -3,6 +3,7 @@ import 'package:grpc/grpc_connection_interface.dart';
 import 'package:sarsys_ops_server/sarsys_ops_server.dart';
 import 'package:sarsys_ops_server/src/config.dart';
 import 'package:sarsys_core/sarsys_core.dart';
+import 'package:sarsys_ops_server/src/controllers/utils.dart';
 import 'package:sarsys_tracking_server/sarsys_tracking_server.dart';
 
 import 'component_base_controller.dart';
@@ -63,17 +64,17 @@ class TrackingGrpcServiceController extends ComponentBaseController {
     final pods = await k8s.getPodList(
       k8s.namespace,
       labels: toModuleLabels(),
+      metrics: shouldExpand(expand, 'metrics'),
     );
     final names = [];
     final items = <Map<String, dynamic>>[];
     for (var pod in pods) {
       final meta = await _doGetMetaByName(pod, expand);
-      if (shouldExpand(expand, 'metrics')) {
-        final metrics = await k8s.getPodMetrics(
-          k8s.namespace,
-          k8s.toPodName(pod),
+      if (pod.hasPath('metrics')) {
+        meta['metrics'] = toPodMetrics(
+          modules.first,
+          pod,
         );
-        meta['metrics'] = metrics;
       }
       items.add(meta);
       names.add(k8s.toPodName(pod));
