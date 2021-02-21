@@ -23,6 +23,9 @@ abstract class EntityController<S extends Command, T extends AggregateRoot> exte
   Type get aggregateType => typeOf<T>();
 
   @override
+  Logger get logger => Logger('$runtimeType');
+
+  @override
   final List<String> readOnly;
 
   @override

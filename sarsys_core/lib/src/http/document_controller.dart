@@ -9,6 +9,9 @@ class DocumentController extends FileController {
   }
 
   @override
+  Logger get logger => Logger('$runtimeType');
+
+  @override
   Map<String, APIOperation> documentOperations(APIDocumentContext context, String route, APIPath path) =>
       super.documentOperations(context, route, path)
         ..map((key, operation) => MapEntry(key, operation..tags = ['System']));

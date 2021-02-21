@@ -13,6 +13,9 @@ class AggregateLookupController<S extends Command, T extends AggregateRoot> exte
   Type get foreignType => foreign.aggregateType;
 
   @override
+  Logger get logger => Logger('$runtimeType');
+
+  @override
   FutureOr<RequestOrResponse> willProcessRequest(Request req) => primary.isReady && foreign.isReady
       ? req
       : serviceUnavailable(

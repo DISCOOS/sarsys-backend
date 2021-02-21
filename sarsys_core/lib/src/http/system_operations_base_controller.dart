@@ -22,6 +22,9 @@ abstract class SystemOperationsBaseController<T> extends ResourceController {
   final RepositoryManager manager;
   final Map<String, dynamic> context;
 
+  @override
+  Logger get logger => Logger('$runtimeType');
+
   String get(String name) => context[name] ?? Platform.environment[name];
 
   bool contains(String name) => context.containsKey(name) || Platform.environment.containsKey(name);

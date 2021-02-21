@@ -21,6 +21,9 @@ abstract class ValueController<S extends Command, T extends AggregateRoot> exten
   Type get aggregateType => typeOf<T>();
 
   @override
+  Logger get logger => Logger('$runtimeType');
+
+  @override
   final List<String> readOnly;
 
   @override
