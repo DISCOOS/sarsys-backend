@@ -150,6 +150,25 @@ abstract class BaseCommand extends Command<String> {
   Uri get baseUrl => Uri.parse('$scheme://$host:$port');
   Uri toURL(String uri) => uri.startsWith('/') ? Uri.parse('$baseUrl$uri') : Uri.parse('$baseUrl/$uri');
 
+  @override
+  FutureOr<String> run() async {
+    switch (argResults['output'] as String) {
+      case 'json':
+        silent = true;
+        final json = await onJson();
+        silent = false;
+        write(json, stdout);
+        break;
+      default:
+        await onPrint();
+        break;
+    }
+    return buffer.toString();
+  }
+
+  Future onPrint() => throw UnimplementedError('onPrint not implemented');
+  FutureOr<String> onJson() => throw UnimplementedError('onJson not implemented');
+
   Future<String> get(
     HttpClient client,
     String uri,

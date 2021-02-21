@@ -22,6 +22,18 @@ Future<String> run(List<String> args) async {
       abbr: 'c',
       help: 'Path to configuration file',
       defaultsTo: '${appDataDir}/config.yaml',
+    )
+    ..argParser.addOption(
+      'output',
+      abbr: 'o',
+      defaultsTo: '',
+      help: 'Output format',
+      allowed: ['json'],
+    )
+    ..argParser.addFlag(
+      'verbose',
+      abbr: 'v',
+      help: 'Verbose output',
     );
   ;
 

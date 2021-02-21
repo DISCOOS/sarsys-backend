@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:event_source/event_source.dart';
 import 'package:sarsys_ops_cli/sarsys_ops_cli.dart';
+import 'package:strings/strings.dart';
 
 import 'core.dart';
 
@@ -21,14 +23,7 @@ class StatusCommand extends BaseCommand {
 }
 
 class StatusAllCommand extends BaseCommand {
-  StatusAllCommand() {
-    argParser
-      ..addFlag(
-        'verbose',
-        abbr: 'v',
-        help: 'Verbose output',
-      );
-  }
+  StatusAllCommand();
 
   @override
   final name = 'all';
@@ -37,7 +32,19 @@ class StatusAllCommand extends BaseCommand {
   final description = 'all is used to get information about all backend modules';
 
   @override
-  FutureOr<String> run() async {
+  FutureOr<String> onJson() async {
+    final token = await AuthUtils.getToken(this);
+    return get(
+      client,
+      '/ops/api/system/status?expand=metrics',
+      (meta) => jsonEncode(meta),
+      token: token,
+      format: (result) => result,
+    );
+  }
+
+  @override
+  Future onPrint() async {
     final verbose = argResults['verbose'] as bool;
     writeln(highlight('> Ops control pane'), stdout);
     final token = await AuthUtils.getToken(this);
@@ -54,8 +61,6 @@ class StatusAllCommand extends BaseCommand {
 
     writeln(highlight('> Status all ${verbose ? '--verbose' : ''}'), stdout);
     writeln(statuses, stdout);
-
-    return buffer.toString();
   }
 }
 
@@ -66,11 +71,6 @@ class StatusModuleStatusCommand extends BaseCommand {
         'instance',
         abbr: 'i',
         help: 'Instance name',
-      )
-      ..addFlag(
-        'verbose',
-        abbr: 'v',
-        help: 'Verbose output',
       )
       ..allowsAnything;
   }
@@ -84,10 +84,26 @@ class StatusModuleStatusCommand extends BaseCommand {
   String get description => '$name is used to get information about given backend module';
 
   @override
-  FutureOr<String> run() async {
-    final instance = argResults['instance'];
+  FutureOr<String> onJson() async {
+    final token = await AuthUtils.getToken(this);
+    final instance = argResults['instance'] as String;
+    final uri = instance == null
+        ? '/ops/api/system/status/$module?expand=metrics'
+        : '/ops/api/system/status/$module/$instance?expand=metrics';
+    return get(
+      client,
+      uri,
+      (meta) => jsonEncode(meta),
+      token: token,
+      format: (result) => result,
+    );
+  }
+
+  @override
+  Future onPrint() async {
     final verbose = argResults['verbose'] as bool;
-    writeln(highlight('> Status App ${verbose ? '(verbose)' : ''}'), stdout);
+    final instance = argResults['instance'] as String;
+    writeln(highlight('> Status ${capitalize(name)} ${verbose ? '(verbose)' : ''}'), stdout);
     final token = await AuthUtils.getToken(this);
     final uri = instance == null
         ? '/ops/api/system/status/$module?expand=metrics'
@@ -100,6 +116,7 @@ class StatusModuleStatusCommand extends BaseCommand {
         if (instance == null) {
           _toModuleStatus(
             buffer,
+            (map as Map).elementAt('name'),
             (map as Map).listAt('instances'),
             verbose: verbose,
           );
@@ -116,32 +133,39 @@ class StatusModuleStatusCommand extends BaseCommand {
       format: (result) => result,
     );
     writeln(statuses, stdout);
-
-    return buffer.toString();
   }
 }
 
 String _toModuleListStatus(List items, {bool verbose = false}) {
   final buffer = StringBuffer();
-  final spaces = fill(2);
   for (var module in items.map((item) => Map.from(item))) {
     final instances = module.listAt<Map<String, dynamic>>('instances');
-    buffer.writeln(
-      '${spaces}Module: ${green(module.elementAt('name'))} '
-      '${gray('(${instances.length} instances)')}',
+    _toModuleStatus(
+      buffer,
+      module.elementAt('name'),
+      instances,
+      indent: 2,
+      verbose: verbose,
     );
-    _toModuleStatus(buffer, instances, indent: 4, verbose: verbose);
   }
   return buffer.toString();
 }
 
 void _toModuleStatus(
   StringBuffer buffer,
+  String module,
   List<Map<String, dynamic>> instances, {
   int indent = 2,
   bool verbose = false,
 }) {
-  for (var instance in instances.map((item) => Map.from(item))) {
+  final spaces = fill(2);
+  buffer.writeln(gray('${spaces}--------------------------------------------'));
+  buffer.writeln(
+    '${spaces}Module: ${green(module)} '
+    '${gray('(${instances.length} instances)')}',
+  );
+  buffer.writeln(gray('${spaces}--------------------------------------------'));
+  for (var instance in instances.map((item) => Map<String, dynamic>.from(item))) {
     _toInstanceStatus(
       buffer,
       instance,
@@ -149,6 +173,7 @@ void _toModuleStatus(
       verbose: verbose,
     );
   }
+  buffer.writeln();
 }
 
 void _toInstanceStatus(
@@ -161,7 +186,6 @@ void _toInstanceStatus(
   final alive = instance.elementAt<bool>('status/health/alive');
   final ready = instance.elementAt<bool>('status/health/ready');
   if (verbose) {
-    buffer.writeln(gray('${spaces}--------------------------------------------'));
     buffer.writeln('${spaces}Name: ${green(instance.elementAt('name'))}');
     buffer.writeln('${spaces}API');
     buffer.writeln('${spaces}  Alive: ${green(alive)}');
@@ -182,15 +206,16 @@ void _toInstanceStatus(
       buffer.writeln('${spaces}Metrics');
       buffer.writeln(
         '${spaces}   CPU: '
-        '${metrics.jointAt(['usage/cpu', 'requests/cpu', 'limits/cpu'], separator: '/')}'
-        ' ${gray('(usage/request/limit)')}',
+        '${green(metrics.jointAt(['usage/cpu', 'requests/cpu', 'limits/cpu'], separator: '/'))}'
+        ' ${gray('(use/req/max)')}',
       );
       buffer.writeln(
-        '${spaces}   MEM: '
-        '${metrics.jointAt(['usage/memory', 'requests/memory', 'limits/memory'], separator: '/')}'
-        ' ${gray('(usage/request/limit)')}',
+        '${spaces}   Memory: '
+        '${green(metrics.jointAt(['usage/memory', 'requests/memory', 'limits/memory'], separator: '/'))}'
+        ' ${gray('(use/req/max)')}',
       );
     }
+    buffer.writeln(gray('${spaces}--------------------------------------------'));
   } else {
     final down = !alive || !ready;
     final api = '${alive ? '1' : '0'}/${alive ? '1' : '0'}';

@@ -732,7 +732,7 @@ packages:
     source: hosted
     version: "1.0.5"
   strings:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: strings
       url: "https://pub.dartlang.org"
