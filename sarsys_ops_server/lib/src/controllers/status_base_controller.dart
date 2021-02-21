@@ -47,9 +47,10 @@ abstract class StatusBaseController extends ResourceController with RequestValid
     try {
       final statuses = <Map<String, dynamic>>[];
       for (var module in modules) {
-        statuses.add(
-          await doGetByName(module, expand),
-        );
+        final status = await doGetByType(module, expand);
+        if (status != null) {
+          statuses.add(status);
+        }
       }
       return Response.ok(
         statuses,
@@ -61,14 +62,18 @@ abstract class StatusBaseController extends ResourceController with RequestValid
     }
   }
 
-  /// Add @Operation.get('name') to activate
-  Future<Response> getByName(
-    @Bind.path('name') String name, {
+  /// Add @Operation.get('type') to activate
+  Future<Response> getByType(
+    @Bind.path('type') String type, {
     @Bind.query('expand') String expand,
   }) async {
     try {
+      final statuses = await doGetByType(type, expand);
+      if (statuses == null) {
+        return Response.notFound();
+      }
       return Response.ok(
-        await doGetByName(name, expand),
+        statuses,
       );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
@@ -77,8 +82,42 @@ abstract class StatusBaseController extends ResourceController with RequestValid
     }
   }
 
-  Future<Map<String, dynamic>> doGetByName(String name, String expand) => throw UnimplementedError(
+  Future<Map<String, dynamic>> doGetByType(
+    String type,
+    String expand,
+  ) =>
+      throw UnimplementedError(
         'doGetByName not implemented',
+      );
+
+  /// Add @Operation.get('type', 'name') to activate
+  Future<Response> getByTypeAndName(
+    @Bind.path('type') String type,
+    @Bind.path('name') String name, {
+    @Bind.query('expand') String expand,
+  }) async {
+    try {
+      final status = await doGetByTypeAndName(type, name, expand);
+      if (status == null) {
+        return Response.notFound();
+      }
+      return Response.ok(
+        status,
+      );
+    } on InvalidOperation catch (e) {
+      return Response.badRequest(body: e.message);
+    } catch (e, stackTrace) {
+      return toServerError(e, stackTrace);
+    }
+  }
+
+  Future<Map<String, dynamic>> doGetByTypeAndName(
+    String type,
+    String name,
+    String expand,
+  ) =>
+      throw UnimplementedError(
+        'doGetByTypeAndName not implemented',
       );
 
   bool shouldExpand(String expand, String field) {
@@ -114,13 +153,13 @@ abstract class StatusBaseController extends ResourceController with RequestValid
     String summary;
     switch (operation.method) {
       case 'GET':
-        summary = operation.pathVariables.isEmpty ? 'Get all ${_toName()}s' : 'Get ${_toName()}';
+        summary = operation.pathVariables.isEmpty ? 'Get all ${_toType()}s' : 'Get ${_toType()}';
         break;
     }
     return summary;
   }
 
-  String _toName() => type.toDelimiterCase(' ');
+  String _toType() => type.toDelimiterCase(' ');
 
   @override
   List<APIParameter> documentOperationParameters(APIDocumentContext context, Operation operation) {

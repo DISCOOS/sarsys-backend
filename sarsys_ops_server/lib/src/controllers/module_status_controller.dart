@@ -32,56 +32,82 @@ class ModuleStatusController extends StatusBaseController {
   }
 
   @override
-  @Operation.get('name')
-  Future<Response> getByName(
-    @Bind.path('name') String name, {
+  @Operation.get('type')
+  Future<Response> getByType(
+    @Bind.path('type') String type, {
     @Bind.query('expand') String expand,
   }) =>
-      super.getByName(name, expand: expand);
+      super.getByType(type, expand: expand);
 
   @override
-  Future<Map<String, dynamic>> doGetByName(String name, String expand) async {
+  Future<Map<String, dynamic>> doGetByType(String type, String expand) async {
     final pods = await k8s.getPodList(
       k8s.namespace,
       labels: [
-        'module=$name',
+        'module=$type',
       ],
       metrics: shouldExpand(expand, 'metrics'),
     );
     return {
-      'name': name,
-      'instances': await _toInstanceStatus(
-        name,
+      'name': type,
+      'instances': await _toInstanceListStatus(
+        type,
         pods,
       ),
     };
   }
 
-  Future<List<Map<String, dynamic>>> _toInstanceStatus(String name, List<Map<String, dynamic>> pods) async {
+  @override
+  @Operation.get('type', 'name')
+  Future<Response> getByTypeAndName(
+    @Bind.path('type') String type,
+    @Bind.path('name') String name, {
+    @Bind.query('expand') String expand,
+  }) =>
+      super.getByTypeAndName(type, name, expand: expand);
+
+  @override
+  Future<Map<String, dynamic>> doGetByTypeAndName(String type, String name, String expand) async {
+    final pods = await k8s.getPodList(
+      k8s.namespace,
+      name: name,
+      labels: [
+        'module=$type',
+      ],
+      metrics: shouldExpand(expand, 'metrics'),
+    );
+    return pods.isEmpty ? null : await _toInstanceStatus(type, pods.first);
+  }
+
+  Future<List<Map<String, dynamic>>> _toInstanceListStatus(String type, List<Map<String, dynamic>> pods) async {
     final instances = <Map<String, dynamic>>[];
     for (var pod in pods) {
-      instances.add({
-        'name': pod.elementAt('metadata/name'),
-        'status': await _toPodStatus(name, pod),
-        if (pod.hasPath('metrics')) 'metrics': _toPodMetrics(name, pod),
-      });
+      instances.add(await _toInstanceStatus(type, pod));
     }
     return instances.toList();
   }
 
-  Future<Map<String, dynamic>> _toInstanceHealth(String name, Map<String, dynamic> pod) async {
+  Future<Map<String, dynamic>> _toInstanceStatus(String type, Map<String, dynamic> pod) async {
     return {
-      'alive': await _isOK(name, pod, '/api/healthz/alive'),
-      'ready': await _isOK(name, pod, '/api/healthz/ready'),
+      'name': pod.elementAt('metadata/name'),
+      'status': await _toPodStatus(type, pod),
+      if (pod.hasPath('metrics')) 'metrics': _toPodMetrics(type, pod),
     };
   }
 
-  Future<bool> _isOK(String name, Map<String, dynamic> pod, String uri) async {
+  Future<Map<String, dynamic>> _toInstanceHealth(String type, Map<String, dynamic> pod) async {
+    return {
+      'alive': await _isOK(type, pod, '/api/healthz/alive'),
+      'ready': await _isOK(type, pod, '/api/healthz/ready'),
+    };
+  }
+
+  Future<bool> _isOK(String type, Map<String, dynamic> pod, String uri) async {
     final url = k8s.toPodUri(
       pod,
       uri: uri,
-      deployment: name,
-      port: ports[name],
+      deployment: type,
+      port: ports[type],
     );
     try {
       final response = await k8s.getUrl(
@@ -96,7 +122,7 @@ class ModuleStatusController extends StatusBaseController {
     }
   }
 
-  Future<Map<String, dynamic>> _toPodStatus(String name, Map<String, dynamic> pod) async {
+  Future<Map<String, dynamic>> _toPodStatus(String type, Map<String, dynamic> pod) async {
     final conditions = pod.listAt(
       'status/conditions',
       defaultList: [],
@@ -104,7 +130,7 @@ class ModuleStatusController extends StatusBaseController {
 
     return {
       'health': await _toInstanceHealth(
-        name,
+        type,
         pod,
       ),
       'conditions': conditions.isNotEmpty
@@ -120,7 +146,7 @@ class ModuleStatusController extends StatusBaseController {
     };
   }
 
-  Map<String, dynamic> _toPodMetrics(String name, Map<String, dynamic> pod) {
+  Map<String, dynamic> _toPodMetrics(String type, Map<String, dynamic> pod) {
     final metrics = Map<String, dynamic>.from(pod['metrics'])
       ..removeWhere((key, _) => const [
             'kind',
@@ -132,20 +158,20 @@ class ModuleStatusController extends StatusBaseController {
     return metrics
       ..putIfAbsent(
         'usage',
-        () => _toPodUsage(name, pod),
+        () => _toPodUsage(type, pod),
       )
       ..putIfAbsent(
         'limits',
-        () => _toPodLimits(name, pod),
+        () => _toPodLimits(type, pod),
       )
       ..putIfAbsent(
         'requests',
-        () => _toPodRequests(name, pod),
+        () => _toPodRequests(type, pod),
       );
   }
 
   Map<String, dynamic> _toPodUsage(
-    String name,
+    String type,
     Map<String, dynamic> pod,
   ) {
     return pod
@@ -153,14 +179,14 @@ class ModuleStatusController extends StatusBaseController {
               'metrics/containers',
               defaultList: [],
             )
-            .where((c) => c['name'] == name)
+            .where((c) => c['name'] == type)
             .map((c) => Map<String, dynamic>.from(c['usage']))
             .firstOrNull ??
         <String, dynamic>{};
   }
 
   Map<String, dynamic> _toPodLimits(
-    String name,
+    String type,
     Map<String, dynamic> pod,
   ) {
     return pod
@@ -168,14 +194,14 @@ class ModuleStatusController extends StatusBaseController {
               'spec/containers',
               defaultList: [],
             )
-            .where((c) => c['name'] == name)
+            .where((c) => c['name'] == type)
             .map((c) => c.mapAt<String, dynamic>('resources/limits'))
             .firstOrNull ??
         <String, dynamic>{};
   }
 
   Map<String, dynamic> _toPodRequests(
-    String name,
+    String type,
     Map<String, dynamic> pod,
   ) {
     return pod
@@ -183,7 +209,7 @@ class ModuleStatusController extends StatusBaseController {
               'spec/containers',
               defaultList: [],
             )
-            .where((c) => c['name'] == name)
+            .where((c) => c['name'] == type)
             .map((c) => c.mapAt<String, dynamic>('resources/requests'))
             .firstOrNull ??
         <String, dynamic>{};

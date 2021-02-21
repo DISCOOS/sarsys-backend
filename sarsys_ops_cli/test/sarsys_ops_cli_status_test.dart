@@ -32,12 +32,37 @@ Future main() async {
     expect(result, isNotEmpty);
   });
 
-  test('sarsysctl status module', () async {
+  test('sarsysctl status app', () async {
     final result = await run([
       'status',
-      'module',
-      '-m',
-      'sarsys-tracking-server',
+      'app',
+      '-v',
+    ]);
+    expect(result, isNotEmpty);
+  });
+  test('sarsysctl status app -i {instance}', () async {
+    final result = await run([
+      'status',
+      'app',
+      '-v',
+    ]);
+    expect(result, isNotEmpty);
+  });
+
+  test('sarsysctl status tracking', () async {
+    final result = await run([
+      'status',
+      'app',
+      '-v',
+    ]);
+    expect(result, isNotEmpty);
+  });
+  test('sarsysctl status tracking -i {instance}', () async {
+    final result = await run([
+      'status',
+      'tracking',
+      '-i',
+      'sarsys-tracking-server-1',
       '-v',
     ]);
     expect(result, isNotEmpty);

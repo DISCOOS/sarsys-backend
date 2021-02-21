@@ -45,4 +45,45 @@ Future main() async {
     expect(instance.elementAt('metrics/usage'), isNotEmpty);
     expect(instance.elementAt('metrics/limits'), isNotEmpty);
   });
+
+  test('GET /ops/api/system/status/:type returns 200 OK', () async {
+    // Arrange
+    const module = 'sarsys-tracking-server';
+
+    // Act
+    final response = await harness.agent.get('/ops/api/system/status/$module?expand=metrics');
+
+    // Assert
+    expect(response.statusCode, 200);
+    final body = Map.from(await response.body.decode());
+    final instances = body.listAt('instances');
+    expect(instances.length, 1);
+    expect(body.elementAt('name'), module);
+    final instance = body.mapAt<String, dynamic>('instances/0');
+    expect(instance.elementAt('name'), SarSysOpsHarness.trackingInstance0);
+    expect(instance.elementAt('status/health/alive'), isFalse);
+    expect(instance.elementAt('status/health/ready'), isFalse);
+    expect(instance.elementAt('status/conditions/0/type'), 'Unknown');
+    expect(instance.elementAt('metrics/usage'), isNotEmpty);
+    expect(instance.elementAt('metrics/limits'), isNotEmpty);
+  });
+
+  test('GET /ops/api/system/status/:type/:name returns 200 OK', () async {
+    // Arrange
+    const module = 'sarsys-tracking-server';
+    const instance = 'sarsys-tracking-server-0';
+
+    // Act
+    final response = await harness.agent.get('/ops/api/system/status/$module/$instance?expand=metrics');
+
+    // Assert
+    expect(response.statusCode, 200);
+    final body = Map.from(await response.body.decode());
+    expect(body.elementAt('name'), SarSysOpsHarness.trackingInstance0);
+    expect(body.elementAt('status/health/alive'), isFalse);
+    expect(body.elementAt('status/health/ready'), isFalse);
+    expect(body.elementAt('status/conditions/0/type'), 'Unknown');
+    expect(body.elementAt('metrics/usage'), isNotEmpty);
+    expect(body.elementAt('metrics/limits'), isNotEmpty);
+  });
 }

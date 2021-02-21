@@ -73,6 +73,7 @@ class TrackingGrpcServiceController extends ComponentBaseController {
           k8s.namespace,
           k8s.toPodName(pod),
         );
+        meta['metrics'] = metrics;
       }
       items.add(meta);
       names.add(k8s.toPodName(pod));
