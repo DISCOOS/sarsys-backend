@@ -94,7 +94,7 @@ class SarSysOpsServerChannel extends SarSysServerChannelBase {
       ..route('/ops/api/healthz/alive').link(() => LivenessController())
       ..route('/ops/api/healthz/ready').link(() => LivenessController())
       ..secure(
-        '/ops/api/system/status[/:name]',
+        '/ops/api/system/status[/:type[/:name]]',
         () => ModuleStatusController(k8s, config),
       )
       ..secure(
