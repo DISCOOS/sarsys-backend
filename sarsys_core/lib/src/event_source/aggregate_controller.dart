@@ -27,6 +27,9 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   Type get aggregateType => typeOf<T>();
 
   @override
+  Logger get logger => Logger('$runtimeType');
+
+  @override
   FutureOr<RequestOrResponse> willProcessRequest(Request req) => repository.isReady
       ? req
       : serviceUnavailable(
