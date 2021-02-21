@@ -303,15 +303,22 @@ class K8sApi {
     bool authenticate = true,
   }) async {
     final request = await client.getUrl(url);
-    _fine('getUrl', ['request ${request.method} ${request.uri}']);
+    _fine('getUrl', ['${request.method} ${request.uri} > REQUESTED']);
     if (isAuthorized && authenticate) {
       request.headers.add('Authorization', 'Bearer $token');
     }
     final response = await request.close();
-    _fine(
-      'getUrl',
-      ['${request.method} ${request.uri} ${response.statusCode} ${response.reasonPhrase}'],
-    );
+    if (response.statusCode < 400) {
+      _fine(
+        'getUrl',
+        ['${request.method} ${request.uri} ${response.statusCode} ${response.reasonPhrase}'],
+      );
+    } else {
+      _warning(
+        'getUrl',
+        ['${request.method} ${request.uri} ${response.statusCode} ${response.reasonPhrase}'],
+      );
+    }
     return response;
   }
 
