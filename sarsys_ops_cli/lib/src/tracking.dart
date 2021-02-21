@@ -25,18 +25,18 @@ class TrackingCommand extends BaseCommand {
 
 abstract class TrackingCommandBase extends BaseCommand {
   Future<String> executeOn(
-    String server,
+    String instance,
     Map<String, dynamic> args,
     bool verbose,
   ) async {
     final token = await AuthUtils.getToken(this);
     final status = await post(
       client,
-      '/ops/api/services/tracking/$server?expand=metrics',
+      '/ops/api/services/tracking/$instance?expand=metrics',
       args,
       (result) {
         final buffer = StringBuffer();
-        toStatus(
+        toInstanceStatus(
           buffer,
           result['meta'],
           verbose: verbose,
@@ -49,18 +49,23 @@ abstract class TrackingCommandBase extends BaseCommand {
     return status;
   }
 
-  String toStatuses(List items, {bool verbose = false}) {
+  String toModuleStatus(List items, {bool verbose = false}) {
     final buffer = StringBuffer();
     for (var instance in items.map((item) => Map.from(item))) {
       sprint(60, buffer: buffer, format: highlight);
       vprint('Name', instance.elementAt('name'), buffer: buffer);
-      toStatus(buffer, instance, verbose: verbose);
+      toInstanceStatus(buffer, instance, verbose: verbose);
       buffer.writeln();
     }
     return buffer.toString();
   }
 
-  void toStatus(StringBuffer buffer, Map instance, {int indent = 2, bool verbose = false}) {
+  void toInstanceStatus(
+    StringBuffer buffer,
+    Map instance, {
+    int indent = 2,
+    bool verbose = false,
+  }) {
     final separator = fill(60, '-');
     final columns = separator.length;
     final spaces = fill(indent);
@@ -139,18 +144,19 @@ abstract class TrackingCommandBase extends BaseCommand {
     final metrics = instance.mapAt('metrics');
     if (metrics != null) {
       buffer.writeln('$spaces$separator');
+      buffer.writeln('METRICS: $metrics');
       vprint(
         'CPU',
         '${metrics.jointAt(['usage/cpu', 'requests/cpu', 'limits/cpu'], separator: '/')}',
-        unit: 'usage/request/limit',
+        unit: 'use/req/max',
         max: columns,
         buffer: buffer,
         indent: indent,
       );
       vprint(
-        'MEM',
+        'Memory',
         '${metrics.jointAt(['usage/memory', 'requests/memory', 'limits/memory'], separator: '/')}',
-        unit: 'usage/request/limit',
+        unit: 'use/req/max',
         max: columns,
         buffer: buffer,
         indent: indent,
@@ -207,9 +213,9 @@ class TrackingStatusCommand extends TrackingCommandBase {
   TrackingStatusCommand() {
     argParser
       ..addOption(
-        'server',
-        abbr: 's',
-        help: 'Server name',
+        'instance',
+        abbr: 'i',
+        help: 'Instance name',
       )
       ..addOption(
         'output',
@@ -232,53 +238,31 @@ class TrackingStatusCommand extends TrackingCommandBase {
   final description = 'status is used to check tracking status';
 
   @override
-  FutureOr<String> run() async {
-    switch (argResults['output'] as String) {
-      case 'json':
-        await _json();
-        break;
-      default:
-        await _print();
-        break;
-    }
-    return buffer.toString();
-  }
-
-  Future _json() async {
-    silent = true;
-    var json;
-    final server = argResults['server'] as String;
+  FutureOr<String> onJson() async {
     final token = await AuthUtils.getToken(this);
-    if (server == null) {
-      json = await get(
-        client,
-        '/ops/api/services/tracking?expand=metrics',
-        (list) => jsonEncode(list),
-        token: token,
-        format: (result) => result,
-      );
-    } else {
-      json = await get(
-        client,
-        '/ops/api/services/tracking/$server?expand=metrics',
-        (meta) => jsonEncode(meta),
-        token: token,
-        format: (result) => result,
-      );
-    }
-    silent = false;
-    write(json, stdout);
+    final instance = argResults['instance'] as String;
+    final uri = instance == null
+        ? '/ops/api/services/tracking?expand=metrics'
+        : '/ops/api/services/tracking/$instance?expand=metrics';
+    return get(
+      client,
+      uri,
+      (meta) => jsonEncode(meta),
+      token: token,
+      format: (result) => result,
+    );
   }
 
-  Future _print() async {
-    final server = argResults['server'] as String;
+  @override
+  Future onPrint() async {
+    final instance = argResults['instance'] as String;
     writeln(highlight('> Tracking status...'), stdout);
     final token = await AuthUtils.getToken(this);
-    if (server == null) {
+    if (instance == null) {
       final statuses = await get(
         client,
         '/ops/api/services/tracking?expand=metrics',
-        (meta) => toStatuses(
+        (meta) => toModuleStatus(
           Map.from(meta).listAt('items'),
           verbose: argResults['verbose'] as bool,
         ),
@@ -289,10 +273,10 @@ class TrackingStatusCommand extends TrackingCommandBase {
     } else {
       final status = await get(
         client,
-        '/ops/api/services/tracking/$server?expand=metrics',
+        '/ops/api/services/tracking/$instance?expand=metrics',
         (meta) {
           final buffer = StringBuffer();
-          toStatus(
+          toInstanceStatus(
             buffer,
             meta,
             verbose: argResults['verbose'] as bool,
@@ -311,19 +295,14 @@ class TrackingStartCommand extends TrackingCommandBase {
   TrackingStartCommand() {
     argParser
       ..addOption(
-        'server',
-        abbr: 's',
-        help: 'Server name',
+        'instance',
+        abbr: 'i',
+        help: 'Instance name',
       )
       ..addFlag(
         'all',
         abbr: 'a',
         help: 'All servers',
-      )
-      ..addFlag(
-        'verbose',
-        abbr: 'v',
-        help: 'Verbose output',
       );
   }
 
@@ -336,14 +315,14 @@ class TrackingStartCommand extends TrackingCommandBase {
   @override
   FutureOr<String> run() async {
     final all = argResults['all'] as String;
-    final server = argResults['server'] as String;
-    if (all == null && server == null) {
-      usageException(red(' Server name is missing'));
-      return writeln(red(' Server name is missing'), stderr);
+    final instance = argResults['instance'] as String;
+    if (all == null && instance == null) {
+      usageException(red(' Instance name is missing'));
+      return writeln(red(' Instance name is missing'), stderr);
     }
-    writeln(highlight('> Start racking $server...'), stdout);
+    writeln(highlight('> Start racking $instance...'), stdout);
     final status = await executeOn(
-      server,
+      instance,
       {
         'action': 'start',
       },
@@ -359,19 +338,14 @@ class TrackingStopCommand extends TrackingCommandBase {
   TrackingStopCommand() {
     argParser
       ..addOption(
-        'server',
-        abbr: 's',
-        help: 'Server name',
+        'instance',
+        abbr: 'i',
+        help: 'Instance name',
       )
       ..addFlag(
         'all',
         abbr: 'a',
         help: 'All servers',
-      )
-      ..addFlag(
-        'verbose',
-        abbr: 'v',
-        help: 'Verbose output',
       );
   }
 
@@ -384,14 +358,14 @@ class TrackingStopCommand extends TrackingCommandBase {
   @override
   FutureOr<String> run() async {
     final all = argResults['all'] as String;
-    final server = argResults['server'] as String;
-    if (all == null && server == null) {
-      usageException(red(' Server name is missing'));
-      return writeln(red(' Server name is missing'), stderr);
+    final instance = argResults['instance'] as String;
+    if (all == null && instance == null) {
+      usageException(red(' Instance name is missing'));
+      return writeln(red(' Instance name is missing'), stderr);
     }
-    writeln(highlight('> Stop tracking $server...'), stdout);
+    writeln(highlight('> Stop tracking $instance...'), stdout);
     final status = await executeOn(
-      server,
+      instance,
       {
         'action': 'stop',
       },
@@ -406,19 +380,14 @@ class TrackingAddCommand extends TrackingCommandBase {
   TrackingAddCommand() {
     argParser
       ..addOption(
-        'server',
-        abbr: 's',
-        help: 'Server name',
+        'instance',
+        abbr: 'i',
+        help: 'Instance name',
       )
       ..addMultiOption(
         'uuids',
         abbr: 'u',
         help: 'List of tracking object uuids',
-      )
-      ..addFlag(
-        'verbose',
-        abbr: 'v',
-        help: 'Verbose output',
       );
   }
 
@@ -430,19 +399,19 @@ class TrackingAddCommand extends TrackingCommandBase {
 
   @override
   FutureOr<String> run() async {
-    final server = argResults['server'] as String;
-    if (server == null) {
-      usageException(red(' Server name is missing'));
-      return writeln(red(' Server name is missing'), stderr);
+    final instance = argResults['instance'] as String;
+    if (instance == null) {
+      usageException(red(' Instance name is missing'));
+      return writeln(red(' Instance name is missing'), stderr);
     }
     final uuids = argResults['uuids'] as List<String>;
     if (uuids.isEmpty) {
       usageException(red(' Tracking uuids are missing'));
       return writeln(red(' Tracking uuids are missing'), stderr);
     }
-    writeln(highlight('> Add trackings object to $server...'), stdout);
+    writeln(highlight('> Add trackings object to $instance...'), stdout);
     final status = await executeOn(
-      server,
+      instance,
       {
         'action': 'add_trackings',
         'uuids': uuids,
@@ -458,19 +427,14 @@ class TrackingRemoveCommand extends TrackingCommandBase {
   TrackingRemoveCommand() {
     argParser
       ..addOption(
-        'server',
-        abbr: 's',
-        help: 'Server name',
+        'instance',
+        abbr: 'i',
+        help: 'Instance name',
       )
       ..addMultiOption(
         'uuids',
         abbr: 'u',
         help: 'List of tracking object uuids',
-      )
-      ..addFlag(
-        'verbose',
-        abbr: 'v',
-        help: 'Verbose output',
       );
   }
 
@@ -482,19 +446,19 @@ class TrackingRemoveCommand extends TrackingCommandBase {
 
   @override
   FutureOr<String> run() async {
-    final server = argResults['server'] as String;
-    if (server == null) {
-      usageException(red(' Server name is missing'));
-      return writeln(red(' Server name is missing'), stderr);
+    final instance = argResults['instance'] as String;
+    if (instance == null) {
+      usageException(red(' Instance name is missing'));
+      return writeln(red(' Instance name is missing'), stderr);
     }
     final uuids = argResults['uuids'] as List<String>;
     if (uuids.isEmpty) {
       usageException(red(' Tracking uuids are missing'));
       return writeln(red(' Tracking uuids are missing'), stderr);
     }
-    writeln(highlight('> Remove trackings object from $server...'), stdout);
+    writeln(highlight('> Remove trackings object from $instance...'), stdout);
     final status = await executeOn(
-      server,
+      instance,
       {
         'action': 'remove_trackings',
         'uuids': uuids,
