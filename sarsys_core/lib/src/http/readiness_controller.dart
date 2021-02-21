@@ -5,6 +5,9 @@ class ReadinessController extends ResourceController {
   ReadinessController(this.onCheck);
   final bool Function() onCheck;
 
+  @override
+  Logger get logger => Logger('$runtimeType');
+
   @Operation.get()
   Future<Response> check() async {
     return onCheck() ? Response.ok('Status OK') : serviceUnavailable(body: 'Status Not ready');
