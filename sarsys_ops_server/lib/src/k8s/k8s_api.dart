@@ -148,18 +148,28 @@ class K8sApi {
 
   Future<Map<String, dynamic>> getPod(
     String ns,
-    String name,
-  ) async {
+    String name, {
+    bool metrics = false,
+  }) async {
     final args = [
       'namespace: $ns',
       'name: $name',
       'isAuthorized: $isAuthorized',
     ];
-    return getFromUri<Map<String, dynamic>>(
+
+    final pod = await getFromUri<Map<String, dynamic>>(
       'getPod',
       '/api/v1/namespaces/$ns/pods/$name',
       args: args,
     );
+    if (metrics) {
+      pod['metrics'] = await getPodMetrics(
+        ns,
+        name,
+      );
+    }
+
+    return pod;
   }
 
   Future<List<Map<String, dynamic>>> getPodList(

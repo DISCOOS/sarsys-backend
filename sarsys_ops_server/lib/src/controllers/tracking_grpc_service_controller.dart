@@ -106,6 +106,7 @@ class TrackingGrpcServiceController extends ComponentBaseController {
   Future<Response> doGetMetaByName(String name, String expand) async {
     final pod = await _getPod(
       name,
+      shouldExpand(expand, 'metrics'),
     );
     if (pod?.isNotEmpty != true) {
       return toResponse(
@@ -120,6 +121,12 @@ class TrackingGrpcServiceController extends ComponentBaseController {
       pod,
       expand,
     );
+    if (pod.hasPath('metrics')) {
+      meta['metrics'] = toPodMetrics(
+        modules.first,
+        pod,
+      );
+    }
     return toResponse(
       name: name,
       body: meta,
@@ -211,7 +218,10 @@ class TrackingGrpcServiceController extends ComponentBaseController {
     Map<String, dynamic> body,
     String expand,
   ) async {
-    final pod = await _getPod(name);
+    final pod = await _getPod(
+      name,
+      shouldExpand(expand, 'metrics'),
+    );
     if (pod?.isNotEmpty != true) {
       return toResponse(
         name: name,
@@ -333,6 +343,12 @@ class TrackingGrpcServiceController extends ComponentBaseController {
     String expand,
   ) async {
     final meta = await _doStart(pod, expand);
+    if (pod.hasPath('metrics')) {
+      meta['metrics'] = toPodMetrics(
+        modules.first,
+        pod,
+      );
+    }
     return toResponse(
       body: meta,
       method: 'doStart',
@@ -367,6 +383,12 @@ class TrackingGrpcServiceController extends ComponentBaseController {
     String expand,
   ) async {
     final meta = await _doStop(pod, expand);
+    if (pod.hasPath('metrics')) {
+      meta['metrics'] = toPodMetrics(
+        modules.first,
+        pod,
+      );
+    }
     return toResponse(
       body: meta,
       method: 'doStop',
@@ -423,15 +445,22 @@ class TrackingGrpcServiceController extends ComponentBaseController {
           toRepoFields(expand),
         ),
     );
+    final meta = _toJsonInstanceMeta(
+      k8s.toPodName(pod),
+      response.meta,
+    );
+    if (pod.hasPath('metrics')) {
+      meta['metrics'] = toPodMetrics(
+        modules.first,
+        pod,
+      );
+    }
     return toResponse(
       name: name,
       args: args,
       method: 'doAddTrackings',
       body: toJsonCommandMeta(
-        _toJsonInstanceMeta(
-          k8s.toPodName(pod),
-          response.meta,
-        ),
+        meta,
         response.statusCode,
         response.reasonPhrase,
         () => {
@@ -471,15 +500,22 @@ class TrackingGrpcServiceController extends ComponentBaseController {
           toRepoFields(expand),
         ),
     );
+    final meta = _toJsonInstanceMeta(
+      k8s.toPodName(pod),
+      response.meta,
+    );
+    if (pod.hasPath('metrics')) {
+      meta['metrics'] = toPodMetrics(
+        modules.first,
+        pod,
+      );
+    }
     return toResponse(
       name: name,
       args: args,
       method: 'doRemoveTrackings',
       body: toJsonCommandMeta(
-        _toJsonInstanceMeta(
-          k8s.toPodName(pod),
-          response.meta,
-        ),
+        meta,
         response.statusCode,
         response.reasonPhrase,
         () => {
@@ -527,10 +563,11 @@ class TrackingGrpcServiceController extends ComponentBaseController {
     return client;
   }
 
-  Future<Map<String, dynamic>> _getPod(String name) async {
+  Future<Map<String, dynamic>> _getPod(String name, bool metrics) async {
     return await k8s.getPod(
       k8s.namespace,
       name,
+      metrics: metrics,
     );
   }
 

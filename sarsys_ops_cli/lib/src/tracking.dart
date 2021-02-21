@@ -144,7 +144,6 @@ abstract class TrackingCommandBase extends BaseCommand {
     final metrics = instance.mapAt('metrics');
     if (metrics != null) {
       buffer.writeln('$spaces$separator');
-      buffer.writeln('METRICS: $metrics');
       vprint(
         'CPU',
         '${metrics.jointAt(['usage/cpu', 'requests/cpu', 'limits/cpu'], separator: '/')}',
