@@ -37,7 +37,7 @@ class SnapshotGrpcServiceController extends ComponentBaseController {
             'save',
             'configure',
           ],
-          tag: 'Services',
+          tag: 'Snapshot service',
           context: context,
           modules: [
             'sarsys-app-server',
@@ -68,7 +68,7 @@ class SnapshotGrpcServiceController extends ComponentBaseController {
     String expand,
   ) async {
     final names = <String>[];
-    final pods = await k8s.getPodsFromNs(
+    final pods = await k8s.getPodList(
       k8s.namespace,
       labels: toModuleLabels(),
     );
@@ -180,15 +180,6 @@ class SnapshotGrpcServiceController extends ComponentBaseController {
   }
 
   @override
-  String parseActionFromUri() {
-    final variableCount = request.path.variables.length;
-    final all = variableCount == 1;
-    final segmentCount = request.path.segments.length;
-    final action = request.path.segments[segmentCount - variableCount];
-    return const ['upload', 'download'].contains(action) ? (all ? '${action}_all' : action) : null;
-  }
-
-  @override
   @Scope(['roles:admin'])
   @Operation.post('type')
   Future<Response> executeByType(
@@ -209,7 +200,7 @@ class SnapshotGrpcServiceController extends ComponentBaseController {
     Map<String, dynamic> body,
     String expand,
   ) async {
-    final pods = await k8s.getPodsFromNs(
+    final pods = await k8s.getPodList(
       k8s.namespace,
       labels: toModuleLabels(),
     );
@@ -538,7 +529,7 @@ class SnapshotGrpcServiceController extends ComponentBaseController {
   }
 
   Future<Map<String, dynamic>> _getPod(String name) async {
-    return await k8s.getPodInNs(
+    return await k8s.getPod(
       k8s.namespace,
       name,
     );

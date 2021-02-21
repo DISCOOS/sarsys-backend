@@ -136,6 +136,7 @@ void writeConfig(File file, Map<String, dynamic> config) {
 abstract class BaseCommand extends Command<String> {
   final buffer = StringBuffer();
   final client = HttpClient();
+  bool silent = false;
 
   Map<String, dynamic> _config;
   Map<String, dynamic> get config {
@@ -170,11 +171,15 @@ abstract class BaseCommand extends Command<String> {
       buffer.writeln(
         format == null ? green(content) : format(content),
       );
-      buffer.write('  ');
+      if (!silent) {
+        buffer.write('  ');
+      }
     } else {
       buffer.write(red('  Failure '));
     }
-    buffer.write(gray('($result${DateTime.now().difference(tic).inMilliseconds} ms)'));
+    if (!silent) {
+      buffer.write(gray('($result${DateTime.now().difference(tic).inMilliseconds} ms)'));
+    }
     return buffer.toString();
   }
 
@@ -247,14 +252,18 @@ abstract class BaseCommand extends Command<String> {
   }
 
   String write(String message, IOSink sink) {
-    buffer.write(message);
-    sink.write(message);
+    if (!silent) {
+      buffer.write(message);
+      sink.write(message);
+    }
     return message;
   }
 
   String writeln(String message, IOSink sink) {
-    buffer.writeln(message);
-    sink.writeln(message);
+    if (!silent) {
+      buffer.writeln(message);
+      sink.writeln(message);
+    }
     return message;
   }
 }

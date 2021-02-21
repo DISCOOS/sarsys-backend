@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:event_source/event_source.dart';
@@ -31,7 +32,7 @@ abstract class TrackingCommandBase extends BaseCommand {
     final token = await AuthUtils.getToken(this);
     final status = await post(
       client,
-      '/ops/api/services/tracking/$server',
+      '/ops/api/services/tracking/$server?expand=metrics',
       args,
       (result) {
         final buffer = StringBuffer();
@@ -135,6 +136,26 @@ abstract class TrackingCommandBase extends BaseCommand {
       buffer: buffer,
       indent: indent,
     );
+    final metrics = instance.mapAt('metrics');
+    if (metrics != null) {
+      buffer.writeln('$spaces$separator');
+      vprint(
+        'CPU',
+        '${metrics.jointAt(['usage/cpu', 'requests/cpu', 'limits/cpu'], separator: '/')}',
+        unit: 'usage/request/limit',
+        max: columns,
+        buffer: buffer,
+        indent: indent,
+      );
+      vprint(
+        'MEM',
+        '${metrics.jointAt(['usage/memory', 'requests/memory', 'limits/memory'], separator: '/')}',
+        unit: 'usage/request/limit',
+        max: columns,
+        buffer: buffer,
+        indent: indent,
+      );
+    }
     if (verbose) {
       var i = 0;
       for (var tracking in trackings.map((item) => Map<String, dynamic>.from(item))) {
@@ -155,10 +176,10 @@ abstract class TrackingCommandBase extends BaseCommand {
           buffer: buffer,
           indent: indent,
         );
-        final ts = tracking.elementAt<int>('lastEvent/timestamp', defaultValue: 0);
+        final ts = tracking.elementAt<DateTime>('lastEvent/timestamp');
         vprint(
           'Applied when',
-          DateTime.fromMillisecondsSinceEpoch(ts).toIso8601String(),
+          ts.toIso8601String(),
           max: columns,
           buffer: buffer,
           indent: indent,
@@ -190,6 +211,13 @@ class TrackingStatusCommand extends TrackingCommandBase {
         abbr: 's',
         help: 'Server name',
       )
+      ..addOption(
+        'output',
+        abbr: 'o',
+        defaultsTo: '',
+        help: 'Output format',
+        allowed: ['json'],
+      )
       ..addFlag(
         'verbose',
         abbr: 'v',
@@ -205,15 +233,53 @@ class TrackingStatusCommand extends TrackingCommandBase {
 
   @override
   FutureOr<String> run() async {
+    switch (argResults['output'] as String) {
+      case 'json':
+        await _json();
+        break;
+      default:
+        await _print();
+        break;
+    }
+    return buffer.toString();
+  }
+
+  Future _json() async {
+    silent = true;
+    var json;
+    final server = argResults['server'] as String;
+    final token = await AuthUtils.getToken(this);
+    if (server == null) {
+      json = await get(
+        client,
+        '/ops/api/services/tracking?extend=metrics',
+        (list) => jsonEncode(list),
+        token: token,
+        format: (result) => result,
+      );
+    } else {
+      json = await get(
+        client,
+        '/ops/api/services/tracking/$server?extend=metrics',
+        (meta) => jsonEncode(meta),
+        token: token,
+        format: (result) => result,
+      );
+    }
+    silent = false;
+    write(json, stdout);
+  }
+
+  Future _print() async {
     final server = argResults['server'] as String;
     writeln(highlight('> Tracking status...'), stdout);
     final token = await AuthUtils.getToken(this);
     if (server == null) {
       final statuses = await get(
         client,
-        '/ops/api/services/tracking',
-        (list) => toStatuses(
-          list,
+        '/ops/api/services/tracking?extend=metrics',
+        (meta) => toStatuses(
+          Map.from(meta).listAt('items'),
           verbose: argResults['verbose'] as bool,
         ),
         token: token,
@@ -223,7 +289,7 @@ class TrackingStatusCommand extends TrackingCommandBase {
     } else {
       final status = await get(
         client,
-        '/ops/api/services/tracking/$server',
+        '/ops/api/services/tracking/$server?extend=metrics',
         (meta) {
           final buffer = StringBuffer();
           toStatus(
@@ -238,8 +304,6 @@ class TrackingStatusCommand extends TrackingCommandBase {
       );
       writeln(status, stdout);
     }
-
-    return buffer.toString();
   }
 }
 

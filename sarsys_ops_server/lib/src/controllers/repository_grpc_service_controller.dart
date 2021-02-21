@@ -46,7 +46,7 @@ class RepositoryGrpcServiceController extends ComponentBaseController {
             'catchup',
             'rebuild',
           ],
-          tag: 'Services',
+          tag: 'Repository service',
           context: context,
           modules: [
             'sarsys-app-server',
@@ -77,7 +77,7 @@ class RepositoryGrpcServiceController extends ComponentBaseController {
     String expand,
   ) async {
     final names = <String>[];
-    final pods = await k8s.getPodsFromNs(
+    final pods = await k8s.getPodList(
       k8s.namespace,
       labels: toModuleLabels(),
     );
@@ -208,7 +208,7 @@ class RepositoryGrpcServiceController extends ComponentBaseController {
     Map<String, dynamic> body,
     String expand,
   ) async {
-    final pods = await k8s.getPodsFromNs(
+    final pods = await k8s.getPodList(
       k8s.namespace,
       labels: toModuleLabels(),
     );
@@ -750,7 +750,7 @@ class RepositoryGrpcServiceController extends ComponentBaseController {
   }
 
   Future<Map<String, dynamic>> _getPod(String name) async {
-    return await k8s.getPodInNs(
+    return await k8s.getPod(
       k8s.namespace,
       name,
     );

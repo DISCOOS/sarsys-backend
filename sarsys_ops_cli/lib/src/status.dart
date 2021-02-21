@@ -45,7 +45,7 @@ class StatusAllCommand extends BaseCommand {
 
     final statuses = await get(
       client,
-      '/ops/api/system/status',
+      '/ops/api/system/status?expand=metrics',
       (map) => _toStatuses(map, verbose: verbose),
       token: token,
       format: (result) => result,
@@ -87,15 +87,19 @@ class StatusModuleCommand extends BaseCommand {
       return writeln(red(' Module name is missing'), stderr);
     } else {
       final verbose = argResults['verbose'] as bool;
-      writeln(highlight('> Status $module ${verbose ? '--verbose' : ''}'), stdout);
+      writeln(highlight('> Status $module ${verbose ? '(verbose)' : ''}'), stdout);
       final token = await AuthUtils.getToken(this);
 
       final statuses = await get(
         client,
-        '/ops/api/system/status/$module',
+        '/ops/api/system/status/$module?expand=metrics',
         (map) {
           final buffer = StringBuffer();
-          _toStatus(buffer, map, verbose: verbose);
+          _toStatus(
+            buffer,
+            (map as Map).listAt('instances'),
+            verbose: verbose,
+          );
           return buffer.toString();
         },
         token: token,
@@ -139,7 +143,7 @@ void _toStatus(
       buffer.writeln('${spaces}  Alive: ${green(alive)}');
       buffer.writeln('${spaces}  Ready: ${green(ready)}');
       buffer.writeln('${spaces}Deployment');
-      final conditions = instance.listAt('status/conditions');
+      final conditions = instance.listAt('status/conditions', defaultList: []);
       for (var condition in conditions.map((item) => Map.from(item))) {
         final status = condition.elementAt<String>('status');
         final acceptable = 'true' == status.toLowerCase();
@@ -147,6 +151,24 @@ void _toStatus(
           '${spaces}  ${condition['type']}: '
           '${acceptable ? green(status) : red(status)} '
           '${condition.hasPath('message') ? gray('(${condition.elementAt<String>('message')})') : ''}',
+        );
+      }
+      final metrics = instance.mapAt('metrics');
+      if (metrics != null) {
+        buffer.writeln('${spaces}Metrics');
+        buffer.writeln(
+          '${spaces}     CPU: '
+          '${metrics.elementAt('usage/cpu')}/'
+          '${metrics.elementAt('requests/cpu')}'
+          '${metrics.elementAt('limits/cpu')}'
+          '  ${gray('(usage/request/limit)')}',
+        );
+        buffer.writeln(
+          '${spaces}     MEM: '
+          '${metrics.elementAt('usage/memory')}/'
+          '${metrics.elementAt('requests/memory')}'
+          '${metrics.elementAt('limits/memory')}'
+          '  ${gray('(usage/request/limit)')}',
         );
       }
     } else {

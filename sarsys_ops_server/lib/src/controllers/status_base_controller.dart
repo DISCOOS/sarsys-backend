@@ -9,6 +9,7 @@ abstract class StatusBaseController extends ResourceController with RequestValid
     this.modules, {
     this.tag,
     this.validation,
+    this.options = const [],
     this.readOnly = const [],
     this.validators = const [],
   });
@@ -20,6 +21,8 @@ abstract class StatusBaseController extends ResourceController with RequestValid
   final SarSysOpsConfig config;
 
   final List<String> modules;
+
+  final List<String> options;
 
   @override
   final List<String> readOnly;
@@ -35,12 +38,14 @@ abstract class StatusBaseController extends ResourceController with RequestValid
   //////////////////////////////////
 
   /// Add @Operation.get() to activate
-  Future<Response> getAll() async {
+  Future<Response> getAll({
+    @Bind.query('expand') String expand,
+  }) async {
     try {
       final statuses = <Map<String, dynamic>>[];
       for (var module in modules) {
         statuses.add(
-          await doGetByName(module),
+          await doGetByName(module, expand),
         );
       }
       return Response.ok(
@@ -54,10 +59,13 @@ abstract class StatusBaseController extends ResourceController with RequestValid
   }
 
   /// Add @Operation.get('name') to activate
-  Future<Response> getByName(@Bind.path('name') String name) async {
+  Future<Response> getByName(
+    @Bind.path('name') String name, {
+    @Bind.query('expand') String expand,
+  }) async {
     try {
       return Response.ok(
-        await doGetByName(name),
+        await doGetByName(name, expand),
       );
     } on InvalidOperation catch (e) {
       return Response.badRequest(body: e.message);
@@ -66,9 +74,20 @@ abstract class StatusBaseController extends ResourceController with RequestValid
     }
   }
 
-  Future<Map<String, dynamic>> doGetByName(String name) => throw UnimplementedError(
+  Future<Map<String, dynamic>> doGetByName(String name, String expand) => throw UnimplementedError(
         'doGetByName not implemented',
       );
+
+  bool shouldExpand(String expand, String field) {
+    final elements = expand?.split(',') ?? <String>[];
+    if (elements.any((element) => element.toLowerCase().startsWith(field))) {
+      return true;
+    }
+    elements.removeWhere(
+      (e) => !options.contains(e),
+    );
+    return false;
+  }
 
   /// Report error to Sentry and
   /// return 500 with message as body
@@ -99,6 +118,23 @@ abstract class StatusBaseController extends ResourceController with RequestValid
   }
 
   String _toName() => type.toDelimiterCase(' ');
+
+  @override
+  List<APIParameter> documentOperationParameters(APIDocumentContext context, Operation operation) {
+    final parameters = super.documentOperationParameters(context, operation);
+    switch (operation.method) {
+      case 'GET':
+      case 'POST':
+        parameters.add(
+          APIParameter.query('expand')
+            ..description = 'Expand response with metadata. '
+                'Legal values are: '
+                "'${options.join("', '")}'",
+        );
+        break;
+    }
+    return parameters;
+  }
 
   @override
   Map<String, APIResponse> documentOperationResponses(APIDocumentContext context, Operation operation) {
