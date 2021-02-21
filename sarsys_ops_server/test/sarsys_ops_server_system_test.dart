@@ -8,6 +8,7 @@ import 'package:test/test.dart';
 Future main() async {
   final harness = SarSysOpsHarness()
     ..withLogger(debug: false)
+    ..withTrackingServer()
     ..install();
 
   test('GET /ops/api/healthz/alive returns 200 OK', () async {
@@ -21,7 +22,7 @@ Future main() async {
   });
 
   test('GET /ops/api/system/status returns 200 OK', () async {
-    final response = await harness.agent.get('/ops/api/system/status');
+    final response = await harness.agent.get('/ops/api/system/status?expand=metrics');
     expect(response.statusCode, 200);
     final body = List.from(
       await response.body.decode(),
@@ -35,6 +36,13 @@ Future main() async {
     expect(statuses.elementAt('sarsys-app-server'), isNotEmpty);
     expect(statuses.elementAt('sarsys-app-server/instances'), isEmpty);
     expect(statuses.elementAt('sarsys-tracking-server'), isNotEmpty);
-    expect(statuses.elementAt('sarsys-tracking-server/instances'), isEmpty);
+    expect(statuses.elementAt('sarsys-tracking-server/instances'), isNotEmpty);
+    final instance = statuses.mapAt<String, dynamic>('sarsys-tracking-server/instances/0');
+    expect(instance.elementAt('name'), SarSysOpsHarness.trackingInstance0);
+    expect(instance.elementAt('status/health/alive'), isFalse);
+    expect(instance.elementAt('status/health/ready'), isFalse);
+    expect(instance.elementAt('status/conditions/0/type'), 'Unknown');
+    expect(instance.elementAt('metrics/usage'), isNotEmpty);
+    expect(instance.elementAt('metrics/limits'), isNotEmpty);
   });
 }

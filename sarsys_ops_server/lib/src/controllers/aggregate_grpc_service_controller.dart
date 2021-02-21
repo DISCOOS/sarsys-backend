@@ -36,7 +36,7 @@ class AggregateGrpcServiceController extends ComponentBaseController {
             'catchup',
             'replace',
           ],
-          tag: 'Services',
+          tag: 'Aggregate Service',
           context: context,
           modules: [
             'sarsys-app-server',
@@ -70,7 +70,7 @@ class AggregateGrpcServiceController extends ComponentBaseController {
     String expand,
   ) async {
     final names = [];
-    final pods = await k8s.getPodsFromNs(
+    final pods = await k8s.getPodList(
       k8s.namespace,
       labels: toModuleLabels(),
     );
@@ -210,7 +210,7 @@ class AggregateGrpcServiceController extends ComponentBaseController {
     Map<String, dynamic> body,
     String expand,
   ) async {
-    final pods = await k8s.getPodsFromNs(
+    final pods = await k8s.getPodList(
       k8s.namespace,
       labels: toModuleLabels(),
     );
@@ -654,7 +654,7 @@ class AggregateGrpcServiceController extends ComponentBaseController {
   }
 
   Future<Map<String, dynamic>> _getPod(String name) async {
-    return await k8s.getPodInNs(
+    return await k8s.getPod(
       k8s.namespace,
       name,
     );

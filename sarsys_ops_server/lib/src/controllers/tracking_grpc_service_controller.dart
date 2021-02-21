@@ -18,6 +18,7 @@ class TrackingGrpcServiceController extends ComponentBaseController {
           config,
           options: [
             'all',
+            'metrics',
             'repo',
             'repo:data',
             'repo:items',
@@ -37,7 +38,7 @@ class TrackingGrpcServiceController extends ComponentBaseController {
             'add_trackings',
             'remove_trackings',
           ],
-          tag: 'Services',
+          tag: 'Tracking service',
           context: context,
           modules: [
             'sarsys-tracking-server',
@@ -59,7 +60,7 @@ class TrackingGrpcServiceController extends ComponentBaseController {
 
   @override
   Future<Response> doGetMeta(String expand) async {
-    final pods = await k8s.getPodsFromNs(
+    final pods = await k8s.getPodList(
       k8s.namespace,
       labels: toModuleLabels(),
     );
@@ -67,6 +68,12 @@ class TrackingGrpcServiceController extends ComponentBaseController {
     final items = <Map<String, dynamic>>[];
     for (var pod in pods) {
       final meta = await _doGetMetaByName(pod, expand);
+      if (shouldExpand(expand, 'metrics')) {
+        final metrics = await k8s.getPodMetrics(
+          k8s.namespace,
+          k8s.toPodName(pod),
+        );
+      }
       items.add(meta);
       names.add(k8s.toPodName(pod));
     }
@@ -165,7 +172,7 @@ class TrackingGrpcServiceController extends ComponentBaseController {
     Map<String, dynamic> body,
     String expand,
   ) async {
-    final pods = await k8s.getPodsFromNs(
+    final pods = await k8s.getPodList(
       k8s.namespace,
       labels: toModuleLabels(),
     );
@@ -519,7 +526,7 @@ class TrackingGrpcServiceController extends ComponentBaseController {
   }
 
   Future<Map<String, dynamic>> _getPod(String name) async {
-    return await k8s.getPodInNs(
+    return await k8s.getPod(
       k8s.namespace,
       name,
     );

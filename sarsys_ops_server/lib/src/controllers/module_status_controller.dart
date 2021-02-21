@@ -8,10 +8,16 @@ class ModuleStatusController extends StatusBaseController {
           'sarsys-app-server': config.app.port,
           'sarsys-tracking-server': config.tracking.healthPort,
         },
-        super('Module', config, [
-          'sarsys-app-server',
-          'sarsys-tracking-server',
-        ]);
+        super(
+          'Module',
+          config,
+          [
+            'sarsys-app-server',
+            'sarsys-tracking-server',
+          ],
+          options: ['metrics'],
+          tag: 'System service',
+        );
 
   final K8sApi k8s;
   final Map<String, int> ports;
@@ -19,21 +25,28 @@ class ModuleStatusController extends StatusBaseController {
 
   @override
   @Operation.get()
-  Future<Response> getAll() {
-    return super.getAll();
+  Future<Response> getAll({
+    @Bind.query('expand') String expand,
+  }) {
+    return super.getAll(expand: expand);
   }
 
   @override
   @Operation.get('name')
-  Future<Response> getByName(@Bind.path('name') String name) => super.getByName(name);
+  Future<Response> getByName(
+    @Bind.path('name') String name, {
+    @Bind.query('expand') String expand,
+  }) =>
+      super.getByName(name, expand: expand);
 
   @override
-  Future<Map<String, dynamic>> doGetByName(String name) async {
-    final pods = await k8s.getPodsFromNs(
+  Future<Map<String, dynamic>> doGetByName(String name, String expand) async {
+    final pods = await k8s.getPodList(
       k8s.namespace,
       labels: [
         'module=$name',
       ],
+      metrics: shouldExpand(expand, 'metrics'),
     );
     return {
       'name': name,
@@ -50,6 +63,7 @@ class ModuleStatusController extends StatusBaseController {
       instances.add({
         'name': pod.elementAt('metadata/name'),
         'status': await _toPodStatus(name, pod),
+        if (pod.hasPath('metrics')) 'metrics': _toPodMetrics(name, pod),
       });
     }
     return instances.toList();
@@ -104,6 +118,75 @@ class ModuleStatusController extends StatusBaseController {
               }
             ]
     };
+  }
+
+  Map<String, dynamic> _toPodMetrics(String name, Map<String, dynamic> pod) {
+    final metrics = Map<String, dynamic>.from(pod['metrics'])
+      ..removeWhere((key, _) => const [
+            'kind',
+            'metadata',
+            'apiVersion',
+            'containers',
+          ].contains(key));
+
+    return metrics
+      ..putIfAbsent(
+        'usage',
+        () => _toPodUsage(name, pod),
+      )
+      ..putIfAbsent(
+        'limits',
+        () => _toPodLimits(name, pod),
+      )
+      ..putIfAbsent(
+        'requests',
+        () => _toPodRequests(name, pod),
+      );
+  }
+
+  Map<String, dynamic> _toPodUsage(
+    String name,
+    Map<String, dynamic> pod,
+  ) {
+    return pod
+            .listAt<Map>(
+              'metrics/containers',
+              defaultList: [],
+            )
+            .where((c) => c['name'] == name)
+            .map((c) => Map<String, dynamic>.from(c['usage']))
+            .firstOrNull ??
+        <String, dynamic>{};
+  }
+
+  Map<String, dynamic> _toPodLimits(
+    String name,
+    Map<String, dynamic> pod,
+  ) {
+    return pod
+            .listAt<Map>(
+              'spec/containers',
+              defaultList: [],
+            )
+            .where((c) => c['name'] == name)
+            .map((c) => c.mapAt<String, dynamic>('resources/limits'))
+            .firstOrNull ??
+        <String, dynamic>{};
+  }
+
+  Map<String, dynamic> _toPodRequests(
+    String name,
+    Map<String, dynamic> pod,
+  ) {
+    return pod
+            .listAt<Map>(
+              'spec/containers',
+              defaultList: [],
+            )
+            .where((c) => c['name'] == name)
+            .map((c) => c.mapAt<String, dynamic>('resources/requests'))
+            .firstOrNull ??
+        <String, dynamic>{};
   }
 
   //////////////////////////////////

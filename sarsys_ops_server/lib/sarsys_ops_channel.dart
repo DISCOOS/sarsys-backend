@@ -315,12 +315,17 @@ class SarSysOpsServerChannel extends SarSysServerChannelBase {
 
   Future<bool> _configureK8sApi() async {
     k8s = _propertyAt<K8sApi>('K8S_API', K8sApi());
-    final ok = await k8s.check();
-    final pods = await k8s.getPodNamesFromNs(
-      k8s.namespace,
-    );
-    logger.info("PODS found in namespace ${k8s.namespace}: ${pods.length}");
-    return ok;
+    final serverOK = await k8s.checkApi();
+    final metricsOK = await k8s.checkMetricsApi();
+    if (serverOK) {
+      final pods = await k8s.getPodList(
+        k8s.namespace,
+      );
+      logger.info(
+        "PODS found in namespace '${k8s.namespace}': ${pods.length}",
+      );
+    }
+    return serverOK && metricsOK;
   }
 
   void _buildValidators() {

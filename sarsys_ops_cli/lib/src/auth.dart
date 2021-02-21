@@ -186,10 +186,12 @@ class AuthUtils {
       final response = TokenResponse.fromJson(tokens);
       final expiresIn = response?.expiresAt?.difference(DateTime.now())?.inMinutes ?? 0;
       if (expiresIn > 0) {
-        command.writeln(
-          '  Access token expires in: ${green('$expiresIn min')}',
-          stdout,
-        );
+        if (command.argResults['verbose'] as bool) {
+          command.writeln(
+            '  Access token expires in: ${green('$expiresIn min')}',
+            stdout,
+          );
+        }
         return response;
       }
     }

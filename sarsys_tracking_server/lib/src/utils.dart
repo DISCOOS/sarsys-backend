@@ -66,7 +66,7 @@ RepositoryMetricsMeta toRepoMetricsMeta(
 ) {
   final meta = RepositoryMetricsMeta();
   if (metrics != null) {
-    meta..events = Int64(metrics.elementAt<int>('events'));
+    meta.events = Int64(metrics.elementAt<int>('events'));
     meta.setIfExists<Map>(metrics, 'aggregates', (aggregates) {
       meta.aggregates = (RepositoryMetricsAggregateMeta()
         ..count = aggregates.elementAt<int>('count')

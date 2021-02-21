@@ -20,7 +20,7 @@ class SnapshotGrpcFileServiceController extends ComponentBaseController {
   ) : super(
           'SnapshotFileService',
           config,
-          tag: 'Services',
+          tag: 'Snapshot file service',
           context: context,
           modules: [
             'sarsys-app-server',
@@ -98,7 +98,7 @@ class SnapshotGrpcFileServiceController extends ComponentBaseController {
     @Bind.query('chunkSize') int chunkSize = 4096,
   }) async {
     try {
-      final pods = await k8s.getPodsFromNs(
+      final pods = await k8s.getPodList(
         k8s.namespace,
         labels: toModuleLabels(),
       );
@@ -481,7 +481,7 @@ class SnapshotGrpcFileServiceController extends ComponentBaseController {
   }
 
   Future<Map<String, dynamic>> _getPod(String name) async {
-    return await k8s.getPodInNs(
+    return await k8s.getPod(
       k8s.namespace,
       name,
     );

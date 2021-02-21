@@ -77,6 +77,16 @@ extension MapX on Map {
             found.toString(),
           );
           break;
+        case DateTime:
+          found = DateTime.parse(
+            found.toString(),
+          );
+          break;
+        case Duration:
+          found = Duration(
+            milliseconds: int.parse(found.toString()),
+          );
+          break;
       }
     }
     return (found ?? defaultValue) as T;
@@ -92,6 +102,11 @@ extension MapX on Map {
   Map<S, T> mapAt<S, T>(String path, {Map<S, T> defaultMap}) {
     final map = elementAt(path);
     return map == null ? defaultMap : Map<S, T>.from(map as Map);
+  }
+
+  /// Joint elements at given paths as string
+  String jointAt(List<String> paths, {String separator = '', String defaultValue}) {
+    return paths.map((path) => elementAt(path, defaultValue: defaultValue)).where((e) => e != null).join(separator);
   }
 }
 

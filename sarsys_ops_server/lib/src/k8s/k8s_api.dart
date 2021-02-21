@@ -50,29 +50,71 @@ class K8sApi {
     return int.parse(Platform.environment['KUBERNETES_SERVICE_PORT_HTTPS'] ?? '443');
   }
 
-  Future<bool> check() async {
+  Future<bool> checkApi() async {
     var ok = false;
-    logger.info('CERT: ${certFile.existsSync() ? 'Found' : 'Not found'}');
-    logger.info('TOKEN: ${tokenFile.existsSync() ? 'Found' : 'Not found'}');
-    logger.info('Check...');
+    try {
+      _check(
+        'checkApi',
+        certFile.existsSync(),
+        ifOK: () => 'CERT: Found',
+        ifNotOK: () => 'CERT: Not found',
+      );
+
+      _check(
+        'checkApi',
+        tokenFile.existsSync(),
+        ifOK: () => 'TOKEN: Found',
+        ifNotOK: () => 'TOKEN: Not found',
+      );
+
+      final response = await getUri('/api');
+      ok = null != await toContent(response);
+      _fine('checkApi', ['Got content: $ok']);
+    } on Exception catch (error, stackTrace) {
+      _severe('checkApi', error, stackTrace, [
+        'namespace: $namespace',
+        'isAuthorized: $isAuthorized',
+      ]);
+    }
+    _info(
+      'checkApi',
+      ['API Metrics...${ok ? 'OK' : 'FAILED'}'],
+    );
+
+    return ok;
+  }
+
+  Future<bool> checkMetricsApi() async {
+    var ok = false;
 
     try {
-      final response = await getUri('/api');
-      logger.info('${response.statusCode} ${response.reasonPhrase}');
-      final json = await toContent(response);
-      ok = json != null;
-      logger.info('Has content: $ok');
-    } on Exception catch (error, stackTrace) {
-      logger.severe(
-        '${Context.toMethod('check', [
-          'namespace: $namespace',
-          'isAuthorized: $isAuthorized',
-        ])}',
-        error,
-        stackTrace ?? Trace.current(1),
+      _check(
+        'checkApi',
+        certFile.existsSync(),
+        ifOK: () => 'CERT: Found',
+        ifNotOK: () => 'CERT: Not found',
       );
+
+      _check(
+        'checkApi',
+        tokenFile.existsSync(),
+        ifOK: () => 'TOKEN: Found',
+        ifNotOK: () => 'TOKEN: Not found',
+      );
+
+      final response = await getUri('/apis/metrics.k8s.io/v1beta1');
+      ok = null != await toContent(response);
+      _info('checkMetricsApi', ['Got content: $ok']);
+    } on Exception catch (error, stackTrace) {
+      _severe('checkMetricsApi', error, stackTrace, [
+        'namespace: $namespace',
+        'isAuthorized: $isAuthorized',
+      ]);
     }
-    logger.info('Check...done');
+    _info(
+      'checkMetricsApi',
+      ['API Metrics...${ok ? 'OK' : 'FAILED'}'],
+    );
 
     return ok;
   }
@@ -93,160 +135,160 @@ class K8sApi {
     // Base Url is given by pattern 'pod-name.deployment-name.my-namespace.svc.cluster.local'
     final baseUrl = '$scheme://${pod.elementAt('metadata/name')}.'
         '${deployment}.${pod.elementAt('metadata/namespace')}.svc.cluster.local:$port';
-    logger.fine(
-      '${Context.toMethod('toPodUri', [
-        'Base url is $baseUrl',
-        'namespace: $namespace',
-        'isAuthorized: $isAuthorized',
-      ])}',
-    );
+    _fine('toPodUri', [
+      'Base url is $baseUrl',
+      'namespace: $namespace',
+      'isAuthorized: $isAuthorized',
+    ]);
     if (uri == null || uri.isEmpty) {
       return Uri.parse(baseUrl);
     }
     return Uri.parse(uri.startsWith('/') ? '$baseUrl$uri' : '$baseUrl/$uri');
   }
 
-  Future<Map<String, dynamic>> getPodInNs(
+  Future<Map<String, dynamic>> getPod(
     String ns,
     String name,
   ) async {
-    Map<String, dynamic> pod;
-    logger.fine(
-      '${Context.toMethod('getPodFromNs', [
-        'namespace: $ns',
-        'name: $name',
-        'isAuthorized: $isAuthorized',
-      ])}...',
+    final args = [
+      'namespace: $ns',
+      'name: $name',
+      'isAuthorized: $isAuthorized',
+    ];
+    return getFromUri<Map<String, dynamic>>(
+      'getPod',
+      '/api/v1/namespaces/$ns/pods/$name',
+      args: args,
     );
-    try {
-      final uri = '/api/v1/namespaces/$ns/pods/$name';
-      final response = await getUri(uri);
-      logger.info('$uri ${response.statusCode} ${response.reasonPhrase}');
-      pod = Map<String, dynamic>.from(
-        await toContent(response, defaultValue: {}),
-      );
-      logger.fine('$uri Has content ${pod.runtimeType}');
-      logger.fine(
-        '${Context.toMethod('getPodInNs', ['result: $pod'])}',
-      );
-    } catch (error, stackTrace) {
-      logger.severe(
-        '${Context.toMethod('getPodInNs', [
-          'namespace: $ns',
-          'name: $name',
-          'isAuthorized: $isAuthorized',
-        ])}',
-        error,
-        stackTrace ?? Trace.current(1),
-      );
-    }
-    logger.fine(
-      '${Context.toMethod('getPodInNs')}...done',
-    );
-    return pod;
   }
 
-  Future<List<Map<String, dynamic>>> getPodsFromNs(
+  Future<List<Map<String, dynamic>>> getPodList(
+    String ns, {
+    String name,
+    bool metrics = false,
+    List<String> labels = const [],
+  }) async {
+    final labelSelector = labels?.join(',');
+    final query = labels.isEmpty ? '' : '?labelSelector=${Uri.encodeQueryComponent(labelSelector)}';
+    final args = [
+      'namespace: $ns',
+      if (name != null) 'name: $name',
+      'metrics: $metrics',
+      'isAuthorized: $isAuthorized',
+      'labelSelector: $labelSelector',
+    ];
+    final pods = await getListFromUri<Map<String, dynamic>>(
+      'getPodList',
+      '/api/v1/namespaces/$ns/pods$query',
+      name: name,
+      args: args,
+    );
+    if (metrics) {
+      for (var pod in pods) {
+        pod['metrics'] = await getPodMetrics(
+          ns,
+          toPodName(pod),
+        );
+      }
+    }
+    return pods;
+  }
+
+  Future<List<Map<String, dynamic>>> getNodeList({
+    String name,
+    bool metrics = false,
+    List<String> labels = const [],
+  }) async {
+    final labelSelector = labels?.join(',');
+    final query = labels.isEmpty ? '' : '?labelSelector=${Uri.encodeQueryComponent(labelSelector)}';
+    final args = [
+      if (name != null) 'name: $name',
+      'metrics: $metrics',
+      'isAuthorized: $isAuthorized',
+      'labelSelector: $labelSelector',
+    ];
+    final nodes = await getListFromUri<Map<String, dynamic>>(
+      'getNodeList',
+      '/api/v1/nodes$query',
+      name: name,
+      args: args,
+    );
+    if (metrics) {
+      for (var node in nodes) {
+        node['metrics'] = await getNodeMetrics(
+          toNodeName(node),
+        );
+      }
+    }
+    return nodes;
+  }
+
+  Future<List<Map<String, dynamic>>> getNodeMetricsList({
+    String name,
+    List<String> labels = const [],
+  }) {
+    final labelSelector = labels?.join(',');
+    final query = labels.isEmpty ? '' : '?labelSelector=${Uri.encodeQueryComponent(labelSelector)}';
+    final args = [
+      if (name != null) 'name: $name',
+      'isAuthorized: $isAuthorized',
+      'labelSelector: $labelSelector',
+    ];
+    return getListFromUri<Map<String, dynamic>>(
+      'getNodeMetricsList',
+      '/apis/metrics.k8s.io/v1beta1/nodes$query',
+      name: name,
+      args: args,
+    );
+  }
+
+  Future<Map<String, dynamic>> getNodeMetrics(String name) async {
+    final args = [
+      'name: $name',
+      'isAuthorized: $isAuthorized',
+    ];
+    return getFromUri<Map<String, dynamic>>(
+      'getNodeMetrics',
+      '/apis/metrics.k8s.io/v1beta1/nodes/$name',
+      args: args,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getPodMetricsList(
     String ns, {
     String name,
     List<String> labels = const [],
-  }) async {
-    final pods = <Map<String, dynamic>>[];
-
+  }) {
     final labelSelector = labels?.join(',');
     final query = labels.isEmpty ? '' : '?labelSelector=${Uri.encodeQueryComponent(labelSelector)}';
-    logger.fine(
-      '${Context.toMethod('getPodsFromNs', [
-        'namespace: $ns',
-        'name: $name',
-        'isAuthorized: $isAuthorized',
-        'labelSelector: $labelSelector',
-      ])}...',
+    final args = [
+      if (name != null) 'name: $name',
+      'isAuthorized: $isAuthorized',
+      'labelSelector: $labelSelector',
+    ];
+    return getListFromUri<Map<String, dynamic>>(
+      'getPodMetricsList',
+      '/apis/metrics.k8s.io/v1beta1/namespaces/$ns/pods$query',
+      name: name,
+      args: args,
     );
-    try {
-      final uri = '/api/v1/namespaces/$ns/pods$query';
-      final response = await getUri(uri);
-      logger.info('$uri ${response.statusCode} ${response.reasonPhrase}');
-      final json = Map<String, dynamic>.from(
-        await toContent(response, defaultValue: {}),
-      );
-      logger.fine('$uri Has content ${json.runtimeType}');
-      final items = json.listAt('items');
-      if (items != null) {
-        pods.addAll(
-          List<Map<String, dynamic>>.from(items).where(
-            (pod) => name == null || pod.elementAt('metadata/name') == name,
-          ),
-        );
-      }
-      logger.fine(
-        '${Context.toMethod('getPodsFromNs', ['result: $pods'])}',
-      );
-    } catch (error, stackTrace) {
-      logger.severe(
-        '${Context.toMethod('getPodsFromNs', [
-          'namespace: $ns',
-          'isAuthorized: $isAuthorized',
-          'labelSelector: $labelSelector',
-        ])}',
-        error,
-        stackTrace ?? Trace.current(1),
-      );
-    }
-    logger.fine(
-      '${Context.toMethod('getPodsFromNs')}...done',
+  }
+
+  Future<Map<String, dynamic>> getPodMetrics(String ns, String name) async {
+    final args = [
+      'namespace: $ns',
+      'name: $name',
+      'isAuthorized: $isAuthorized',
+    ];
+    return getFromUri<Map<String, dynamic>>(
+      'getPodMetrics',
+      '/apis/metrics.k8s.io/v1beta1/namespaces/$ns/pods/$name',
+      args: args,
     );
-    return pods;
   }
 
   String toPodName(Map<String, dynamic> pod) => pod.elementAt<String>('metadata/name');
-
-  Future<List<String>> getPodNamesFromNs(
-    String ns, {
-    List<String> labels = const [],
-  }) async {
-    final pods = <String>[];
-
-    final labelSelector = labels?.join(',');
-    final query = labels.isEmpty ? '' : '?labelSelector=${Uri.encodeQueryComponent(labelSelector)}';
-    logger.fine(
-      '${Context.toMethod('getPodNamesFromNs', [
-        'namespace: $ns',
-        'labelSelector: $labelSelector',
-      ])}...',
-    );
-    try {
-      final uri = '/api/v1/namespaces/$ns/pods$query';
-      final response = await getUri(uri);
-      logger.info('$uri ${response.statusCode} ${response.reasonPhrase}');
-      final json = Map<String, dynamic>.from(
-        await toContent(response, defaultValue: {}),
-      );
-      logger.fine('Has content ${json.runtimeType}');
-      final items = json.listAt('items');
-      if (items != null) {
-        pods.addAll(
-          items.map(
-            (item) => toPodName(Map<String, dynamic>.from(item)),
-          ),
-        );
-      }
-    } catch (error, stackTrace) {
-      logger.severe(
-        '${Context.toMethod('getPodNamesFromNs', [
-          'namespace: $ns',
-          'isAuthorized: $isAuthorized',
-          'labelSelector: $labelSelector',
-        ])}',
-        error,
-        stackTrace ?? Trace.current(1),
-      );
-    }
-    logger.fine(
-      '${Context.toMethod('getPodNamesFromNs', ['result: $pods'])}...done',
-    );
-    return pods;
-  }
+  String toNodeName(Map<String, dynamic> node) => node.elementAt<String>('metadata/name');
 
   Future<HttpClientResponse> getUri(String uri) async {
     final url = Uri.parse('https://$apiHost:$apiPort$uri');
@@ -261,11 +303,107 @@ class K8sApi {
     bool authenticate = true,
   }) async {
     final request = await client.getUrl(url);
-    logger.fine('request: ${request.method} ${request.uri}');
+    _fine('getUrl', ['request ${request.method} ${request.uri}']);
     if (isAuthorized && authenticate) {
       request.headers.add('Authorization', 'Bearer $token');
     }
-    return request.close();
+    final response = await request.close();
+    _fine(
+      'getUrl',
+      ['${request.method} ${request.uri} ${response.statusCode} ${response.reasonPhrase}'],
+    );
+    return response;
+  }
+
+  Future<T> getFromUri<T>(
+    String method,
+    String uri, {
+    String name,
+    List<String> args = const [],
+    T Function(Map<String, dynamic>) map,
+  }) async {
+    map ??= (item) => item as T;
+    try {
+      _fine(method, args);
+      final response = await getUri(uri);
+      final content = Map<String, dynamic>.from(await toContent(
+        response,
+        defaultValue: {},
+      ));
+      _finer(method, [...args, 'result: $content']);
+      return map(content);
+    } catch (error, stackTrace) {
+      _severe(method, error, stackTrace, args);
+      rethrow;
+    }
+  }
+
+  Future<List<T>> getListFromUri<T>(
+    String method,
+    String uri, {
+    String name,
+    List<String> args = const [],
+    T Function(Map<String, dynamic>) map,
+  }) async {
+    final items = <T>[];
+    map ??= (item) => item as T;
+    try {
+      _fine(method, args);
+      final response = await getUri(uri);
+      final json = Map<String, dynamic>.from(
+        await toContent(response, defaultValue: {}),
+      );
+      final found = json.listAt<Map<String, dynamic>>('items');
+      _fine(method, ['$uri found ${found.length} items', ...args]);
+      if (found != null) {
+        items.addAll(
+          found.where((item) => name == null || item.elementAt('metadata/name') == name).map(map),
+        );
+      }
+      _finer(method, [...args, 'result: $items']);
+      return items;
+    } catch (error, stackTrace) {
+      _severe(method, error, stackTrace, args);
+      rethrow;
+    }
+  }
+
+  void _check(
+    String method,
+    bool isOK, {
+    @required String Function() ifOK,
+    @required String Function() ifNotOK,
+    List<String> args = const [],
+  }) {
+    if (isOK) {
+      _info(method, [ifOK(), ...args]);
+    } else {
+      _warning(method, [ifNotOK(), ...args]);
+    }
+  }
+
+  void _info(String method, [List<String> args]) {
+    logger.info(Context.toMethod(method, args));
+  }
+
+  void _warning(String method, [List<String> args]) {
+    logger.warning(Context.toMethod(method, args));
+  }
+
+  void _fine(String method, [List<String> args]) {
+    logger.fine(Context.toMethod(method, args));
+  }
+
+  void _finer(String method, [List<String> args]) {
+    logger.finer(Context.toMethod(method, args));
+  }
+
+  void _severe(String method, Object error, StackTrace stackTrace, [List<String> args]) {
+    logger.severe(
+      Context.toMethod(method, args),
+      error,
+      Trace.from(stackTrace ?? Trace.current(1)),
+    );
   }
 
   static Future toContent(HttpClientResponse response, {dynamic defaultValue}) async {
