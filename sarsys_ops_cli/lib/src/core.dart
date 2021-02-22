@@ -57,7 +57,7 @@ void vprint(
 }
 
 void jPrint(
-  Map<String, dynamic> map, {
+  dynamic json, {
   @required StringBuffer buffer,
   int left = 0,
   int indent = 2,
@@ -66,10 +66,7 @@ void jPrint(
   final spaces = fill(left);
   buffer.writeln(
     pretty
-        ? prettyJson(
-            map.mapAt<String, dynamic>('data'),
-            indent: indent,
-          )
+        ? prettyJson(json, indent: indent)
             .split('\n')
             .map((l) => '$spaces$l'
                 // Match on key
@@ -87,7 +84,7 @@ void jPrint(
                     ),
                     (match) => '${match.group(1)}${green(match.group(2))}'))
             .join('\n')
-        : jsonEncode(map),
+        : jsonEncode(json),
   );
 }
 

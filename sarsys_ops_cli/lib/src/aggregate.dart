@@ -115,13 +115,14 @@ abstract class AggregateCommandBase extends BaseCommand {
         buffer: buffer,
         indent: indent,
       );
+
       if (verbose) {
         final maxItems = 10;
         elPrint('applied', instance, maxItems, max: columns, indent: indent, buffer: buffer);
         elPrint('changed', instance, maxItems, max: columns, indent: indent, buffer: buffer);
         elPrint('skipped', instance, maxItems, max: columns, indent: indent, buffer: buffer);
         sprint(columns, buffer: buffer, format: gray);
-        jPrint(instance, left: indent, buffer: buffer);
+        jPrint(instance.mapAt('data'), left: indent, buffer: buffer);
       } else {
         vprint(
           'States',
