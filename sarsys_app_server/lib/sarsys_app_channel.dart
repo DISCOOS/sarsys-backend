@@ -5,8 +5,10 @@ import 'package:hive/hive.dart';
 import 'package:http/http.dart';
 import 'package:stack_trace/stack_trace.dart';
 
+import 'package:event_source_grpc/event_source_grpc.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
+import 'package:grpc/grpc.dart' as grpc;
 
 import 'package:sarsys_core/sarsys_core.dart';
 import 'controllers/domain/controllers.dart';
@@ -48,6 +50,8 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
   /// Secure router enforcing authorization
   SecureRouter router;
 
+  grpc.Server _grpc;
+
   /// Logger instance
   @override
   final Logger logger = Logger("SarSysAppServerChannel");
@@ -84,6 +88,7 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
       );
       _buildMessageChannel();
       await _buildSecureRouter();
+      await _buildGrpcServer();
 
       if (stopwatch.elapsed.inSeconds > isolateStartupTimeout * 0.8) {
         logger.severe("Approaching maximum duration to wait for each isolate to complete startup");
@@ -491,6 +496,7 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
     config.debug = _propertyAt<bool>('DEBUG', config.debug);
     config.prefix = _propertyAt<String>('PREFIX', config.prefix);
     config.tenant = _propertyAt<String>('TENANT', config.tenant);
+    config.grpcPort = _propertyAt<int>('GRPC_PORT', config.grpcPort);
     config.maxBodySize = _propertyAt<int>('MAX_BODY_SIZE', config.maxBodySize);
     config.apiSpecPath = _propertyAt<String>('API_SPEC_PATH', config.apiSpecPath);
 
@@ -772,6 +778,19 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
     // TODO: MessageChannel - Add Operation events
     // TODO: MessageChannel - Add Unit events
     messages.build();
+  }
+
+  Future<void> _buildGrpcServer() {
+    // Start grpc server
+    _grpc = grpc.Server([
+      AggregateGrpcService(manager),
+      RepositoryGrpcService(manager),
+      SnapshotGrpcService(manager, config.data.path),
+    ]);
+
+    return _grpc.serve(
+      port: config.grpcPort,
+    );
   }
 
   Future _buildSecureRouter() async {

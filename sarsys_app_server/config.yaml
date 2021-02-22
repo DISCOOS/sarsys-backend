@@ -1,6 +1,7 @@
 debug: $DEBUG
 prefix: $PREFIX
 tenant: $TENANT
+grpcPort: $GRPC_PORT
 maxBodySize: $MAX_BODY_SIZE
 data:
   enabled: $DATA_ENABLED

@@ -17,6 +17,10 @@ class SarSysAppConfig extends SarSysModuleConfig {
   @optionalConfiguration
   int port = 80;
 
+  /// App server port
+  @optionalConfiguration
+  int grpcPort = 8083;
+
   /// The maximum size of a request body. Default is 10MB
   @optionalConfiguration
   int maxBodySize = 10;

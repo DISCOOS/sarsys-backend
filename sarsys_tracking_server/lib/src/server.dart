@@ -1,9 +1,9 @@
 import 'dart:io';
 
 import 'package:event_source_grpc/event_source_grpc.dart';
+import 'package:grpc/grpc.dart' as grpc;
 import 'package:hive/hive.dart';
 import 'package:http/http.dart';
-import 'package:grpc/grpc.dart' as grpc;
 import 'package:stack_trace/stack_trace.dart';
 
 import 'package:sarsys_domain/sarsys_domain.dart';
