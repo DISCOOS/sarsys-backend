@@ -533,6 +533,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.0.2"
+  pretty_json:
+    dependency: "direct main"
+    description:
+      name: pretty_json
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "1.1.0"
   protobuf:
     dependency: transitive
     description:
@@ -766,6 +773,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "0.2.5"
+  timeago:
+    dependency: "direct main"
+    description:
+      name: timeago
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "2.0.29"
   tuple:
     dependency: transitive
     description:

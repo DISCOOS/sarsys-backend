@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
+import 'package:sarsys_ops_cli/src/aggregate.dart';
 
 import 'auth.dart';
 import 'core.dart';
@@ -16,6 +17,7 @@ Future<String> run(List<String> args) async {
     ..addCommand(ListCommand())
     ..addCommand(AuthCommand())
     ..addCommand(StatusCommand())
+    ..addCommand(AggregateCommand())
     ..addCommand(TrackingCommand())
     ..argParser.addOption(
       'config',
@@ -26,9 +28,9 @@ Future<String> run(List<String> args) async {
     ..argParser.addOption(
       'output',
       abbr: 'o',
-      defaultsTo: '',
+      defaultsTo: 'print',
       help: 'Output format',
-      allowed: ['json'],
+      allowed: ['print', 'json'],
     )
     ..argParser.addFlag(
       'verbose',
@@ -47,7 +49,7 @@ class ListCommand extends BaseCommand {
   final name = 'list';
 
   @override
-  final description = 'list is used to list module names';
+  final description = 'is used to list module names';
 
   @override
   FutureOr<String> run() {

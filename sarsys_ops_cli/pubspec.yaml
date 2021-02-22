@@ -11,8 +11,10 @@ dependencies:
   path: ^1.7.0
   yaml: ^2.2.1
   strings: ^0.1.2
+  timeago: ^2.0.29
   ansicolor: ^1.1.1
   jaguar_jwt: ^2.1.6
+  pretty_json: ^1.1.0
   stack_trace: ^1.9.6
   dart_app_data: ^1.0.1
   openid_client: ^0.3.1

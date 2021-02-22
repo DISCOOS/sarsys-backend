@@ -19,7 +19,7 @@ class AuthCommand extends BaseCommand {
   final name = 'auth';
 
   @override
-  final description = 'auth is used to authenticate the user';
+  final description = 'is used to authenticate the user';
 }
 
 class AuthInitCommand extends BaseCommand {
@@ -29,7 +29,7 @@ class AuthInitCommand extends BaseCommand {
   final name = 'init';
 
   @override
-  final description = 'init is used to initialize credential';
+  final description = 'is used to initialize credential';
 
   @override
   FutureOr<String> run() async {
@@ -53,7 +53,7 @@ class AuthUpdateCommand extends BaseCommand {
   final name = 'update';
 
   @override
-  final description = 'update is used to update credential';
+  final description = 'is used to update credential';
 
   @override
   FutureOr<String> run() async {
@@ -86,7 +86,7 @@ class AuthCheckCommand extends BaseCommand {
   final name = 'check';
 
   @override
-  final description = 'check is used to check credential';
+  final description = 'is used to check credential';
 
   @override
   FutureOr<String> run() async {
@@ -186,7 +186,7 @@ class AuthUtils {
       final response = TokenResponse.fromJson(tokens);
       final expiresIn = response?.expiresAt?.difference(DateTime.now())?.inMinutes ?? 0;
       if (expiresIn > 0) {
-        if (command.argResults['verbose'] as bool) {
+        if (command.globalResults['verbose'] as bool) {
           command.writeln(
             '  Access token expires in: ${green('$expiresIn min')}',
             stdout,

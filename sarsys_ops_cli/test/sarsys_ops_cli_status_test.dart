@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:args/command_runner.dart';
 import 'package:sarsys_ops_cli/sarsys_ops_cli.dart';
 import 'package:sarsys_ops_cli/src/run.dart';
 import 'package:test/test.dart';
@@ -8,7 +7,7 @@ import 'package:test/test.dart';
 import 'harness.dart';
 
 Future main() async {
-  final harness = SarSysCliHarness()
+  SarSysCliHarness()
     ..withTrackingServer()
     ..withLogger(debug: false)
     ..withContext(
