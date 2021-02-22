@@ -34,8 +34,9 @@ commit:
 
 test:
 	cd ../event_source; pub run test -j 1
+	cd ../event_source_grpc; pub run test -j 1
 	cd ../sarsys_domain; pub run test -j 1
-	cd ../sarsys_http; pub run test -j 1
+	cd ../sarsys_core; pub run test -j 1
 	cd ../sarsys_app_server; pub run test -j 1
 
 serve:

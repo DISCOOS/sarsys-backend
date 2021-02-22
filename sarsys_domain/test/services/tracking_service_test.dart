@@ -16,7 +16,7 @@ Future main() async {
   final harness = EventSourceHarness()
     ..withTenant()
     ..withPrefix()
-    ..withLogger(debug: true)
+    ..withLogger(debug: false)
     ..withStream(subscription, useInstanceStreams: false, useCanonicalName: false)
     ..withSubscription(subscription, group: group)
     ..withProjections(projections: ['\$by_category', '\$by_event_type'])
