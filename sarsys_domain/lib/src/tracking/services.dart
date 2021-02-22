@@ -361,10 +361,11 @@ class TrackingService extends MessageHandler<DomainEvent> {
       await repo.catchup(
         master: true,
         uuids: [uuid],
+        context: _context,
       );
     }
     // Only get aggregate if is exists in storage!
-    return repo.store.contains(uuid) ? repo.get(uuid) : null;
+    return repo.store.contains(uuid) ? repo.get(uuid, context: _context) : null;
   }
 
   Future<bool> _addTracking(TrackingCreated event, bool replay) async {
@@ -437,7 +438,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
     final tuuid = repo.toAggregateUuid(event);
     try {
       if (managed.contains(tuuid)) {
-        final data = repo.get(tuuid).data;
+        final data = repo.get(tuuid, context: _context).data;
         final suuid = event.toSourceUuid(data);
         if (_addSource(tuuid, suuid)) {
           _addToStream(
@@ -552,7 +553,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
     Transaction trx;
     try {
       final track = _findTrack(
-        TrackingModel.fromJson(repo.get(tuuid).data),
+        TrackingModel.fromJson(repo.get(tuuid, context: _context).data),
         repo.toAggregateUuid(event),
       );
       if (track != null) {
@@ -617,7 +618,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
   /// Calculate geometric mean of last position in all tracks
   FutureOr<void> _aggregate(String uuid) async {
     final tracking = TrackingModel.fromJson(
-      repo.get(uuid).data,
+      repo.get(uuid, context: _context).data,
     );
 
     if (tracking.status == TrackingStatus.tracking) {
@@ -661,7 +662,11 @@ class TrackingService extends MessageHandler<DomainEvent> {
             ?.where((managed) => managed == tuuid)
             // Find source objects in other tracking objects
             ?.map(
-              (other) => _findTrack(TrackingModel.fromJson(repo.get(other).data), suuid),
+              (other) => _findTrack(
+                  TrackingModel.fromJson(
+                    repo.get(other, context: _context).data,
+                  ),
+                  suuid),
             )
             // Filter out all detached tracks
             ?.where((track) => track?.status == TrackStatus.attached),
@@ -675,7 +680,11 @@ class TrackingService extends MessageHandler<DomainEvent> {
             ?.where((other) => other != tuuid)
             // Find source objects in other tracking objects
             ?.map(
-              (other) => _findTrack(TrackingModel.fromJson(repo.get(other).data), suuid),
+              (other) => _findTrack(
+                  TrackingModel.fromJson(
+                    repo.get(other, context: _context).data,
+                  ),
+                  suuid),
             )
             // Filter out all detached tracks
             ?.where((track) => track?.status == TrackStatus.attached),
@@ -696,7 +705,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
     String status,
   }) async {
     assert(source != null, "'source' can not be null");
-    final tracking = repo.get(uuid);
+    final tracking = repo.get(uuid, context: _context);
     final tracks = tracking.asEntityArray(TRACKS);
     final exists = tracks.contains(id);
     final command = exists
@@ -726,6 +735,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
     try {
       return await repo.execute(
         AddTrackToTracking(uuid, track),
+        context: _context,
       );
     } catch (error, stackTrace) {
       _context.error(
@@ -752,6 +762,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
     try {
       return await repo.execute(
         UpdateTrackingTrack(uuid, track),
+        context: _context,
       );
     } catch (error, stackTrace) {
       _context.error(
@@ -787,14 +798,17 @@ class TrackingService extends MessageHandler<DomainEvent> {
   Future _updateTrackingStatus(String uuid) async {
     Map<String, dynamic> tracking;
     try {
-      tracking = repo.get(uuid).data;
+      tracking = repo.get(uuid, context: _context).data;
       final current = tracking.elementAt<String>('status') ?? 'none';
       var next = _inferTrackingStatus(tracking, current);
       if (current != next) {
-        final events = await repo.execute(UpdateTrackingStatus({
-          UUID: uuid,
-          STATUS: next,
-        }));
+        final events = await repo.execute(
+          UpdateTrackingStatus({
+            UUID: uuid,
+            STATUS: next,
+          }),
+          context: _context,
+        );
         if (events.isNotEmpty) {
           _addToStream(
             events,
@@ -822,6 +836,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
     try {
       return await repo.execute(
         UpdateTrackingPosition(tracking),
+        context: _context,
       );
     } catch (error, stackTrace) {
       final uuid = tracking.elementAt<String>(UUID);
@@ -850,6 +865,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
       await repo.catchup(
         master: true,
         uuids: [uuid],
+        context: _context,
       );
     }
     return repo.contains(uuid);
@@ -858,7 +874,10 @@ class TrackingService extends MessageHandler<DomainEvent> {
   Future _addSources(String tuuid) async {
     try {
       if (await _checkTracking(tuuid)) {
-        final tracking = repo.get(tuuid);
+        final tracking = repo.get(
+          tuuid,
+          context: _context,
+        );
         final tracks = tracking.asEntityArray(TRACKS);
         final sources = tracking.asEntityArray(SOURCES).toList();
         // Add sources currently unmapped by this service
@@ -939,7 +958,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
 
   Future _ensureDetached(TrackingSourceEvent event) async {
     final tuuid = repo.toAggregateUuid(event);
-    final data = repo.get(tuuid).data;
+    final data = repo.get(tuuid, context: _context).data;
     final suuid = event.toSourceUuid(data);
     final track = _findTrackManagedByMe(tuuid, suuid);
     if (track != null) {
