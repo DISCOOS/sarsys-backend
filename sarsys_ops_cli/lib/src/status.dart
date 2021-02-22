@@ -19,7 +19,7 @@ class StatusCommand extends BaseCommand {
   final name = 'status';
 
   @override
-  final description = 'status is used to get information about backend modules';
+  final description = 'is used to get information about backend modules';
 }
 
 class StatusAllCommand extends BaseCommand {
@@ -29,7 +29,7 @@ class StatusAllCommand extends BaseCommand {
   final name = 'all';
 
   @override
-  final description = 'all is used to get information about all backend modules';
+  final description = 'is used to get information about all backend modules';
 
   @override
   FutureOr<String> onJson() async {
@@ -45,7 +45,7 @@ class StatusAllCommand extends BaseCommand {
 
   @override
   Future onPrint() async {
-    final verbose = argResults['verbose'] as bool;
+    final verbose = globalResults['verbose'] as bool;
     writeln(highlight('> Ops control pane'), stdout);
     final token = await AuthUtils.getToken(this);
     writeln('  Alive: ${await isOK(client, '/ops/api/healthz/alive')}', stdout);
@@ -81,7 +81,7 @@ class StatusModuleStatusCommand extends BaseCommand {
   final String name;
 
   @override
-  String get description => '$name is used to get information about given backend module';
+  String get description => 'is used to get information about given backend module';
 
   @override
   FutureOr<String> onJson() async {
@@ -101,7 +101,7 @@ class StatusModuleStatusCommand extends BaseCommand {
 
   @override
   Future onPrint() async {
-    final verbose = argResults['verbose'] as bool;
+    final verbose = globalResults['verbose'] as bool;
     final instance = argResults['instance'] as String;
     writeln(highlight('> Status ${capitalize(name)} ${verbose ? '(verbose)' : ''}'), stdout);
     final token = await AuthUtils.getToken(this);

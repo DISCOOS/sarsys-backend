@@ -8,7 +8,7 @@ import 'package:test/test.dart';
 import 'harness.dart';
 
 Future main() async {
-  final harness = SarSysCliHarness()
+  SarSysCliHarness()
     ..withTrackingServer()
     ..withLogger(debug: false)
     ..withContext(

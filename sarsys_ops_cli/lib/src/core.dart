@@ -8,14 +8,18 @@ import 'package:args/args.dart';
 import 'package:ansicolor/ansicolor.dart';
 import 'package:args/command_runner.dart';
 import 'package:dart_app_data/dart_app_data.dart';
+import 'package:strings/strings.dart';
 import 'package:yaml/yaml.dart';
 import 'package:path/path.dart' as p;
+import 'package:pretty_json/pretty_json.dart';
+import 'package:timeago/timeago.dart' as tgo;
 import 'package:event_source/event_source.dart' hide Command;
 
 final highlight = AnsiPen()..gray();
 final red = AnsiPen()..red(bold: true);
 final gray = AnsiPen()..gray(level: 0.5);
 final green = AnsiPen()..green(bold: true);
+final blue = AnsiPen()..blue(bold: true);
 final fill = (int length, [String delimiter = ' ']) => List.filled(length, delimiter).join();
 final pad = (String text, int indent, int max) => '${fill(indent)}$text${fill(math.max(0, max - '$text'.length))}';
 
@@ -50,6 +54,81 @@ void vprint(
   buffer.writeln(
     '$prefix${hasUnit ? '${fill(rest)}${gray('($unit)')}' : ''}',
   );
+}
+
+void jPrint(
+  Map<String, dynamic> map, {
+  @required StringBuffer buffer,
+  int left = 0,
+  int indent = 2,
+  bool pretty = true,
+}) {
+  final spaces = fill(left);
+  buffer.writeln(
+    pretty
+        ? prettyJson(
+            map.mapAt<String, dynamic>('data'),
+            indent: indent,
+          )
+            .split('\n')
+            .map((l) => '$spaces$l'
+                // Match on key
+                .replaceAllMapped(
+                    RegExp(
+                      '(\"[^\"]*\"):',
+                      caseSensitive: false,
+                    ),
+                    (match) => '${blue(match.group(1))}:')
+                // Match on string values
+                .replaceAllMapped(
+                    RegExp(
+                      '(:\\s*)(\"[^\"]*\")',
+                      caseSensitive: false,
+                    ),
+                    (match) => '${match.group(1)}${green(match.group(2))}'))
+            .join('\n')
+        : jsonEncode(map),
+  );
+}
+
+void elPrint(
+  String key,
+  Map<String, dynamic> instance,
+  int maxItems, {
+  @required StringBuffer buffer,
+  int max = 52,
+  int left = 30,
+  int indent = 2,
+}) {
+  sprint(max, buffer: buffer, format: gray);
+  vprint(
+    capitalize(key),
+    instance.elementAt('$key/count', defaultValue: 0),
+    unit: 'events',
+    max: max,
+    left: left,
+    buffer: buffer,
+    indent: indent,
+  );
+  final items = instance.listAt<Map<String, dynamic>>('$key/items', defaultList: []).reversed;
+  if (items.isNotEmpty) {
+    sprint(max, buffer: buffer, format: gray);
+    for (var item in items.take(maxItems)) {
+      final createdWhen = item.elementAt<DateTime>('timestamp');
+      vprint(
+        item.elementAt('type'),
+        createdWhen.toIso8601String(),
+        unit: 'event #${item.elementAt('number')}, ${tgo.format(createdWhen)}',
+        max: max,
+        left: left,
+        buffer: buffer,
+        indent: indent,
+      );
+    }
+    if (items.length > maxItems) {
+      buffer.writeln('${fill(indent)}${items.length - maxItems} more events ...');
+    }
+  }
 }
 
 const defaultConfig = {
@@ -152,7 +231,7 @@ abstract class BaseCommand extends Command<String> {
 
   @override
   FutureOr<String> run() async {
-    switch (argResults['output'] as String) {
+    switch (globalResults['output'] as String) {
       case 'json':
         silent = true;
         final json = await onJson();
@@ -270,16 +349,16 @@ abstract class BaseCommand extends Command<String> {
     return jsonDecode(json);
   }
 
-  String write(String message, IOSink sink) {
-    if (!silent) {
+  String write(String message, IOSink sink, {bool force = false}) {
+    if (!silent || force) {
       buffer.write(message);
       sink.write(message);
     }
     return message;
   }
 
-  String writeln(String message, IOSink sink) {
-    if (!silent) {
+  String writeln(String message, IOSink sink, {bool force = false}) {
+    if (!silent || force) {
       buffer.writeln(message);
       sink.writeln(message);
     }

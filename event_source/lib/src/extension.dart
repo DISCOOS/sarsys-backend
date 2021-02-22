@@ -105,9 +105,10 @@ extension MapX on Map {
   }
 
   /// Joint elements at given paths as string
-  String jointAt(List<String> paths, {String separator = '', String defaultValue}) {
-    return paths.map((path) => elementAt(path, defaultValue: defaultValue)).where((e) => e != null).join(separator);
-  }
+  String jointAt<T>(List<String> paths, {String separator = '', T defaultValue}) => paths
+      .map((path) => elementAt(path, defaultValue: defaultValue)?.toString())
+      .where((e) => e != null)
+      .join(separator);
 }
 
 extension IterableX<T> on Iterable<T> {

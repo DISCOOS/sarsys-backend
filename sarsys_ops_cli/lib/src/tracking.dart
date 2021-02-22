@@ -20,7 +20,7 @@ class TrackingCommand extends BaseCommand {
   final name = 'tracking';
 
   @override
-  final description = 'tracking is used to manage tracking module';
+  final description = 'is used to manage tracking module';
 }
 
 abstract class TrackingCommandBase extends BaseCommand {
@@ -215,18 +215,6 @@ class TrackingStatusCommand extends TrackingCommandBase {
         'instance',
         abbr: 'i',
         help: 'Instance name',
-      )
-      ..addOption(
-        'output',
-        abbr: 'o',
-        defaultsTo: '',
-        help: 'Output format',
-        allowed: ['json'],
-      )
-      ..addFlag(
-        'verbose',
-        abbr: 'v',
-        help: 'Verbose output',
       );
   }
 
@@ -234,7 +222,7 @@ class TrackingStatusCommand extends TrackingCommandBase {
   final name = 'status';
 
   @override
-  final description = 'status is used to check tracking status';
+  final description = 'is used to check tracking status';
 
   @override
   FutureOr<String> onJson() async {
@@ -263,7 +251,7 @@ class TrackingStatusCommand extends TrackingCommandBase {
         '/ops/api/services/tracking?expand=metrics',
         (meta) => toModuleStatus(
           Map.from(meta).listAt('items'),
-          verbose: argResults['verbose'] as bool,
+          verbose: globalResults['verbose'] as bool,
         ),
         token: token,
         format: (result) => result,
@@ -278,7 +266,7 @@ class TrackingStatusCommand extends TrackingCommandBase {
           toInstanceStatus(
             buffer,
             meta,
-            verbose: argResults['verbose'] as bool,
+            verbose: globalResults['verbose'] as bool,
           );
           return buffer.toString();
         },
@@ -309,7 +297,7 @@ class TrackingStartCommand extends TrackingCommandBase {
   final name = 'start';
 
   @override
-  final description = 'start is used to start tracking service in given server';
+  final description = 'is used to start tracking service in given server';
 
   @override
   FutureOr<String> run() async {
@@ -325,7 +313,7 @@ class TrackingStartCommand extends TrackingCommandBase {
       {
         'action': 'start',
       },
-      argResults['verbose'] as bool,
+      globalResults['verbose'] as bool,
     );
     writeln(status, stdout);
 
@@ -352,7 +340,7 @@ class TrackingStopCommand extends TrackingCommandBase {
   final name = 'stop';
 
   @override
-  final description = 'stop is used to stop tracking service in given server';
+  final description = 'is used to stop tracking service in given server';
 
   @override
   FutureOr<String> run() async {
@@ -368,7 +356,7 @@ class TrackingStopCommand extends TrackingCommandBase {
       {
         'action': 'stop',
       },
-      argResults['verbose'] as bool,
+      globalResults['verbose'] as bool,
     );
     writeln(status, stdout);
     return buffer.toString();
@@ -394,7 +382,7 @@ class TrackingAddCommand extends TrackingCommandBase {
   final name = 'add';
 
   @override
-  final description = 'add is used to add tracking objects to given server';
+  final description = 'is used to add tracking objects to given server';
 
   @override
   FutureOr<String> run() async {
@@ -415,7 +403,7 @@ class TrackingAddCommand extends TrackingCommandBase {
         'action': 'add_trackings',
         'uuids': uuids,
       },
-      argResults['verbose'] as bool,
+      globalResults['verbose'] as bool,
     );
     writeln(status, stdout);
     return buffer.toString();
@@ -441,7 +429,7 @@ class TrackingRemoveCommand extends TrackingCommandBase {
   final name = 'remove';
 
   @override
-  final description = 'remove is used to remove tracking objects from given server';
+  final description = 'is used to remove tracking objects from given server';
 
   @override
   FutureOr<String> run() async {
@@ -462,7 +450,7 @@ class TrackingRemoveCommand extends TrackingCommandBase {
         'action': 'remove_trackings',
         'uuids': uuids,
       },
-      argResults['verbose'] as bool,
+      globalResults['verbose'] as bool,
     );
     writeln(status, stdout);
 
