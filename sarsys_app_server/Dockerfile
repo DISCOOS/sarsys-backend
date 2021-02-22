@@ -22,6 +22,7 @@ USER 1000
 # If we use port 80  'SocketException: Failed to create server socket (OS Error: Permission denied, errno = 13)'
 # is raised.
 EXPOSE 8082
+EXPOSE 8083
 
 VOLUME /var/lib/sarsys
 

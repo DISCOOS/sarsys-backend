@@ -8,6 +8,7 @@ data:
   DEBUG: "true"
   PREFIX: "test"
   TENANT: "discoos"
+  GRPC_PORT: "8083"
   MAX_BODY_SIZE: "100"
   LOG_LEVEL: "FINE"
   LOG_SENTRY_LEVEL: "severe"

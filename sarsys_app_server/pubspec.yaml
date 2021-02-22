@@ -11,6 +11,8 @@ dependencies:
   jaguar_jwt: ^2.1.6
   event_source:
     path: ../event_source
+  event_source_grpc:
+    path: ../event_source_grpc
   sarsys_domain:
     path: ../sarsys_domain
   sarsys_core:
