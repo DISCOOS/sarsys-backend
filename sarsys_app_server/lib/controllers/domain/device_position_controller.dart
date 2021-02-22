@@ -53,16 +53,26 @@ class DevicePositionControllerBase extends ValueController<DeviceCommand, Device
   Map<String, dynamic> process(String uuid, Map<String, dynamic> data) {
     final aggregate = repository.get(uuid);
     final currProps = aggregate.data.elementAt('$aggregateField/properties');
-    final nextProps = data.elementAt('properties') ?? {};
+    final nextProps = data.mapAt<String, dynamic>('properties', defaultMap: {});
+
     // Enforce defaults?
     if (currProps == null) {
       nextProps['timestamp'] ??= DateTime.now().toIso8601String();
     }
     nextProps['source'] ??= 'manual';
 
+    // TODO: Remove when confidence bug in Background Geolocation is resolved
+    final confidence = nextProps.elementAt('activity/confidence');
+    if (confidence is double) {
+      nextProps['activity']['confidence'] = confidence.toInt();
+    }
+
+    // Update properties
     data['properties'] = nextProps;
-    // TODO: Remove when bug in Background Geolocation is resolved
+
+    // TODO: Remove when provider bug in Background Geolocation is resolved
     data.remove('provider');
+
     return data;
   }
 
