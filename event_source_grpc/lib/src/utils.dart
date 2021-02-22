@@ -186,6 +186,10 @@ AggregateMeta toAggregateMetaFromRoot(
   final meta = AggregateMeta()
     ..uuid = uuid
     ..type = '${aggregate.runtimeType}'
+    ..number = Int64(aggregate.number.value)
+    ..position = Int64(
+      store.toPosition(aggregate.baseEvent),
+    )
     ..createdBy = toEventMetaFromEvent(aggregate.createdBy, store)
     ..changedBy = toEventMetaFromEvent(aggregate.changedBy, store);
   if (store.isTainted(uuid)) {
