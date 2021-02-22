@@ -76,7 +76,9 @@ class TrackingService extends MessageHandler<DomainEvent> {
     this.maxPaused = 500,
     this.dataPath = '.data',
     this.maxBackoffTime = const Duration(seconds: 10),
-  });
+  }) {
+    _context = Context(Logger('$TrackingService'));
+  }
   final int consume;
   final bool snapshot;
   final int maxPaused;
@@ -86,7 +88,8 @@ class TrackingService extends MessageHandler<DomainEvent> {
   final Set<String> _managed = {};
   final TrackingRepository repo;
   final Map<String, Set<String>> _sources = {};
-  final Logger logger = Logger('$TrackingService');
+
+  Context _context;
 
   /// Get last [Tracking] event processed
   DomainEvent get lastTrackingEvent => _lastTrackingEvent;
@@ -197,7 +200,11 @@ class TrackingService extends MessageHandler<DomainEvent> {
       await this.start();
     }
 
-    logger.info('Built with consumption count $consume from stream $STREAM');
+    _context.info(
+      'Built with consumption count $consume from stream $STREAM',
+      category: 'TrackingService.build',
+    );
+
     return _isCompeting;
   }
 
@@ -284,10 +291,22 @@ class TrackingService extends MessageHandler<DomainEvent> {
           _onProcessed(tic, event);
         }
       } catch (error, stackTrace) {
-        logger.severe(
-          'Failed to handle $event: $error with stacktrace: $stackTrace',
-          error,
-          Trace.from(stackTrace),
+        _context.error(
+          'Failed to handle ${event.type} ${event.uuid} with: $error',
+          category: 'TrackingService.handle',
+          error: error,
+          data: {
+            'source': source?.toString(),
+            'event.type': '${event.type}',
+            'event.uuid': '${event.uuid}',
+            'event.number': '${event.number}',
+            'event.remote': '${event.remote}',
+            'event.created': '${event.created.toIso8601String()}',
+            'event.data': '${jsonEncode(event.data)}',
+            'event.repository.ready': '${repo.isReady}',
+            'event.repository.snapshot.number': '${repo.hasSnapshot ? repo.snapshot.number : 'none'}',
+          },
+          stackTrace: Trace.from(stackTrace),
         );
       }
     }
@@ -357,7 +376,10 @@ class TrackingService extends MessageHandler<DomainEvent> {
         await _box.put(tuuid, _toJson(event));
       }
       exists = _managed.add(tuuid);
-      logger.info('Added tracking $tuuid for position processing');
+      _context.info(
+        'Added tracking $tuuid for position processing',
+        category: 'TrackingService._addTracking',
+      );
     }
     // Only attempt to add sources from tracking that exists during replay (stale
     if (!replay || replay && repo.contains(tuuid)) {
@@ -365,7 +387,10 @@ class TrackingService extends MessageHandler<DomainEvent> {
       await _addSources(tuuid);
     } else if (replay) {
       await removeTracking(tuuid);
-      logger.info('Deleted stale tracking $tuuid');
+      _context.info(
+        'Deleted stale tracking $tuuid',
+        category: 'TrackingService._addTracking',
+      );
     }
     return exists;
   }
@@ -408,6 +433,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
   /// instances concurrently.
   ///
   Future _onTrackingSourceAdded(TrackingSourceAdded event) async {
+    Transaction trx;
     final tuuid = repo.toAggregateUuid(event);
     try {
       if (managed.contains(tuuid)) {
@@ -419,7 +445,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
             'Looking for other active tracks attached to ${event.toSourceType(data)} $suuid',
           );
           final other = _findTrackManagedByOthers(tuuid, suuid);
-          final trx = repo.getTransaction(tuuid);
+          trx = repo.getTransaction(tuuid);
           await _ensureTrack(
             tuuid,
             event.toId(data),
@@ -436,12 +462,34 @@ class TrackingService extends MessageHandler<DomainEvent> {
         await _ensureDetached(event);
       }
     } catch (error, stackTrace) {
-      logger.severe(
-        'Failed to push changes in Tracking $tuuid,\n'
-        'error: $error,\n'
-        'stackTrace: ${Trace.format(stackTrace)}',
-        error,
-        Trace.from(stackTrace),
+      _context.error(
+        'Failed to push changes in Tracking $tuuid for event ${event.type} ${event.uuid} with: $error',
+        category: 'TrackingService._onTrackingSourceAdded',
+        error: error,
+        data: {
+          'event.type': '${event.type}',
+          'event.uuid': '${event.uuid}',
+          'event.number': '${event.number}',
+          'event.remote': '${event.remote}',
+          'event.created': '${event.created.toIso8601String()}',
+          'event.data': '${jsonEncode(event.data)}',
+          if (trx != null) ...{
+            'trx.changes': '${trx.changes.length}',
+            if (trx.changes.isNotEmpty) 'trx.changes.last': '${trx.changes.last.type}@${trx.changes.last.number}',
+            if (trx.changes.isNotEmpty) 'trx.changes.first': '${trx.changes.first.type}@${trx.changes.first.number}',
+            'trx.concurrent': '${trx.concurrent.length}',
+            'trx.conflicts': '${trx.conflicting.length}',
+            'trx.results': '${trx.result?.length}',
+            'trx.remaining': '${trx.remaining.length}',
+            'trx.startedAt': '${Trace.from(trx.startedAt).frames.first}',
+            'trx.startedBy': '${trx.startedBy}',
+            if (trx.hasFailed) 'trx.error': '${trx.error}',
+          } else
+            'trx': 'none',
+          'event.repository.ready': '${repo.isReady}',
+          'event.repository.snapshot.number': '${repo.hasSnapshot ? repo.snapshot.number : 'none'}',
+        },
+        stackTrace: Trace.from(stackTrace),
       );
     } finally {
       if (repo.inTransaction(tuuid)) {
@@ -501,13 +549,14 @@ class TrackingService extends MessageHandler<DomainEvent> {
 
   /// Add position to track for given source
   Future<Iterable<DomainEvent>> _addPosition(String tuuid, PositionEvent event) async {
+    Transaction trx;
     try {
       final track = _findTrack(
         TrackingModel.fromJson(repo.get(tuuid).data),
         repo.toAggregateUuid(event),
       );
       if (track != null) {
-        final trx = repo.getTransaction(
+        trx = repo.getTransaction(
           tuuid,
         );
         final position = event.position;
@@ -528,12 +577,34 @@ class TrackingService extends MessageHandler<DomainEvent> {
         }
       }
     } catch (error, stackTrace) {
-      logger.severe(
-        'Failed to push changes in Tracking $tuuid,\n'
-        'error: $error,\n'
-        'stackTrace: ${Trace.format(stackTrace)}',
-        error,
-        Trace.from(stackTrace),
+      _context.error(
+        'Failed to push changes in Tracking $tuuid for event ${event.type} ${event.uuid} with: $error',
+        category: 'TrackingService._addPosition',
+        error: error,
+        data: {
+          'event.type': '${event.type}',
+          'event.uuid': '${event.uuid}',
+          'event.number': '${event.number}',
+          'event.remote': '${event.remote}',
+          'event.created': '${event.created.toIso8601String()}',
+          'event.data': '${jsonEncode(event.data)}',
+          if (trx != null) ...{
+            'trx.changes': '${trx.changes.length}',
+            if (trx.changes.isNotEmpty) 'trx.changes.last': '${trx.changes.last.type}@${trx.changes.last.number}',
+            if (trx.changes.isNotEmpty) 'trx.changes.first': '${trx.changes.first.type}@${trx.changes.first.number}',
+            'trx.concurrent': '${trx.concurrent.length}',
+            'trx.conflicts': '${trx.conflicting.length}',
+            'trx.results': '${trx.result?.length}',
+            'trx.remaining': '${trx.remaining.length}',
+            'trx.startedAt': '${Trace.from(trx.startedAt).frames.first}',
+            'trx.startedBy': '${trx.startedBy}',
+            if (trx.hasFailed) 'trx.error': '${trx.error}',
+          } else
+            'trx': 'none',
+          'event.repository.ready': '${repo.isReady}',
+          'event.repository.snapshot.number': '${repo.hasSnapshot ? repo.snapshot.number : 'none'}',
+        },
+        stackTrace: Trace.from(stackTrace),
       );
     } finally {
       if (repo.inTransaction(tuuid)) {
@@ -544,7 +615,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
   }
 
   /// Calculate geometric mean of last position in all tracks
-  Future _aggregate(String uuid) async {
+  FutureOr<void> _aggregate(String uuid) async {
     final tracking = TrackingModel.fromJson(
       repo.get(uuid).data,
     );
@@ -571,13 +642,15 @@ class TrackingService extends MessageHandler<DomainEvent> {
           POSITION: next.toJson(),
           HISTORY: history.map((position) => position.toJson()).toList(),
         });
-        logger.fine('Aggregated position for Tracking $uuid');
+        _context.debug(
+          'Aggregated position for Tracking $uuid',
+          category: 'TrackingService._addTracking',
+        );
         if (events.isNotEmpty) {
           _addToStream(events, 'Updated tracking $uuid position');
         }
       }
     }
-    return Future.value();
   }
 
   TrackModel _findTrackManagedByMe(String tuuid, String suuid) =>
@@ -655,14 +728,21 @@ class TrackingService extends MessageHandler<DomainEvent> {
         AddTrackToTracking(uuid, track),
       );
     } catch (error, stackTrace) {
-      logger.severe(
-        'Failed to add track to Tracking $uuid for '
-        '${track.mapAt(SOURCE).elementAt(TYPE)} '
-        '${track.mapAt(SOURCE).elementAt(UUID)},\n'
-        'error: $error,\n'
-        'stackTrace: ${Trace.format(stackTrace)}',
-        error,
-        Trace.from(stackTrace),
+      _context.error(
+        'Failed to push changes in Tracking $uuid for track '
+        '${track.mapAt(SOURCE).elementAt(TYPE)} ${track.mapAt(SOURCE).elementAt(UUID)} with: $error',
+        category: 'TrackingService._addTrack',
+        error: error,
+        data: {
+          'tracking.uuid': uuid,
+          'tracking.track.uuid': '${track[UUID]}',
+          'tracking.track.json': '${jsonEncode(track)}',
+          'tracking.source.type': '${track.mapAt(SOURCE).elementAt(TYPE)}',
+          'tracking.source.uuid': '${track.mapAt(SOURCE).elementAt(UUID)}',
+          'event.repository.ready': '${repo.isReady}',
+          'event.repository.snapshot.number': '${repo.hasSnapshot ? repo.snapshot.number : 'none'}',
+        },
+        stackTrace: Trace.from(stackTrace),
       );
       return <DomainEvent>[];
     }
@@ -674,12 +754,21 @@ class TrackingService extends MessageHandler<DomainEvent> {
         UpdateTrackingTrack(uuid, track),
       );
     } catch (error, stackTrace) {
-      logger.severe(
-        'Failed to update track ${track[UUID]} in Tracking $uuid,\n'
-        'error: $error,\n'
-        'stackTrace: ${Trace.format(stackTrace)}',
-        error,
-        Trace.from(stackTrace),
+      _context.error(
+        'Failed to update track ${track[UUID]} in Tracking $uuid'
+        '${track.mapAt(SOURCE).elementAt(TYPE)} ${track.mapAt(SOURCE).elementAt(UUID)} with: $error',
+        category: 'TrackingService._updateTrack',
+        error: error,
+        data: {
+          'tracking.uuid': uuid,
+          'tracking.track.uuid': '${track[UUID]}',
+          'tracking.track.json': '${jsonEncode(track)}',
+          'tracking.source.type': '${track.mapAt(SOURCE).elementAt(TYPE)}',
+          'tracking.source.uuid': '${track.mapAt(SOURCE).elementAt(UUID)}',
+          'event.repository.ready': '${repo.isReady}',
+          'event.repository.snapshot.number': '${repo.hasSnapshot ? repo.snapshot.number : 'none'}',
+        },
+        stackTrace: Trace.from(stackTrace),
       );
       return <DomainEvent>[];
     }
@@ -696,8 +785,9 @@ class TrackingService extends MessageHandler<DomainEvent> {
   }
 
   Future _updateTrackingStatus(String uuid) async {
+    Map<String, dynamic> tracking;
     try {
-      final tracking = repo.get(uuid).data;
+      tracking = repo.get(uuid).data;
       final current = tracking.elementAt<String>('status') ?? 'none';
       var next = _inferTrackingStatus(tracking, current);
       if (current != next) {
@@ -713,12 +803,17 @@ class TrackingService extends MessageHandler<DomainEvent> {
         }
       }
     } catch (error, stackTrace) {
-      logger.severe(
-        'Failed to update tracking $uuid status,\n'
-        'error: $error,\n'
-        'stackTrace: ${Trace.format(stackTrace)}',
-        error,
-        Trace.from(stackTrace),
+      _context.error(
+        'Failed to update tracking $uuid status with: $error',
+        category: 'TrackingService._updateTrackingStatus',
+        error: error,
+        data: {
+          'tracking.uuid': uuid,
+          'tracking.status': uuid,
+          'event.repository.ready': '${repo.isReady}',
+          'event.repository.snapshot.number': '${repo.hasSnapshot ? repo.snapshot.number : 'none'}',
+        },
+        stackTrace: Trace.from(stackTrace),
       );
     }
   }
@@ -729,12 +824,18 @@ class TrackingService extends MessageHandler<DomainEvent> {
         UpdateTrackingPosition(tracking),
       );
     } catch (error, stackTrace) {
-      logger.severe(
-        'Failed to update tracking ${tracking[UUID]},\n'
-        'error: $error,\n'
-        'stackTrace: ${Trace.format(stackTrace)}',
-        error,
-        Trace.from(stackTrace),
+      final uuid = tracking.elementAt<String>(UUID);
+      _context.error(
+        'Failed to update position for tracking $uuid status with: $error',
+        category: 'TrackingService._updateTrackingPosition',
+        error: error,
+        data: {
+          'tracking.uuid': uuid,
+          'tracking.position.json': jsonEncode(tracking.elementAt(POSITION)),
+          'event.repository.ready': '${repo.isReady}',
+          'event.repository.snapshot.number': '${repo.hasSnapshot ? repo.snapshot.number : 'none'}',
+        },
+        stackTrace: Trace.from(stackTrace),
       );
       return <DomainEvent>[];
     }
@@ -789,12 +890,16 @@ class TrackingService extends MessageHandler<DomainEvent> {
         );
       }
     } catch (error, stackTrace) {
-      logger.severe(
-        'Failed to push changes in Tracking $tuuid,\n'
-        'error: $error,\n'
-        'stackTrace: ${Trace.format(stackTrace)}',
-        error,
-        Trace.from(stackTrace),
+      _context.error(
+        'push changes in Tracking $tuuid with: $error',
+        category: 'TrackingService._addSources',
+        error: error,
+        data: {
+          'tracking.uuid': tuuid,
+          'event.repository.ready': '${repo.isReady}',
+          'event.repository.snapshot.number': '${repo.hasSnapshot ? repo.snapshot.number : 'none'}',
+        },
+        stackTrace: Trace.from(stackTrace),
       );
     }
   }
@@ -823,7 +928,10 @@ class TrackingService extends MessageHandler<DomainEvent> {
         (entry) => _sources.remove(entry.key),
       );
     if (changed.isNotEmpty || empty.isNotEmpty) {
-      logger.info('Removed tracking $tuuid from service');
+      _context.info(
+        'Removed tracking $tuuid from service',
+        category: 'TrackingService._removeSources',
+      );
       return true;
     }
     return false;
@@ -862,7 +970,10 @@ class TrackingService extends MessageHandler<DomainEvent> {
   void _addToStream(Iterable<DomainEvent> events, String message, {bool replay = false}) {
     events.forEach((event) {
       _streamController.add(event);
-      logger.info('Processed ${event.type}${replay ? '[replay]' : ''}: $message');
+      _context.debug(
+        'Processed ${event.type}${replay ? '[replay]' : ''}: $message',
+        category: 'TrackingService._addToStream',
+      );
     });
   }
 
