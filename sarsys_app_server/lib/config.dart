@@ -17,13 +17,13 @@ class SarSysAppConfig extends SarSysModuleConfig {
   @optionalConfiguration
   int port = 80;
 
-  /// App grpc server port
-  @optionalConfiguration
-  int grpcPort = 8080;
-
   /// The maximum size of a request body. Default is 10MB
   @optionalConfiguration
   int maxBodySize = 10;
+
+  /// Grpc server configuration
+  @optionalConfiguration
+  GrpcConfig grpc = GrpcConfig();
 
   /// Flag activating standalone mode.
   ///
@@ -34,4 +34,16 @@ class SarSysAppConfig extends SarSysModuleConfig {
   /// TODO: Implement EventFileStore
   @optionalConfiguration
   bool standalone = false;
+}
+
+class GrpcConfig extends Configuration {
+  GrpcConfig();
+
+  /// Enable grpc server
+  @optionalConfiguration
+  bool enabled = false;
+
+  /// App grpc server port
+  @optionalConfiguration
+  int port = 8080;
 }
