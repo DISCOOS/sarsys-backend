@@ -66,6 +66,16 @@ class TrackingGrpcServiceController extends ComponentBaseController {
       labels: toModuleLabels(),
       metrics: shouldExpand(expand, 'metrics'),
     );
+    if (pods.isEmpty) {
+      return toResponse(
+        args: {
+          'expand': expand,
+        },
+        statusCode: HttpStatus.notFound,
+        method: 'doGetMeta',
+        body: "$modules not found",
+      );
+    }
     final names = [];
     final items = <Map<String, dynamic>>[];
     for (var pod in pods) {
@@ -108,7 +118,7 @@ class TrackingGrpcServiceController extends ComponentBaseController {
       name,
       shouldExpand(expand, 'metrics'),
     );
-    if (pod?.isNotEmpty != true) {
+    if (pod.isEmpty) {
       return toResponse(
         name: name,
         method: 'doGetMetaByName',
@@ -185,6 +195,16 @@ class TrackingGrpcServiceController extends ComponentBaseController {
       k8s.namespace,
       labels: toModuleLabels(),
     );
+    if (pods.isEmpty) {
+      return toResponse(
+        args: {
+          'expand': expand,
+        },
+        statusCode: HttpStatus.notFound,
+        method: 'doExecute',
+        body: "$modules not found",
+      );
+    }
     switch (command) {
       case 'start_all':
         return doStartAll(pods, expand);
@@ -193,7 +213,7 @@ class TrackingGrpcServiceController extends ComponentBaseController {
     }
     return toResponse(
       method: 'doExecute',
-      statusCode: HttpStatus.notFound,
+      statusCode: HttpStatus.badRequest,
       name: '${pods.map(k8s.toPodName).toList()}',
       body: "$target command '$command' not found",
       args: {'command': command, 'expand': expand},
@@ -222,7 +242,7 @@ class TrackingGrpcServiceController extends ComponentBaseController {
       name,
       shouldExpand(expand, 'metrics'),
     );
-    if (pod?.isNotEmpty != true) {
+    if (pod.isEmpty) {
       return toResponse(
         name: name,
         args: {
@@ -279,7 +299,7 @@ class TrackingGrpcServiceController extends ComponentBaseController {
       name: name,
       args: args,
       method: 'doExecuteByName',
-      statusCode: HttpStatus.notFound,
+      statusCode: HttpStatus.badRequest,
       body: "$target instance command '$command' not found",
     );
   }
@@ -563,8 +583,8 @@ class TrackingGrpcServiceController extends ComponentBaseController {
     return client;
   }
 
-  Future<Map<String, dynamic>> _getPod(String name, bool metrics) async {
-    return await k8s.getPod(
+  Future<Map<String, dynamic>> _getPod(String name, bool metrics) {
+    return k8s.getPod(
       k8s.namespace,
       name,
       metrics: metrics,
