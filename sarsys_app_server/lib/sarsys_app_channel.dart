@@ -833,6 +833,7 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
   Future dispose() async {
     if (!_disposed) {
       _disposed = true;
+      await _grpc.shutdown();
       await manager?.dispose();
       await messages?.dispose();
       manager?.connection?.close();
