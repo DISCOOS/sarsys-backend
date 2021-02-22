@@ -496,7 +496,8 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
     config.debug = _propertyAt<bool>('DEBUG', config.debug);
     config.prefix = _propertyAt<String>('PREFIX', config.prefix);
     config.tenant = _propertyAt<String>('TENANT', config.tenant);
-    config.grpcPort = _propertyAt<int>('GRPC_PORT', config.grpcPort);
+    config.grpc.port = _propertyAt<int>('GRPC_PORT', config.grpc.port);
+    config.grpc.enabled = _propertyAt<bool>('GRPC_ENABLED', config.grpc.enabled);
     config.maxBodySize = _propertyAt<int>('MAX_BODY_SIZE', config.maxBodySize);
     config.apiSpecPath = _propertyAt<String>('API_SPEC_PATH', config.apiSpecPath);
 
@@ -780,17 +781,19 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
     messages.build();
   }
 
-  Future<void> _buildGrpcServer() {
-    // Start grpc server
-    _grpc = grpc.Server([
-      AggregateGrpcService(manager),
-      RepositoryGrpcService(manager),
-      SnapshotGrpcService(manager, config.data.path),
-    ]);
+  FutureOr<void> _buildGrpcServer() {
+    if (config.grpc.enabled) {
+      // Start grpc server
+      _grpc = grpc.Server([
+        AggregateGrpcService(manager),
+        RepositoryGrpcService(manager),
+        SnapshotGrpcService(manager, config.data.path),
+      ]);
 
-    return _grpc.serve(
-      port: config.grpcPort,
-    );
+      return _grpc.serve(
+        port: config.grpc.port,
+      );
+    }
   }
 
   Future _buildSecureRouter() async {
@@ -833,7 +836,7 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
   Future dispose() async {
     if (!_disposed) {
       _disposed = true;
-      await _grpc.shutdown();
+      await _grpc?.shutdown();
       await manager?.dispose();
       await messages?.dispose();
       manager?.connection?.close();

@@ -61,6 +61,14 @@ class SarSysAppHarness extends TestHarness<SarSysAppServerChannel> {
     return this;
   }
 
+  int _grpcPort = 8080;
+  bool _withGrpcServer = false;
+  SarSysAppHarness withGrpcServer({int port = 8080}) {
+    _grpcPort = port;
+    _withGrpcServer = true;
+    return this;
+  }
+
   final Map<String, dynamic> _context = {};
   SarSysAppHarness withContext({
     String podName = 'bar',
@@ -133,6 +141,10 @@ class SarSysAppHarness extends TestHarness<SarSysAppServerChannel> {
       application.options.context['DATA_ENABLED'] = false;
       application.options.context['DATA_SNAPSHOTS_ENABLED'] = false;
     }
+    if (_withGrpcServer) {
+      application.options.context['GRPC_PORT'] = _grpcPort;
+    }
+    application.options.context['GRPC_ENABLED'] = _withGrpcServer;
   }
 
   @override
@@ -196,6 +208,10 @@ class SarSysAppHarness extends TestHarness<SarSysAppServerChannel> {
     final agent = Agent(application);
     await application.channel.manager.readyAsync();
     _instances.add(application);
+    if (_withGrpcServer) {
+      application.options.context['GRPC_PORT'] = _grpcPort + _instances.length;
+    }
+    application.options.context['GRPC_ENABLED'] = _withGrpcServer;
 
     return agent;
   }

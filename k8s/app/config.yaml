@@ -9,6 +9,7 @@ data:
   PREFIX: "test"
   TENANT: "discoos"
   GRPC_PORT: "8083"
+  GRPC_ENABLED: "true"
   MAX_BODY_SIZE: "100"
   LOG_LEVEL: "FINE"
   LOG_SENTRY_LEVEL: "severe"

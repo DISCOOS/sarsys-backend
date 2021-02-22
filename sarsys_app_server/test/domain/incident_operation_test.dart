@@ -6,7 +6,7 @@ import 'package:sarsys_app_server_test/sarsys_app_server_test.dart';
 Future main() async {
   final harness = SarSysAppHarness()
     ..withEventStoreMock()
-    ..withInstance(8080)
+    ..withInstance(8888)
     ..install(restartForEachTest: true);
 
   test("POST /api/incident/{uuid}/operation adds operation to aggregate list", () async {
@@ -18,13 +18,13 @@ Future main() async {
     final ouuid = Uuid().v4();
     final operation = _createData(ouuid);
     expectResponse(
-      await harness.agents[8080].post("/api/incidents/$iuuid/operations", body: operation),
+      await harness.agents[8888].post("/api/incidents/$iuuid/operations", body: operation),
       201,
       body: null,
     );
     await expectAggregateReference(
       harness,
-      port: 8080,
+      port: 8888,
       childUuid: ouuid,
       child: operation,
       parentUuid: iuuid,
@@ -33,7 +33,7 @@ Future main() async {
     );
     await expectAggregateInList(
       harness,
-      port: 8080,
+      port: 8888,
       uuid: iuuid,
       uri: '/api/incidents',
       listField: 'operations',
