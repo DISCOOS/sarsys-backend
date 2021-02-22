@@ -13,13 +13,13 @@ class SarSysAppConfig extends SarSysModuleConfig {
   /// Path OpenApi v3 to api specification
   String apiSpecPath = sarsys.apiSpecPath;
 
-  /// App server port
+  /// App http server port
   @optionalConfiguration
   int port = 80;
 
-  /// App server port
+  /// App grpc server port
   @optionalConfiguration
-  int grpcPort = 8083;
+  int grpcPort = 8080;
 
   /// The maximum size of a request body. Default is 10MB
   @optionalConfiguration
