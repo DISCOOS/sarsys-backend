@@ -7,6 +7,7 @@ Future main(List<String> args) async {
   stdout.writeln('Starting server with args $args...');
   final parser = ArgParser()
     ..addOption("port", defaultsTo: "80", abbr: "p")
+    ..addOption("grpcPort", defaultsTo: "8080", abbr: "g")
     ..addOption("config", defaultsTo: "config.yaml", abbr: "c")
     ..addOption("instances", defaultsTo: "1", abbr: "i")
     ..addOption("timeout", defaultsTo: "30")
@@ -16,7 +17,8 @@ Future main(List<String> args) async {
   final app = Application<SarSysAppServerChannel>()
     ..isolateStartupTimeout = const Duration(seconds: isolateStartupTimeout)
     ..options.configurationFilePath = results['config'] as String
-    ..options.port = int.tryParse(results['port'] as String) ?? 8888;
+    ..options.port = int.tryParse(results['port'] as String) ?? 88
+    ..options.context['GRPC_PORT'] = int.tryParse(results['grpcPort'] as String) ?? 8080;
 
   final count = min(
     Platform.numberOfProcessors ~/ 2,
