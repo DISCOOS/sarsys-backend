@@ -39,7 +39,7 @@ abstract class AggregateCommandBase extends BaseCommand {
     final expand = verbose ? '?expand=all' : '';
     final status = await post(
       client,
-      '/ops/api/services/aggregate/$type/$uuid/$instance$expand',
+      '/ops/api/services/aggregate/$type/$uuid${instance == null ? '$expand' : '/$instance$expand'}',
       args,
       (result) {
         final buffer = StringBuffer();
@@ -296,8 +296,8 @@ class AggregateReplaceCommand extends AggregateCommandBase {
     }
     final instance = argResults['instance'] as String;
     if (instance == null) {
-      usageException(red(' Aggregate server instance is missing'));
-      return writeln(red(' Aggregate server instance is missing'), stderr);
+      usageException(red(' Aggregate service instance is missing'));
+      return writeln(red(' Aggregate service instance is missing'), stderr);
     }
     final path = argResults['file'] as String;
     if (path == null) {
@@ -311,7 +311,7 @@ class AggregateReplaceCommand extends AggregateCommandBase {
     }
     final data = jsonDecode(file.readAsStringSync());
 
-    writeln(highlight('> Replace ${capitalize(type)} $uuid with data from $path'), stdout);
+    writeln(highlight('> Replace ${capitalize(type)} $uuid in $instance with data from $path'), stdout);
     final status = await executeOn(
       type,
       uuid,
