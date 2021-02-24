@@ -124,6 +124,11 @@ class AggregateGrpcService extends AggregateGrpcServiceBase {
       patches: patches,
       data: Map<String, dynamic>.from(data),
     );
+
+    // Ensure change is stored
+    repo.save(force: true);
+
+    // Report results
     response.meta = toAggregateMetaFromRoot(
       aggregate,
       repo.store,

@@ -1086,9 +1086,9 @@ Future main() async {
       next.baseEvent,
       equals(prev.baseEvent),
     );
-    expect(next.base, equals(isNot(prev.base)));
-    expect(next.data, equals(isNot(prev.data)));
-    expect(next.head, equals(isNot(prev.head)));
+    expect(next.base, equals(prev.base));
+    expect(next.data, equals(prev.data));
+    expect(next.head, equals(prev.head));
   });
 
   test('Repository should replay given aggregates only', () async {
