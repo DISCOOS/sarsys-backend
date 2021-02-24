@@ -41,7 +41,6 @@ class SnapshotGrpcFileServiceController extends ComponentBaseController {
 
   final K8sApi k8s;
   final Map<String, ClientChannel> channels;
-  final Map<String, SnapshotGrpcServiceClient> _clients = {};
 
   @Scope(['roles:admin'])
   @Operation.get('type', 'name')
@@ -346,7 +345,12 @@ class SnapshotGrpcFileServiceController extends ComponentBaseController {
         ..fileSize = Int64(fileSize)
         ..chunkSize = Int64(chunkSize)));
 
-    final response = await toClient(pod).upload(
+    final response = await toClient(
+      pod,
+      timeout: const Duration(
+        minutes: 2,
+      ),
+    ).upload(
       chunkReader,
     );
     return toJsonCommandMeta(
@@ -445,7 +449,12 @@ class SnapshotGrpcFileServiceController extends ComponentBaseController {
     return file;
   }
 
-  SnapshotGrpcServiceClient toClient(Map<String, dynamic> pod) {
+  SnapshotGrpcServiceClient toClient(
+    Map<String, dynamic> pod, {
+    Duration timeout = const Duration(
+      seconds: 30,
+    ),
+  }) {
     final uri = k8s.toPodUri(
       pod,
       port: config.tracking.grpcPort,
@@ -460,15 +469,10 @@ class SnapshotGrpcFileServiceController extends ComponentBaseController {
         ),
       ),
     );
-    final client = _clients.putIfAbsent(
-      uri.authority,
-      () => SnapshotGrpcServiceClient(
-        channel,
-        options: CallOptions(
-          timeout: const Duration(
-            seconds: 30,
-          ),
-        ),
+    final client = SnapshotGrpcServiceClient(
+      channel,
+      options: CallOptions(
+        timeout: timeout,
       ),
     );
     logger.fine(

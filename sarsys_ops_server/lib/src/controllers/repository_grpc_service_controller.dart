@@ -1,7 +1,6 @@
 import 'package:event_source_grpc/event_source_grpc.dart';
 import 'package:grpc/grpc.dart' hide Response;
 import 'package:grpc/grpc_connection_interface.dart';
-import 'package:protobuf/protobuf.dart';
 import 'package:sarsys_ops_server/sarsys_ops_server.dart';
 import 'package:sarsys_ops_server/src/config.dart';
 import 'package:sarsys_core/sarsys_core.dart';
@@ -57,7 +56,6 @@ class RepositoryGrpcServiceController extends ComponentBaseController {
 
   final K8sApi k8s;
   final Map<String, ClientChannel> channels;
-  final Map<String, RepositoryGrpcServiceClient> _clients = {};
 
   @override
   @Scope(['roles:admin'])
@@ -526,7 +524,12 @@ class RepositoryGrpcServiceController extends ComponentBaseController {
     Map<String, dynamic> pod,
     String expand,
   ) async {
-    final response = await toClient(pod).replayEvents(
+    final response = await toClient(
+      pod,
+      timeout: const Duration(
+        minutes: 2,
+      ),
+    ).replayEvents(
       ReplayRepoEventsRequest()
         ..type = type
         ..uuids.addAll(
@@ -582,7 +585,12 @@ class RepositoryGrpcServiceController extends ComponentBaseController {
     Map<String, dynamic> pod,
     String expand,
   ) async {
-    final response = await toClient(pod).catchupEvents(
+    final response = await toClient(
+      pod,
+      timeout: const Duration(
+        minutes: 2,
+      ),
+    ).catchupEvents(
       CatchupRepoEventsRequest()
         ..type = type
         ..uuids.addAll(
@@ -641,7 +649,12 @@ class RepositoryGrpcServiceController extends ComponentBaseController {
     bool master,
     String expand,
   ) async {
-    final response = await toClient(pod).repair(
+    final response = await toClient(
+      pod,
+      timeout: const Duration(
+        minutes: 2,
+      ),
+    ).repair(
       RepairRepoRequest()
         ..type = type
         ..master = master
@@ -703,7 +716,12 @@ class RepositoryGrpcServiceController extends ComponentBaseController {
     bool master,
     String expand,
   ) async {
-    final response = await toClient(pod).rebuild(
+    final response = await toClient(
+      pod,
+      timeout: const Duration(
+        minutes: 2,
+      ),
+    ).rebuild(
       RebuildRepoRequest()
         ..type = type
         ..master = master
@@ -719,7 +737,12 @@ class RepositoryGrpcServiceController extends ComponentBaseController {
     );
   }
 
-  RepositoryGrpcServiceClient toClient(Map<String, dynamic> pod) {
+  RepositoryGrpcServiceClient toClient(
+    Map<String, dynamic> pod, {
+    Duration timeout = const Duration(
+      seconds: 30,
+    ),
+  }) {
     final uri = k8s.toPodUri(
       pod,
       port: config.tracking.grpcPort,
@@ -734,15 +757,10 @@ class RepositoryGrpcServiceController extends ComponentBaseController {
         ),
       ),
     );
-    final client = _clients.putIfAbsent(
-      uri.authority,
-      () => RepositoryGrpcServiceClient(
-        channel,
-        options: CallOptions(
-          timeout: const Duration(
-            seconds: 30,
-          ),
-        ),
+    final client = RepositoryGrpcServiceClient(
+      channel,
+      options: CallOptions(
+        timeout: timeout,
       ),
     );
     logger.fine(
