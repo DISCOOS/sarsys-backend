@@ -35,6 +35,23 @@ Any toAnyFromJson(
   );
 }
 
+Map<String, dynamic> ensureAnyJsonValue(
+  Map<String, dynamic> json, [
+  JsonDataCompression compression = JsonDataCompression.JSON_DATA_COMPRESSION_ZLIB,
+]) {
+  final data = json.elementAt('data');
+  if (data != null) {
+    json['data'] = <String, dynamic>{
+      '@type': 'type.discoos.io/org.discoos.io.JsonValue',
+      'value': <String, dynamic>{
+        'compression': compression.name,
+        'data': data,
+      },
+    };
+  }
+  return json;
+}
+
 JsonValue toJsonValue(
   dynamic data, [
   JsonDataCompression compression = JsonDataCompression.JSON_DATA_COMPRESSION_ZLIB,
@@ -329,7 +346,17 @@ AggregateMeta toAggregateMetaFromRoot(
 AggregateMeta toAggregateMetaFromMap(
   Map<String, dynamic> aggregate,
 ) {
-  return AggregateMeta()..mergeFromProto3Json(aggregate);
+  aggregate = ensureAnyJsonValue(
+    aggregate,
+  );
+
+  final meta = AggregateMeta()
+    ..mergeFromProto3Json(
+      aggregate,
+      typeRegistry: TypeRegistry([JsonValueWrapper()]),
+    );
+
+  return meta;
 }
 
 EventMeta toEventMetaFromEvent(Event event, EventStore store) {
