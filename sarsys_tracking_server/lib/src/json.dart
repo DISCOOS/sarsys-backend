@@ -13,7 +13,8 @@ class JsonValueWrapper implements JsonValue {
   static final BuilderInfo _i = BuilderInfo(
       const bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'JsonValue',
       package: const PackageName(bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'org.discoos.io'),
-      createEmptyInstance: () => JsonValueWrapper())
+      createEmptyInstance: () => JsonValueWrapper(),
+      fromProto3Json: _fromProto3Json)
     ..e<JsonDataCompression>(
         1, const bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'compression', PbFieldType.OE,
         defaultOrMaker: JsonDataCompression.JSON_DATA_COMPRESSION_NONE,
@@ -56,27 +57,35 @@ class JsonValueWrapper implements JsonValue {
         'data': fromJsonValue(_value),
       };
 
+  static void _fromProto3Json(GeneratedMessage message, Object json, TypeRegistry typeRegistry, Object context) {
+    if (message is! JsonValueWrapper) {
+      throw TypeError();
+    }
+    final value = message as JsonValueWrapper;
+    if (json is! Map) {
+      throw TypeError();
+    }
+    final map = Map<String, dynamic>.from(json);
+    if (map.containsKey('compression')) {
+      value.compression = JsonDataCompression.values.firstWhere(
+        (e) => e.name == map['compression'],
+      );
+    }
+    if (map.containsKey('data')) {
+      value.data = toJsonValueBytes(
+        map['data'],
+        value.compression,
+      );
+    }
+  }
+
   @override
   void mergeFromProto3Json(Object json,
       {TypeRegistry typeRegistry = const TypeRegistry.empty(),
       bool ignoreUnknownFields = false,
       bool supportNamesWithUnderscores = true,
       bool permissiveEnums = false}) {
-    if (json is! Map) {
-      throw TypeError();
-    }
-    final map = Map<String, dynamic>.from(json);
-    if (map.containsKey('compression')) {
-      _value.compression = JsonDataCompression.values.firstWhere(
-        (e) => e.name == map['compression'],
-      );
-    }
-    if (map.containsKey('data')) {
-      _value.data = toJsonValueBytes(
-        map['data'],
-        _value.compression,
-      );
-    }
+    _fromProto3Json(this, json, typeRegistry, null);
   }
 
   // GeneratedMessage wrapper
