@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+option java_package = "org.discoos.io.protobuf";
+option java_outer_classname = "DESProto";
+option java_multiple_files = true;
+option objc_class_prefix = "DIO";
+option cc_enable_arenas = true;
+
+package org.discoos.io;
+
+// Json data encoded as bytes
+//
+// Use when dynamic json should be transferred without
+// any changed made to it (binary equal encode and decode).
+// This offers an alternative to well-known proto3 type
+// google.protobuf.Value that assumes all json numbers are
+// double when decoded to type in native code. As a result,
+// all integer values before encoding is converted to double
+// automatically. This could lead to unexpected results when
+// json is deserialized with deserializer that does not
+// handle cast of integers encoded as doubles prefixed with
+// ".0" natively.
+//
+// See https://developers.google.com/protocol-buffers/docs/proto3#json
+// See https://json-schema.org/understanding-json-schema/reference/numeric.html
+// See https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#google.protobuf.Value
+//
+message JsonValue {
+
+  // Compression type of bytes
+  JsonDataCompression compression = 1;
+
+  // Json value as utf8 encoded bytes
+  bytes data = 2;
+
+}
+
+enum JsonDataCompression {
+
+  // Uncompressed utf8 encoded bytes
+  JSON_DATA_COMPRESSION_NONE = 0;
+
+  // Zlib compressed utf8 encoded bytes.
+  JSON_DATA_COMPRESSION_ZLIB = 1;
+
+  // Gzip compressed utf8 encoded bytes.
+  JSON_DATA_COMPRESSION_GZIP = 2;
+
+}
+
+

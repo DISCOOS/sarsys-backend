@@ -1,25 +1,103 @@
-import 'dart:ffi';
-
 export 'package:strings/strings.dart';
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:event_source/event_source.dart';
 import 'package:event_source_grpc/event_source_grpc.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:protobuf/protobuf.dart';
 import 'generated/aggregate.pb.dart';
 import 'generated/event.pb.dart';
+import 'generated/json.pb.dart';
 import 'generated/repository.pb.dart';
 import 'generated/snapshot.pb.dart';
 import 'generated/timestamp.pb.dart';
+import 'json.dart';
 
-Value toValueFromJson(dynamic json) {
-  if (json is List) {
-    return Value()..listValue = (ListValue()..values.addAll(json.map(toValueFromJson)));
+/// Ensure that all json value types are registered
+Object toProto3Json(GeneratedMessage message) => message.toProto3Json(
+      typeRegistry: TypeRegistry(
+        [JsonValueWrapper()],
+      ),
+    );
+
+Any toAny(GeneratedMessage value) {
+  return Any.pack(value, typeUrlPrefix: 'type.discoos.io');
+}
+
+Any toAnyFromJson(
+  dynamic data, [
+  JsonDataCompression compression = JsonDataCompression.JSON_DATA_COMPRESSION_ZLIB,
+]) {
+  return Any.pack(
+    toJsonValue(data, compression),
+    typeUrlPrefix: 'type.discoos.io',
+  );
+}
+
+JsonValue toJsonValue(
+  dynamic data, [
+  JsonDataCompression compression = JsonDataCompression.JSON_DATA_COMPRESSION_ZLIB,
+]) {
+  return JsonValueWrapper()
+    ..compression = compression
+    ..data = toJsonValueBytes(data);
+}
+
+List<int> toJsonValueBytes(
+  dynamic data, [
+  JsonDataCompression compression = JsonDataCompression.JSON_DATA_COMPRESSION_ZLIB,
+]) {
+  switch (compression) {
+    case JsonDataCompression.JSON_DATA_COMPRESSION_ZLIB:
+      return utf8.fuse(zlib).encode(jsonEncode(data));
+    case JsonDataCompression.JSON_DATA_COMPRESSION_GZIP:
+      return utf8.fuse(gzip).encode(jsonEncode(data));
   }
-  if (json is Map<String, dynamic>) {
-    return Value()..mergeFromProto3Json(Map<String, dynamic>.from(json));
+  return utf8.encode(
+    jsonEncode(data),
+  );
+}
+
+dynamic toJsonFromAny(Any value) {
+  return fromJsonValue(
+    value.unpackInto<JsonValue>(JsonValueWrapper()),
+  );
+}
+
+JsonValue toJsonValueFromAny(Any value) {
+  return value.unpackInto<JsonValue>(JsonValueWrapper());
+}
+
+dynamic fromJsonValue(JsonValue value) {
+  return fromJsonDataBytes(
+    value.data,
+    value.compression,
+  );
+}
+
+dynamic fromJsonDataBytes(
+  List<int> data, [
+  JsonDataCompression compression = JsonDataCompression.JSON_DATA_COMPRESSION_ZLIB,
+]) {
+  switch (compression) {
+    case JsonDataCompression.JSON_DATA_COMPRESSION_ZLIB:
+      return jsonDecode(utf8.fuse(zlib).decode(data));
+    case JsonDataCompression.JSON_DATA_COMPRESSION_GZIP:
+      return jsonDecode(utf8.fuse(gzip).decode(data));
+  }
+  return jsonDecode(utf8.decode(data));
+}
+
+Value toValueFromJson(dynamic data) {
+  if (data is List) {
+    return Value()..listValue = (ListValue()..values.addAll(data.map(toValueFromJson)));
+  }
+  if (data is Map<String, dynamic>) {
+    return Value()..mergeFromProto3Json(Map<String, dynamic>.from(data));
   }
   throw ArgumentError(
-    'Only List and Map<String,dynamic> are supported types, found type ${json?.runtimeType}',
+    'Only List and Map<String,dynamic> are supported types, found type ${data?.runtimeType}',
   );
 }
 
@@ -111,7 +189,9 @@ RepositoryMetricsMeta toRepoMetricsMeta(
           metrics.listAt('tainted/items', defaultList: []),
           (item) => AggregateMeta()
             ..uuid = item['uuid']
-            ..taint = toValueFromJson(item['taint']),
+            ..taint = toAny(
+              toJsonValue(item['taint']),
+            ),
         )
         ..cordoned = toAggregateMetaList(
           type,
@@ -119,7 +199,9 @@ RepositoryMetricsMeta toRepoMetricsMeta(
           metrics.listAt('cordoned/items', defaultList: []),
           (item) => AggregateMeta()
             ..uuid = item['uuid']
-            ..cordon = toValueFromJson(item['cordon']),
+            ..cordon = toAny(
+              toJsonValue(item['cordon']),
+            ),
         ));
     });
     meta.setIfExists<Map>(metrics, 'push', (push) => meta.push = toDurationMetricMeta(push));
@@ -193,9 +275,13 @@ AggregateMeta toAggregateMetaFromRoot(
     ..createdBy = toEventMetaFromEvent(aggregate.createdBy, store)
     ..changedBy = toEventMetaFromEvent(aggregate.changedBy, store);
   if (store.isTainted(uuid)) {
-    meta.taint = toValueFromJson(store.tainted[uuid]);
+    meta.taint = toAny(
+      toJsonValue(store.tainted[uuid]),
+    );
   } else if (store.isCordoned(uuid)) {
-    meta.cordon = toValueFromJson(store.cordoned[uuid]);
+    meta.cordon = toAny(
+      toJsonValue(store.cordoned[uuid]),
+    );
   }
   final applied = aggregate.applied;
   final skipped = aggregate.skipped;
@@ -231,8 +317,10 @@ AggregateMeta toAggregateMetaFromRoot(
     AggregateExpandFields.AGGREGATE_EXPAND_FIELDS_DATA,
   );
   if (withData) {
-    meta.data = toValueFromJson(
-      aggregate.data,
+    meta.data = toAny(
+      toJsonValue(
+        aggregate.data,
+      ),
     );
   }
   return meta;

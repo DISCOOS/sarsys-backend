@@ -1,6 +1,7 @@
 import 'package:event_source_grpc/event_source_grpc.dart';
 import 'package:grpc/grpc.dart' hide Response;
 import 'package:grpc/grpc_connection_interface.dart';
+import 'package:protobuf/protobuf.dart';
 import 'package:sarsys_ops_server/sarsys_ops_server.dart';
 import 'package:sarsys_ops_server/src/config.dart';
 import 'package:sarsys_core/sarsys_core.dart';
@@ -175,6 +176,24 @@ class AggregateGrpcServiceController extends ComponentBaseController {
     return toProto3JsonInstanceMeta(
       k8s.toPodName(pod),
       response.meta,
+    );
+  }
+
+  @override
+  Map<String, dynamic> toProto3JsonInstanceMeta(
+    String name,
+    GeneratedMessage meta, [
+    Map<String, dynamic> Function(Map<String, dynamic>) map,
+  ]) {
+    return super.toProto3JsonInstanceMeta(
+      name, meta, // Replace JsonValue
+      (json) => map == null
+          ? (json
+            ..update(
+              'data',
+              (value) => value['data'],
+            ))
+          : map(json),
     );
   }
 
@@ -603,7 +622,7 @@ class AggregateGrpcServiceController extends ComponentBaseController {
       ReplaceAggregateDataRequest()
         ..type = type
         ..uuid = uuid
-        ..data = toValueFromJson(
+        ..data = toAnyFromJson(
           data,
         )
         ..expand.addAll(toExpandFields(expand)),

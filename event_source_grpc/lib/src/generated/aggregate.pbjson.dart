@@ -135,7 +135,7 @@ const ReplaceAggregateDataRequest$json = const {
       '3': 4,
       '4': 1,
       '5': 11,
-      '6': '.google.protobuf.Value',
+      '6': '.google.protobuf.Any',
       '10': 'data'
     },
     const {
@@ -143,7 +143,7 @@ const ReplaceAggregateDataRequest$json = const {
       '3': 5,
       '4': 3,
       '5': 11,
-      '6': '.google.protobuf.Value',
+      '6': '.google.protobuf.Any',
       '10': 'patches'
     },
   ],
@@ -242,7 +242,7 @@ const AggregateMeta$json = const {
       '3': 11,
       '4': 1,
       '5': 11,
-      '6': '.google.protobuf.Value',
+      '6': '.google.protobuf.Any',
       '10': 'taint'
     },
     const {
@@ -250,7 +250,7 @@ const AggregateMeta$json = const {
       '3': 12,
       '4': 1,
       '5': 11,
-      '6': '.google.protobuf.Value',
+      '6': '.google.protobuf.Any',
       '10': 'cordon'
     },
     const {
@@ -258,7 +258,7 @@ const AggregateMeta$json = const {
       '3': 13,
       '4': 1,
       '5': 11,
-      '6': '.google.protobuf.Value',
+      '6': '.google.protobuf.Any',
       '10': 'data'
     },
   ],

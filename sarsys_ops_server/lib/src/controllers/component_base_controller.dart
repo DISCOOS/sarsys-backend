@@ -1,3 +1,4 @@
+import 'package:event_source_grpc/event_source_grpc.dart';
 import 'package:protobuf/protobuf.dart';
 import 'package:sarsys_core/sarsys_core.dart';
 import 'package:sarsys_ops_server/sarsys_ops_server.dart';
@@ -587,7 +588,7 @@ abstract class ComponentBaseController extends ResourceController {
     Map<String, dynamic> Function(Map<String, dynamic>) map,
   ]) {
     final json = Map<String, dynamic>.from(
-      meta.toProto3Json(),
+      toProto3Json(meta),
     );
     json['name'] = name;
     return map == null ? json : map(json);

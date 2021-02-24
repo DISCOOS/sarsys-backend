@@ -254,10 +254,9 @@ class EventSourceGrpcHarness {
   }
 
   T _open<T extends Client>(int port, T Function(ClientChannel) create) {
-    var channel;
-    _channels.putIfAbsent(
+    final channel = _channels.putIfAbsent(
       port,
-      () => channel = ClientChannel(
+      () => ClientChannel(
         '127.0.0.1',
         port: port,
         options: const ChannelOptions(

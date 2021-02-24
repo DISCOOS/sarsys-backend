@@ -10,7 +10,7 @@ import 'dart:core' as $core;
 import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
 
-import 'struct.pb.dart' as $5;
+import 'any.pb.dart' as $5;
 import 'event.pb.dart' as $6;
 
 import 'aggregate.pbenum.dart';
@@ -678,9 +678,9 @@ class ReplaceAggregateDataRequest extends $pb.GeneratedMessage {
         3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'expand', $pb.PbFieldType.PE,
         valueOf: AggregateExpandFields.valueOf,
         enumValues: AggregateExpandFields.values)
-    ..aOM<$5.Value>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'data',
-        subBuilder: $5.Value.create)
-    ..pc<$5.Value>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'patches', $pb.PbFieldType.PM, subBuilder: $5.Value.create)
+    ..aOM<$5.Any>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'data',
+        subBuilder: $5.Any.create)
+    ..pc<$5.Any>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'patches', $pb.PbFieldType.PM, subBuilder: $5.Any.create)
     ..hasRequiredFields = false;
 
   ReplaceAggregateDataRequest._() : super();
@@ -743,9 +743,9 @@ class ReplaceAggregateDataRequest extends $pb.GeneratedMessage {
   $core.List<AggregateExpandFields> get expand => $_getList(2);
 
   @$pb.TagNumber(4)
-  $5.Value get data => $_getN(3);
+  $5.Any get data => $_getN(3);
   @$pb.TagNumber(4)
-  set data($5.Value v) {
+  set data($5.Any v) {
     setField(4, v);
   }
 
@@ -754,10 +754,10 @@ class ReplaceAggregateDataRequest extends $pb.GeneratedMessage {
   @$pb.TagNumber(4)
   void clearData() => clearField(4);
   @$pb.TagNumber(4)
-  $5.Value ensureData() => $_ensure(3);
+  $5.Any ensureData() => $_ensure(3);
 
   @$pb.TagNumber(5)
-  $core.List<$5.Value> get patches => $_getList(4);
+  $core.List<$5.Any> get patches => $_getList(4);
 }
 
 class ReplaceAggregateDataResponse extends $pb.GeneratedMessage {
@@ -986,9 +986,9 @@ class AggregateMeta extends $pb.GeneratedMessage {
     ..aOM<$6.EventMetaList>(8, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'applied', subBuilder: $6.EventMetaList.create)
     ..aOM<$6.EventMetaList>(9, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'pending', subBuilder: $6.EventMetaList.create)
     ..aOM<$6.EventMetaList>(10, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'skipped', subBuilder: $6.EventMetaList.create)
-    ..aOM<$5.Value>(11, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'taint', subBuilder: $5.Value.create)
-    ..aOM<$5.Value>(12, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'cordon', subBuilder: $5.Value.create)
-    ..aOM<$5.Value>(13, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'data', subBuilder: $5.Value.create)
+    ..aOM<$5.Any>(11, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'taint', subBuilder: $5.Any.create)
+    ..aOM<$5.Any>(12, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'cordon', subBuilder: $5.Any.create)
+    ..aOM<$5.Any>(13, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'data', subBuilder: $5.Any.create)
     ..hasRequiredFields = false;
 
   AggregateMeta._() : super();
@@ -1153,9 +1153,9 @@ class AggregateMeta extends $pb.GeneratedMessage {
   $6.EventMetaList ensureSkipped() => $_ensure(9);
 
   @$pb.TagNumber(11)
-  $5.Value get taint => $_getN(10);
+  $5.Any get taint => $_getN(10);
   @$pb.TagNumber(11)
-  set taint($5.Value v) {
+  set taint($5.Any v) {
     setField(11, v);
   }
 
@@ -1164,12 +1164,12 @@ class AggregateMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(11)
   void clearTaint() => clearField(11);
   @$pb.TagNumber(11)
-  $5.Value ensureTaint() => $_ensure(10);
+  $5.Any ensureTaint() => $_ensure(10);
 
   @$pb.TagNumber(12)
-  $5.Value get cordon => $_getN(11);
+  $5.Any get cordon => $_getN(11);
   @$pb.TagNumber(12)
-  set cordon($5.Value v) {
+  set cordon($5.Any v) {
     setField(12, v);
   }
 
@@ -1178,12 +1178,12 @@ class AggregateMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(12)
   void clearCordon() => clearField(12);
   @$pb.TagNumber(12)
-  $5.Value ensureCordon() => $_ensure(11);
+  $5.Any ensureCordon() => $_ensure(11);
 
   @$pb.TagNumber(13)
-  $5.Value get data => $_getN(12);
+  $5.Any get data => $_getN(12);
   @$pb.TagNumber(13)
-  set data($5.Value v) {
+  set data($5.Any v) {
     setField(13, v);
   }
 
@@ -1192,5 +1192,5 @@ class AggregateMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(13)
   void clearData() => clearField(13);
   @$pb.TagNumber(13)
-  $5.Value ensureData() => $_ensure(12);
+  $5.Any ensureData() => $_ensure(12);
 }

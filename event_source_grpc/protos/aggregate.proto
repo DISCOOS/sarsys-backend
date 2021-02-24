@@ -8,8 +8,8 @@ option cc_enable_arenas = true;
 
 package org.discoos.es;
 
+import "any.proto";
 import "event.proto";
-import "struct.proto";
 
 
 service AggregateGrpcService {
@@ -141,10 +141,10 @@ message ReplaceAggregateDataRequest {
     repeated AggregateExpandFields expand = 3;
 
     // Aggregate data
-    google.protobuf.Value data = 4;
+    google.protobuf.Any data = 4;
 
     // List of aggregate patches
-    repeated google.protobuf.Value patches = 5;
+    repeated google.protobuf.Any patches = 5;
 }
 
 message ReplaceAggregateDataResponse {
@@ -222,12 +222,12 @@ message AggregateMeta {
     EventMetaList skipped = 10;
 
     // Aggregate taint information
-    google.protobuf.Value taint = 11;
+    google.protobuf.Any taint = 11;
 
     // Aggregate cordon information
-    google.protobuf.Value cordon = 12;
+    google.protobuf.Any cordon = 12;
 
     // Aggregate data
-    google.protobuf.Value data = 13;
+    google.protobuf.Any data = 13;
 
 }

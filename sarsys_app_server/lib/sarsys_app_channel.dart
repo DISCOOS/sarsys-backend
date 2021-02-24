@@ -781,7 +781,7 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
     messages.build();
   }
 
-  FutureOr<void> _buildGrpcServer() {
+  FutureOr<void> _buildGrpcServer() async {
     if (config.grpc.enabled) {
       // Start grpc server
       _grpc = grpc.Server([
@@ -790,8 +790,13 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
         SnapshotGrpcService(manager, config.data.path),
       ]);
 
-      return _grpc.serve(
+      await _grpc.serve(
         port: config.grpc.port,
+        address: InternetAddress.anyIPv4,
+      );
+
+      logger.info(
+        'GPRC Server running at port ${config.grpc.port}',
       );
     }
   }

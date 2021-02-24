@@ -178,8 +178,8 @@ Future main() async {
       await response.body.decode(),
     );
     _assertItemsMeta(name, [uuid], body, 'meta');
-    expect(data2, equals(body.mapAt('items/0/meta/data')));
-    expect(data2, equals(repo.get(uuid).data));
+    expect(body.mapAt('items/0/meta/data'), equals(data2));
+    expect(repo.get(uuid).data, equals(data2));
   });
 
   test("POST /ops/api/services/aggregate/:type/:uuid/:name with 'replace' returns 200", () async {
@@ -215,8 +215,8 @@ Future main() async {
       uuid,
       body.mapAt('meta'),
     );
-    expect(data2, equals(body.mapAt('meta/data')));
-    expect(data2, equals(repo.get(uuid).data));
+    expect(body.mapAt('meta/data'), equals(data2));
+    expect(repo.get(uuid).data, equals(data2));
   });
 }
 

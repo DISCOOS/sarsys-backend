@@ -41,11 +41,11 @@ models:
 	mkdir -p "lib/src/generated"
 	protoc --dart_out="generate_kythe_info,grpc:lib/src/generated" \
 		--proto_path ../event_source_grpc/protos \
+		any.proto \
+		json.proto \
 		event.proto \
-		struct.proto \
 		metric.proto \
 		timestamp.proto \
-		aggregate.proto \
 		repository.proto \
 		--proto_path protos \
 		tracking_service.proto
