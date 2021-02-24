@@ -47,7 +47,6 @@ class AggregateGrpcServiceController extends ComponentBaseController {
 
   final K8sApi k8s;
   final Map<String, ClientChannel> channels;
-  final Map<String, AggregateGrpcServiceClient> _clients = {};
 
   @override
   @Scope(['roles:admin'])
@@ -500,7 +499,12 @@ class AggregateGrpcServiceController extends ComponentBaseController {
     Map<String, dynamic> pod,
     String expand,
   ) async {
-    final response = await toClient(pod).replayEvents(
+    final response = await toClient(
+      pod,
+      timeout: const Duration(
+        minutes: 2,
+      ),
+    ).replayEvents(
       ReplayAggregateEventsRequest()
         ..type = type
         ..uuid = uuid
@@ -550,7 +554,12 @@ class AggregateGrpcServiceController extends ComponentBaseController {
     Map<String, dynamic> pod,
     String expand,
   ) async {
-    final response = await toClient(pod).catchupEvents(
+    final response = await toClient(
+      pod,
+      timeout: const Duration(
+        minutes: 2,
+      ),
+    ).catchupEvents(
       CatchupAggregateEventsRequest()
         ..type = type
         ..uuid = uuid
@@ -618,7 +627,12 @@ class AggregateGrpcServiceController extends ComponentBaseController {
     Map<String, dynamic> data,
     String expand,
   ) async {
-    final response = await toClient(pod).replaceData(
+    final response = await toClient(
+      pod,
+      timeout: const Duration(
+        minutes: 2,
+      ),
+    ).replaceData(
       ReplaceAggregateDataRequest()
         ..type = type
         ..uuid = uuid
@@ -637,7 +651,12 @@ class AggregateGrpcServiceController extends ComponentBaseController {
     );
   }
 
-  AggregateGrpcServiceClient toClient(Map<String, dynamic> pod) {
+  AggregateGrpcServiceClient toClient(
+    Map<String, dynamic> pod, {
+    Duration timeout = const Duration(
+      seconds: 30,
+    ),
+  }) {
     final uri = k8s.toPodUri(
       pod,
       port: config.tracking.grpcPort,
@@ -652,15 +671,10 @@ class AggregateGrpcServiceController extends ComponentBaseController {
         ),
       ),
     );
-    final client = _clients.putIfAbsent(
-      uri.authority,
-      () => AggregateGrpcServiceClient(
-        channel,
-        options: CallOptions(
-          timeout: const Duration(
-            seconds: 30,
-          ),
-        ),
+    final client = AggregateGrpcServiceClient(
+      channel,
+      options: CallOptions(
+        timeout: timeout,
       ),
     );
     logger.fine(

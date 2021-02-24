@@ -48,7 +48,6 @@ class TrackingGrpcServiceController extends ComponentBaseController {
 
   final K8sApi k8s;
   final Map<String, ClientChannel> channels;
-  final Map<String, SarSysTrackingServiceClient> _clients = {};
 
   @override
   @Scope(['roles:admin'])
@@ -548,7 +547,12 @@ class TrackingGrpcServiceController extends ComponentBaseController {
     );
   }
 
-  SarSysTrackingServiceClient toClient(Map<String, dynamic> pod) {
+  SarSysTrackingServiceClient toClient(
+    Map<String, dynamic> pod, {
+    Duration timeout = const Duration(
+      seconds: 30,
+    ),
+  }) {
     final uri = k8s.toPodUri(
       pod,
       port: config.tracking.grpcPort,
@@ -563,15 +567,10 @@ class TrackingGrpcServiceController extends ComponentBaseController {
         ),
       ),
     );
-    final client = _clients.putIfAbsent(
-      uri.authority,
-      () => SarSysTrackingServiceClient(
-        channel,
-        options: CallOptions(
-          timeout: const Duration(
-            seconds: 30,
-          ),
-        ),
+    final client = SarSysTrackingServiceClient(
+      channel,
+      options: CallOptions(
+        timeout: timeout,
       ),
     );
     logger.fine(

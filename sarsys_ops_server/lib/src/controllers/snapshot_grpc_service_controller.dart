@@ -47,7 +47,6 @@ class SnapshotGrpcServiceController extends ComponentBaseController {
 
   final K8sApi k8s;
   final Map<String, ClientChannel> channels;
-  final Map<String, SnapshotGrpcServiceClient> _clients = {};
 
   @override
   @Scope(['roles:admin'])
@@ -415,7 +414,12 @@ class SnapshotGrpcServiceController extends ComponentBaseController {
     bool force,
     String expand,
   ) async {
-    final response = await toClient(pod).save(
+    final response = await toClient(
+      pod,
+      timeout: const Duration(
+        minutes: 2,
+      ),
+    ).save(
       SaveSnapshotRequest()
         ..type = type
         ..force = force
@@ -480,7 +484,12 @@ class SnapshotGrpcServiceController extends ComponentBaseController {
     request.setIfExists<int>(params, 'config/threshold', (threshold) => request.threshold = threshold);
     request.setIfExists<bool>(params, 'config/automatic', (automatic) => request.automatic = automatic);
 
-    final response = await toClient(pod).configure(
+    final response = await toClient(
+      pod,
+      timeout: const Duration(
+        minutes: 2,
+      ),
+    ).configure(
       request,
     );
     return toJsonCommandMeta(
@@ -493,7 +502,12 @@ class SnapshotGrpcServiceController extends ComponentBaseController {
     );
   }
 
-  SnapshotGrpcServiceClient toClient(Map<String, dynamic> pod) {
+  SnapshotGrpcServiceClient toClient(
+    Map<String, dynamic> pod, {
+    Duration timeout = const Duration(
+      seconds: 30,
+    ),
+  }) {
     final uri = k8s.toPodUri(
       pod,
       port: config.tracking.grpcPort,
@@ -508,15 +522,10 @@ class SnapshotGrpcServiceController extends ComponentBaseController {
         ),
       ),
     );
-    final client = _clients.putIfAbsent(
-      uri.authority,
-      () => SnapshotGrpcServiceClient(
-        channel,
-        options: CallOptions(
-          timeout: const Duration(
-            seconds: 30,
-          ),
-        ),
+    final client = SnapshotGrpcServiceClient(
+      channel,
+      options: CallOptions(
+        timeout: timeout,
       ),
     );
     logger.fine(
