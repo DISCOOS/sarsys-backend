@@ -68,7 +68,14 @@ void main() {
     expect(response.uuid, uuid);
     expect(response.statusCode, 200);
     expect(response.reasonPhrase, 'OK');
-    expect(response.meta.data.toProto3Json(), equals(data1));
+    expect(
+      fromJsonValue(
+        toJsonValueFromAny(
+          response.meta.data,
+        ),
+      ),
+      equals(data1),
+    );
   });
 
   test('GRPC ReplayEvents returns 200', () async {
@@ -96,7 +103,14 @@ void main() {
     expect(response.uuid, uuid);
     expect(response.statusCode, 200);
     expect(response.reasonPhrase, 'OK');
-    expect(response.meta.data.toProto3Json(), equals(data1));
+    expect(
+      fromJsonValue(
+        toJsonValueFromAny(
+          response.meta.data,
+        ),
+      ),
+      equals(data1),
+    );
   });
 
   test('GRPC CatchupEvents returns 200', () async {
@@ -124,7 +138,14 @@ void main() {
     expect(response.uuid, uuid);
     expect(response.statusCode, 200);
     expect(response.reasonPhrase, 'OK');
-    expect(response.meta.data.toProto3Json(), equals(data1));
+    expect(
+      fromJsonValue(
+        toJsonValueFromAny(
+          response.meta.data,
+        ),
+      ),
+      equals(data1),
+    );
   });
 
   test('GRPC ReplaceData returns 200', () async {
@@ -142,7 +163,9 @@ void main() {
       ReplaceAggregateDataRequest()
         ..type = 'Foo'
         ..uuid = uuid
-        ..data = toValueFromJson(data2)
+        ..data = Any.pack(
+          toJsonValue(data2),
+        )
         ..expand.add(
           AggregateExpandFields.AGGREGATE_EXPAND_FIELDS_ALL,
         ),
@@ -153,7 +176,14 @@ void main() {
     expect(response.uuid, uuid);
     expect(response.statusCode, 200);
     expect(response.reasonPhrase, 'OK');
-    expect(response.meta.data.toProto3Json(), equals(data2));
+    expect(
+      fromJsonValue(
+        toJsonValueFromAny(
+          response.meta.data,
+        ),
+      ),
+      equals(data2),
+    );
     expect(repo.get(uuid).data, equals(data2));
   });
 }

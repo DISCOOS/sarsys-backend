@@ -14,7 +14,7 @@ import 'core.dart';
 class AggregateCommand extends BaseCommand {
   AggregateCommand() {
     addSubcommand(AggregateGetCommand());
-    // addSubcommand(AggregateReplaceCommand());
+    addSubcommand(AggregateReplaceCommand());
     // addSubcommand(AggregateRemoveCommand());
     // addSubcommand(AggregateStartCommand());
     // addSubcommand(AggregateStopCommand());
@@ -165,7 +165,7 @@ class AggregateGetCommand extends AggregateCommandBase {
   final name = 'get';
 
   @override
-  final description = 'is used to check tracking status';
+  final description = 'is used to get aggregate status and data';
 
   @override
   FutureOr<String> onJson() async {
@@ -247,6 +247,83 @@ class AggregateGetCommand extends AggregateCommandBase {
       );
       writeln(status, stdout);
     }
+  }
+}
+
+class AggregateReplaceCommand extends AggregateCommandBase {
+  AggregateReplaceCommand() {
+    argParser
+      ..addOption(
+        'type',
+        abbr: 't',
+        help: 'Aggregate type name',
+      )
+      ..addOption(
+        'uuid',
+        abbr: 'u',
+        help: 'Aggregate instance universal unique id',
+      )
+      ..addOption(
+        'file',
+        abbr: 'f',
+        help: 'Path to file with aggregate data as json',
+      )
+      ..addOption(
+        'instance',
+        abbr: 'i',
+        help: 'Aggregate server instance name',
+      );
+  }
+
+  @override
+  final name = 'replace';
+
+  @override
+  final description = 'is used to replace aggregate data';
+
+  @override
+  FutureOr<String> run() async {
+    // Sanity checks
+    final type = argResults['type'] as String;
+    if (type == null) {
+      usageException(red(' Aggregate type is missing'));
+      return writeln(red(' Aggregate type is missing'), stderr);
+    }
+    final uuid = argResults['uuid'] as String;
+    if (uuid == null) {
+      usageException(red(' Aggregate uuid is missing'));
+      return writeln(red(' Aggregate uuid is missing'), stderr);
+    }
+    final instance = argResults['instance'] as String;
+    if (instance == null) {
+      usageException(red(' Aggregate server instance is missing'));
+      return writeln(red(' Aggregate server instance is missing'), stderr);
+    }
+    final path = argResults['file'] as String;
+    if (path == null) {
+      usageException(red(' Aggregate data file is missing'));
+      return writeln(red(' Aggregate data file is missing'), stderr);
+    }
+    final file = File(path);
+    if (!file.existsSync()) {
+      usageException(red(' Aggregate data file ${file.path} does not exist'));
+      return writeln(red(' Aggregate data file ${file.path} does not exist'), stderr);
+    }
+    final data = jsonDecode(file.readAsStringSync());
+
+    writeln(highlight('> Replace ${capitalize(type)} $uuid with data from $path'), stdout);
+    final status = await executeOn(
+      type,
+      uuid,
+      instance,
+      {
+        'action': 'replace',
+        'params': {'data': data},
+      },
+      globalResults['verbose'] as bool,
+    );
+    writeln(status, stdout);
+    return buffer.toString();
   }
 }
 
@@ -335,53 +412,7 @@ class AggregateGetCommand extends AggregateCommandBase {
 //   }
 // }
 //
-// class AggregateReplaceCommand extends AggregateCommandBase {
-//   AggregateReplaceCommand() {
-//     argParser
-//       ..addOption(
-//         'instance',
-//         abbr: 'i',
-//         help: 'Instance name',
-//       )
-//       ..addMultiOption(
-//         'uuids',
-//         abbr: 'u',
-//         help: 'List of tracking object uuids',
-//       );
-//   }
-//
-//   @override
-//   final name = 'add';
-//
-//   @override
-//   final description = 'is used to add tracking objects to given server';
-//
-//   @override
-//   FutureOr<String> run() async {
-//     final instance = argResults['instance'] as String;
-//     if (instance == null) {
-//       usageException(red(' Instance name is missing'));
-//       return writeln(red(' Instance name is missing'), stderr);
-//     }
-//     final uuids = argResults['uuids'] as List<String>;
-//     if (uuids.isEmpty) {
-//       usageException(red(' Aggregate uuids are missing'));
-//       return writeln(red(' Aggregate uuids are missing'), stderr);
-//     }
-//     writeln(highlight('> Add trackings object to $instance...'), stdout);
-//     final status = await executeOn(
-//       instance,
-//       {
-//         'action': 'add_trackings',
-//         'uuids': uuids,
-//       },
-//       globalResults['verbose'] as bool,
-//     );
-//     writeln(status, stdout);
-//     return buffer.toString();
-//   }
-// }
-//
+
 // class AggregateRemoveCommand extends AggregateCommandBase {
 //   AggregateRemoveCommand() {
 //     argParser

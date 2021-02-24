@@ -11,7 +11,7 @@ import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
 
 import 'repository.pb.dart' as $1;
-import 'event.pb.dart' as $5;
+import 'event.pb.dart' as $4;
 
 import 'tracking_service.pbenum.dart';
 
@@ -830,9 +830,9 @@ class TrackingMeta extends $pb.GeneratedMessage {
         protoName: 'trackCount')
     ..aInt64(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'positionCount',
         protoName: 'positionCount')
-    ..aOM<$5.EventMeta>(
+    ..aOM<$4.EventMeta>(
         4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'lastEvent',
-        protoName: 'lastEvent', subBuilder: $5.EventMeta.create)
+        protoName: 'lastEvent', subBuilder: $4.EventMeta.create)
     ..hasRequiredFields = false;
 
   TrackingMeta._() : super();
@@ -901,9 +901,9 @@ class TrackingMeta extends $pb.GeneratedMessage {
   void clearPositionCount() => clearField(3);
 
   @$pb.TagNumber(4)
-  $5.EventMeta get lastEvent => $_getN(3);
+  $4.EventMeta get lastEvent => $_getN(3);
   @$pb.TagNumber(4)
-  set lastEvent($5.EventMeta v) {
+  set lastEvent($4.EventMeta v) {
     setField(4, v);
   }
 
@@ -912,7 +912,7 @@ class TrackingMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(4)
   void clearLastEvent() => clearField(4);
   @$pb.TagNumber(4)
-  $5.EventMeta ensureLastEvent() => $_ensure(3);
+  $4.EventMeta ensureLastEvent() => $_ensure(3);
 }
 
 class TrackingsMeta extends $pb.GeneratedMessage {
@@ -934,9 +934,9 @@ class TrackingsMeta extends $pb.GeneratedMessage {
         protoName: 'eventsPerMinute')
     ..a<$core.int>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'averageProcessingTimeMillis', $pb.PbFieldType.O3,
         protoName: 'averageProcessingTimeMillis')
-    ..aOM<$5.EventMeta>(
+    ..aOM<$4.EventMeta>(
         5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'lastEvent',
-        protoName: 'lastEvent', subBuilder: $5.EventMeta.create)
+        protoName: 'lastEvent', subBuilder: $4.EventMeta.create)
     ..hasRequiredFields = false;
 
   TrackingsMeta._() : super();
@@ -1017,9 +1017,9 @@ class TrackingsMeta extends $pb.GeneratedMessage {
   void clearAverageProcessingTimeMillis() => clearField(4);
 
   @$pb.TagNumber(5)
-  $5.EventMeta get lastEvent => $_getN(4);
+  $4.EventMeta get lastEvent => $_getN(4);
   @$pb.TagNumber(5)
-  set lastEvent($5.EventMeta v) {
+  set lastEvent($4.EventMeta v) {
     setField(5, v);
   }
 
@@ -1028,7 +1028,7 @@ class TrackingsMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(5)
   void clearLastEvent() => clearField(5);
   @$pb.TagNumber(5)
-  $5.EventMeta ensureLastEvent() => $_ensure(4);
+  $4.EventMeta ensureLastEvent() => $_ensure(4);
 }
 
 class PositionsMeta extends $pb.GeneratedMessage {
@@ -1052,8 +1052,8 @@ class PositionsMeta extends $pb.GeneratedMessage {
             : 'averageProcessingTimeMillis',
         $pb.PbFieldType.O3,
         protoName: 'averageProcessingTimeMillis')
-    ..aOM<$5.EventMeta>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'lastEvent',
-        protoName: 'lastEvent', subBuilder: $5.EventMeta.create)
+    ..aOM<$4.EventMeta>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'lastEvent',
+        protoName: 'lastEvent', subBuilder: $4.EventMeta.create)
     ..hasRequiredFields = false;
 
   PositionsMeta._() : super();
@@ -1122,9 +1122,9 @@ class PositionsMeta extends $pb.GeneratedMessage {
   void clearAverageProcessingTimeMillis() => clearField(3);
 
   @$pb.TagNumber(4)
-  $5.EventMeta get lastEvent => $_getN(3);
+  $4.EventMeta get lastEvent => $_getN(3);
   @$pb.TagNumber(4)
-  set lastEvent($5.EventMeta v) {
+  set lastEvent($4.EventMeta v) {
     setField(4, v);
   }
 
@@ -1133,5 +1133,5 @@ class PositionsMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(4)
   void clearLastEvent() => clearField(4);
   @$pb.TagNumber(4)
-  $5.EventMeta ensureLastEvent() => $_ensure(3);
+  $4.EventMeta ensureLastEvent() => $_ensure(3);
 }

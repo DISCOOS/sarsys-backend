@@ -1,6 +1,7 @@
 import 'package:event_source_grpc/event_source_grpc.dart';
 import 'package:grpc/grpc.dart' hide Response;
 import 'package:grpc/grpc_connection_interface.dart';
+import 'package:protobuf/protobuf.dart';
 import 'package:sarsys_ops_server/sarsys_ops_server.dart';
 import 'package:sarsys_ops_server/src/config.dart';
 import 'package:sarsys_core/sarsys_core.dart';
@@ -654,8 +655,12 @@ class RepositoryGrpcServiceController extends ComponentBaseController {
       response.statusCode,
       response.reasonPhrase,
     );
-    json['after'] = response.after.toProto3Json();
-    json['before'] = response.before.toProto3Json();
+    json['after'] = toProto3Json(
+      response.after,
+    );
+    json['before'] = toProto3Json(
+      response.before,
+    );
     return json;
   }
 

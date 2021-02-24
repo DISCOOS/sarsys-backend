@@ -31,7 +31,7 @@ models:
 	protoc --dart_out="generate_kythe_info,grpc:lib/src/generated" \
 		--proto_path protos \
 		any.proto \
-		struct.proto \
+		json.proto \
 		timestamp.proto \
 		event.proto \
 		file.proto \

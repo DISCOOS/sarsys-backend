@@ -14,6 +14,8 @@ auth:
     - realm_access_roles
   required:
     - roles:personnel
+grpc:
+  enabled: true
 eventstore:
   # Eventstore:
   # host: http://127.0.0.1

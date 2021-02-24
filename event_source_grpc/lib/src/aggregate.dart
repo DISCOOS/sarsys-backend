@@ -116,8 +116,8 @@ class AggregateGrpcService extends AggregateGrpcServiceBase {
     repo.store.uncordon(uuid);
 
     // Replace with data or patches
-    final data = request.hasField(4) ? request.data.toProto3Json() : null;
-    final patches = request.hasField(5) ? request.patches.map((v) => v.toProto3Json()) : null;
+    final data = request.hasField(4) ? toJsonFromAny(request.data) : null;
+    final patches = request.hasField(5) ? request.patches.map((v) => toJsonFromAny(v)) : null;
     aggregate = repo.replace(
       uuid,
       strict: false,
