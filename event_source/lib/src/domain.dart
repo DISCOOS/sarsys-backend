@@ -1396,26 +1396,28 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Save snapshot of current states
   SnapshotModel save({Context context, bool force = false}) {
-    if (force || isSaveable) {
-      try {
-        lock();
-        final candidate = _assertSnapshot(
-          store.snapshots.save(
-            this,
-            force: force,
-            context: _context.join(context ?? _context),
-          ),
-        );
-        if (_shouldReset(_snapshot?.uuid, candidate.uuid)) {
-          _snapshot = candidate;
-          store.purge(
-            this,
-            strict: false,
-            context: _context.join(context ?? _context),
+    if (store.snapshots != null) {
+      if (force || isSaveable) {
+        try {
+          lock();
+          final candidate = _assertSnapshot(
+            store.snapshots.save(
+              this,
+              force: force,
+              context: _context.join(context ?? _context),
+            ),
           );
+          if (_shouldReset(_snapshot?.uuid, candidate.uuid)) {
+            _snapshot = candidate;
+            store.purge(
+              this,
+              strict: false,
+              context: _context.join(context ?? _context),
+            );
+          }
+        } finally {
+          unlock();
         }
-      } finally {
-        unlock();
       }
     }
     return _snapshot;
