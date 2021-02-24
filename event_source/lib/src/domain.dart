@@ -1607,38 +1607,24 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     Iterable<Map<String, dynamic>> patches,
   }) {
     context = _joinContext(context);
-    final prev = _assertWrite(_assertExists(uuid));
+    final aggregate = _assertWrite(
+      _assertExists(uuid),
+    );
 
-    // Recreate from last known state
-    _aggregates.remove(uuid);
+    // Replace data with given
+    final json = Map<String, dynamic>.from(data ?? JsonPatch.apply(aggregate.data ?? {}, patches) as Map)
+      ..addAll({
+        // Overwrite any 'uuid' in given data or patch
+        'uuid': uuid,
+      });
 
-    try {
-      // Replace data with given
-      final json = Map<String, dynamic>.from(data ?? JsonPatch.apply(prev.data ?? {}, patches) as Map)
-        ..addAll({
-          // Overwrite any 'uuid' in given data or patch
-          'uuid': uuid,
-        });
-
-      // Get event, skipping any
-      final next = get(
-        uuid,
-        data: json,
-        strict: strict,
-        context: _context.join(context ?? _context),
-      );
-
-      // Initialize head, base and data
-      next._setBase(json);
-      next._head.clear();
-      next._baseIndex = next._applied.length - 1;
-      next._headIndex = next._baseIndex;
-      next._setData(json);
-      return next;
-    } on Exception {
-      _aggregates[uuid] = prev;
-      rethrow;
-    }
+    // Initialize head, base and data
+    aggregate._setBase(json);
+    aggregate._head.clear();
+    aggregate._baseIndex = aggregate._applied.length - 1;
+    aggregate._headIndex = aggregate._baseIndex;
+    aggregate._setData(json);
+    return aggregate;
   }
 
   /// Check if event is applied to an aggregate
