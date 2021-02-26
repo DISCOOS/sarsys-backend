@@ -25,14 +25,17 @@ final pad = (String text, int indent, int max) => '${fill(indent)}$text${fill(ma
 
 String sprint(
   int length, {
-  @required StringBuffer buffer,
+  @required StringSink buffer,
   int indent = 2,
   String Function(String) format,
+  bool newline = true,
 }) {
   final separator = fill(length, '-');
   final spaces = fill(indent);
-  buffer.writeln(
+  _write(
     format == null ? '$spaces$separator' : format('$spaces$separator'),
+    newline,
+    buffer,
   );
   return separator;
 }
@@ -40,31 +43,43 @@ String sprint(
 void vprint(
   String label,
   Object value, {
-  @required StringBuffer buffer,
+  @required StringSink buffer,
   int max = 52,
   int left = 16,
   int indent = 2,
   String unit = '',
+  bool newline = true,
 }) {
   final _value = (value ?? '').toString();
   final length = left + _value.length + 2;
   final hasUnit = (unit ?? '').isNotEmpty;
   final prefix = '${pad('$label:', indent, left)}${green(_value)}';
   final rest = hasUnit ? math.max(0, max - length - '$unit'.length) : 0;
-  buffer.writeln(
+  _write(
     '$prefix${hasUnit ? '${fill(rest)}${gray('($unit)')}' : ''}',
+    newline,
+    buffer,
   );
+}
+
+void _write(String message, bool newline, StringSink buffer) {
+  if (newline) {
+    buffer.writeln(message);
+  } else {
+    buffer.write(message);
+  }
 }
 
 void jPrint(
   dynamic json, {
-  @required StringBuffer buffer,
+  @required StringSink buffer,
   int left = 0,
   int indent = 2,
   bool pretty = true,
+  bool newline = true,
 }) {
   final spaces = fill(left);
-  buffer.writeln(
+  _write(
     pretty
         ? prettyJson(json, indent: indent)
             .split('\n')
@@ -85,6 +100,8 @@ void jPrint(
                     (match) => '${match.group(1)}${green(match.group(2))}'))
             .join('\n')
         : jsonEncode(json),
+    newline,
+    buffer,
   );
 }
 
@@ -92,10 +109,11 @@ void elPrint(
   String key,
   Map<String, dynamic> instance,
   int maxItems, {
-  @required StringBuffer buffer,
+  @required StringSink buffer,
   int max = 52,
   int left = 30,
   int indent = 2,
+  bool newline = true,
 }) {
   sprint(max, buffer: buffer, format: gray);
   vprint(
@@ -123,7 +141,11 @@ void elPrint(
       );
     }
     if (items.length > maxItems) {
-      buffer.writeln('${fill(indent)}${items.length - maxItems} more events ...');
+      _write(
+        '${fill(indent)}${items.length - maxItems} more events ...',
+        newline,
+        buffer,
+      );
     }
   }
 }
@@ -285,6 +307,7 @@ abstract class BaseCommand extends Command<String> {
     String Function(dynamic) map, {
     String Function(String) format,
     String token,
+    bool newline = true,
   }) async {
     final tic = DateTime.now();
     final buffer = StringBuffer();
@@ -299,10 +322,14 @@ abstract class BaseCommand extends Command<String> {
     final result = '${response.statusCode} ${response.reasonPhrase} in ';
     if (HttpStatus.ok == response.statusCode) {
       final content = map(await toContent(response));
-      buffer.writeln(
-        format == null ? green(content) : format(content),
-      );
+      if (newline) {
+        buffer.writeln(
+          format == null ? green(content) : format(content),
+        );
+      }
       buffer.write('  ');
+    } else if (response.statusCode < 400) {
+      buffer.write(red('  Success '));
     } else {
       buffer.write(red('  Failure '));
     }

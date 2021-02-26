@@ -6,6 +6,7 @@ import 'package:sarsys_ops_cli/src/aggregate.dart';
 
 import 'auth.dart';
 import 'core.dart';
+import 'simulate.dart';
 import 'status.dart';
 import 'tracking.dart';
 
@@ -19,6 +20,7 @@ Future<String> run(List<String> args) async {
     ..addCommand(StatusCommand())
     ..addCommand(AggregateCommand())
     ..addCommand(TrackingCommand())
+    ..addCommand(SimulateCommand())
     ..argParser.addOption(
       'config',
       abbr: 'c',

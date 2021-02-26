@@ -131,7 +131,11 @@ class AuthCheckCommand extends BaseCommand {
 }
 
 class AuthUtils {
-  static Future<String> getToken(BaseCommand command) async {
+  static Future<String> getToken(
+    BaseCommand command, {
+    bool force = false,
+    bool renew = true,
+  }) async {
     final file = toConfigFile(command);
     if (!file.existsSync()) {
       file.createSync();
@@ -139,6 +143,8 @@ class AuthUtils {
     final config = await configure(
       command,
       ensureConfig(file),
+      force: force,
+      renew: renew,
     );
     if (config != null) {
       writeConfig(file, config);
@@ -153,18 +159,19 @@ class AuthUtils {
     BaseCommand command,
     Map<String, dynamic> config, {
     bool force = false,
+    bool renew = true,
   }) async {
     final auth = Map<String, dynamic>.from(config['auth'] ?? {});
     var tokens = Map<String, dynamic>.from(auth['tokens'] ?? {});
     var credential = toCredential(auth);
     final expired = writeExpiresIn(command, tokens) == null;
-    if (force || credential == null || expired) {
+    if (force || renew && (credential == null || expired)) {
       // This will open a browser
       credential = await authorize(command, auth);
       auth['credential'] = credential.toJson();
     }
 
-    if (expired) {
+    if (renew && expired) {
       // Get user information
       command.writeln(green('  Fetching user information...'), stdout);
       final info = await credential.getUserInfo();

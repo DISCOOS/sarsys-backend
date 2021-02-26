@@ -967,13 +967,6 @@ Future main() async {
           'uuid': uuid,
           'property': ++i,
         }));
-        await stream.onHandleOnce(
-          (request, stream) => Future.delayed(
-            Duration(milliseconds: i == 1 ? 200 : 5),
-            () => Future.value(false),
-          ),
-          Completer(),
-        );
       } on Exception catch (e, s) {
         completer.completeError(e, s);
         timer.cancel();
