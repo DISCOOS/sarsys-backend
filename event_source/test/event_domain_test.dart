@@ -949,6 +949,42 @@ Future main() async {
         })); // keep, add and replace member values
   });
 
+  test('Repository should throw ConcurrentWriteOperation on concurrent executes', () async {
+    // Arrange
+    var i = 0;
+    final repo = harness.get<FooRepository>(port: 4000);
+    final stream = harness.server().getStream(repo.store.aggregate);
+    await repo.readyAsync();
+    final uuid = Uuid().v4();
+    final foo1 = repo.get(uuid, data: {'property': 0});
+    await repo.push(foo1);
+
+    // Act
+    final completer = Completer();
+    Timer.periodic(Duration(milliseconds: 10), (timer) async {
+      try {
+        await repo.execute(UpdateFoo({
+          'uuid': uuid,
+          'property': ++i,
+        }));
+        await stream.onHandleOnce(
+          (request, stream) => Future.delayed(
+            Duration(milliseconds: i == 1 ? 200 : 5),
+            () => Future.value(false),
+          ),
+          Completer(),
+        );
+      } on Exception catch (e, s) {
+        completer.completeError(e, s);
+        timer.cancel();
+      }
+    });
+    await expectLater(
+      completer.future,
+      throwsA(isA<ConcurrentWriteOperation>()),
+    );
+  });
+
   test('Repository should catch-up to head of events in remote stream', () async {
     // Arrange
     final repo1 = harness.get<FooRepository>(port: 4000);

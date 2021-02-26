@@ -1181,11 +1181,13 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
     if (trx.isOpen) {
       context.debug(
-        '$message: ${trx.toTagAsString()} (${_toPressureString()})',
+        message,
         error: error,
         stackTrace: stackTrace,
         category: 'Repository._onQueueError',
         data: {
+          'cause': 'Transaction was open',
+          'trx.tag': '${trx.toTagAsString()} (${_toPressureString()})',
           'trx.changes': '${trx.changes.length}',
           if (trx.changes.isNotEmpty) 'trx.changes.last': '${trx.changes.last.type}@${trx.changes.last.number}',
           if (trx.changes.isNotEmpty) 'trx.changes.first': '${trx.changes.first.type}@${trx.changes.first.number}',
@@ -1205,12 +1207,13 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       );
     } else {
       context.error(
-        'Transaction was open: ${trx.toTagAsString()} (${_toPressureString()})',
+        message,
         error: error,
         stackTrace: stackTrace,
         category: 'Repository._onQueueError',
         data: {
-          'cause': message,
+          'cause': 'Transaction was closed: $message',
+          'trx.tag': '${trx.toTagAsString()} (${_toPressureString()})',
           'trx.changes': '${trx.changes.length}',
           if (trx.changes.isNotEmpty) 'trx.changes.last': '${trx.changes.last.type}@${trx.changes.last.number}',
           if (trx.changes.isNotEmpty) 'trx.changes.first': '${trx.changes.first.type}@${trx.changes.first.number}',
@@ -2060,7 +2063,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     Context context,
     int maxAttempts = 10,
     Duration timeout = timeLimit,
-  }) async {
+  }) {
     var result = <DomainEvent>[];
     final uuid = aggregate.uuid;
     // After this point the transaction

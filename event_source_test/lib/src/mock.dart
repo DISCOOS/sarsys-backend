@@ -369,7 +369,7 @@ class TestStream {
 
   static const timeout = Duration(seconds: 30);
 
-  Future _onHandleOnce(RequestHandler handler, Completer<bool> completer) {
+  Future onHandleOnce(RequestHandler handler, Completer<bool> completer) {
     final onHandled = Completer();
     addRequestHandler(handler);
     completer.future.whenComplete(() {
@@ -387,7 +387,7 @@ class TestStream {
     int statusCode = HttpStatus.internalServerError,
   }) async {
     final completer = Completer<bool>();
-    return _onHandleOnce((HttpRequest request, String stream) async {
+    return onHandleOnce((HttpRequest request, String stream) async {
       if (request.method == 'POST') {
         if (streams.isEmpty || streams.contains(stream)) {
           return Future.delayed(duration, () {
@@ -410,7 +410,7 @@ class TestStream {
     List<String> streams = const [],
   }) async {
     final completer = Completer<bool>();
-    return _onHandleOnce((HttpRequest request, String stream) async {
+    return onHandleOnce((HttpRequest request, String stream) async {
       if (request.method == 'POST') {
         if (streams.isEmpty || streams.contains(stream)) {
           request.response
