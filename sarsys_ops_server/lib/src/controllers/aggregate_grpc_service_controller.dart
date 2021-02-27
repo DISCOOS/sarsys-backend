@@ -178,24 +178,6 @@ class AggregateGrpcServiceController extends ComponentBaseController {
     );
   }
 
-  @override
-  Map<String, dynamic> toProto3JsonInstanceMeta(
-    String name,
-    GeneratedMessage meta, [
-    Map<String, dynamic> Function(Map<String, dynamic>) map,
-  ]) {
-    return super.toProto3JsonInstanceMeta(
-      name, meta, // Replace JsonValue
-      (json) => map == null
-          ? (json
-            ..update(
-              'data',
-              (value) => value['data'],
-            ))
-          : map(json),
-    );
-  }
-
   List<AggregateExpandFields> toExpandFields(String expand) {
     return [
       if (shouldExpand(expand, 'all')) AggregateExpandFields.AGGREGATE_EXPAND_FIELDS_ALL,
