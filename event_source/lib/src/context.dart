@@ -18,14 +18,16 @@ class Context {
     String id,
     this.previous,
     this.capacity = 20,
+    this.packages = const [],
     List<ContextEvent> causes = const [],
   })  : id = id ?? randomAlpha(16),
         _causes = List.from(causes) ?? <ContextEvent>[];
 
+  final String id;
   final int capacity;
   final Logger logger;
-  final String id;
   final Context previous;
+  final List<String> packages;
   final List<ContextEvent> _causes;
 
   bool get isEmpty => _causes.isEmpty;
@@ -56,10 +58,11 @@ class Context {
     }
     return Context(
       logger,
+      id: context.id,
       previous: this,
       causes: _causes,
       capacity: capacity,
-      id: context.id,
+      packages: packages,
     );
   }
 
@@ -238,7 +241,12 @@ class Context {
             if (previous != null) 'context.previous': '$previous',
             if (previous != null) 'context.previous.length': '${previous.length}',
             if (error != null) 'error': '$error',
-            if (stackTrace != null) 'stackTrace': Trace.format(stackTrace),
+            if (stackTrace != null)
+              'stackTrace': formatStackTrace(
+                stackTrace,
+                terse: true,
+                packages: packages,
+              ),
           })),
         timestamp: timestamp ?? DateTime.now(),
       );
@@ -254,6 +262,31 @@ class Context {
       );
     }
     return event;
+  }
+
+  static String formatStackTrace(
+    StackTrace stackTrace, {
+    List<String> packages = const [],
+    int depth = 10,
+    bool terse = true,
+  }) {
+    var i = 0;
+    return Trace.format(
+      Trace.from(stackTrace).foldFrames(
+        (frame) =>
+            // First check if package should be folded
+            packages.isNotEmpty &&
+                packages.every(
+                  (package) => !(frame.isCore || frame.package?.startsWith(package) == true),
+                ) ||
+            // Else, increment depth and check if
+            // maximum is reached (all successive
+            // frames are folded)
+            ++i > depth,
+        terse: terse,
+      ),
+      terse: terse,
+    );
   }
 
   @override
@@ -350,6 +383,7 @@ class Context {
       context.logger,
       id: context.id,
       causes: context._causes,
+      packages: context.packages,
       capacity: context.capacity,
     );
   }
