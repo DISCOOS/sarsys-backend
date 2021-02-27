@@ -267,22 +267,16 @@ class Context {
   static String formatStackTrace(
     StackTrace stackTrace, {
     List<String> packages = const [],
-    int depth = 10,
     bool terse = true,
   }) {
-    var i = 0;
     return Trace.format(
       Trace.from(stackTrace).foldFrames(
         (frame) =>
             // First check if frame should be folded based upon package name
             packages.isNotEmpty &&
-                !packages.any(
-                  (package) => frame.package?.startsWith(package) == true,
-                ) ||
-            // Else, increment depth and check if
-            // maximum is reached (all successive
-            // frames are folded)
-            ++i > depth,
+            !packages.any(
+              (package) => frame.package?.startsWith(package) == true,
+            ),
         terse: terse,
       ),
       terse: terse,
