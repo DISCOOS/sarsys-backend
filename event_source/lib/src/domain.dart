@@ -1179,7 +1179,13 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           category: 'Repository._onQueueEvent',
           error: completed.result.error,
           stackTrace: completed.result.stackTrace,
-          data: trx.toDebugData(_toPressureString())..addAll(toDebugData(trx.uuid)),
+          data: trx.toDebugData(_toPressureString())
+            ..addAll({
+              if (completed.isError)
+                ...toDebugData(
+                  uuid: trx.uuid,
+                ),
+            }),
         );
         break;
       case StreamQueueIdle:
@@ -1235,7 +1241,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         stackTrace: stackTrace,
         category: 'Repository._onQueueError',
         data: {
-          'cause': 'Transaction was closed: $message',
+          'cause': 'Transaction was closed',
           ...trx.toDebugData(_toPressureString()),
         },
       );
@@ -2302,7 +2308,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
             'seqnum: ${trx.seqnum}',
           ]),
           category: 'Repository._push',
-          data: toDebugData(trx.uuid),
+          data: toDebugData(uuid: trx.uuid),
         );
       }
 
@@ -2316,7 +2322,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     } on ConflictNotReconcilable catch (error, stackTrace) {
       trx.context.info(
         'Failed to push ${aggregate.runtimeType} ${aggregate.uuid}',
-        data: toDebugData(aggregate?.uuid),
+        data: toDebugData(uuid: aggregate?.uuid),
         category: 'Repository._push',
         error: error,
         stackTrace: stackTrace,
@@ -2329,7 +2335,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     } catch (error, stackTrace) {
       trx.context.error(
         'Failed to push ${aggregate.runtimeType} ${aggregate.uuid}',
-        data: toDebugData(aggregate?.uuid),
+        data: toDebugData(uuid: aggregate?.uuid),
         category: 'Repository._push',
         error: error,
         stackTrace: stackTrace,
@@ -2355,7 +2361,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           'seqnum: ${trx.seqnum}',
         ]),
         category: 'Repository._reconcile',
-        data: toDebugData(trx.uuid),
+        data: toDebugData(uuid: trx.uuid),
       );
     } // Attempt to automatic merge until maximum attempts
     try {
@@ -2375,7 +2381,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     } on ConflictNotReconcilable catch (error, stackTrace) {
       trx.context.info(
         'Failed to reconcile before push of ${aggregate.runtimeType} ${aggregate.uuid}',
-        data: toDebugData(aggregate?.uuid),
+        data: toDebugData(uuid: aggregate?.uuid),
         category: 'Repository._reconcile',
         error: error,
         stackTrace: stackTrace,
@@ -2388,7 +2394,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     } catch (error, stackTrace) {
       trx.context.error(
         'Failed to reconcile before push of ${aggregate.runtimeType} ${aggregate.uuid}',
-        data: toDebugData(aggregate?.uuid),
+        data: toDebugData(uuid: aggregate?.uuid),
         category: 'Repository._reconcile',
         error: error,
         stackTrace: stackTrace,
@@ -2676,12 +2682,12 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     };
   }
 
-  Map<String, String> toDebugData([String uuid]) {
+  Map<String, String> toDebugData({String uuid, bool expand = false}) {
     final aggregate = _aggregates[uuid];
     final stream = store.toInstanceStream(uuid);
     return {
       'event.stream.instance': '$stream',
-      'event.canonicalStream': '${store.canonicalStream}',
+      if (expand) 'event.canonicalStream': '${store.canonicalStream}',
       'aggregate.type': '${aggregate?.runtimeType}',
       'aggregate.uuid': '$uuid',
       'aggregate.contained': '${contains(uuid)}',
@@ -2694,18 +2700,20 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       'aggregate.modifications': '${aggregate?.modifications}',
       'aggregate.applied.count': '${aggregate?.applied?.length}',
       'aggregate.pending.count': '${aggregate?.getLocalEvents()?.length}',
-      'repository.ready': '$isReady',
-      'repository.count.exists': '${count(deleted: false)}',
-      'repository.count.contains': '${count(deleted: true)}',
-      'repository.snapshot.number': '${snapshot?.number}',
-      if (snapshot == null)
-        'repository.snapshot.aggregate.number': 'null'
-      else
-        'repository.snapshot.aggregate.number': '${snapshot.aggregates[uuid]?.number}',
-      'store.connection': '${store.connection.host}:${store.connection.port}',
-      'store.events.count': '${store.length}',
-      'store.number.instance': '${store.last(uuid: uuid)}',
-      'store.number.canonical': '${store.last()}',
+      if (expand) ...{
+        'repository.ready': '$isReady',
+        'repository.count.exists': '${count(deleted: false)}',
+        'repository.count.contains': '${count(deleted: true)}',
+        'repository.snapshot.number': '${snapshot?.number}',
+        if (snapshot == null)
+          'repository.snapshot.aggregate.number': 'null'
+        else
+          'repository.snapshot.aggregate.number': '${snapshot.aggregates[uuid]?.number}',
+        'store.connection': '${store.connection.host}:${store.connection.port}',
+        'store.events.count': '${store.length}',
+        'store.number.instance': '${store.last(uuid: uuid)}',
+        'store.number.canonical': '${store.last()}'
+      },
     };
   }
 
