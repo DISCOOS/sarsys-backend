@@ -5,11 +5,11 @@ metadata:
   namespace: sarsys
 data:
   IMAGE: "discoos/sarsys_tracking_server:latest"
-  DEBUG: "true"
+  DEBUG: "false"
   PREFIX: "test"
   STARTUP: "true"
   TENANT: "discoos"
-  LOG_LEVEL: "FINE"
+  LOG_LEVEL: "INFO"
   LOG_SENTRY_LEVEL: "severe"
   LOG_SENTRY_DSN: "https://4a2d024141404d2cb0cf334132621665@sentry.io/5182599"
   EVENTSTORE_SCHEME: "http"
