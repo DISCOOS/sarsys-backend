@@ -594,7 +594,7 @@ abstract class ComponentBaseController extends ResourceController {
 
     // Replace JsonValue?
     if (json.hasPath('data/compression')) {
-      json['data'] = json['data/data'];
+      json['data'] = json.mapAt('data/data');
     }
 
     return map == null ? json : map(json);
