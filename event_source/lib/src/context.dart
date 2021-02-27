@@ -274,10 +274,10 @@ class Context {
     return Trace.format(
       Trace.from(stackTrace).foldFrames(
         (frame) =>
-            // First check if package should be folded
+            // First check if frame should be folded based upon package name
             packages.isNotEmpty &&
-                packages.every(
-                  (package) => !(frame.isCore || frame.package?.startsWith(package) == true),
+                !packages.any(
+                  (package) => frame.package?.startsWith(package) == true,
                 ) ||
             // Else, increment depth and check if
             // maximum is reached (all successive
