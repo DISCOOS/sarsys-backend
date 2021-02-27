@@ -319,7 +319,7 @@ abstract class BaseCommand extends Command<String> {
     request.headers.add('Content-Type', 'application/json; charset=utf-8');
     request.write(jsonEncode(json));
     final response = await request.close();
-    final result = '${response.statusCode} ${response.reasonPhrase} in ';
+    var result = '${response.statusCode} ${response.reasonPhrase} in ';
     if (HttpStatus.ok == response.statusCode) {
       final content = map(await toContent(response));
       if (newline) {
@@ -331,6 +331,10 @@ abstract class BaseCommand extends Command<String> {
     } else if (response.statusCode < 400) {
       buffer.write(red('  Success '));
     } else {
+      final pod = response.headers.value('x-pod-name');
+      if (pod != null) {
+        result = '$pod $result';
+      }
       buffer.write(red('  Failure '));
     }
     buffer.write(gray('($result${DateTime.now().difference(tic).inMilliseconds} ms)'));

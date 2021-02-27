@@ -90,7 +90,7 @@ abstract class AggregateCommandBase extends BaseCommand {
       vprint(
         instance.elementAt('type'),
         uuid,
-        unit: 'uuid',
+        unit: '#${instance.elementAt('number')}',
         max: columns,
         buffer: buffer,
         indent: indent,
