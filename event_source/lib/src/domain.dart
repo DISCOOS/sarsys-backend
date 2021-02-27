@@ -477,6 +477,10 @@ class Transaction {
   StackTrace get startedAt => _startedAt;
   StackTrace _startedAt;
 
+  /// Get caller [Object] when this [Transaction] was completed by
+  Object get completedBy => _completedBy;
+  Object _completedBy;
+
   /// Get [StackTrace] where this [Transaction] was completed at
   StackTrace get completedAt => _completedAt;
   StackTrace _completedAt;
@@ -505,9 +509,6 @@ class Transaction {
 
   /// Check if transaction is open
   bool get isOpen => !_isCompleted;
-
-  /// Check if all changes are committed
-  bool get isCommitted => isStarted && (!exists || _changes.every((e) => aggregate.isApplied(e)));
 
   /// Check if transaction is completed
   bool get isCompleted => _isCompleted;
@@ -624,11 +625,14 @@ class Transaction {
   /// If transaction is [isStarted] an
   /// [InvalidOperation] is thrown.
   ///
-  Iterable<DomainEvent> rollback({bool force = false}) {
+  Iterable<DomainEvent> rollback(Object by, {bool force = false}) {
     if (!force) {
       _assertStart();
     }
-    return _rollback(complete: true);
+    return _rollback(
+      by,
+      complete: true,
+    );
   }
 
   /// Rollback all pending changes
@@ -641,14 +645,16 @@ class Transaction {
   /// [Transaction] will not be
   /// completed. Useful when
   ///
-  Iterable<DomainEvent> _rollback({@required bool complete}) {
+  Iterable<DomainEvent> _rollback(Object by, {@required bool complete}) {
     return repo._rollback(
+      by,
       uuid,
       complete: complete,
     );
   }
 
-  void _complete({
+  void _complete(
+    Object by, {
     Object error,
     StackTrace stackTrace,
     Iterable<DomainEvent> changes = const [],
@@ -680,6 +686,7 @@ class Transaction {
         }
       } else {
         _rollback(
+          by,
           complete: false,
         );
         _error = error;
@@ -690,6 +697,7 @@ class Transaction {
       }
     } catch (error, stackTrace) {
       _rollback(
+        by,
         complete: !hasConcurrentModifications,
       );
       if (!hasConcurrentModifications) {
@@ -697,7 +705,7 @@ class Transaction {
           // Should not happen!
           context.error(
             'Transaction on ${repo.aggregateType} $uuid failed.'
-            'Was already started by ${_startedBy} at: ${Trace.from(_startedAt).frames.first}',
+            'Was already started by ${_startedBy?.runtimeType} at: ${Trace.from(_startedAt).frames.first}',
             error: error,
             stackTrace: stackTrace,
             category: 'Transaction._complete',
@@ -715,6 +723,7 @@ class Transaction {
       // rolled back
       _isCompleted = !hasConcurrentModifications;
       if (_isCompleted) {
+        _completedBy = by;
         _completedAt = Trace.current(1);
         context.debug(
           'Transaction on ${repo.aggregateType} $uuid is completed',
@@ -823,16 +832,17 @@ class Transaction {
           'trx.startedAt': '${Context.formatStackTrace(
             _startedAt,
             packages: [
-              'event_source',
               'sarsys',
+              'event_source',
             ],
           )}',
+        'trx.completedBy': '$_completedBy',
         if (_completedAt != null)
-          'trx._completedAt': '${Context.formatStackTrace(
+          'trx.completedAt': '${Context.formatStackTrace(
             _completedAt,
             packages: [
-              'event_source',
               'sarsys',
+              'event_source',
             ],
           )}',
         if (hasFailed) 'error': '${_error}',
@@ -1213,6 +1223,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         },
       );
       _completeTrx(
+        this,
         trx.uuid,
         error: error,
         stackTrace: stackTrace,
@@ -2104,7 +2115,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       }
       return transaction.onPush.timeout(timeout);
     } else {
-      _completeTrx(uuid);
+      _completeTrx(this, uuid);
     }
     return Future.value(
       result,
@@ -2224,7 +2235,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     Duration timeout,
     Transaction trx,
   ) async {
-    if (trx.isCommitted) {
+    if (trx.isCompleted) {
       trx.context.warning(
         Context.toObject('Push attempted on empty transaction', [
           'uuid: ${trx.uuid}',
@@ -2279,6 +2290,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       );
 
       _completeTrx(
+        this,
         aggregate.uuid,
         changes: changes,
       );
@@ -2351,6 +2363,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         trx,
       );
       _completeTrx(
+        this,
         aggregate.uuid,
         changes: events,
       );
@@ -2400,6 +2413,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// will end.
   Iterable<DomainEvent> rollback(String uuid) {
     return _rollback(
+      this,
       uuid,
       complete: true,
     );
@@ -2407,6 +2421,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Rollback local changes
   Iterable<DomainEvent> _rollback(
+    Object by,
     String uuid, {
     @required bool complete,
     Object error,
@@ -2442,6 +2457,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
     if (complete) {
       _completeTrx(
+        by,
         uuid,
         error: error,
         stackTrace: stackTrace,
@@ -2473,6 +2489,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Complete transaction for given [aggregate]
   Transaction _completeTrx(
+    Object by,
     String uuid, {
     Object error,
     StackTrace stackTrace,
@@ -2481,6 +2498,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     final trx = _transactions[uuid];
     try {
       trx?._complete(
+        by,
         error: error,
         changes: changes,
         stackTrace: stackTrace,
@@ -4369,7 +4387,7 @@ abstract class MergeStrategy {
   ) {
     final event = trx.context.error(
       '$message after $attempts retries on ${aggregate.runtimeType} ${aggregate.uuid}',
-      data: trx.repo.toDebugData(aggregate?.uuid),
+      data: trx.toDebugData(),
       error: cause,
       stackTrace: stackTrace,
       category: 'MergeStrategy._onFatal',
