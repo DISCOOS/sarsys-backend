@@ -176,8 +176,25 @@ class K8sApi {
     String ns, {
     String name,
     bool metrics = false,
+    bool forEachLabel = true,
     List<String> labels = const [],
   }) async {
+    // labelSelector matches ALL labels
+    if (labels.length > 1 && forEachLabel) {
+      final pods = <Map<String, dynamic>>[];
+      for (var label in labels) {
+        pods.addAll(
+          await getPodList(
+            ns,
+            name: name,
+            labels: [label],
+            metrics: metrics,
+          ),
+        );
+      }
+      return pods;
+    }
+
     final labelSelector = labels?.join(',');
     final query = labels.isEmpty ? '' : '?labelSelector=${Uri.encodeQueryComponent(labelSelector)}';
     final args = [
@@ -207,8 +224,24 @@ class K8sApi {
   Future<List<Map<String, dynamic>>> getNodeList({
     String name,
     bool metrics = false,
+    bool forEachLabel = true,
     List<String> labels = const [],
   }) async {
+    // labelSelector matches ALL labels
+    if (labels.length > 1 && forEachLabel) {
+      final nodes = <Map<String, dynamic>>[];
+      for (var label in labels) {
+        nodes.addAll(
+          await getNodeList(
+            name: name,
+            labels: [label],
+            metrics: metrics,
+          ),
+        );
+      }
+      return nodes;
+    }
+
     final labelSelector = labels?.join(',');
     final query = labels.isEmpty ? '' : '?labelSelector=${Uri.encodeQueryComponent(labelSelector)}';
     final args = [
@@ -235,8 +268,23 @@ class K8sApi {
 
   Future<List<Map<String, dynamic>>> getNodeMetricsList({
     String name,
+    bool forEachLabel = true,
     List<String> labels = const [],
-  }) {
+  }) async {
+    // labelSelector matches ALL labels
+    if (labels.length > 1 && forEachLabel) {
+      final nodes = <Map<String, dynamic>>[];
+      for (var label in labels) {
+        nodes.addAll(
+          await getNodeMetricsList(
+            name: name,
+            labels: [label],
+          ),
+        );
+      }
+      return nodes;
+    }
+
     final labelSelector = labels?.join(',');
     final query = labels.isEmpty ? '' : '?labelSelector=${Uri.encodeQueryComponent(labelSelector)}';
     final args = [
@@ -267,8 +315,23 @@ class K8sApi {
   Future<List<Map<String, dynamic>>> getPodMetricsList(
     String ns, {
     String name,
+    bool forEachLabel = true,
     List<String> labels = const [],
-  }) {
+  }) async {
+    // labelSelector matches ALL labels
+    if (labels.length > 1 && forEachLabel) {
+      final pods = <Map<String, dynamic>>[];
+      for (var label in labels) {
+        pods.addAll(
+          await getNodeMetricsList(
+            name: name,
+            labels: [label],
+          ),
+        );
+      }
+      return pods;
+    }
+
     final labelSelector = labels?.join(',');
     final query = labels.isEmpty ? '' : '?labelSelector=${Uri.encodeQueryComponent(labelSelector)}';
     final args = [
