@@ -33,9 +33,14 @@ class SimulateDeviceCommand extends BaseCommand {
         help: 'Number of positions in each batch',
       )
       ..addOption(
-        'ppm',
+        'pps',
         defaultsTo: '20',
-        help: 'Requested positions per minute',
+        help: 'Requested positions per second',
+      )
+      ..addOption(
+        'limit',
+        abbr: 'l',
+        help: 'Upper limit of positions to take from file',
       )
       ..addMultiOption(
         'file',
@@ -94,9 +99,10 @@ class SimulateDeviceCommand extends BaseCommand {
     }
     final offsets = <String, int>{};
     final verbose = globalResults['verbose'] as bool;
-    final ppm = int.parse(argResults['ppm'] as String);
+    final pps = int.parse(argResults['pps'] as String);
     final batch = int.parse(argResults['batch'] as String);
-    writeln(highlight('> Simulate ${files.length} devices with ppm $ppm'), stdout);
+    final limit = int.parse(argResults['limit'] as String ?? '0');
+    writeln(highlight('> Simulate ${files.length} devices with pps $pps'), stdout);
     var total = 0;
     for (var path in files) {
       final buffer = StringBuffer();
@@ -110,7 +116,8 @@ class SimulateDeviceCommand extends BaseCommand {
       );
       final uuid = data.elementAt('source/uuid');
       final track = data.listAt<Map<String, dynamic>>('positions');
-      tracks[uuid] = track;
+      // Limit number of positions taken from file
+      tracks[uuid] = track.take(limit > 0 ? min(track.length, limit) : track.length).toList();
       if (verbose) {
         vprint(
           'Device',
@@ -128,7 +135,7 @@ class SimulateDeviceCommand extends BaseCommand {
         );
       }
       offsets[uuid] = 0;
-      total += track.length;
+      total += tracks[uuid].length;
       writeln(buffer.toString(), stdout);
     }
     if (verbose) {
@@ -149,12 +156,12 @@ class SimulateDeviceCommand extends BaseCommand {
     }
     final completer = Completer<int>();
     final period = Duration(
-      milliseconds: (batch / ppm * 1000).toInt(),
+      milliseconds: (batch / pps * 1000).toInt(),
     );
     sprint(max, buffer: stdout);
     writeln(
       '  Simulating ${batch * tracks.length} positions '
-      'for ${tracks.length} devices every ${period.inMilliseconds}ms ($ppm ppm)',
+      'for ${tracks.length} devices every ${period.inMilliseconds}ms ($pps pps)',
       stdout,
     );
 
@@ -165,6 +172,7 @@ class SimulateDeviceCommand extends BaseCommand {
     );
 
     Timer.periodic(period, (Timer timer) async {
+      var simulated = 0;
       final results = <String, String>{};
       for (var entry in tracks.entries) {
         final uuid = entry.key;
@@ -172,10 +180,6 @@ class SimulateDeviceCommand extends BaseCommand {
         final buffer = StringBuffer();
         final offset = offsets[uuid];
         final take = offset + batch >= track.length ? track.length - offset : batch;
-        if (offset + take >= track.length) {
-          timer.cancel();
-          completer.complete(track.length);
-        }
         results[uuid] = await _simulate(
           uuid,
           offsets[uuid],
@@ -186,37 +190,21 @@ class SimulateDeviceCommand extends BaseCommand {
         );
         if (results[uuid].contains('Success')) {
           offsets[uuid] += take;
+          simulated += take;
+        }
+        if (offset + take >= track.length) {
+          timer.cancel();
+          completer.complete(track.length);
         }
       }
-      if (verbose) {
-        results.values.forEach(
-          (r) => writeln(r, stdout),
-        );
-      } else {
-        final failed = results.entries.where((e) => !e.value.contains('Success')).map((e) => e.key);
-        final processed = offsets.entries
-            // Only count successful
-            .where((e) => !failed.contains(e.key))
-            .fold(0, (prev, next) => prev + next.value);
-
-        vprint(
-          'Simulated',
-          '${(tracks.values.length - failed.length) * batch}',
-          max: 90,
-          unit: 'positions, ${(processed / total * 100).toInt()}%',
-          buffer: stdout,
-          newline: true,
-        );
-        for (var uuid in failed) {
-          vprint(
-            'Failed $uuid',
-            '${red(results[uuid])}',
-            max: 90,
-            buffer: stdout,
-            newline: false,
-          );
-        }
-      }
+      _progress(
+        offsets,
+        tracks,
+        results,
+        simulated,
+        total,
+        verbose,
+      );
     });
 
     // Wait for cancel
@@ -226,6 +214,47 @@ class SimulateDeviceCommand extends BaseCommand {
     sprint(max, buffer: stdout);
     writeln('  Simulated $processed positions', stdout);
     return buffer.toString();
+  }
+
+  void _progress(
+    Map<String, int> offsets,
+    Map<String, List<Map<String, dynamic>>> tracks,
+    Map<String, String> results,
+    int simulated,
+    int total,
+    bool verbose,
+  ) {
+    if (verbose) {
+      results.values.forEach(
+        (r) {
+          writeln('$r\n', stdout);
+        },
+      );
+    } else {
+      final failed = results.entries.where((e) => !e.value.contains('Success')).map((e) => e.key);
+      final processed = offsets.entries.fold(0, (prev, next) => prev + next.value);
+
+      vprint(
+        'Simulated',
+        '$simulated',
+        max: 90,
+        unit: '$processed positions, ${(processed / total * 100).toInt()}%',
+        buffer: stdout,
+        newline: true,
+      );
+      for (var uuid in failed) {
+        vprint(
+          '- Failed',
+          'Device ...${uuid.substring(uuid.length - 8)}',
+          unit: '${red(results[uuid].replaceAll(RegExp(r'.*Failure.*\(|\)'), '').trim())}',
+          max: 89,
+          left: 15,
+          indent: 3,
+          buffer: stdout,
+          newline: true,
+        );
+      }
+    }
   }
 
   Future<String> _simulate(
@@ -250,13 +279,6 @@ class SimulateDeviceCommand extends BaseCommand {
       offset + batch,
     );
 
-    final result = await postBatch(
-      uuid,
-      positions,
-      write: write,
-      buffer: buffer,
-    );
-
     if (write) {
       var i = offset;
       for (var position in positions) {
@@ -267,8 +289,15 @@ class SimulateDeviceCommand extends BaseCommand {
         );
       }
     }
-    buffer.writeln(result);
-    return buffer.toString();
+
+    final status = await postBatch(
+      uuid,
+      positions,
+      write: write,
+      buffer: buffer,
+    );
+
+    return write ? buffer.toString() : status;
   }
 
   Future<String> postBatch(
