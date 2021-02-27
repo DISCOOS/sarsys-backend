@@ -5,13 +5,13 @@ metadata:
   namespace: sarsys
 data:
   IMAGE: "discoos/sarsys_app_server:latest"
-  DEBUG: "true"
+  DEBUG: "false"
   PREFIX: "test"
   TENANT: "discoos"
   GRPC_PORT: "8083"
   GRPC_ENABLED: "true"
   MAX_BODY_SIZE: "100"
-  LOG_LEVEL: "FINE"
+  LOG_LEVEL: "INFO"
   LOG_SENTRY_LEVEL: "severe"
   LOG_SENTRY_DSN: "https://4a2d024141404d2cb0cf334132621665@sentry.io/5182599"
   EVENTSTORE_SCHEME: "http"
