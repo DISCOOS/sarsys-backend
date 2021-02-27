@@ -477,6 +477,10 @@ class Transaction {
   StackTrace get startedAt => _startedAt;
   StackTrace _startedAt;
 
+  /// Get [StackTrace] where this [Transaction] was completed at
+  StackTrace get completedAt => _completedAt;
+  StackTrace _completedAt;
+
   /// Get [Future] of push result
   Future<Iterable<DomainEvent>> get onPush => _completer.future;
 
@@ -501,6 +505,9 @@ class Transaction {
 
   /// Check if transaction is open
   bool get isOpen => !_isCompleted;
+
+  /// Check if all changes are committed
+  bool get isCommitted => isStarted && (!exists || _changes.every((e) => aggregate.isApplied(e)));
 
   /// Check if transaction is completed
   bool get isCompleted => _isCompleted;
@@ -606,16 +613,7 @@ class Transaction {
     context.debug(
       'Transaction on ${repo.aggregateType} $uuid is ${restart ? 'restarted' : 'started'}',
       category: 'Transaction._restart',
-      data: {
-        'changes': '${_changes.length}',
-        'concurrent': '${concurrent.length}',
-        'conflicts': '${conflicting.length}',
-        'results': '${result?.length}',
-        'remaining': '${remaining.length}',
-        'startedAt': '${Trace.from(startedAt).frames.first}',
-        'startedBy': '${startedBy}',
-        if (hasFailed) 'error': '$error',
-      },
+      data: toDebugData(),
     );
     return _changes;
   }
@@ -699,7 +697,7 @@ class Transaction {
           // Should not happen!
           context.error(
             'Transaction on ${repo.aggregateType} $uuid failed.'
-            'Was already started by ${_startedBy} at: $_startedAt}',
+            'Was already started by ${_startedBy} at: ${Trace.from(_startedAt).frames.first}',
             error: error,
             stackTrace: stackTrace,
             category: 'Transaction._complete',
@@ -717,6 +715,7 @@ class Transaction {
       // rolled back
       _isCompleted = !hasConcurrentModifications;
       if (_isCompleted) {
+        _completedAt = Trace.current(1);
         context.debug(
           'Transaction on ${repo.aggregateType} $uuid is completed',
           category: 'Transaction._complete',
@@ -789,6 +788,8 @@ class Transaction {
       'maxAttempts': _maxAttempts,
       'changes': {
         'count': _changes.length,
+        if (_changes.isNotEmpty) 'first': '${_changes.first.type}@${_changes.first.number}',
+        if (_changes.isNotEmpty) 'last': '${_changes.last.type}@${_changes.last.number}',
         if (items) 'items': _changes.map((e) => repo.store.toJsonEvent(e, patches: data)).toList(),
       },
       'conflicts': {
@@ -800,11 +801,42 @@ class Transaction {
         'isCompleted': isCompleted,
         'isModifiable': isModifiable,
         'hasConflicts': hasConflicts,
-        'startedBy': '${startedBy.runtimeType}',
-        'startedAt': Trace.format(startedAt),
+        if (startedBy != null) 'startedBy': '${startedBy.runtimeType}',
+        if (startedAt != null) 'startedAt': Trace.format(startedAt),
+        if (completedAt != null) 'completedAt': Trace.format(completedAt),
       }
     };
   }
+
+  Map<String, String> toDebugData([String pressure]) => {
+        'trx.tag': '${toTagAsString()}',
+        if (pressure != null) 'trx.pressure': '$pressure',
+        'trx.changes': '${_changes.length}',
+        if (_changes.isNotEmpty) 'trx.changes.last': '${_changes.last.type}@${_changes.last.number}',
+        if (_changes.isNotEmpty) 'trx.changes.first': '${_changes.first.type}@${_changes.first.number}',
+        'trx.concurrent': '${concurrent.length}',
+        'trx.conflicts': '${conflicting.length}',
+        'trx.results': '${result?.length}',
+        'trx.remaining': '${remaining.length}',
+        'trx.startedBy': '$_startedBy',
+        if (_startedAt != null)
+          'trx.startedAt': '${Context.formatStackTrace(
+            _startedAt,
+            packages: [
+              'event_source',
+              'sarsys',
+            ],
+          )}',
+        if (_completedAt != null)
+          'trx._completedAt': '${Context.formatStackTrace(
+            _completedAt,
+            packages: [
+              'event_source',
+              'sarsys',
+            ],
+          )}',
+        if (hasFailed) 'error': '${_error}',
+      };
 
   @override
   bool operator ==(Object other) =>
@@ -814,7 +846,8 @@ class Transaction {
   int get hashCode => uuid.hashCode;
 
   /// Get [StreamRequest.tag]
-  Object toTagAsString() => '${aggregate.runtimeType} ${uuid} in transaction ${seqnum} with ${_changes.length} changes';
+  Object toTagAsString() => '${aggregate.runtimeType} ${uuid} '
+      'in transaction ${seqnum} with ${_changes.length} changes';
 
   @override
   String toString() {
@@ -1136,18 +1169,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           category: 'Repository._onQueueEvent',
           error: completed.result.error,
           stackTrace: completed.result.stackTrace,
-          data: {
-            'trx.changes': '${trx.changes.length}',
-            if (trx.changes.isNotEmpty) 'trx.changes.last': '${trx.changes.last.type}@${trx.changes.last.number}',
-            if (trx.changes.isNotEmpty) 'trx.changes.first': '${trx.changes.first.type}@${trx.changes.first.number}',
-            'trx.concurrent': '${trx.concurrent.length}',
-            'trx.conflicts': '${trx.conflicting.length}',
-            'trx.results': '${trx.result?.length}',
-            'trx.remaining': '${trx.remaining.length}',
-            'trx.startedAt': '${Trace.from(trx.startedAt).frames.first}',
-            'trx.startedBy': '${trx.startedBy}',
-            if (trx.hasFailed) 'trx.error': '${trx.error}',
-          }..addAll(toDebugData(trx.uuid)),
+          data: trx.toDebugData(_toPressureString())..addAll(toDebugData(trx.uuid)),
         );
         break;
       case StreamQueueIdle:
@@ -1187,17 +1209,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         category: 'Repository._onQueueError',
         data: {
           'cause': 'Transaction was open',
-          'trx.tag': '${trx.toTagAsString()} (${_toPressureString()})',
-          'trx.changes': '${trx.changes.length}',
-          if (trx.changes.isNotEmpty) 'trx.changes.last': '${trx.changes.last.type}@${trx.changes.last.number}',
-          if (trx.changes.isNotEmpty) 'trx.changes.first': '${trx.changes.first.type}@${trx.changes.first.number}',
-          'trx.concurrent': '${trx.concurrent.length}',
-          'trx.conflicts': '${trx.conflicting.length}',
-          'trx.results': '${trx.result?.length}',
-          'trx.remaining': '${trx.remaining.length}',
-          'trx.startedAt': '${Trace.from(trx.startedAt).frames.first}',
-          'trx.startedBy': '${trx.startedBy}',
-          if (trx.hasFailed) 'error': '${trx.error}',
+          ...trx.toDebugData(_toPressureString()),
         },
       );
       _completeTrx(
@@ -1213,17 +1225,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         category: 'Repository._onQueueError',
         data: {
           'cause': 'Transaction was closed: $message',
-          'trx.tag': '${trx.toTagAsString()} (${_toPressureString()})',
-          'trx.changes': '${trx.changes.length}',
-          if (trx.changes.isNotEmpty) 'trx.changes.last': '${trx.changes.last.type}@${trx.changes.last.number}',
-          if (trx.changes.isNotEmpty) 'trx.changes.first': '${trx.changes.first.type}@${trx.changes.first.number}',
-          'trx.concurrent': '${trx.concurrent.length}',
-          'trx.conflicts': '${trx.conflicting.length}',
-          'trx.results': '${trx.result?.length}',
-          'trx.remaining': '${trx.remaining.length}',
-          'trx.startedAt': '${Trace.from(trx.startedAt).frames.first}',
-          'trx.startedBy': '${trx.startedBy}',
-          if (trx.hasFailed) 'error': '${trx.error}',
+          ...trx.toDebugData(_toPressureString()),
         },
       );
     }
@@ -2222,6 +2224,21 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     Duration timeout,
     Transaction trx,
   ) async {
+    if (trx.isCommitted) {
+      trx.context.warning(
+        Context.toObject('Push attempted on empty transaction', [
+          'uuid: ${trx.uuid}',
+          'seqnum: ${trx.seqnum}',
+        ]),
+        category: 'Repository._push',
+        data: trx.toDebugData(_toPressureString()),
+      );
+      return StreamResult(
+        tag: trx,
+        value: [],
+        key: trx.uuid,
+      );
+    }
     final aggregate = _assertTrx(trx);
     try {
       if (trx.context.isLoggable(ContextLevel.debug)) {
@@ -2231,7 +2248,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
             'seqnum: ${trx.seqnum}',
           ]),
           category: 'Repository._push',
-          data: toDebugData(trx.uuid),
+          data: trx.toDebugData(_toPressureString()),
         );
       }
 
