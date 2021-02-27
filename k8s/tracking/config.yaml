@@ -5,7 +5,7 @@ metadata:
   namespace: sarsys
 data:
   IMAGE: "discoos/sarsys_tracking_server:latest"
-  DEBUG: "false"
+  DEBUG: "true"
   PREFIX: "test"
   STARTUP: "true"
   TENANT: "discoos"

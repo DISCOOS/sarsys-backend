@@ -5,7 +5,7 @@ metadata:
   namespace: sarsys
 data:
   IMAGE: "discoos/sarsys_app_server:latest"
-  DEBUG: "false"
+  DEBUG: "true"
   PREFIX: "test"
   TENANT: "discoos"
   GRPC_PORT: "8083"
