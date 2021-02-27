@@ -591,6 +591,12 @@ abstract class ComponentBaseController extends ResourceController {
       toProto3Json(meta),
     );
     json['name'] = name;
+
+    // Replace JsonValue?
+    if (json.hasPath('data/compression')) {
+      json['data'] = json['data/data'];
+    }
+
     return map == null ? json : map(json);
   }
 
