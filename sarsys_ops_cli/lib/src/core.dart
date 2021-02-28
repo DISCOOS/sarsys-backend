@@ -407,7 +407,7 @@ class HttpResult {
     this.reasonPhrase,
   );
   final int statusCode;
-  final String content;
+  final dynamic content;
   final HttpHeaders headers;
   final StringBuffer buffer;
   final String reasonPhrase;
