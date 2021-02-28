@@ -42,6 +42,12 @@ class SimulateDeviceCommand extends BaseCommand {
         abbr: 'l',
         help: 'Upper limit of positions to take from file',
       )
+      ..addFlag(
+        'summary',
+        abbr: 's',
+        defaultsTo: false,
+        help: 'Show summary on completion',
+      )
       ..addMultiOption(
         'file',
         abbr: 'f',
@@ -53,39 +59,7 @@ class SimulateDeviceCommand extends BaseCommand {
   final name = 'device';
 
   @override
-  final description = 'is used to simulate device position';
-
-  /*
-
-   Future<String> executeOn(
-    String type,
-    String uuid,
-    String instance,
-    Map<String, dynamic> body,
-  ) async {
-    final token = await AuthUtils.getToken(this);
-    final status = await post(
-      client,
-      '/ops/api/services/aggregate/$type/$uuid${instance == null ? '$expand' : '/$instance$expand'}',
-      args,
-      (result) {
-        final buffer = StringBuffer();
-        toInstanceStatus(
-          type,
-          result['meta'],
-          buffer: buffer,
-          verbose: verbose,
-        );
-        return buffer.toString();
-      },
-      token: token,
-      format: (result) => result,
-    );
-    return status;
-  }
-
-
-   */
+  final description = 'is used to simulate device position changes';
 
   @override
   FutureOr<String> run() async {
@@ -210,9 +184,32 @@ class SimulateDeviceCommand extends BaseCommand {
     // Wait for cancel
     final processed = await completer.future;
 
+    if (verbose || argResults['summary'] as bool) {
+      stdout.writeln();
+      sprint(max, buffer: stdout);
+      writeln('  Last position simulated was', stdout);
+      stdout.writeln();
+      for (var track in tracks.entries) {
+        vprint(
+          'Device',
+          '${track.key}',
+          max: max,
+          unit: 'uuid',
+          buffer: stdout,
+        );
+        jPrint(
+          track.value.last,
+          left: 2,
+          buffer: stdout,
+        );
+        stdout.writeln();
+      }
+    }
     stdout.writeln();
     sprint(max, buffer: stdout);
     writeln('  Simulated $processed positions', stdout);
+    stdout.writeln();
+
     return buffer.toString();
   }
 
@@ -253,15 +250,25 @@ class SimulateDeviceCommand extends BaseCommand {
           buffer: stdout,
           newline: true,
         );
+        final json = results[uuid].content is Map ? Map.from(results[uuid].content) : null;
+        final message = json?.elementAt('error') ?? results[uuid].content.toString();
         vprint(
           '  Message',
-          '${results[uuid].content?.replaceAll(uuid, '...${uuid.substring(uuid.length - 8)}')}',
+          '${message.replaceAll(uuid, '...${uuid.substring(uuid.length - 8)}')}',
           max: 89,
           left: 15,
           indent: 3,
           buffer: stdout,
           newline: true,
         );
+        if (json is Map) {
+          jPrint(
+            json,
+            buffer: stdout,
+            left: 15,
+            indent: 3,
+          );
+        }
         vprint(
           '  Headers',
           '${results[uuid].headers.value('x-correlation-id')}',
