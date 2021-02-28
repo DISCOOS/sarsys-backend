@@ -300,7 +300,7 @@ abstract class BaseCommand extends Command<String> {
     return buffer.toString();
   }
 
-  Future<String> post(
+  Future<HttpResult> post(
     HttpClient client,
     String uri,
     dynamic json,
@@ -318,10 +318,11 @@ abstract class BaseCommand extends Command<String> {
     }
     request.headers.add('Content-Type', 'application/json; charset=utf-8');
     request.write(jsonEncode(json));
+    var content;
     final response = await request.close();
     var result = '${response.statusCode} ${response.reasonPhrase} in ';
     if (HttpStatus.ok == response.statusCode) {
-      final content = map(await toContent(response));
+      content = map(await toContent(response));
       if (newline) {
         buffer.writeln(
           format == null ? green(content) : format(content),
@@ -331,14 +332,17 @@ abstract class BaseCommand extends Command<String> {
     } else if (response.statusCode < 400) {
       buffer.write(red('  Success '));
     } else {
-      final pod = response.headers.value('x-pod-name');
-      if (pod != null) {
-        result = '$pod $result';
-      }
+      content = await toContent(response);
       buffer.write(red('  Failure '));
     }
     buffer.write(gray('($result${DateTime.now().difference(tic).inMilliseconds} ms)'));
-    return buffer.toString();
+    return HttpResult(
+      buffer,
+      content,
+      response.headers,
+      response.statusCode,
+      response.reasonPhrase,
+    );
   }
 
   Future<String> isOK(
@@ -392,4 +396,23 @@ abstract class BaseCommand extends Command<String> {
     }
     return message;
   }
+}
+
+class HttpResult {
+  HttpResult(
+    this.buffer,
+    this.content,
+    this.headers,
+    this.statusCode,
+    this.reasonPhrase,
+  );
+  final int statusCode;
+  final String content;
+  final HttpHeaders headers;
+  final StringBuffer buffer;
+  final String reasonPhrase;
+
+  bool get isSuccess => statusCode < 400;
+  bool get isFailure => statusCode >= 400;
+  String get toStatusText => '$statusCode $reasonPhrase';
 }
