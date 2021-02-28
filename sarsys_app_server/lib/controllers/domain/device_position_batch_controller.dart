@@ -21,8 +21,9 @@ class DevicePositionBatchController extends DevicePositionControllerBase {
     if (!await exists(uuid)) {
       return Response.notFound(body: "$aggregateType $uuid not found");
     }
+    Transaction trx;
     try {
-      final trx = repository.getTransaction(
+      trx = repository.beginTransaction(
         uuid,
         context: request.toContext(logger),
       );
@@ -69,8 +70,8 @@ class DevicePositionBatchController extends DevicePositionControllerBase {
     } catch (e, stackTrace) {
       return toServerError(e, stackTrace);
     } finally {
-      if (repository.inTransaction(uuid)) {
-        repository.rollback(uuid);
+      if (trx?.isOpen == true) {
+        trx.rollback(this);
       }
     }
   }

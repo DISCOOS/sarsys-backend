@@ -119,6 +119,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
     @Bind.path('uuid') String uuid,
     @Bind.body() Map<String, dynamic> data,
   ) async {
+    Transaction trx;
     try {
       if (!await exists(primary, uuid)) {
         return Response.notFound(body: '$primaryType $uuid not found');
@@ -132,7 +133,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
           body: '${foreignType}s not found: $notFound',
         );
       }
-      final trx = primary.getTransaction(
+      trx = primary.tryTransaction(
         uuid,
         context: request.toContext(logger),
       );
@@ -141,7 +142,9 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
         await doAdd(primary.get(uuid), fuuid);
         await doAdded(primary.get(uuid), fuuid);
       }
-      await trx.push();
+      if (trx != null) {
+        await trx.push();
+      }
       return Response.noContent();
     } on AggregateExists catch (e) {
       return conflict(
@@ -186,8 +189,8 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
     } catch (e, stackTrace) {
       return toServerError(e, stackTrace);
     } finally {
-      if (primary.inTransaction(uuid)) {
-        primary.rollback(uuid);
+      if (trx?.isOpen == true) {
+        trx?.rollback(this);
       }
     }
   }
@@ -213,6 +216,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
     @Bind.path('uuid') String uuid,
     @Bind.body() Map<String, dynamic> data,
   ) async {
+    Transaction trx;
     try {
       if (!await exists(primary, uuid)) {
         return Response.notFound(body: '$primaryType $uuid not found');
@@ -222,7 +226,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       if (notFound.isNotEmpty) {
         return Response.notFound(body: '${foreignType}s not found: $notFound');
       }
-      final trx = primary.getTransaction(
+      trx = primary.tryTransaction(
         uuid,
         context: request.toContext(logger),
       );
@@ -231,7 +235,9 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
         await doReplace(primary.get(uuid), fuuid);
         await doReplaced(primary.get(uuid), fuuid);
       }
-      await trx.push();
+      if (trx != null) {
+        await trx.push();
+      }
       return Response.noContent();
     } on AggregateExists catch (e) {
       return conflict(
@@ -276,8 +282,8 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
     } catch (e, stackTrace) {
       return toServerError(e, stackTrace);
     } finally {
-      if (primary.inTransaction(uuid)) {
-        primary.rollback(uuid);
+      if (trx?.isOpen == true) {
+        trx?.rollback(this);
       }
     }
   }
@@ -303,6 +309,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
     String uuid,
     @Bind.body() Map<String, dynamic> data,
   ) async {
+    Transaction trx;
     try {
       if (!await exists(primary, uuid)) {
         return Response.notFound(body: '$primaryType $uuid not found');
@@ -312,7 +319,7 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
       if (notFound.isNotEmpty) {
         return Response.notFound(body: '${foreignType}s not found: $notFound');
       }
-      final trx = primary.getTransaction(
+      trx = primary.tryTransaction(
         uuid,
         context: request.toContext(logger),
       );
@@ -321,7 +328,9 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
         await doRemove(primary.get(uuid), fuuid);
         await doRemoved(primary.get(uuid), fuuid);
       }
-      await trx.push();
+      if (trx != null) {
+        await trx.push();
+      }
       return Response.noContent();
     } on AggregateExists catch (e) {
       return conflict(
@@ -366,8 +375,8 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
     } catch (e, stackTrace) {
       return toServerError(e, stackTrace);
     } finally {
-      if (primary.inTransaction(uuid)) {
-        primary.rollback(uuid);
+      if (trx?.isOpen == true) {
+        trx?.rollback(this);
       }
     }
   }

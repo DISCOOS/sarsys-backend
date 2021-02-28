@@ -29,30 +29,36 @@ class OrganisationImportController
     @Bind.path('uuid') String uuid,
     @Bind.body() Map<String, dynamic> data,
   ) async {
+    Transaction trx;
     try {
       if (!await exists(primary, uuid)) {
         return Response.notFound(body: "$primaryType $uuid not found");
       }
       final list = _validate(uuid, data);
       final responses = <Response>[];
-      final trx = primary.getTransaction(
+      trx = primary.beginTransaction(
         uuid,
         context: request.toContext(logger),
       );
       for (var div in list) {
-        responses.addAll(await _importDivision(uuid, div));
+        responses.addAll(
+          await _importDivision(uuid, div),
+        );
       }
       await trx.push();
       final failures = responses.where(isError);
       return failures.isEmpty
           ? okAggregate(primary.get(uuid))
-          : toServerError({
-              'errors': failures
-                  .map(
-                    (response) => '${response.statusCode}: ${response.body}',
-                  )
-                  .toList()
-            }, StackTrace.current);
+          : toServerError(
+              {
+                'errors': failures
+                    .map(
+                      (response) => '${response.statusCode}: ${response.body}',
+                    )
+                    .toList()
+              },
+              StackTrace.current,
+            );
     } on AggregateExists catch (e) {
       return conflict(
         ConflictType.exists,
@@ -92,8 +98,8 @@ class OrganisationImportController
     } on Exception catch (e, stackTrace) {
       return toServerError(e, stackTrace);
     } finally {
-      if (primary.inTransaction(uuid)) {
-        primary.rollback(uuid);
+      if (trx?.isOpen == true) {
+        trx.rollback(this);
       }
     }
   }
@@ -209,8 +215,9 @@ class OrganisationImportController
     final responses = <Response>[];
     final deps = div.elementAt('departments') ?? [];
     final duuid = div.elementAt('uuid') as String ?? Uuid().v4();
+    Transaction trx;
     try {
-      final trx = foreign.getTransaction(
+      trx = foreign.beginTransaction(
         duuid,
         context: request.toContext(logger),
       );
@@ -238,8 +245,8 @@ class OrganisationImportController
       await trx.push();
       return responses;
     } finally {
-      if (foreign.inTransaction(uuid)) {
-        foreign.rollback(uuid);
+      if (trx?.isOpen == true) {
+        trx.rollback(this);
       }
     }
   }
@@ -248,7 +255,9 @@ class OrganisationImportController
     final responses = <Response>[];
     if (deps is List) {
       for (var dep in List<Map<String, dynamic>>.from(deps)) {
-        responses.add(await _importDep(dep, uuid));
+        responses.add(
+          await _importDep(dep, uuid),
+        );
       }
     }
     return responses;

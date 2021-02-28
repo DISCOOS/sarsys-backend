@@ -161,12 +161,10 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       }
       data[repository.uuidFieldName] = uuid;
       final events = <Event>[];
-      trx = repository.inTransaction(uuid)
-          ? null
-          : repository.getTransaction(
-              uuid,
-              context: request.toContext(logger),
-            );
+      trx = repository.tryTransaction(
+        uuid,
+        context: request.toContext(logger),
+      );
       final commands = onUpdate(
         validate('$aggregateType', data, isPatch: true),
       );
@@ -221,8 +219,8 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     } catch (e, stackTrace) {
       return toServerError(e, stackTrace);
     } finally {
-      if (trx != null && repository.inTransaction(uuid)) {
-        repository.rollback(uuid);
+      if (trx?.isOpen == true) {
+        trx?.rollback(this);
       }
     }
   }
