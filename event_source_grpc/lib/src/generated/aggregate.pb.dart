@@ -38,7 +38,7 @@ class GetAggregateMetaRequest extends $pb.GeneratedMessage {
             ? ''
             : 'uuid')
     ..pc<AggregateExpandFields>(
-        3,
+        4,
         const $core.bool.fromEnvironment('protobuf.omit_field_names')
             ? ''
             : 'expand',
@@ -102,7 +102,7 @@ class GetAggregateMetaRequest extends $pb.GeneratedMessage {
   @$pb.TagNumber(2)
   void clearUuid() => clearField(2);
 
-  @$pb.TagNumber(3)
+  @$pb.TagNumber(4)
   $core.List<AggregateExpandFields> get expand => $_getList(2);
 }
 
@@ -226,6 +226,285 @@ class GetAggregateMetaResponse extends $pb.GeneratedMessage {
   void clearMeta() => clearField(5);
   @$pb.TagNumber(5)
   AggregateMeta ensureMeta() => $_ensure(4);
+}
+
+class SearchAggregateMetaRequest extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'SearchAggregateMetaRequest',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'org.discoos.es'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'type')
+    ..aOS(
+        2,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'query')
+    ..a<$core.int>(
+        3,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'limit',
+        $pb.PbFieldType.O3)
+    ..a<$core.int>(
+        4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'offset', $pb.PbFieldType.O3)
+    ..pc<AggregateExpandFields>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'expand', $pb.PbFieldType.PE, valueOf: AggregateExpandFields.valueOf, enumValues: AggregateExpandFields.values)
+    ..hasRequiredFields = false;
+
+  SearchAggregateMetaRequest._() : super();
+  factory SearchAggregateMetaRequest() => create();
+  factory SearchAggregateMetaRequest.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+  factory SearchAggregateMetaRequest.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  SearchAggregateMetaRequest clone() =>
+      SearchAggregateMetaRequest()..mergeFromMessage(this);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  SearchAggregateMetaRequest copyWith(
+          void Function(SearchAggregateMetaRequest) updates) =>
+      super.copyWith((message) => updates(message
+          as SearchAggregateMetaRequest)); // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static SearchAggregateMetaRequest create() => SearchAggregateMetaRequest._();
+  SearchAggregateMetaRequest createEmptyInstance() => create();
+  static $pb.PbList<SearchAggregateMetaRequest> createRepeated() =>
+      $pb.PbList<SearchAggregateMetaRequest>();
+  @$core.pragma('dart2js:noInline')
+  static SearchAggregateMetaRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SearchAggregateMetaRequest>(create);
+  static SearchAggregateMetaRequest _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get type => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set type($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasType() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearType() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get query => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set query($core.String v) {
+    $_setString(1, v);
+  }
+
+  @$pb.TagNumber(2)
+  $core.bool hasQuery() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearQuery() => clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get limit => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set limit($core.int v) {
+    $_setSignedInt32(2, v);
+  }
+
+  @$pb.TagNumber(3)
+  $core.bool hasLimit() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearLimit() => clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.int get offset => $_getIZ(3);
+  @$pb.TagNumber(4)
+  set offset($core.int v) {
+    $_setSignedInt32(3, v);
+  }
+
+  @$pb.TagNumber(4)
+  $core.bool hasOffset() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearOffset() => clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.List<AggregateExpandFields> get expand => $_getList(4);
+}
+
+class SearchAggregateMetaResponse extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'SearchAggregateMetaResponse',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'org.discoos.es'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'type')
+    ..aOS(
+        2,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'query')
+    ..a<$core.int>(
+        3,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'limit',
+        $pb.PbFieldType.O3)
+    ..a<$core.int>(
+        4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'offset', $pb.PbFieldType.O3)
+    ..a<$core.int>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'nextOffset', $pb.PbFieldType.O3, protoName: 'nextOffset')
+    ..a<$core.int>(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'statusCode', $pb.PbFieldType.O3, protoName: 'statusCode')
+    ..aOS(7, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'reasonPhrase', protoName: 'reasonPhrase')
+    ..aOM<AggregateMetaList>(8, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'matches', subBuilder: AggregateMetaList.create)
+    ..hasRequiredFields = false;
+
+  SearchAggregateMetaResponse._() : super();
+  factory SearchAggregateMetaResponse() => create();
+  factory SearchAggregateMetaResponse.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+  factory SearchAggregateMetaResponse.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  SearchAggregateMetaResponse clone() =>
+      SearchAggregateMetaResponse()..mergeFromMessage(this);
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  SearchAggregateMetaResponse copyWith(
+          void Function(SearchAggregateMetaResponse) updates) =>
+      super.copyWith((message) => updates(message
+          as SearchAggregateMetaResponse)); // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static SearchAggregateMetaResponse create() =>
+      SearchAggregateMetaResponse._();
+  SearchAggregateMetaResponse createEmptyInstance() => create();
+  static $pb.PbList<SearchAggregateMetaResponse> createRepeated() =>
+      $pb.PbList<SearchAggregateMetaResponse>();
+  @$core.pragma('dart2js:noInline')
+  static SearchAggregateMetaResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SearchAggregateMetaResponse>(create);
+  static SearchAggregateMetaResponse _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get type => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set type($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasType() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearType() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get query => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set query($core.String v) {
+    $_setString(1, v);
+  }
+
+  @$pb.TagNumber(2)
+  $core.bool hasQuery() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearQuery() => clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get limit => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set limit($core.int v) {
+    $_setSignedInt32(2, v);
+  }
+
+  @$pb.TagNumber(3)
+  $core.bool hasLimit() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearLimit() => clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.int get offset => $_getIZ(3);
+  @$pb.TagNumber(4)
+  set offset($core.int v) {
+    $_setSignedInt32(3, v);
+  }
+
+  @$pb.TagNumber(4)
+  $core.bool hasOffset() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearOffset() => clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.int get nextOffset => $_getIZ(4);
+  @$pb.TagNumber(5)
+  set nextOffset($core.int v) {
+    $_setSignedInt32(4, v);
+  }
+
+  @$pb.TagNumber(5)
+  $core.bool hasNextOffset() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearNextOffset() => clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.int get statusCode => $_getIZ(5);
+  @$pb.TagNumber(6)
+  set statusCode($core.int v) {
+    $_setSignedInt32(5, v);
+  }
+
+  @$pb.TagNumber(6)
+  $core.bool hasStatusCode() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearStatusCode() => clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get reasonPhrase => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set reasonPhrase($core.String v) {
+    $_setString(6, v);
+  }
+
+  @$pb.TagNumber(7)
+  $core.bool hasReasonPhrase() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearReasonPhrase() => clearField(7);
+
+  @$pb.TagNumber(8)
+  AggregateMetaList get matches => $_getN(7);
+  @$pb.TagNumber(8)
+  set matches(AggregateMetaList v) {
+    setField(8, v);
+  }
+
+  @$pb.TagNumber(8)
+  $core.bool hasMatches() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearMatches() => clearField(8);
+  @$pb.TagNumber(8)
+  AggregateMetaList ensureMatches() => $_ensure(7);
 }
 
 class ReplayAggregateEventsRequest extends $pb.GeneratedMessage {

@@ -20,6 +20,12 @@ class AggregateGrpcServiceClient extends $grpc.Client {
       ($0.GetAggregateMetaRequest value) => value.writeToBuffer(),
       ($core.List<$core.int> value) =>
           $0.GetAggregateMetaResponse.fromBuffer(value));
+  static final _$searchMeta = $grpc.ClientMethod<$0.SearchAggregateMetaRequest,
+          $0.SearchAggregateMetaResponse>(
+      '/org.discoos.es.AggregateGrpcService/SearchMeta',
+      ($0.SearchAggregateMetaRequest value) => value.writeToBuffer(),
+      ($core.List<$core.int> value) =>
+          $0.SearchAggregateMetaResponse.fromBuffer(value));
   static final _$replayEvents = $grpc.ClientMethod<
           $0.ReplayAggregateEventsRequest, $0.ReplayAggregateEventsResponse>(
       '/org.discoos.es.AggregateGrpcService/ReplayEvents',
@@ -48,6 +54,12 @@ class AggregateGrpcServiceClient extends $grpc.Client {
       $0.GetAggregateMetaRequest request,
       {$grpc.CallOptions options}) {
     return $createUnaryCall(_$getMeta, request, options: options);
+  }
+
+  $grpc.ResponseFuture<$0.SearchAggregateMetaResponse> searchMeta(
+      $0.SearchAggregateMetaRequest request,
+      {$grpc.CallOptions options}) {
+    return $createUnaryCall(_$searchMeta, request, options: options);
   }
 
   $grpc.ResponseFuture<$0.ReplayAggregateEventsResponse> replayEvents(
@@ -82,6 +94,15 @@ abstract class AggregateGrpcServiceBase extends $grpc.Service {
         ($core.List<$core.int> value) =>
             $0.GetAggregateMetaRequest.fromBuffer(value),
         ($0.GetAggregateMetaResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.SearchAggregateMetaRequest,
+            $0.SearchAggregateMetaResponse>(
+        'SearchMeta',
+        searchMeta_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.SearchAggregateMetaRequest.fromBuffer(value),
+        ($0.SearchAggregateMetaResponse value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.ReplayAggregateEventsRequest,
             $0.ReplayAggregateEventsResponse>(
         'ReplayEvents',
@@ -116,6 +137,12 @@ abstract class AggregateGrpcServiceBase extends $grpc.Service {
     return getMeta(call, await request);
   }
 
+  $async.Future<$0.SearchAggregateMetaResponse> searchMeta_Pre(
+      $grpc.ServiceCall call,
+      $async.Future<$0.SearchAggregateMetaRequest> request) async {
+    return searchMeta(call, await request);
+  }
+
   $async.Future<$0.ReplayAggregateEventsResponse> replayEvents_Pre(
       $grpc.ServiceCall call,
       $async.Future<$0.ReplayAggregateEventsRequest> request) async {
@@ -136,6 +163,8 @@ abstract class AggregateGrpcServiceBase extends $grpc.Service {
 
   $async.Future<$0.GetAggregateMetaResponse> getMeta(
       $grpc.ServiceCall call, $0.GetAggregateMetaRequest request);
+  $async.Future<$0.SearchAggregateMetaResponse> searchMeta(
+      $grpc.ServiceCall call, $0.SearchAggregateMetaRequest request);
   $async.Future<$0.ReplayAggregateEventsResponse> replayEvents(
       $grpc.ServiceCall call, $0.ReplayAggregateEventsRequest request);
   $async.Future<$0.CatchupAggregateEventsResponse> catchupEvents(

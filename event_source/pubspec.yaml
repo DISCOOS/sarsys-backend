@@ -10,6 +10,7 @@ environment:
 dependencies:
   uuid: ^2.0.2
   equatable: ^1.0.1
+  json_path: ^0.2.1
   json_patch: ^2.0.0
   json_schema: ^2.2.1
   validators: ^2.0.0+1

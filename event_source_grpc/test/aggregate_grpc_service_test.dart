@@ -78,6 +78,42 @@ void main() {
     );
   });
 
+  test('GRPC SearchMeta returns 200 when aggregate exists', () async {
+    // Arrange
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
+    final uuid = Uuid().v4();
+    final foo = repo.get(uuid, data: {'property11': 'value11'});
+    final data1 = foo.data;
+    await repo.push(foo);
+    final client = harness.client<AggregateGrpcServiceClient>();
+
+    // Act
+    final response = await client.searchMeta(
+      SearchAggregateMetaRequest()
+        ..type = 'Foo'
+        ..query = r"$..[?(@.property11=='value11')]"
+        ..expand.add(
+          AggregateExpandFields.AGGREGATE_EXPAND_FIELDS_ALL,
+        ),
+    );
+
+    // Assert
+    expect(response.type, 'Foo');
+    expect(response.statusCode, 200);
+    expect(response.reasonPhrase, 'OK');
+    expect(response.matches, isNotNull);
+    expect(response.matches.count, 1);
+    expect(
+      fromJsonValue(
+        toJsonValueFromAny(
+          response.matches.items.first.data,
+        ),
+      ),
+      equals(data1),
+    );
+  });
+
   test('GRPC ReplayEvents returns 200', () async {
     // Arrange
     final repo = harness.get<FooRepository>();

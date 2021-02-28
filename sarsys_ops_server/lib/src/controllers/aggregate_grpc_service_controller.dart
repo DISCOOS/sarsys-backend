@@ -1,7 +1,6 @@
 import 'package:event_source_grpc/event_source_grpc.dart';
 import 'package:grpc/grpc.dart' hide Response;
 import 'package:grpc/grpc_connection_interface.dart';
-import 'package:protobuf/protobuf.dart';
 import 'package:sarsys_ops_server/sarsys_ops_server.dart';
 import 'package:sarsys_ops_server/src/config.dart';
 import 'package:sarsys_core/sarsys_core.dart';
@@ -47,6 +46,129 @@ class AggregateGrpcServiceController extends ComponentBaseController {
 
   final K8sApi k8s;
   final Map<String, ClientChannel> channels;
+
+  @override
+  @Operation.get('type')
+  Future<Response> getMetaByType(
+    @Bind.path('type') String type, {
+    @Bind.query('query') String query,
+    @Bind.query('expand') String expand,
+    @Bind.query('limit') int limit = 20,
+    @Bind.query('offset') int offset = 0,
+  }) async {
+    try {
+      return doGetMetaByTypeAndQuery(
+        type,
+        query,
+        limit: limit,
+        offset: offset,
+        expand: expand,
+      );
+    } on InvalidOperation catch (e) {
+      return Response.badRequest(body: e.message);
+    } catch (e, stackTrace) {
+      return toServerError(e, stackTrace);
+    }
+  }
+
+  Future<Response> doGetMetaByTypeAndQuery(
+    String type,
+    String query, {
+    @required int limit,
+    @required int offset,
+    @required String expand,
+  }) async {
+    final names = <String>[];
+    final errors = <Map<String, dynamic>>[];
+    final pods = await k8s.getPodList(
+      k8s.namespace,
+      labels: toModuleLabels(),
+    );
+    final items = <Map<String, dynamic>>[];
+    for (var pod in pods) {
+      final matches = await _doGetMetaByTypeAndQuery(
+        type,
+        query,
+        pod,
+        limit: limit,
+        offset: offset,
+        expand: expand,
+      );
+      final statusCode = matches.elementAt<int>(
+        'error/statusCode',
+        defaultValue: HttpStatus.ok,
+      );
+      if (statusCode == HttpStatus.ok) {
+        items.addAll(
+          matches.listAt<Map<String, dynamic>>(
+            'items',
+          ),
+        );
+        names.add(
+          k8s.toPodName(pod),
+        );
+      } else {
+        errors.add(
+          matches.mapAt('error'),
+        );
+      }
+    }
+    return toResponse(
+      type: type,
+      name: '$names',
+      body: toJsonItemsMeta(
+        items
+            .toPage(
+              offset: offset,
+              limit: limit,
+            )
+            .toList(),
+        errors,
+      ),
+      args: {
+        'expand': expand,
+        'query': query,
+      },
+      statusCode: toStatusCode(errors),
+      method: 'doGetMetaByTypeAndQuery',
+    );
+  }
+
+  Future<Map<String, dynamic>> _doGetMetaByTypeAndQuery(
+    String type,
+    String query,
+    Map<String, dynamic> pod, {
+    @required int limit,
+    @required int offset,
+    @required String expand,
+  }) async {
+    final response = await toClient(pod).searchMeta(
+      SearchAggregateMetaRequest()
+        ..type = type
+        ..query = query
+        ..limit = limit
+        ..offset = offset
+        ..expand.addAll(
+          toExpandFields(expand),
+        ),
+    );
+
+    return {
+      'items': response.matches.items
+          .map(
+            (meta) => toProto3JsonInstanceMeta(
+              k8s.toPodName(pod),
+              meta,
+            ),
+          )
+          .toList(),
+      if (response.statusCode >= HttpStatus.badRequest)
+        'error': {
+          'statusCode': response.statusCode,
+          'reasonPhrase': response.reasonPhrase,
+        }
+    };
+  }
 
   @override
   @Scope(['roles:admin'])
