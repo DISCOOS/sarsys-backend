@@ -67,6 +67,11 @@ Future main() async {
     final sources2 = [
       createSource(uuid: 's1'),
       createSource(uuid: 's2'),
+      createSource(uuid: 's3'),
+      createSource(uuid: 's4'),
+      createSource(uuid: 's5'),
+      createSource(uuid: 's6'),
+      createSource(uuid: 's7'),
     ];
     body['status'] = enumName(TrackingStatus.tracking);
     body['sources'] = sources2;

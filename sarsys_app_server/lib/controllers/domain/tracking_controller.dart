@@ -115,7 +115,11 @@ class TrackingController extends AggregateController<TrackingCommand, Tracking> 
         'sources',
         defaultList: const [],
       );
-      final patches = JsonPatch.diff(next, previous);
+      final patches = JsonUtils.diff(
+        previous,
+        next,
+        appendOnly: false,
+      );
       // Remove current
       for (var patch in patches.where((patch) => const ['remove', 'replace'].contains(patch['op']))) {
         for (var value in _toList(patch, previous)) {
