@@ -163,14 +163,14 @@ class SecureRouter extends Router {
   final AuthConfig config;
   final List<String> scopes;
   final JsonWebKeyStore keyStore;
-  final Map<String, RequestContext> _contexts = {};
+  static final Map<RequestOrResponse, RequestContext> _contexts = {};
 
-  Map<String, RequestContext> getContexts() => Map.unmodifiable(_contexts);
-  RequestContext getContext(String correlationId) => _contexts[correlationId];
-  bool hasContext(String correlationId) => _contexts.containsKey(correlationId);
+  static Map<String, RequestContext> getContexts() => Map.unmodifiable(_contexts);
+  static RequestContext getContext(RequestOrResponse lookup) => _contexts[lookup];
+  static bool hasContext(RequestOrResponse lookup) => _contexts.containsKey(lookup);
 
   Future<RequestOrResponse> setRequest(aq.Request request) async {
-    final correlationId = request.raw.headers.value('x-correlation-id') ?? Uuid().v4();
+    final correlationId = request.raw.headers.value('x-correlation-id') ?? randomAlpha(16);
     final transactionId = request.raw.cookies
         // Find cookie for sticky session
         .where((c) => c.name == 'x-transaction-id')
@@ -180,9 +180,10 @@ class SecureRouter extends Router {
     final inStickySession = transactionId != null;
     request.addResponseModifier((r) {
       r.headers['x-correlation-id'] = correlationId;
-      _contexts.remove(correlationId);
+      r.headers['x-transaction-id'] = transactionId;
+      _contexts.remove(request);
     });
-    _contexts[correlationId] = RequestContext(
+    _contexts[request] = RequestContext(
       correlationId: correlationId,
       transactionId: transactionId,
       inStickySession: inStickySession,
