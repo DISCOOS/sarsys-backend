@@ -54,7 +54,7 @@ abstract class AggregateCommandBase extends BaseCommand {
       token: token,
       format: (result) => result,
     );
-    return status;
+    return status.buffer.toString();
   }
 
   String toTypeStatus(String type, List items, {bool verbose = false}) {

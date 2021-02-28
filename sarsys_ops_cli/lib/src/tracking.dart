@@ -30,7 +30,7 @@ abstract class TrackingCommandBase extends BaseCommand {
     bool verbose,
   ) async {
     final token = await AuthUtils.getToken(this);
-    final status = await post(
+    final result = await post(
       client,
       '/ops/api/services/tracking/$instance?expand=metrics',
       args,
@@ -46,7 +46,7 @@ abstract class TrackingCommandBase extends BaseCommand {
       token: token,
       format: (result) => result,
     );
-    return status;
+    return result.buffer.toString();
   }
 
   String toModuleStatus(List items, {bool verbose = false}) {

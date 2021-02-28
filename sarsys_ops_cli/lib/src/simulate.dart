@@ -173,7 +173,7 @@ class SimulateDeviceCommand extends BaseCommand {
 
     Timer.periodic(period, (Timer timer) async {
       var simulated = 0;
-      final results = <String, String>{};
+      final results = <String, HttpResult>{};
       for (var entry in tracks.entries) {
         final uuid = entry.key;
         final track = entry.value;
@@ -188,7 +188,7 @@ class SimulateDeviceCommand extends BaseCommand {
           buffer: buffer,
           write: verbose,
         );
-        if (results[uuid].contains('Success')) {
+        if (results[uuid].isSuccess) {
           offsets[uuid] += take;
           simulated += take;
         }
@@ -219,7 +219,7 @@ class SimulateDeviceCommand extends BaseCommand {
   void _progress(
     Map<String, int> offsets,
     Map<String, List<Map<String, dynamic>>> tracks,
-    Map<String, String> results,
+    Map<String, HttpResult> results,
     int simulated,
     int total,
     bool verbose,
@@ -231,7 +231,7 @@ class SimulateDeviceCommand extends BaseCommand {
         },
       );
     } else {
-      final failed = results.entries.where((e) => !e.value.contains('Success')).map((e) => e.key);
+      final failed = results.entries.where((e) => e.value.isFailure).map((e) => e.key);
       final processed = offsets.entries.fold(0, (prev, next) => prev + next.value);
 
       vprint(
@@ -246,7 +246,36 @@ class SimulateDeviceCommand extends BaseCommand {
         vprint(
           '- Failed',
           'Device ...${uuid.substring(uuid.length - 8)}',
-          unit: '${red(results[uuid].replaceAll(RegExp(r'.*Failure.*\(|\)'), '').trim())}',
+          unit: '${red(results[uuid].toStatusText)}',
+          max: 89,
+          left: 15,
+          indent: 3,
+          buffer: stdout,
+          newline: true,
+        );
+        vprint(
+          '  Message',
+          '${results[uuid].content?.replaceAll(uuid, '...${uuid.substring(uuid.length - 8)}')}',
+          max: 89,
+          left: 15,
+          indent: 3,
+          buffer: stdout,
+          newline: true,
+        );
+        vprint(
+          '  Headers',
+          '${results[uuid].headers.value('x-correlation-id')}',
+          unit: 'x-correlation-id',
+          max: 89,
+          left: 15,
+          indent: 3,
+          buffer: stdout,
+          newline: true,
+        );
+        vprint(
+          '  Headers',
+          '${results[uuid].headers.value('x-pod-name')}',
+          unit: 'x-pod-name',
           max: 89,
           left: 15,
           indent: 3,
@@ -257,7 +286,7 @@ class SimulateDeviceCommand extends BaseCommand {
     }
   }
 
-  Future<String> _simulate(
+  Future<HttpResult> _simulate(
     String uuid,
     int offset,
     int batch,
@@ -290,17 +319,17 @@ class SimulateDeviceCommand extends BaseCommand {
       }
     }
 
-    final status = await postBatch(
+    final result = await postBatch(
       uuid,
       positions,
       write: write,
       buffer: buffer,
     );
 
-    return write ? buffer.toString() : status;
+    return result;
   }
 
-  Future<String> postBatch(
+  Future<HttpResult> postBatch(
     String uuid,
     List<Map<String, dynamic>> json, {
     StringSink buffer,
@@ -310,7 +339,7 @@ class SimulateDeviceCommand extends BaseCommand {
       this,
       renew: false,
     );
-    final status = await post(
+    final result = await post(
       client,
       '/api/devices/$uuid/positions',
       json,
@@ -320,8 +349,8 @@ class SimulateDeviceCommand extends BaseCommand {
       format: (result) => result,
     );
     if (write) {
-      buffer.write(status);
+      buffer.write(result.buffer);
     }
-    return status;
+    return result;
   }
 }
