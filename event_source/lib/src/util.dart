@@ -59,15 +59,17 @@ class JsonUtils {
   /// updates to an existing object that is
   /// semantically consistent with the HTTP
   /// PATCH method by only including keys
-  /// in [next] should be updated, keeping
+  /// in [newJson] should be updated, keeping
   /// the rest unchanged.
   ///
   static List<Map<String, dynamic>> diff(
-    Map<String, dynamic> current,
-    Map<String, dynamic> next,
-  ) {
-    final patches = JsonPatch.diff(current, next)
-      ..removeWhere(
+    dynamic oldJson,
+    dynamic newJson, {
+    bool appendOnly = true,
+  }) {
+    final patches = JsonPatch.diff(oldJson, newJson);
+    if (appendOnly) {
+      patches.removeWhere(
         (diff) {
           var isRemove = diff['op'] == 'remove';
           if (isRemove) {
@@ -75,8 +77,8 @@ class JsonUtils {
             if (elements.length > 1) {
               // Get path to list by removing index
               final path = elements.take(elements.length - 1).join('/');
-              if (path.isNotEmpty) {
-                final value = current.elementAt(path);
+              if (oldJson is Map && path.isNotEmpty) {
+                final value = oldJson.elementAt(path);
                 isRemove = value is! List;
               }
             }
@@ -84,7 +86,12 @@ class JsonUtils {
           return isRemove;
         },
       );
-    return patches;
+    }
+    // HACK: JsonPatch started to
+    // return list patches in
+    // reverse order in version
+    // 2.1.0
+    return patches.reversed.toList();
   }
 
   static Map<String, dynamic> apply(Map<String, dynamic> data, List<Map<String, dynamic>> patches) => data == null
