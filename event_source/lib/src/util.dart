@@ -1,6 +1,7 @@
 import 'dart:collection';
 
 import 'package:json_patch/json_patch.dart';
+import 'package:json_path/json_path.dart';
 import 'extension.dart';
 
 bool isEmptyOrNull(value) => emptyAsNull(value) == null;
@@ -93,4 +94,122 @@ class JsonUtils {
           patches,
           strict: false,
         ) as Map<String, dynamic>;
+
+  static RegExpMatch matchQuery(String query) => RegExp(
+        r"([$.].*)\[\?\(\@\.(\w*)\s*([!><=~]{1,2})\s*(\d*|\'(\w*)\')\)\]",
+      ).firstMatch(query);
+
+  static String toNamedQuery(String query, RegExpMatch match) {
+    if (match == null) {
+      return query;
+    }
+    return '${match.group(1)}[?${toNamedFilter(match.group(3))}]';
+  }
+
+  static Map<String, dynamic> toNamedArgs(String query, RegExpMatch match) {
+    final args = <String, dynamic>{};
+    if (match != null) {
+      // Number comparison
+      args[toNamedFilter(match.group(3))] = {
+        'name': match.group(2),
+        'value': match.groupCount == 5 ? match.group(5) : match.group(4),
+      };
+    }
+    return args;
+  }
+
+  static Map<String, Predicate> toNamedFilters(Map<String, dynamic> args) => {
+        if (args.hasPath('eq'))
+          'eq': (e) => _eval(
+                e,
+                args,
+                'eq',
+                (v1, v2) => v1 == v2,
+              ),
+        if (args.hasPath('ne'))
+          'ne': (e) => _eval(
+                e,
+                args,
+                'ne',
+                (v1, v2) => v1 != v2,
+              ),
+        if (args.hasPath('le'))
+          'le': (e) => _eval(
+                e,
+                args,
+                'le',
+                (v1, v2) => v1 is num && v2 is num ? v1 <= v2 : '$v1'.compareTo('$v2') <= 0,
+              ),
+        if (args.hasPath('ge'))
+          'ge': (e) => _eval(
+                e,
+                args,
+                'ge',
+                (v1, v2) => v1 is num && v2 is num ? v1 >= v2 : '$v1'.compareTo('$v2') >= 0,
+              ),
+        if (args.hasPath('lt'))
+          'lt': (e) => _eval(
+                e,
+                args,
+                'lt',
+                (v1, v2) => v1 is num && v2 is num ? v1 < v2 : '$v1'.compareTo('$v2') < 0,
+              ),
+        if (args.hasPath('gt'))
+          'gt': (e) => _eval(
+                e,
+                args,
+                'gt',
+                (v1, v2) => v1 is num && v2 is num ? v1 > v2 : '$v1'.compareTo('$v2') > 0,
+              ),
+        if (args.hasPath('rx'))
+          'rx': (e) => _eval(
+                e,
+                args,
+                'rx',
+                (v1, v2) => '$v2'.matchAsPrefix('$v1') != null,
+              ),
+      };
+
+  static bool _eval(
+    dynamic e,
+    Map<String, dynamic> args,
+    String operator,
+    bool Function(dynamic v1, dynamic v2) test,
+  ) {
+    final name = args.elementAt('$operator/name');
+    final value = args.elementAt('$operator/value');
+    if (name != null && e is Map) {
+      return test(e[name], value);
+    }
+    if (e is List) {
+      return e.any((e) {
+        if (e is Map) {
+          return name != null && test(e[name], value);
+        }
+        return test(e[name], value);
+      });
+    }
+    return false;
+  }
+
+  static String toNamedFilter(String operator) {
+    switch (operator) {
+      case '==':
+        return 'eq';
+      case '!=':
+        return 'ne';
+      case '<=':
+        return 'le';
+      case '>=':
+        return 'ge';
+      case '<':
+        return 'lt';
+      case '>':
+        return 'gt';
+      case '=~':
+        return 'rx';
+      default:
+        return operator;
+    }
+  }
 }

@@ -14,6 +14,7 @@ import 'core.dart';
 class AggregateCommand extends BaseCommand {
   AggregateCommand() {
     addSubcommand(AggregateGetCommand());
+    addSubcommand(AggregateSearchCommand());
     addSubcommand(AggregateReplaceCommand());
     // addSubcommand(AggregateRemoveCommand());
     // addSubcommand(AggregateStartCommand());
@@ -247,6 +248,90 @@ class AggregateGetCommand extends AggregateCommandBase {
       );
       writeln(status, stdout);
     }
+  }
+}
+
+class AggregateSearchCommand extends AggregateCommandBase {
+  AggregateSearchCommand() {
+    argParser
+      ..addOption(
+        'type',
+        abbr: 't',
+        help: 'Aggregate type name',
+      )
+      ..addOption(
+        'query',
+        abbr: 'q',
+        help: 'Aggregate data jsonpath query',
+      );
+  }
+
+  @override
+  final name = 'search';
+
+  @override
+  final description = 'is used to search for aggregate data';
+
+  @override
+  FutureOr<String> onJson() async {
+    final type = argResults['type'] as String;
+    if (type == null) {
+      usageException(red(' Aggregate type is missing'));
+      return writeln(red(' Aggregate type is missing'), stderr, force: true);
+    }
+    var query = argResults['query'] as String;
+    if (query == null) {
+      usageException(red(' Aggregate data query is missing'));
+      return writeln(red(' Aggregate data query is missing'), stderr);
+    }
+    query = Uri.encodeQueryComponent(query);
+    final token = await AuthUtils.getToken(this);
+    final uri = '/ops/api/services/aggregate/$type?expand=data&$query';
+    return get(
+      client,
+      uri,
+      (meta) => jsonEncode(meta),
+      token: token,
+      format: (result) => result,
+    );
+  }
+
+  @override
+  Future onPrint() async {
+    // Sanity checks
+    final type = argResults['type'] as String;
+    if (type == null) {
+      usageException(red(' Aggregate type is missing'));
+      return writeln(red(' Aggregate type is missing'), stderr);
+    }
+    var query = argResults['query'] as String;
+    if (query == null) {
+      usageException(red(' Aggregate data query is missing'));
+      return writeln(red(' Aggregate data query is missing'), stderr);
+    }
+
+    // Prepare
+    final verbose = globalResults['verbose'] as bool;
+    final expand = verbose ? 'expand=all&' : '';
+
+    // Get metadata
+    writeln(highlight('> Search ${capitalize(type)} with $query'), stdout);
+    query = Uri.encodeQueryComponent(query);
+    final uri = '/ops/api/services/aggregate/$type?$expand$query';
+
+    final token = await AuthUtils.getToken(this);
+    final statuses = await get(
+      client,
+      uri,
+      (meta) => toTypeStatus(
+        type,
+        Map.from(meta).listAt('items'),
+        verbose: verbose,
+      ),
+      token: token,
+      format: (result) => result,
+    );
+    writeln(statuses, stdout);
   }
 }
 

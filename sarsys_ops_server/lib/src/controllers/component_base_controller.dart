@@ -576,9 +576,13 @@ abstract class ComponentBaseController extends ResourceController {
         'doExecuteByNameTypeAndUuid not implemented',
       );
 
-  Map<String, dynamic> toJsonItemsMeta(List<Map<String, dynamic>> items) {
+  Map<String, dynamic> toJsonItemsMeta(
+    List<Map<String, dynamic>> items, [
+    List<Map<String, dynamic>> errors = const [],
+  ]) {
     return {
       'items': items,
+      if (errors.isNotEmpty) 'errors': errors,
     };
   }
 

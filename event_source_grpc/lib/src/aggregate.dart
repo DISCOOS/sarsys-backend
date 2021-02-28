@@ -5,6 +5,7 @@ import 'package:event_source/event_source.dart';
 import 'package:grpc/grpc.dart';
 import 'package:grpc/src/server/call.dart';
 import 'package:logging/logging.dart';
+import 'package:json_path/json_path.dart';
 
 import 'generated/aggregate.pbgrpc.dart';
 import 'utils.dart';
@@ -61,6 +62,74 @@ class AggregateGrpcService extends AggregateGrpcServiceBase {
     );
     _log(
       'getMeta',
+      response.statusCode,
+      response.reasonPhrase,
+    );
+    return response;
+  }
+
+  @override
+  Future<SearchAggregateMetaResponse> searchMeta(
+    ServiceCall call,
+    SearchAggregateMetaRequest request,
+  ) async {
+    final response = SearchAggregateMetaResponse()
+      ..type = request.type
+      ..limit = request.limit
+      ..offset = request.offset
+      ..statusCode = HttpStatus.ok
+      ..reasonPhrase = 'OK';
+    if (call.isTimedOut) {
+      final reason = _timeout('searchMeta');
+      response
+        ..reasonPhrase = reason
+        ..statusCode = StatusCode.deadlineExceeded;
+      call.sendTrailers(
+        message: reason,
+        status: StatusCode.deadlineExceeded,
+      );
+      return response;
+    }
+    final type = request.type;
+    final repo = manager.getFromTypeName(type);
+    if (repo == null) {
+      _notFound(
+        'searchMeta',
+        'Repository for aggregate $type not found',
+      );
+      return response
+        ..statusCode = HttpStatus.notFound
+        ..reasonPhrase = 'Repository for aggregate $type not found';
+    }
+    try {
+      final items = await _trySearch(
+        type,
+        request.query,
+      );
+      response.matches = toAggregateMetaList(
+        type,
+        items.length,
+        items,
+        (aggregate) => toAggregateMetaFromRoot(
+          aggregate,
+          repo.store,
+          expand: request.expand,
+        ),
+      );
+    } on FormatException catch (error, stackTrace) {
+      _log(
+        'searchMeta',
+        HttpStatus.badRequest,
+        "Query '${request.query}' invalid: $error",
+        error,
+        stackTrace,
+      );
+      return response
+        ..statusCode = HttpStatus.badRequest
+        ..reasonPhrase = "Query '${request.query}' invalid: $error";
+    }
+    _log(
+      'searchMeta',
       response.statusCode,
       response.reasonPhrase,
     );
@@ -284,6 +353,18 @@ class AggregateGrpcService extends AggregateGrpcServiceBase {
     return repo.store.contains(uuid) ? repo.get(uuid) : null;
   }
 
+  FutureOr<List<AggregateRoot>> _trySearch(String type, String query) async {
+    final repo = manager.getFromTypeName(type);
+    await repo.catchup(master: true);
+    final match = JsonUtils.matchQuery(query);
+    return repo
+        .search(
+          JsonUtils.toNamedQuery(query, match),
+          JsonUtils.toNamedArgs(query, match),
+        )
+        .toList();
+  }
+
   String _timeout(String method) {
     return _log(
       method,
@@ -300,7 +381,13 @@ class AggregateGrpcService extends AggregateGrpcServiceBase {
     );
   }
 
-  String _log(String method, int statusCode, String reasonPhrase, [Object error, StackTrace stackTrace]) {
+  String _log(
+    String method,
+    int statusCode,
+    String reasonPhrase, [
+    Object error,
+    StackTrace stackTrace,
+  ]) {
     final message = '$method $statusCode $reasonPhrase';
     if (statusCode > 500) {
       logger.severe(

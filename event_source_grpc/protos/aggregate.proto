@@ -13,10 +13,16 @@ import "event.proto";
 
 
 service AggregateGrpcService {
+
     // Get Aggregate metadata
     //
     // Service with return aggregate metadata for given aggregate.
     rpc GetMeta(GetAggregateMetaRequest) returns (GetAggregateMetaResponse) {}
+
+    // Search for aggregate metadata
+    //
+    // Service with return aggregate metadata matching given query
+    rpc SearchMeta(SearchAggregateMetaRequest) returns (SearchAggregateMetaResponse) {}
 
     // Execute replay command on Aggregate
     //
@@ -42,7 +48,7 @@ message GetAggregateMetaRequest {
     string uuid = 2;
 
     // Expand response with metadata
-    repeated AggregateExpandFields expand = 3;
+    repeated AggregateExpandFields expand = 4;
 }
 
 message GetAggregateMetaResponse {
@@ -61,6 +67,50 @@ message GetAggregateMetaResponse {
 
     // Aggregate metadata
     AggregateMeta meta = 5;
+}
+
+message SearchAggregateMetaRequest {
+    // Aggregate type
+    string type = 1;
+
+    // JsonPath aggregate query
+    string query = 2;
+
+    // Maximum number of matches to return
+    int32 limit = 3;
+
+    // Fetch result from given offset
+    int32 offset = 4;
+
+    // Expand response with metadata
+    repeated AggregateExpandFields expand = 5;
+}
+
+message SearchAggregateMetaResponse {
+
+    // Aggregate type
+    string type = 1;
+
+    // JsonPath aggregate query
+    string query = 2;
+
+    // Maximum number of matches to return
+    int32 limit = 3;
+
+    // Fetch result from given offset
+    int32 offset = 4;
+
+    // Next offset
+    int32 nextOffset = 5;
+
+    // Response status code
+    int32 statusCode = 6;
+
+    // Response status code reason
+    string reasonPhrase = 7;
+
+    // List of aggregate metadata matching query
+    AggregateMetaList matches = 8;
 }
 
 // Replay events on given aggregate

@@ -35,6 +35,31 @@ Future main() async {
     );
   });
 
+  test('GET /ops/api/services/aggregate/:type returns 200 OK', () async {
+    // Arrange
+    final repo = harness.trackingServer.manager.get<DeviceRepository>();
+    await repo.readyAsync();
+    final name = harness.instances.first;
+    final uuid = await createDevice(repo);
+
+    // Act
+    final response = await harness.agent.get(
+      '/ops/api/services/aggregate/device?expand=all'
+      '&query=${Uri.encodeQueryComponent(r"$..[?(@.uuid!='')]")}',
+    );
+
+    // Assert
+    expect(response.statusCode, 200);
+    final body = Map<String, dynamic>.from(
+      await response.body.decode(),
+    );
+    _assertItemsMeta(
+      name,
+      [uuid],
+      body,
+    );
+  });
+
   test('GET /ops/api/services/aggregate/:type/:uuid/:name returns 200 OK', () async {
     // Arrange
     final repo = harness.trackingServer.manager.get<DeviceRepository>();

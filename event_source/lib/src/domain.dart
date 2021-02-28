@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:collection/collection.dart';
 import 'package:http/http.dart';
 import 'package:json_patch/json_patch.dart';
+import 'package:json_path/json_path.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:stack_trace/stack_trace.dart';
@@ -2577,6 +2578,22 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       }
     }
     return trx;
+  }
+
+  /// Search for [Aggregate] with data matching given query.
+  ///
+  /// Given [query] is a [JsonPath] string.
+  ///
+  Iterable<T> search(String query, [Map<String, dynamic> args = const {}]) {
+    final items = <T>[];
+    final filter = JsonUtils.toNamedFilters(args);
+    final path = JsonPath(query, filter: filter);
+    for (var item in _aggregates.values) {
+      if (path.read(item.data).isNotEmpty) {
+        items.add(item);
+      }
+    }
+    return items;
   }
 
   /// Get aggregate with given [uuid].
