@@ -171,7 +171,10 @@ class SarSysOpsHarness extends TestHarness<SarSysOpsServerChannel> {
   @override
   Future stop() async {
     await _deleteTestData();
-    assert(channel.router.getContexts().isEmpty, 'Contexts should be empty');
+    assert(
+      SecureRouter.getContexts().isEmpty,
+      'Contexts should be empty',
+    );
     return super.stop();
   }
 }

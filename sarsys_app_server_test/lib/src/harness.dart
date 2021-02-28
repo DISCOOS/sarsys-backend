@@ -185,10 +185,8 @@ class SarSysAppHarness extends TestHarness<SarSysAppServerChannel> {
   @override
   Future stop() async {
     await _deleteTestData();
-    assert(channel.router.getContexts().isEmpty, 'Contexts should be empty');
     await channel.dispose();
     for (var instance in _instances) {
-      assert(instance.channel.router.getContexts().isEmpty, 'Contexts should be empty');
       await instance.channel.dispose();
       await instance.stop();
     }
@@ -197,6 +195,10 @@ class SarSysAppHarness extends TestHarness<SarSysAppServerChannel> {
     }
     _agents.clear();
     _instances.clear();
+    assert(
+      SecureRouter.getContexts().isEmpty,
+      'Contexts should be empty',
+    );
     return super.stop();
   }
 
