@@ -953,7 +953,6 @@ Future main() async {
     // Arrange
     var i = 0;
     final repo = harness.get<FooRepository>(port: 4000);
-    final stream = harness.server().getStream(repo.store.aggregate);
     await repo.readyAsync();
     final uuid = Uuid().v4();
     final foo1 = repo.get(uuid, data: {'property': 0});
@@ -1471,7 +1470,7 @@ Future main() async {
     final repo = harness.get<FooRepository>();
     await repo.readyAsync();
     final uuid = Uuid().v4();
-    final trx = repo.getTransaction(uuid);
+    final trx = repo.beginTransaction(uuid);
     final foo = repo.get(uuid, data: {'property1': 1});
 
     // Act on repo
@@ -1538,7 +1537,7 @@ Future main() async {
       ]);
 
       // Act - make conflict patch
-      final trx = repo.getTransaction(uuid);
+      final trx = repo.beginTransaction(uuid);
       foo.patch({'property3': 'local'}, emits: FooUpdated);
 
       // Assert
@@ -1628,7 +1627,7 @@ Future main() async {
     final foo1 = repo1.get(Uuid().v4());
 
     // Assert
-    final trx = repo2.getTransaction(foo1.uuid);
+    final trx = repo2.beginTransaction(foo1.uuid);
     await expectLater(() => trx.push(), throwsA(isA<AggregateNotFound>()));
     expect(repo2.inTransaction(foo1.uuid), isTrue);
   });
@@ -1829,7 +1828,7 @@ Future main() async {
     final uuid = Uuid().v4();
     final foo = repo.get(uuid, data: {'property1': 'value1'});
     await repo.push(foo);
-    final trx = repo.getTransaction(uuid);
+    final trx = repo.beginTransaction(uuid);
 
     // Act - Simulate conflict by manually updating remote stream
     stream.append('${stream.instanceStream}-0', [
@@ -2271,14 +2270,14 @@ Future _repositoryShouldCommitTransactionsOnPush(
 
   // Act on foo1 and foo2 concurrently
   for (var i = 1; i <= 5; i++) {
-    final trx1 = repo1.getTransaction(uuid1);
+    final trx1 = repo1.beginTransaction(uuid1);
     for (var j = 1; j <= 10; j++) {
       await repo1.execute(
         UpdateFoo({'uuid': uuid1, 'property1': repo1.get(uuid1).elementAt<int>('property1') + 1}),
       );
     }
     await trx1.push();
-    final trx2 = repo2.getTransaction(uuid2);
+    final trx2 = repo2.beginTransaction(uuid2);
     for (var j = 1; j <= 10; j++) {
       await repo2.execute(
         UpdateFoo({'uuid': uuid2, 'property1': repo2.get(uuid2).elementAt<int>('property1') + 1}),

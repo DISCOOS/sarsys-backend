@@ -382,10 +382,18 @@ class TrackingService extends MessageHandler<DomainEvent> {
         category: 'TrackingService._addTracking',
       );
     }
-    // Only attempt to add sources from tracking that exists during replay (stale
+    // Only attempt to add sources
+    // from tracking that exists
+    // in repository during replay
     if (!replay || replay && repo.contains(tuuid)) {
-      _addToStream([event], 'Analysing source mappings for tracking $tuuid', replay: replay);
-      await _addSources(tuuid);
+      await onTrackingTransaction<TrackingCreated>(tuuid, event, (tuuid, event) async {
+        _addToStream(
+          [event],
+          'Analysing source mappings for tracking $tuuid',
+          replay: replay,
+        );
+        await _addSources(tuuid);
+      });
     } else if (replay) {
       await removeTracking(tuuid);
       _context.info(
@@ -407,13 +415,12 @@ class TrackingService extends MessageHandler<DomainEvent> {
   }
 
   /// Stop management and remove from service
-  Future _onTrackingDeleted(TrackingDeleted event, {bool replay = false}) async {
+  Future<void> _onTrackingDeleted(TrackingDeleted event, {bool replay = false}) async {
     final tuuid = repo.toAggregateUuid(event);
     if (_managed.contains(tuuid) && !replay) {
       await removeTracking(tuuid);
       _addToStream([event], 'Removed tracking $tuuid from service', replay: replay);
     }
-    return Future.value();
   }
 
   /// Handles invariants
@@ -433,85 +440,54 @@ class TrackingService extends MessageHandler<DomainEvent> {
   /// when the same source is added to multiple [Tracking]
   /// instances concurrently.
   ///
-  Future _onTrackingSourceAdded(TrackingSourceAdded event) async {
-    Transaction trx;
-    final tuuid = repo.toAggregateUuid(event);
-    try {
-      if (managed.contains(tuuid)) {
-        final data = repo.get(tuuid, context: _context).data;
-        final suuid = event.toSourceUuid(data);
-        if (_addSource(tuuid, suuid)) {
-          _addToStream(
-            [event],
-            'Looking for other active tracks attached to ${event.toSourceType(data)} $suuid',
-          );
-          final other = _findTrackManagedByOthers(tuuid, suuid);
-          trx = repo.getTransaction(tuuid);
-          await _ensureTrack(
-            tuuid,
-            event.toId(data),
-            event.toEntity(data),
-            positions:
-                other == null ? <Map<String, dynamic>>[] : other.toJson().listAt<Map<String, dynamic>>(POSITIONS),
-            status: ATTACHED,
-          );
-          await _updateTrackingStatus(tuuid);
-          await _aggregate(tuuid);
-          await trx.push();
+  Future<void> _onTrackingSourceAdded(TrackingSourceAdded event) {
+    return onTrackingTransaction<TrackingSourceAdded>(
+      repo.toAggregateUuid(event),
+      event,
+      (String tuuid, TrackingSourceAdded event) async {
+        if (managed.contains(tuuid)) {
+          final data = repo.get(tuuid, context: _context).data;
+          final suuid = event.toSourceUuid(data);
+          if (_addSource(tuuid, suuid)) {
+            _addToStream(
+              [event],
+              'Looking for other active tracks attached to ${event.toSourceType(data)} $suuid',
+            );
+            final other = _findTrackManagedByOthers(tuuid, suuid);
+            await _ensureTrack(
+              tuuid,
+              event.toId(data),
+              event.toEntity(data),
+              positions:
+                  other == null ? <Map<String, dynamic>>[] : other.toJson().listAt<Map<String, dynamic>>(POSITIONS),
+              status: ATTACHED,
+            );
+            await _updateTrackingStatus(tuuid);
+            await _aggregate(tuuid);
+          }
+        } else {
+          await _ensureDetached(event);
         }
-      } else {
-        await _ensureDetached(event);
-      }
-    } catch (error, stackTrace) {
-      _context.error(
-        'Failed to push changes in Tracking $tuuid for event ${event.type} ${event.uuid} with: $error',
-        category: 'TrackingService._onTrackingSourceAdded',
-        error: error,
-        data: {
-          'event.type': '${event.type}',
-          'event.uuid': '${event.uuid}',
-          'event.number': '${event.number}',
-          'event.remote': '${event.remote}',
-          'event.created': '${event.created.toIso8601String()}',
-          'event.data': '${jsonEncode(event.data)}',
-          if (trx != null) ...{
-            'trx.changes': '${trx.changes.length}',
-            if (trx.changes.isNotEmpty) 'trx.changes.last': '${trx.changes.last.type}@${trx.changes.last.number}',
-            if (trx.changes.isNotEmpty) 'trx.changes.first': '${trx.changes.first.type}@${trx.changes.first.number}',
-            'trx.concurrent': '${trx.concurrent.length}',
-            'trx.conflicts': '${trx.conflicting.length}',
-            'trx.results': '${trx.result?.length}',
-            'trx.remaining': '${trx.remaining.length}',
-            'trx.startedAt': '${Trace.from(trx.startedAt).frames.first}',
-            'trx.startedBy': '${trx.startedBy}',
-            if (trx.hasFailed) 'trx.error': '${trx.error}',
-          } else
-            'trx': 'none',
-          'event.repository.ready': '${repo.isReady}',
-          'event.repository.snapshot.number': '${repo.hasSnapshot ? repo.snapshot.number : 'none'}',
-        },
-        stackTrace: Trace.from(stackTrace),
-      );
-    } finally {
-      if (repo.inTransaction(tuuid)) {
-        repo.rollback(tuuid);
-      }
-    }
-    return Future.value();
+      },
+    );
   }
 
   /// If [TrackingSourceRemoved] was from a [Tracking] instance
   /// managed by this [TrackingService], the state of the
   /// associated track is changed to 'detached'
   Future _onTrackingSourceRemoved(TrackingSourceRemoved event) {
-    return _ensureDetached(event);
+    return onTrackingTransaction<TrackingSourceRemoved>(
+      repo.toAggregateUuid(event),
+      event,
+      (_, TrackingSourceRemoved event) => _ensureDetached(event),
+    );
   }
 
   /// If [PositionEvent.source] belongs to a track managed by this
   /// [TrackingService] new position is added to attached track
   /// and a new [Tracking.point] is calculated based on current
   /// aggregation parameters.
-  Future _onDevicePositionChanged(DevicePositionChanged event) async {
+  Future<void> _onDevicePositionChanged(DevicePositionChanged event) async {
     // Only process events with remote origin
     if (event.remote) {
       final duuid = repo.toAggregateUuid(event);
@@ -520,7 +496,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
         if (device.elementAt<bool>('trackable') ?? false) {
           final tuuids = _sources[duuid].where((tuuid) => managed.contains(tuuid));
           for (var tuuid in tuuids) {
-            await _addPosition(tuuid, event);
+            await onTrackingTransaction<DevicePositionChanged>(tuuid, event, _addPosition);
           }
         } else {
           _addToStream(
@@ -530,57 +506,67 @@ class TrackingService extends MessageHandler<DomainEvent> {
         }
       }
     }
-    return Future.value();
   }
 
   /// If [PositionEvent.source] belongs to a track managed by this
   /// [TrackingService] new position is added to attached track
   /// and a new [Tracking.point] is calculated based on current
   /// aggregation parameters.
-  Future _onSourcePositionChanged(PositionEvent event) async {
+  Future<void> _onSourcePositionChanged(PositionEvent event) async {
     final suuid = repo.toAggregateUuid(event);
     if (_sources.containsKey(suuid)) {
       final tuuids = _sources[suuid].where((tuuid) => managed.contains(tuuid));
       for (var tuuid in tuuids) {
-        await _addPosition(tuuid, event);
+        await onTrackingTransaction<PositionEvent>(tuuid, event, _addPosition);
       }
     }
-    return Future.value();
   }
 
   /// Add position to track for given source
   Future<Iterable<DomainEvent>> _addPosition(String tuuid, PositionEvent event) async {
-    Transaction trx;
-    try {
-      final track = _findTrack(
-        TrackingModel.fromJson(repo.get(tuuid, context: _context).data),
-        repo.toAggregateUuid(event),
-      );
-      if (track != null) {
-        trx = repo.getTransaction(
-          tuuid,
-        );
-        final position = event.position;
-        final positions = track.positions ?? [];
-        positions.add(position);
+    final events = <DomainEvent>[];
+    final track = _findTrack(
+      TrackingModel.fromJson(repo.get(tuuid, context: _context).data),
+      repo.toAggregateUuid(event),
+    );
+    if (track != null) {
+      final position = event.position;
+      final positions = track.positions ?? [];
+      positions.add(position);
 
-        final events = await _updateTrack(
+      events.addAll(
+        await _updateTrack(
           tuuid,
           track.cloneWith(positions: positions).toJson(),
+        ),
+      );
+      if (events?.isNotEmpty == true) {
+        _addToStream(
+          [event, ...events],
+          'Added ${enumName(position.source)} position to track ${track.id} in tracking $tuuid',
         );
-        if (events?.isNotEmpty == true) {
-          _addToStream(
-            [event, ...events],
-            'Added ${enumName(position.source)} position to track ${track.id} in tracking $tuuid',
-          );
-          await _aggregate(tuuid);
-          return await trx.push();
-        }
+        events.addAll(
+          await _aggregate(tuuid),
+        );
       }
+    }
+    return events;
+  }
+
+  Future<void> onTrackingTransaction<T extends DomainEvent>(
+    String tuuid,
+    T event,
+    Future<void> Function(String tuuid, T event) handle,
+  ) async {
+    Transaction trx;
+    try {
+      trx = repo.beginTransaction(tuuid);
+      await handle(tuuid, event);
+      await trx?.push();
     } catch (error, stackTrace) {
       _context.error(
         'Failed to push changes in Tracking $tuuid for event ${event.type} ${event.uuid} with: $error',
-        category: 'TrackingService._addPosition',
+        category: 'TrackingService.onTrackingTransaction',
         error: error,
         data: {
           'event.type': '${event.type}',
@@ -608,15 +594,15 @@ class TrackingService extends MessageHandler<DomainEvent> {
         stackTrace: Trace.from(stackTrace),
       );
     } finally {
-      if (repo.inTransaction(tuuid)) {
-        repo.rollback(tuuid);
+      if (trx?.isOpen == true) {
+        trx?.rollback(this);
       }
     }
-    return <DomainEvent>[];
   }
 
   /// Calculate geometric mean of last position in all tracks
-  FutureOr<void> _aggregate(String uuid) async {
+  FutureOr<Iterable<DomainEvent>> _aggregate(String uuid) async {
+    final events = <DomainEvent>[];
     final tracking = TrackingModel.fromJson(
       repo.get(uuid, context: _context).data,
     );
@@ -635,14 +621,16 @@ class TrackingService extends MessageHandler<DomainEvent> {
           distance: tracking.distance ?? 0,
         );
         final speed = TrackingUtils.speed(distance, effort);
-        final events = await _updateTrackingPosition({
-          UUID: uuid,
-          SPEED: speed,
-          DISTANCE: distance,
-          EFFORT: effort?.inMicroseconds,
-          POSITION: next.toJson(),
-          HISTORY: history.map((position) => position.toJson()).toList(),
-        });
+        events.addAll(
+          await _updateTrackingPosition({
+            UUID: uuid,
+            SPEED: speed,
+            DISTANCE: distance,
+            EFFORT: effort?.inMicroseconds,
+            POSITION: next.toJson(),
+            HISTORY: history.map((position) => position.toJson()).toList(),
+          }),
+        );
         _context.debug(
           'Aggregated position for Tracking $uuid',
           category: 'TrackingService._addTracking',
@@ -652,6 +640,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
         }
       }
     }
+    return events;
   }
 
   TrackModel _findTrackManagedByMe(String tuuid, String suuid) =>
@@ -795,19 +784,22 @@ class TrackingService extends MessageHandler<DomainEvent> {
     return next;
   }
 
-  Future _updateTrackingStatus(String uuid) async {
+  Future<Iterable<DomainEvent>> _updateTrackingStatus(String uuid) async {
     Map<String, dynamic> tracking;
+    final events = <DomainEvent>[];
     try {
       tracking = repo.get(uuid, context: _context).data;
       final current = tracking.elementAt<String>('status') ?? 'none';
       var next = _inferTrackingStatus(tracking, current);
       if (current != next) {
-        final events = await repo.execute(
-          UpdateTrackingStatus({
-            UUID: uuid,
-            STATUS: next,
-          }),
-          context: _context,
+        events.addAll(
+          await repo.execute(
+            UpdateTrackingStatus({
+              UUID: uuid,
+              STATUS: next,
+            }),
+            context: _context,
+          ),
         );
         if (events.isNotEmpty) {
           _addToStream(
@@ -830,6 +822,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
         stackTrace: Trace.from(stackTrace),
       );
     }
+    return events;
   }
 
   FutureOr<Iterable<DomainEvent>> _updateTrackingPosition(Map<String, Object> tracking) async {
@@ -956,7 +949,8 @@ class TrackingService extends MessageHandler<DomainEvent> {
     return false;
   }
 
-  Future _ensureDetached(TrackingSourceEvent event) async {
+  Future<Iterable<DomainEvent>> _ensureDetached(TrackingSourceEvent event) async {
+    final events = <DomainEvent>[];
     final tuuid = repo.toAggregateUuid(event);
     final data = repo.get(tuuid, context: _context).data;
     final suuid = event.toSourceUuid(data);
@@ -966,24 +960,19 @@ class TrackingService extends MessageHandler<DomainEvent> {
         [event],
         'Detaching track ${track.id} from source ${track.source.uuid}',
       );
-      try {
-        final trx = repo.getTransaction(tuuid);
-        final events = await _ensureTrack(
+      events.addAll(
+        await _ensureTrack(
           tuuid,
           track.id,
           track.source.toJson(),
           status: DETACHED,
-        );
-        if (events.isNotEmpty) {
-          await _updateTrackingStatus(tuuid);
-        }
-        await trx.push();
-      } finally {
-        if (repo.inTransaction(tuuid)) {
-          repo.rollback(tuuid);
-        }
+        ),
+      );
+      if (events.isNotEmpty) {
+        await _updateTrackingStatus(tuuid);
       }
     }
+    return events;
   }
 
   void _addToStream(Iterable<DomainEvent> events, String message, {bool replay = false}) {

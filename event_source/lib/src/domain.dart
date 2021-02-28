@@ -530,7 +530,7 @@ class Transaction {
 
   /// Changes currently being pushed.
   Iterable<DomainEvent> get changes {
-    return isStarted ? _changes.toList() : aggregate.getLocalEvents();
+    return _changes.toList();
   }
 
   /// Changes in this transaction
@@ -568,20 +568,23 @@ class Transaction {
   ///
   FutureOr<Iterable<DomainEvent>> execute(Command command) async {
     _assertTrx();
-    return repo.execute(
+    final changes = <DomainEvent>[];
+    repo._execute(
+      context,
       command,
-      context: context,
+      changes,
     );
+    return changes;
   }
 
   /// Push aggregate changes to remote
-  /// storage. Changes are committed when
-  /// on successful push. On failure,
+  /// storage. Changes are committed on
+  /// successful push. On failure,
   /// changes are rolled back. See also
   /// [Repository.push].
   ///
   /// If aggregate does not [exists] an
-  /// [AggregateNotFound] exception is  thrown.
+  /// [AggregateNotFound] exception is thrown.
   ///
   Future<Iterable<DomainEvent>> push({
     int maxAttempts = 10,
@@ -671,10 +674,12 @@ class Transaction {
             );
             _assertCommitted(completed);
           }
-          // This will throw ConcurrentWriteModifications
+          // This will throw ConcurrentWriteOperation
           // triggering a partial rollback to remote state
           // applied above
           _assertNoConcurrentModifications();
+
+          // Store and notify
           _result = changes;
           _completer.complete(changes);
 
@@ -1814,9 +1819,13 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Get a [Transaction] for
   /// given [AggregateRoot.uuid].
   ///
-  /// If no [Transaction] exists,
-  /// one will be created. This
-  /// transaction will not end
+  /// Returns null if no transaction exists
+  ///
+  Transaction getTransaction(String uuid) => _transactions[uuid];
+
+  /// Begins a [Transaction] for
+  /// given [AggregateRoot.uuid].
+  /// This transaction will not end
   /// until [Transaction.push]
   /// or [Transaction.rollback] is called.
   ///
@@ -1827,14 +1836,44 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// by execution of an [Command]
   /// of type [S] with [Action.create].
   ///
-  Transaction getTransaction(String uuid, {Context context}) => _transactions.putIfAbsent(
-        uuid,
-        () => Transaction(uuid, this, _context.join(context ?? _context)),
-      );
+  /// After a [Transaction] is created
+  /// only this can be used to
+  /// [Transaction.execute] and
+  /// [Transaction.push] changes on
+  /// [AggregateRoot] with given [uuid].
+  ///
+  /// If a [Transaction] already exists for
+  /// given [uuid] a [ConcurrentWriteOperation]
+  /// is thrown
+  ///
+  Transaction beginTransaction(String uuid, {Context context}) {
+    _assertNoTrx(
+      uuid,
+    );
+    return _transactions.putIfAbsent(
+      uuid,
+      () => Transaction(uuid, this, _context.join(context ?? _context)),
+    );
+  }
+
+  /// Try to begin a [Transaction].
+  ///
+  /// Returns null if a [Transaction]
+  /// already exist.
+  ///
+  Transaction tryTransaction(String uuid, {Context context}) {
+    return inTransaction(uuid)
+        ? null
+        : beginTransaction(
+            uuid,
+            context: context,
+          );
+  }
 
   /// Check if modifications of [AggregateRoot]
   /// with given [uuid] is wrapped in an
   /// [Transaction]
+  ///
   bool inTransaction(String uuid) => _transactions.containsKey(uuid);
 
   /// Execute command on given aggregate root.
@@ -1871,10 +1910,8 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     final tic = DateTime.now();
     final changes = <DomainEvent>[];
 
-    // Await transaction if exists
-    // and push has started
-    await _onNextCommand(
-      context,
+    // Await existing transaction if push has started
+    final uuid = await _onNextCommand(
       command,
       tic,
       timeout,
@@ -1887,30 +1924,23 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       changes,
     );
 
-    if (aggregate.isChanged) {
-      // If in transaction return
-      // changes without pushing them
-      if (_transactions.containsKey(command.uuid)) {
-        return changes;
-      }
-      return push(
-        aggregate,
-        context: context,
-        timeout: timeout,
-        maxAttempts: maxAttempts,
-      );
-    }
-    return <DomainEvent>[];
+    return inTransaction(uuid)
+        ? Future.value(changes)
+        : push(
+            aggregate,
+            context: context,
+            timeout: timeout,
+            maxAttempts: maxAttempts,
+          );
   }
 
-  Future<String> _onNextCommand(Context context, S command, DateTime tic, Duration timeout) async {
+  Future<String> _onNextCommand(S command, DateTime tic, Duration timeout) async {
     final uuid = _assertExecute(
       command,
     );
     if (inTransaction(uuid)) {
       final trx = getTransaction(
         uuid,
-        context: context,
       );
       if (trx.isStarted) {
         try {
@@ -1977,10 +2007,13 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   }
 
   T _execute(Context context, S command, List<DomainEvent> changes) {
-    _assertCanModify(
-      context,
-      command.uuid,
-    );
+    final uuid = command.uuid;
+    _assertModifiableTrx(uuid);
+    if (exists(uuid)) {
+      _assertWrite(
+        _aggregates[uuid],
+      );
+    }
     context = _joinContext(context);
     final aggregate = command is EntityCommand
         ? _applyEntityData(
@@ -2017,11 +2050,14 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     }
 
     for (var data in remaining) {
-      changes.add(aggregate.patch(
+      final event = aggregate.patch(
         data,
         emits: command.emits,
         timestamp: command.created,
-      ));
+      );
+      if (event != null) {
+        changes.add(event);
+      }
     }
     return aggregate;
   }
@@ -2083,45 +2119,61 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     int maxAttempts = 10,
     Duration timeout = timeLimit,
   }) {
-    var result = <DomainEvent>[];
-    final uuid = aggregate.uuid;
     // After this point the transaction
     // is started. A exception will be
     // thrown if a second push is attempted
     // before the transaction is completed.
-    final transaction = _assertPush(
+    final trx = _assertPush(
       context,
-      uuid,
+      aggregate.uuid,
       maxAttempts,
     );
+    return _schedulePush(
+      aggregate,
+      trx,
+      context,
+      timeout,
+    );
+  }
+
+  Future<Iterable<DomainEvent>> _schedulePush(
+    T aggregate,
+    Transaction trx,
+    Context context,
+    Duration timeout,
+  ) {
+    var result = <DomainEvent>[];
     if (aggregate.isChanged) {
       // Ensure transaction is not concurrent
       final added = _pushQueue.add(StreamRequest<Iterable<DomainEvent>>(
-        key: uuid,
+        key: aggregate.uuid,
         fail: true,
         timeout: timeout,
-        tag: transaction,
-        execute: () => _push(
+        tag: trx,
+        execute: () => _executePush(
           DateTime.now(),
           timeout,
-          transaction,
+          trx,
         ),
       ));
       context = _joinContext(context);
       if (added) {
         context.debug(
-          'Scheduled push of: ${transaction.toTagAsString()} (queue pressure: $pressure)',
+          'Scheduled push of: ${trx.toTagAsString()} (queue pressure: $pressure)',
           category: 'Repository.push',
         );
       } else {
         context.debug(
-          'Waiting on transaction already pushed: ${transaction.toTagAsString()} (queue pressure: $pressure)',
+          'Waiting on transaction already pushed: ${trx.toTagAsString()} (queue pressure: $pressure)',
           category: 'Repository.push',
         );
       }
-      return transaction.onPush.timeout(timeout);
+      return trx.onPush.timeout(timeout);
     } else {
-      _completeTrx(this, uuid);
+      _completeTrx(
+        this,
+        aggregate.uuid,
+      );
     }
     return Future.value(
       result,
@@ -2177,27 +2229,35 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     return uuid;
   }
 
-  Transaction _assertCanModify(Context context, String uuid, {bool open = false}) {
-    Transaction transaction;
-    if (inTransaction(uuid) || open) {
-      transaction = getTransaction(uuid, context: context);
-      if (transaction.isStarted) {
-        final idx = _pushQueue.indexOf(uuid);
+  void _assertNoTrx(String uuid) {
+    if (inTransaction(uuid)) {
+      final trx = getTransaction(uuid);
+      throw ConcurrentWriteOperation(
+        'Transaction ${trx.seqnum} already in progress for $aggregateType $uuid',
+        trx,
+      );
+    }
+  }
+
+  void _assertModifiableTrx(String uuid) {
+    if (inTransaction(uuid)) {
+      final trx = getTransaction(uuid);
+      if (trx.isStarted) {
+        final idx = _pushQueue.indexOf(trx.uuid);
         throw ConcurrentWriteOperation(
-          'Push request $idx already in progress for $aggregateType $uuid',
-          transaction,
+          'Push #$idx of transaction ${trx.seqnum} for $aggregateType $uuid in progress',
+          trx,
         );
       }
     }
-    return transaction;
   }
 
   Transaction _assertPush(Context context, String uuid, int maxAttempts) {
     if (isMaximumPushPressure) {
       final aggregate = _aggregates[uuid];
-      final changes = (inTransaction(uuid) ? getTransaction(uuid).changes : aggregate?.getLocalEvents()?.length) ?? 0;
+      final changes = (inTransaction(uuid) ? getTransaction(uuid).changes : aggregate?.getLocalEvents());
       throw RepositoryMaxPressureExceeded(
-        'Push of $changes changes in ${aggregateType} $uuid failed',
+        'Push of ${changes.length} changes in ${aggregateType} $uuid failed',
         uuid,
         this,
       );
@@ -2207,13 +2267,15 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       _assertExists(uuid),
     );
 
-    final transaction = _assertCanModify(
-      context,
-      uuid,
-      open: true,
-    );
-    transaction._start(this, maxAttempts);
-    return transaction;
+    final trx = getTransaction(uuid) ??
+        beginTransaction(
+          uuid,
+          context: context,
+        );
+
+    _assertModifiableTrx(uuid);
+
+    return trx.._start(this, maxAttempts);
   }
 
   /// Assert that this [operation] has an [Transaction]
@@ -2236,7 +2298,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     return aggregate;
   }
 
-  Future<StreamResult<Iterable<DomainEvent>>> _push(
+  Future<StreamResult<Iterable<DomainEvent>>> _executePush(
     DateTime tic,
     Duration timeout,
     Transaction trx,
