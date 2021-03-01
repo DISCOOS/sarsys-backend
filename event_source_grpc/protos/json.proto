@@ -48,4 +48,14 @@ enum JsonDataCompression {
 
 }
 
+message JsonMatchList {
+  int32 count = 1;
+  string query = 2;
+  repeated JsonMatch items = 3;
+}
 
+message JsonMatch {
+  string uuid = 1;
+  string path = 2;
+  JsonValue value = 3;
+}

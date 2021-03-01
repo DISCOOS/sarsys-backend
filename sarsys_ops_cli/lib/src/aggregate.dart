@@ -5,6 +5,7 @@ import 'dart:math';
 
 import 'package:meta/meta.dart';
 import 'package:event_source/event_source.dart';
+import 'package:pretty_json/pretty_json.dart';
 import 'package:sarsys_ops_cli/sarsys_ops_cli.dart';
 import 'package:strings/strings.dart';
 import 'package:timeago/timeago.dart' as tgo;
@@ -262,7 +263,8 @@ class AggregateSearchCommand extends AggregateCommandBase {
       ..addOption(
         'query',
         abbr: 'q',
-        help: 'Aggregate data jsonpath query',
+        help: 'Aggregate search query (jsonpath)',
+        valueHelp: r'$.data[?(@.field==value)]',
       );
   }
 
@@ -284,9 +286,8 @@ class AggregateSearchCommand extends AggregateCommandBase {
       usageException(red(' Aggregate data query is missing'));
       return writeln(red(' Aggregate data query is missing'), stderr);
     }
-    query = Uri.encodeQueryComponent(query);
     final token = await AuthUtils.getToken(this);
-    final uri = '/ops/api/services/aggregate/$type?expand=data&$query';
+    final uri = '/ops/api/services/aggregate/$type?expand=all&$query';
     return get(
       client,
       uri,
@@ -316,18 +317,14 @@ class AggregateSearchCommand extends AggregateCommandBase {
 
     // Get metadata
     writeln(highlight('> Search ${capitalize(type)} with $query'), stdout);
-    query = Uri.encodeQueryComponent(query);
-    final uri = '/ops/api/services/aggregate/$type?$expand$query';
+    // query = Uri.encodeQueryComponent(query);
+    final uri = '/ops/api/services/aggregate/$type?${expand}query=$query}';
 
     final token = await AuthUtils.getToken(this);
     final statuses = await get(
       client,
       uri,
-      (meta) => toTypeStatus(
-        type,
-        Map.from(meta).listAt('items'),
-        verbose: verbose,
-      ),
+      (json) => prettyJson(json),
       token: token,
       format: (result) => result,
     );

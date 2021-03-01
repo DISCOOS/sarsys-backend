@@ -842,3 +842,14 @@ dynamic toJsonSafe(
   final json = value == null ? '' : value.toString();
   return level > 0 ? json : {rootField: value};
 }
+
+class SearchMatch {
+  SearchMatch({
+    @required this.uuid,
+    @required this.path,
+    this.value,
+  });
+  final String uuid;
+  final String path;
+  final dynamic value;
+}

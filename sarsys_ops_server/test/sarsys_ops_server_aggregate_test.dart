@@ -41,11 +41,11 @@ Future main() async {
     await repo.readyAsync();
     final name = harness.instances.first;
     final uuid = await createDevice(repo);
+    final query = ".data[?(@.uuid=='$uuid')]";
 
     // Act
     final response = await harness.agent.get(
-      '/ops/api/services/aggregate/device?expand=all'
-      '&query=${Uri.encodeQueryComponent(r"$..[?(@.uuid!='')]")}',
+      '/ops/api/services/aggregate/device?expand=all&query=$query',
     );
 
     // Assert
@@ -53,11 +53,15 @@ Future main() async {
     final body = Map<String, dynamic>.from(
       await response.body.decode(),
     );
-    _assertItemsMeta(
-      name,
-      [uuid],
-      body,
-    );
+    final items = body.listAt<Map<String, dynamic>>('items');
+    expect(items.length, 1);
+    expect(items[0].elementAt('type'), 'device');
+    expect(items[0].elementAt('name'), name);
+    expect(items[0].elementAt('count'), 1);
+    expect(items[0].elementAt('query'), query);
+    expect(items[0].elementAt('items/0/uuid'), uuid);
+    expect(items[0].elementAt('items/0/value/uuid'), uuid);
+    expect(items[0].elementAt('items/0/path'), r"$['data']");
   });
 
   test('GET /ops/api/services/aggregate/:type/:uuid/:name returns 200 OK', () async {

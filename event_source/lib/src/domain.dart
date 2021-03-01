@@ -2582,15 +2582,29 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   /// Search for [Aggregate] with data matching given query.
   ///
-  /// Given [query] is a [JsonPath] string.
+  /// Given [query] is a [JsonPath] string that supports
   ///
-  Iterable<T> search(String query, [Map<String, dynamic> args = const {}]) {
-    final items = <T>[];
+  /// Returns list of matches on format
+  ///
+  ///
+  Iterable<SearchMatch> search(
+    String query, {
+    bool expand = false,
+    Map<String, dynamic> args = const {},
+  }) {
+    final items = <SearchMatch>[];
     final filter = JsonUtils.toNamedFilters(args);
     final path = JsonPath(query, filter: filter);
     for (var item in _aggregates.values) {
-      if (path.read(item.data).isNotEmpty) {
-        items.add(item);
+      final matches = path.read({
+        'data': item.data,
+      });
+      if (matches.isNotEmpty) {
+        items.addAll(matches.map((e) => SearchMatch(
+              uuid: item.uuid,
+              path: e.path,
+              value: expand ? e.value : null,
+            )));
       }
     }
     return items;

@@ -5,7 +5,6 @@ import 'package:event_source/event_source.dart';
 import 'package:grpc/grpc.dart';
 import 'package:grpc/src/server/call.dart';
 import 'package:logging/logging.dart';
-import 'package:json_path/json_path.dart';
 
 import 'generated/aggregate.pbgrpc.dart';
 import 'utils.dart';
@@ -75,6 +74,7 @@ class AggregateGrpcService extends AggregateGrpcServiceBase {
   ) async {
     final response = SearchAggregateMetaResponse()
       ..type = request.type
+      ..query = request.query
       ..limit = request.limit
       ..offset = request.offset
       ..statusCode = HttpStatus.ok
@@ -105,16 +105,14 @@ class AggregateGrpcService extends AggregateGrpcServiceBase {
       final items = await _trySearch(
         type,
         request.query,
-      );
-      response.matches = toAggregateMetaList(
-        type,
-        items.length,
-        items,
-        (aggregate) => toAggregateMetaFromRoot(
-          aggregate,
-          repo.store,
-          expand: request.expand,
+        expand: withAggregateField(
+          request.expand,
+          AggregateExpandFields.AGGREGATE_EXPAND_FIELDS_DATA,
         ),
+      );
+      response.matches = toJsonMatchList(
+        request.query,
+        items,
       );
     } on FormatException catch (error, stackTrace) {
       _log(
@@ -353,14 +351,19 @@ class AggregateGrpcService extends AggregateGrpcServiceBase {
     return repo.store.contains(uuid) ? repo.get(uuid) : null;
   }
 
-  FutureOr<List<AggregateRoot>> _trySearch(String type, String query) async {
+  FutureOr<List<SearchMatch>> _trySearch(
+    String type,
+    String query, {
+    bool expand = true,
+  }) async {
     final repo = manager.getFromTypeName(type);
     await repo.catchup(master: true);
     final match = JsonUtils.matchQuery(query);
     return repo
         .search(
           JsonUtils.toNamedQuery(query, match),
-          JsonUtils.toNamedArgs(query, match),
+          args: JsonUtils.toNamedArgs(query, match),
+          expand: expand,
         )
         .toList();
   }

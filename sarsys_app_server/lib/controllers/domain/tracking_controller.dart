@@ -1,5 +1,4 @@
 import 'package:event_source/event_source.dart';
-import 'package:json_patch/json_patch.dart';
 import 'package:sarsys_app_server/controllers/domain/schemas.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_app_server/sarsys_app_server.dart';

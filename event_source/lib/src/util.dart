@@ -103,8 +103,10 @@ class JsonUtils {
         ) as Map<String, dynamic>;
 
   static RegExpMatch matchQuery(String query) => RegExp(
-        // Value must always be in last group
-        r"([$.]*).*\[\?\(\@\.(\w*)\s*([><]?|==|!=|<=|>=|=~)\s*(\d*|\'(\w*)\'|([^!=<>~].*))\)\]",
+        // If number, g5 and g6 should be null
+        // If string, only g6 should be null
+        // If  regex, only g5 should be null
+        r"(\$?.{1,2}.*)\[\?\(\@\.(\w*)\s*([><]?|==|!=|<=|>=|=~)\s*([-.\d]*|\'(.*)\'|([^!=<>~].*))\)\]",
       ).firstMatch(query);
 
   static String toNamedQuery(String query, RegExpMatch match) {
@@ -117,12 +119,20 @@ class JsonUtils {
   static Map<String, dynamic> toNamedArgs(String query, RegExpMatch match) {
     final args = <String, dynamic>{};
     if (match != null) {
-      final last = match.group(match.groupCount);
+      final g5 = match.group(5);
+      final g6 = match.group(6);
       // Number comparison
       args[toNamedFilter(match.group(3))] = {
         'name': match.group(2),
-        // Assume value is always in last group
-        'value': last ?? match.group(match.groupCount - 1),
+        if (g5 == null && g6 == null)
+          // Number
+          'value': num.parse(match.group(4))
+        else if (g6 == null)
+          // String
+          'value': match.group(5)
+        else
+          // Regex
+          'value': match.group(6),
       };
     }
     return args;
@@ -179,13 +189,13 @@ class JsonUtils {
                 (v1, v2) {
                   final parts = '$v2'.split('/');
                   final query = parts.length > 1 ? parts[1] : '$v2';
-                  final options = parts.length > 1 ? parts[2] : '';
+                  final options = parts.length > 2 ? parts[2] : '';
                   return RegExp(
                         query,
                         dotAll: options.contains('g'),
                         multiLine: options.contains('m'),
-                        caseSensitive: options.contains('i'),
-                      ).firstMatch('$v2') !=
+                        caseSensitive: !options.contains('i'),
+                      ).firstMatch('$v1') !=
                       null;
                 },
               ),

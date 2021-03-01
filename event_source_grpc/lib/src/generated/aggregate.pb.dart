@@ -10,8 +10,9 @@ import 'dart:core' as $core;
 import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
 
-import 'any.pb.dart' as $5;
-import 'event.pb.dart' as $6;
+import 'json.pb.dart' as $5;
+import 'any.pb.dart' as $6;
+import 'event.pb.dart' as $7;
 
 import 'aggregate.pbenum.dart';
 
@@ -373,7 +374,7 @@ class SearchAggregateMetaResponse extends $pb.GeneratedMessage {
     ..a<$core.int>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'nextOffset', $pb.PbFieldType.O3, protoName: 'nextOffset')
     ..a<$core.int>(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'statusCode', $pb.PbFieldType.O3, protoName: 'statusCode')
     ..aOS(7, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'reasonPhrase', protoName: 'reasonPhrase')
-    ..aOM<AggregateMetaList>(8, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'matches', subBuilder: AggregateMetaList.create)
+    ..aOM<$5.JsonMatchList>(8, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'matches', subBuilder: $5.JsonMatchList.create)
     ..hasRequiredFields = false;
 
   SearchAggregateMetaResponse._() : super();
@@ -493,9 +494,9 @@ class SearchAggregateMetaResponse extends $pb.GeneratedMessage {
   void clearReasonPhrase() => clearField(7);
 
   @$pb.TagNumber(8)
-  AggregateMetaList get matches => $_getN(7);
+  $5.JsonMatchList get matches => $_getN(7);
   @$pb.TagNumber(8)
-  set matches(AggregateMetaList v) {
+  set matches($5.JsonMatchList v) {
     setField(8, v);
   }
 
@@ -504,7 +505,7 @@ class SearchAggregateMetaResponse extends $pb.GeneratedMessage {
   @$pb.TagNumber(8)
   void clearMatches() => clearField(8);
   @$pb.TagNumber(8)
-  AggregateMetaList ensureMatches() => $_ensure(7);
+  $5.JsonMatchList ensureMatches() => $_ensure(7);
 }
 
 class ReplayAggregateEventsRequest extends $pb.GeneratedMessage {
@@ -957,9 +958,9 @@ class ReplaceAggregateDataRequest extends $pb.GeneratedMessage {
         3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'expand', $pb.PbFieldType.PE,
         valueOf: AggregateExpandFields.valueOf,
         enumValues: AggregateExpandFields.values)
-    ..aOM<$5.Any>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'data',
-        subBuilder: $5.Any.create)
-    ..pc<$5.Any>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'patches', $pb.PbFieldType.PM, subBuilder: $5.Any.create)
+    ..aOM<$6.Any>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'data',
+        subBuilder: $6.Any.create)
+    ..pc<$6.Any>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'patches', $pb.PbFieldType.PM, subBuilder: $6.Any.create)
     ..hasRequiredFields = false;
 
   ReplaceAggregateDataRequest._() : super();
@@ -1022,9 +1023,9 @@ class ReplaceAggregateDataRequest extends $pb.GeneratedMessage {
   $core.List<AggregateExpandFields> get expand => $_getList(2);
 
   @$pb.TagNumber(4)
-  $5.Any get data => $_getN(3);
+  $6.Any get data => $_getN(3);
   @$pb.TagNumber(4)
-  set data($5.Any v) {
+  set data($6.Any v) {
     setField(4, v);
   }
 
@@ -1033,10 +1034,10 @@ class ReplaceAggregateDataRequest extends $pb.GeneratedMessage {
   @$pb.TagNumber(4)
   void clearData() => clearField(4);
   @$pb.TagNumber(4)
-  $5.Any ensureData() => $_ensure(3);
+  $6.Any ensureData() => $_ensure(3);
 
   @$pb.TagNumber(5)
-  $core.List<$5.Any> get patches => $_getList(4);
+  $core.List<$6.Any> get patches => $_getList(4);
 }
 
 class ReplaceAggregateDataResponse extends $pb.GeneratedMessage {
@@ -1259,15 +1260,15 @@ class AggregateMeta extends $pb.GeneratedMessage {
             : 'number')
     ..aInt64(
         4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'position')
-    ..aOM<$6.EventMeta>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'createdBy', protoName: 'createdBy', subBuilder: $6.EventMeta.create)
-    ..aOM<$6.EventMeta>(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'changedBy', protoName: 'changedBy', subBuilder: $6.EventMeta.create)
-    ..aOM<$6.EventMeta>(7, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'deletedBy', protoName: 'deletedBy', subBuilder: $6.EventMeta.create)
-    ..aOM<$6.EventMetaList>(8, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'applied', subBuilder: $6.EventMetaList.create)
-    ..aOM<$6.EventMetaList>(9, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'pending', subBuilder: $6.EventMetaList.create)
-    ..aOM<$6.EventMetaList>(10, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'skipped', subBuilder: $6.EventMetaList.create)
-    ..aOM<$5.Any>(11, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'taint', subBuilder: $5.Any.create)
-    ..aOM<$5.Any>(12, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'cordon', subBuilder: $5.Any.create)
-    ..aOM<$5.Any>(13, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'data', subBuilder: $5.Any.create)
+    ..aOM<$7.EventMeta>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'createdBy', protoName: 'createdBy', subBuilder: $7.EventMeta.create)
+    ..aOM<$7.EventMeta>(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'changedBy', protoName: 'changedBy', subBuilder: $7.EventMeta.create)
+    ..aOM<$7.EventMeta>(7, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'deletedBy', protoName: 'deletedBy', subBuilder: $7.EventMeta.create)
+    ..aOM<$7.EventMetaList>(8, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'applied', subBuilder: $7.EventMetaList.create)
+    ..aOM<$7.EventMetaList>(9, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'pending', subBuilder: $7.EventMetaList.create)
+    ..aOM<$7.EventMetaList>(10, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'skipped', subBuilder: $7.EventMetaList.create)
+    ..aOM<$6.Any>(11, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'taint', subBuilder: $6.Any.create)
+    ..aOM<$6.Any>(12, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'cordon', subBuilder: $6.Any.create)
+    ..aOM<$6.Any>(13, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'data', subBuilder: $6.Any.create)
     ..hasRequiredFields = false;
 
   AggregateMeta._() : super();
@@ -1348,9 +1349,9 @@ class AggregateMeta extends $pb.GeneratedMessage {
   void clearPosition() => clearField(4);
 
   @$pb.TagNumber(5)
-  $6.EventMeta get createdBy => $_getN(4);
+  $7.EventMeta get createdBy => $_getN(4);
   @$pb.TagNumber(5)
-  set createdBy($6.EventMeta v) {
+  set createdBy($7.EventMeta v) {
     setField(5, v);
   }
 
@@ -1359,12 +1360,12 @@ class AggregateMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(5)
   void clearCreatedBy() => clearField(5);
   @$pb.TagNumber(5)
-  $6.EventMeta ensureCreatedBy() => $_ensure(4);
+  $7.EventMeta ensureCreatedBy() => $_ensure(4);
 
   @$pb.TagNumber(6)
-  $6.EventMeta get changedBy => $_getN(5);
+  $7.EventMeta get changedBy => $_getN(5);
   @$pb.TagNumber(6)
-  set changedBy($6.EventMeta v) {
+  set changedBy($7.EventMeta v) {
     setField(6, v);
   }
 
@@ -1373,12 +1374,12 @@ class AggregateMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(6)
   void clearChangedBy() => clearField(6);
   @$pb.TagNumber(6)
-  $6.EventMeta ensureChangedBy() => $_ensure(5);
+  $7.EventMeta ensureChangedBy() => $_ensure(5);
 
   @$pb.TagNumber(7)
-  $6.EventMeta get deletedBy => $_getN(6);
+  $7.EventMeta get deletedBy => $_getN(6);
   @$pb.TagNumber(7)
-  set deletedBy($6.EventMeta v) {
+  set deletedBy($7.EventMeta v) {
     setField(7, v);
   }
 
@@ -1387,12 +1388,12 @@ class AggregateMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(7)
   void clearDeletedBy() => clearField(7);
   @$pb.TagNumber(7)
-  $6.EventMeta ensureDeletedBy() => $_ensure(6);
+  $7.EventMeta ensureDeletedBy() => $_ensure(6);
 
   @$pb.TagNumber(8)
-  $6.EventMetaList get applied => $_getN(7);
+  $7.EventMetaList get applied => $_getN(7);
   @$pb.TagNumber(8)
-  set applied($6.EventMetaList v) {
+  set applied($7.EventMetaList v) {
     setField(8, v);
   }
 
@@ -1401,12 +1402,12 @@ class AggregateMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(8)
   void clearApplied() => clearField(8);
   @$pb.TagNumber(8)
-  $6.EventMetaList ensureApplied() => $_ensure(7);
+  $7.EventMetaList ensureApplied() => $_ensure(7);
 
   @$pb.TagNumber(9)
-  $6.EventMetaList get pending => $_getN(8);
+  $7.EventMetaList get pending => $_getN(8);
   @$pb.TagNumber(9)
-  set pending($6.EventMetaList v) {
+  set pending($7.EventMetaList v) {
     setField(9, v);
   }
 
@@ -1415,12 +1416,12 @@ class AggregateMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(9)
   void clearPending() => clearField(9);
   @$pb.TagNumber(9)
-  $6.EventMetaList ensurePending() => $_ensure(8);
+  $7.EventMetaList ensurePending() => $_ensure(8);
 
   @$pb.TagNumber(10)
-  $6.EventMetaList get skipped => $_getN(9);
+  $7.EventMetaList get skipped => $_getN(9);
   @$pb.TagNumber(10)
-  set skipped($6.EventMetaList v) {
+  set skipped($7.EventMetaList v) {
     setField(10, v);
   }
 
@@ -1429,12 +1430,12 @@ class AggregateMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(10)
   void clearSkipped() => clearField(10);
   @$pb.TagNumber(10)
-  $6.EventMetaList ensureSkipped() => $_ensure(9);
+  $7.EventMetaList ensureSkipped() => $_ensure(9);
 
   @$pb.TagNumber(11)
-  $5.Any get taint => $_getN(10);
+  $6.Any get taint => $_getN(10);
   @$pb.TagNumber(11)
-  set taint($5.Any v) {
+  set taint($6.Any v) {
     setField(11, v);
   }
 
@@ -1443,12 +1444,12 @@ class AggregateMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(11)
   void clearTaint() => clearField(11);
   @$pb.TagNumber(11)
-  $5.Any ensureTaint() => $_ensure(10);
+  $6.Any ensureTaint() => $_ensure(10);
 
   @$pb.TagNumber(12)
-  $5.Any get cordon => $_getN(11);
+  $6.Any get cordon => $_getN(11);
   @$pb.TagNumber(12)
-  set cordon($5.Any v) {
+  set cordon($6.Any v) {
     setField(12, v);
   }
 
@@ -1457,12 +1458,12 @@ class AggregateMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(12)
   void clearCordon() => clearField(12);
   @$pb.TagNumber(12)
-  $5.Any ensureCordon() => $_ensure(11);
+  $6.Any ensureCordon() => $_ensure(11);
 
   @$pb.TagNumber(13)
-  $5.Any get data => $_getN(12);
+  $6.Any get data => $_getN(12);
   @$pb.TagNumber(13)
-  set data($5.Any v) {
+  set data($6.Any v) {
     setField(13, v);
   }
 
@@ -1471,5 +1472,5 @@ class AggregateMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(13)
   void clearData() => clearField(13);
   @$pb.TagNumber(13)
-  $5.Any ensureData() => $_ensure(12);
+  $6.Any ensureData() => $_ensure(12);
 }

@@ -82,7 +82,7 @@ const SearchAggregateMetaResponse$json = const {
       '3': 8,
       '4': 1,
       '5': 11,
-      '6': '.org.discoos.es.AggregateMetaList',
+      '6': '.org.discoos.io.JsonMatchList',
       '10': 'matches'
     },
   ],

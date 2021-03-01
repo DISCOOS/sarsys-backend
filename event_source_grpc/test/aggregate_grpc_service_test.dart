@@ -92,7 +92,7 @@ void main() {
     final response = await client.searchMeta(
       SearchAggregateMetaRequest()
         ..type = 'Foo'
-        ..query = r"$..[?(@.property11=='value11')]"
+        ..query = r"$.data[?(@.property11=='value11')]"
         ..expand.add(
           AggregateExpandFields.AGGREGATE_EXPAND_FIELDS_ALL,
         ),
@@ -106,9 +106,7 @@ void main() {
     expect(response.matches.count, 1);
     expect(
       fromJsonValue(
-        toJsonValueFromAny(
-          response.matches.items.first.data,
-        ),
+        response.matches.items.first.value,
       ),
       equals(data1),
     );
@@ -128,7 +126,7 @@ void main() {
     final response = await client.searchMeta(
       SearchAggregateMetaRequest()
         ..type = 'Foo'
-        ..query = r'$..[?(@.property11=~/value.*/i)]'
+        ..query = r'$.data[?(@.property11=~/VALUE.*/i)]'
         ..expand.add(
           AggregateExpandFields.AGGREGATE_EXPAND_FIELDS_ALL,
         ),
@@ -142,9 +140,7 @@ void main() {
     expect(response.matches.count, 1);
     expect(
       fromJsonValue(
-        toJsonValueFromAny(
-          response.matches.items.first.data,
-        ),
+        response.matches.items.first.value,
       ),
       equals(data1),
     );

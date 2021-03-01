@@ -9,6 +9,7 @@ option cc_enable_arenas = true;
 package org.discoos.es;
 
 import "any.proto";
+import "json.proto";
 import "event.proto";
 
 
@@ -109,8 +110,8 @@ message SearchAggregateMetaResponse {
     // Response status code reason
     string reasonPhrase = 7;
 
-    // List of aggregate metadata matching query
-    AggregateMetaList matches = 8;
+    // List of aggregate query matches
+    org.discoos.io.JsonMatchList matches = 8;
 }
 
 // Replay events on given aggregate
