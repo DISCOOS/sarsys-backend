@@ -3074,6 +3074,9 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
       final next = _toData(base, skip, take);
       _setBase(next);
     }
+
+    _setUuid(_base);
+
     // This ensures that base is not
     // recalculated on each call
     _baseIndex = _applied.length - 1;
@@ -3132,10 +3135,19 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
       final next = _toData(head, skip, take);
       _setHead(next);
     }
+
+    _setUuid(_head);
+
     // This ensures that head is not
     // recalculated on each call
     _headIndex += take;
     return _head;
+  }
+
+  void _setUuid(Map<String, dynamic> data) {
+    if (data[uuidFieldName] != uuid) {
+      data[uuidFieldName] = uuid;
+    }
   }
 
   int _headIndex = -1;
@@ -3149,9 +3161,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// using [toData].
   ///
   Map<String, dynamic> get data {
-    if (_data[uuidFieldName] != uuid) {
-      _data[uuidFieldName] = uuid;
-    }
+    _setUuid(_data);
     return Map.unmodifiable(_data);
   }
 
@@ -3302,7 +3312,11 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// Get [mine] patches.
   List<Map<String, dynamic>> get mine {
     if (_mineIndex < _localEvents.length) {
-      final mine = JsonPatch.diff(base, data);
+      final mine = JsonUtils.diff(
+        base,
+        data,
+        appendOnly: false,
+      );
       _setMine(mine);
       // This ensures that mine is not
       // recalculated on each call
@@ -3574,7 +3588,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   }) {
     // Remove all unsupported operations
     final patches = JsonUtils.diff(
-      _data,
+      data,
       next,
     );
     return isNew || patches.isNotEmpty
