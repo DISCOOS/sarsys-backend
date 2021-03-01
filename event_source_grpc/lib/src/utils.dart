@@ -258,19 +258,37 @@ DurationMetricMeta toDurationMetricMeta(Map<String, dynamic> metrics) {
   return meta;
 }
 
+JsonMatchList toJsonMatchList(
+  String query,
+  List<SearchMatch> items,
+) {
+  return JsonMatchList()
+    ..query = query
+    ..count = items.length
+    ..items.addAll([
+      if (items.isNotEmpty)
+        ...items.map(
+          (match) => JsonMatch()
+            ..path = match.path
+            ..uuid = match.uuid
+            ..value = toJsonValue(
+              match.value,
+            ),
+        ),
+    ]);
+}
+
 AggregateMetaList toAggregateMetaList(
   String type,
   int count,
   List items,
   AggregateMeta Function(dynamic) map,
 ) {
-  final list = AggregateMetaList()
+  return AggregateMetaList()
     ..count = count
     ..items.addAll([
       if (items.isNotEmpty) ...items.map(map),
     ]);
-
-  return list;
 }
 
 bool withAggregateField(List<AggregateExpandFields> expand, AggregateExpandFields field) =>

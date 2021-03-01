@@ -99,10 +99,8 @@ class AggregateGrpcServiceController extends ComponentBaseController {
         defaultValue: HttpStatus.ok,
       );
       if (statusCode == HttpStatus.ok) {
-        items.addAll(
-          matches.listAt<Map<String, dynamic>>(
-            'items',
-          ),
+        items.add(
+          matches,
         );
         names.add(
           k8s.toPodName(pod),
@@ -154,14 +152,14 @@ class AggregateGrpcServiceController extends ComponentBaseController {
     );
 
     return {
-      'items': response.matches.items
-          .map(
-            (meta) => toProto3JsonInstanceMeta(
-              k8s.toPodName(pod),
-              meta,
-            ),
-          )
-          .toList(),
+      ...toProto3SearchResult(
+        type,
+        k8s.toPodName(pod),
+        response.matches,
+        limit: response.limit,
+        offset: response.offset,
+        next: response.nextOffset,
+      ),
       if (response.statusCode >= HttpStatus.badRequest)
         'error': {
           'statusCode': response.statusCode,

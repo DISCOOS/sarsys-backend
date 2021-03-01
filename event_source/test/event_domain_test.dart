@@ -86,7 +86,7 @@ Future main() async {
       ],
     };
     final patches2 = JsonUtils.diff(foo.data, data2);
-    final e = foo.patch(data2, emits: FooUpdated);
+    foo.patch(data2, emits: FooUpdated);
     // Patch should not remove 'property3'
     expect(foo.data, Map.from(data2)..addAll({'property3': 'value3'}));
 

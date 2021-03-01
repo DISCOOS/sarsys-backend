@@ -594,7 +594,7 @@ class TrackingGrpcServiceController extends ComponentBaseController {
     return toProto3JsonInstanceMeta(
       name,
       meta,
-      (json) => json
+      map: (json) => json
         ..update(
           'status',
           (value) => capitalize(enumName(meta.status).split('_').last),

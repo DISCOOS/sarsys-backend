@@ -11,7 +11,7 @@ import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
 
 import 'aggregate.pb.dart' as $0;
-import 'metric.pb.dart' as $7;
+import 'metric.pb.dart' as $8;
 import 'file.pb.dart' as $3;
 
 import 'snapshot.pbenum.dart';
@@ -477,9 +477,9 @@ class SnapshotMetricsMeta extends $pb.GeneratedMessage {
                 : 'missing')
         ..aOB(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'isPartial',
             protoName: 'isPartial')
-        ..aOM<$7.DurationMetricMeta>(
+        ..aOM<$8.DurationMetricMeta>(
             5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'save',
-            subBuilder: $7.DurationMetricMeta.create)
+            subBuilder: $8.DurationMetricMeta.create)
         ..hasRequiredFields = false;
 
   SnapshotMetricsMeta._() : super();
@@ -560,9 +560,9 @@ class SnapshotMetricsMeta extends $pb.GeneratedMessage {
   void clearIsPartial() => clearField(4);
 
   @$pb.TagNumber(5)
-  $7.DurationMetricMeta get save => $_getN(4);
+  $8.DurationMetricMeta get save => $_getN(4);
   @$pb.TagNumber(5)
-  set save($7.DurationMetricMeta v) {
+  set save($8.DurationMetricMeta v) {
     setField(5, v);
   }
 
@@ -571,7 +571,7 @@ class SnapshotMetricsMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(5)
   void clearSave() => clearField(5);
   @$pb.TagNumber(5)
-  $7.DurationMetricMeta ensureSave() => $_ensure(4);
+  $8.DurationMetricMeta ensureSave() => $_ensure(4);
 }
 
 class ConfigureSnapshotRequest extends $pb.GeneratedMessage {

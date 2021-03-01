@@ -10,8 +10,8 @@ import 'dart:core' as $core;
 import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
 
-import 'event.pb.dart' as $6;
-import 'metric.pb.dart' as $7;
+import 'event.pb.dart' as $7;
+import 'metric.pb.dart' as $8;
 import 'aggregate.pb.dart' as $0;
 
 import 'repository.pbenum.dart';
@@ -1096,8 +1096,8 @@ class RepositoryMeta extends $pb.GeneratedMessage {
         const $core.bool.fromEnvironment('protobuf.omit_field_names')
             ? ''
             : 'type')
-    ..aOM<$6.EventMeta>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'lastEvent',
-        protoName: 'lastEvent', subBuilder: $6.EventMeta.create)
+    ..aOM<$7.EventMeta>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'lastEvent',
+        protoName: 'lastEvent', subBuilder: $7.EventMeta.create)
     ..aOM<RepositoryQueueMeta>(
         3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'queue',
         subBuilder: RepositoryQueueMeta.create)
@@ -1151,9 +1151,9 @@ class RepositoryMeta extends $pb.GeneratedMessage {
   void clearType() => clearField(1);
 
   @$pb.TagNumber(2)
-  $6.EventMeta get lastEvent => $_getN(1);
+  $7.EventMeta get lastEvent => $_getN(1);
   @$pb.TagNumber(2)
-  set lastEvent($6.EventMeta v) {
+  set lastEvent($7.EventMeta v) {
     setField(2, v);
   }
 
@@ -1162,7 +1162,7 @@ class RepositoryMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(2)
   void clearLastEvent() => clearField(2);
   @$pb.TagNumber(2)
-  $6.EventMeta ensureLastEvent() => $_ensure(1);
+  $7.EventMeta ensureLastEvent() => $_ensure(1);
 
   @$pb.TagNumber(3)
   RepositoryQueueMeta get queue => $_getN(2);
@@ -1539,9 +1539,9 @@ class RepositoryMetricsMeta extends $pb.GeneratedMessage {
         ..aOM<RepositoryMetricsAggregateMeta>(
             4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'aggregates',
             subBuilder: RepositoryMetricsAggregateMeta.create)
-        ..aOM<$7.DurationMetricMeta>(
+        ..aOM<$8.DurationMetricMeta>(
             5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'push',
-            subBuilder: $7.DurationMetricMeta.create)
+            subBuilder: $8.DurationMetricMeta.create)
         ..hasRequiredFields = false;
 
   RepositoryMetricsMeta._() : super();
@@ -1614,9 +1614,9 @@ class RepositoryMetricsMeta extends $pb.GeneratedMessage {
   RepositoryMetricsAggregateMeta ensureAggregates() => $_ensure(2);
 
   @$pb.TagNumber(5)
-  $7.DurationMetricMeta get push => $_getN(3);
+  $8.DurationMetricMeta get push => $_getN(3);
   @$pb.TagNumber(5)
-  set push($7.DurationMetricMeta v) {
+  set push($8.DurationMetricMeta v) {
     setField(5, v);
   }
 
@@ -1625,7 +1625,7 @@ class RepositoryMetricsMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(5)
   void clearPush() => clearField(5);
   @$pb.TagNumber(5)
-  $7.DurationMetricMeta ensurePush() => $_ensure(3);
+  $8.DurationMetricMeta ensurePush() => $_ensure(3);
 }
 
 class RepositoryMetricsAggregateMeta extends $pb.GeneratedMessage {
@@ -1751,15 +1751,15 @@ class ConnectionMetricsMeta extends $pb.GeneratedMessage {
               ? ''
               : 'org.discoos.es'),
       createEmptyInstance: create)
-    ..aOM<$7.DurationMetricMeta>(
+    ..aOM<$8.DurationMetricMeta>(
         1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'read',
-        subBuilder: $7.DurationMetricMeta.create)
-    ..aOM<$7.DurationMetricMeta>(
+        subBuilder: $8.DurationMetricMeta.create)
+    ..aOM<$8.DurationMetricMeta>(
         2,
         const $core.bool.fromEnvironment('protobuf.omit_field_names')
             ? ''
             : 'write',
-        subBuilder: $7.DurationMetricMeta.create)
+        subBuilder: $8.DurationMetricMeta.create)
     ..hasRequiredFields = false;
 
   ConnectionMetricsMeta._() : super();
@@ -1794,9 +1794,9 @@ class ConnectionMetricsMeta extends $pb.GeneratedMessage {
   static ConnectionMetricsMeta _defaultInstance;
 
   @$pb.TagNumber(1)
-  $7.DurationMetricMeta get read => $_getN(0);
+  $8.DurationMetricMeta get read => $_getN(0);
   @$pb.TagNumber(1)
-  set read($7.DurationMetricMeta v) {
+  set read($8.DurationMetricMeta v) {
     setField(1, v);
   }
 
@@ -1805,12 +1805,12 @@ class ConnectionMetricsMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(1)
   void clearRead() => clearField(1);
   @$pb.TagNumber(1)
-  $7.DurationMetricMeta ensureRead() => $_ensure(0);
+  $8.DurationMetricMeta ensureRead() => $_ensure(0);
 
   @$pb.TagNumber(2)
-  $7.DurationMetricMeta get write => $_getN(1);
+  $8.DurationMetricMeta get write => $_getN(1);
   @$pb.TagNumber(2)
-  set write($7.DurationMetricMeta v) {
+  set write($8.DurationMetricMeta v) {
     setField(2, v);
   }
 
@@ -1819,5 +1819,5 @@ class ConnectionMetricsMeta extends $pb.GeneratedMessage {
   @$pb.TagNumber(2)
   void clearWrite() => clearField(2);
   @$pb.TagNumber(2)
-  $7.DurationMetricMeta ensureWrite() => $_ensure(1);
+  $8.DurationMetricMeta ensureWrite() => $_ensure(1);
 }
