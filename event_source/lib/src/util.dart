@@ -104,7 +104,7 @@ class JsonUtils {
 
   static RegExpMatch matchQuery(String query) => RegExp(
         // Value must always be in last group
-        r"([$.].*)\[\?\(\@\.(\w*)\s*([><]?|==|!=|<=|>=|=~)\s*(\d*|\'(\w*)\'|([^!=<>~].*))\)\]",
+        r"([$.]*).*\[\?\(\@\.(\w*)\s*([><]?|==|!=|<=|>=|=~)\s*(\d*|\'(\w*)\'|([^!=<>~].*))\)\]",
       ).firstMatch(query);
 
   static String toNamedQuery(String query, RegExpMatch match) {
@@ -117,11 +117,12 @@ class JsonUtils {
   static Map<String, dynamic> toNamedArgs(String query, RegExpMatch match) {
     final args = <String, dynamic>{};
     if (match != null) {
+      final last = match.group(match.groupCount);
       // Number comparison
       args[toNamedFilter(match.group(3))] = {
         'name': match.group(2),
         // Assume value is always in last group
-        'value': match.group(match.groupCount),
+        'value': last ?? match.group(match.groupCount - 1),
       };
     }
     return args;

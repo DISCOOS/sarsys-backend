@@ -70,7 +70,10 @@ Future main() async {
       ]
     };
     final foo = repo.get(uuid, data: data1);
-    final patches1 = JsonUtils.diff({}, data1);
+    final patches1 = JsonUtils.diff(
+      {'uuid': uuid},
+      data1,
+    );
     expect(foo.data, data1);
 
     // Act - changed
@@ -82,8 +85,8 @@ Future main() async {
         {'name': 'item3'},
       ],
     };
-    final patches2 = JsonUtils.diff(data1, data2);
-    foo.patch(data2, emits: FooUpdated);
+    final patches2 = JsonUtils.diff(foo.data, data2);
+    final e = foo.patch(data2, emits: FooUpdated);
     // Patch should not remove 'property3'
     expect(foo.data, Map.from(data2)..addAll({'property3': 'value3'}));
 
