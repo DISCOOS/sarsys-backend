@@ -109,6 +109,14 @@ class JsonUtils {
         r"(\$?.{1,2}.*)\[\?\(\@\.(\w*)\s*([><]?|==|!=|<=|>=|=~)\s*([-.\d]*|\'(.*)\'|([^!=<>~].*))\)\]",
       ).firstMatch(query);
 
+  static String toQueryRoot(String query, [RegExpMatch match]) {
+    match ??= RegExp(r'(\$?.{1,2}.*)\[\?.*\]').firstMatch(query);
+    if (match == null) {
+      return '';
+    }
+    return match.group(1);
+  }
+
   static String toNamedQuery(String query, RegExpMatch match) {
     if (match == null) {
       return query;

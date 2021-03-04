@@ -1,7 +1,7 @@
-export 'package:strings/strings.dart';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:meta/meta.dart';
 import 'package:event_source/event_source.dart';
 import 'package:event_source_grpc/event_source_grpc.dart';
 import 'package:fixnum/fixnum.dart';
@@ -77,20 +77,22 @@ List<int> toJsonValueBytes(
 }
 
 dynamic toJsonFromAny(Any value) {
-  return fromJsonValue(
-    value.unpackInto<JsonValue>(JsonValueWrapper()),
-  );
+  return fromJsonValue(toJsonValueFromAny(
+    value,
+  ));
 }
 
 JsonValue toJsonValueFromAny(Any value) {
-  return value.unpackInto<JsonValue>(JsonValueWrapper());
+  return value.hasTypeUrl() ? value.unpackInto<JsonValue>(JsonValueWrapper()) : null;
 }
 
 dynamic fromJsonValue(JsonValue value) {
-  return fromJsonDataBytes(
-    value.data,
-    value.compression,
-  );
+  return value != null
+      ? fromJsonDataBytes(
+          value.data,
+          value.compression,
+        )
+      : null;
 }
 
 dynamic fromJsonDataBytes(
@@ -260,22 +262,57 @@ DurationMetricMeta toDurationMetricMeta(Map<String, dynamic> metrics) {
 
 JsonMatchList toJsonMatchList(
   String query,
-  List<SearchMatch> items,
-) {
-  return JsonMatchList()
+  List<SearchMatch> items, {
+  @required int limit,
+  @required int offset,
+}) {
+  final list = JsonMatchList()
     ..query = query
     ..count = items.length
     ..items.addAll([
       if (items.isNotEmpty)
-        ...items.map(
-          (match) => JsonMatch()
+        ...items
+            .toPage(
+              limit: limit,
+              offset: offset,
+            )
+            .map(
+              (match) => JsonMatch()
+                ..path = match.path
+                ..uuid = match.uuid
+                ..value = toJsonValue(
+                  match.value,
+                ),
+            ),
+    ]);
+  list.count = list.items.length;
+  return list;
+}
+
+AggregateMetaMatchList toAggregateMatchList(
+  Repository repo,
+  List<SearchMatch> matches, {
+  @required String query,
+  List<AggregateExpandFields> expand = const [],
+}) {
+  final list = AggregateMetaMatchList()
+    ..query = query
+    ..count = matches.length
+    ..items.addAll([
+      if (matches.isNotEmpty)
+        ...matches.map(
+          (match) => AggregateMetaMatch()
             ..path = match.path
             ..uuid = match.uuid
-            ..value = toJsonValue(
-              match.value,
+            ..meta = toAggregateMetaFromRoot(
+              repo.get(match.uuid),
+              repo.store,
+              expand: expand,
             ),
         ),
     ]);
+  list.count = list.items.length;
+  return list;
 }
 
 AggregateMetaList toAggregateMetaList(

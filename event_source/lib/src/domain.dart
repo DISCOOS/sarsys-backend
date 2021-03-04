@@ -2593,11 +2593,24 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     Map<String, dynamic> args = const {},
   }) {
     final items = <SearchMatch>[];
+    final root = JsonUtils.toQueryRoot(query);
+    final all = root.contains('..');
     final filter = JsonUtils.toNamedFilters(args);
     final path = JsonPath(query, filter: filter);
     for (var item in _aggregates.values) {
       final matches = path.read({
-        'data': item.data,
+        // Only include if search is recursive or root matches object
+        if (all || root.contains('data')) 'data': item.data,
+        if (all || root.contains('number')) 'number': item.number.value,
+        if (all || root.contains('position')) 'position': store.toPosition(item.baseEvent),
+        if (all || root.contains('createdBy')) 'createdBy': item.createdBy.toJson(),
+        if (all || root.contains('changedBy')) 'changedBy': item.changedBy.toJson(),
+        if ((all || root.contains('deletedBy')) && item.deletedBy != null) 'deletedBy': item.deletedBy.toJson(),
+        if (all || root.contains('applied')) 'applied': item.applied.map((e) => e.toJson()),
+        if (all || root.contains('changed')) 'changed': item.getLocalEvents().map((e) => e.toJson()),
+        if (all || root.contains('skipped')) 'skipped': item.skipped.map((e) => store.getEvent(e).toJson()),
+        if ((all || root.contains('taint')) && store.isTainted(item.uuid)) 'taint': store.tainted[item.uuid],
+        if ((all || root.contains('cordon')) && store.isCordoned(item.uuid)) 'cordon': store.cordoned[item.uuid],
       });
       if (matches.isNotEmpty) {
         items.addAll(matches.map((e) => SearchMatch(

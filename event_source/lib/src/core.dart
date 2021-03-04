@@ -174,6 +174,15 @@ class Event extends Message {
         (data['patches'] as List).map((e) => Map<String, dynamic>.from(e as Map)),
       );
 
+  /// Get [Event] as json map
+  Map<String, dynamic> toJson() => {
+        'type': type,
+        'number': number,
+        'remote': remote,
+        'created': created.toIso8601String(),
+        'data': data,
+      };
+
   @override
   String toString() {
     return '$runtimeType{uuid: $uuid, type: $type, number: $number, local: $local, created: $created}';

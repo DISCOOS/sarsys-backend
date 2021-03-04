@@ -74,16 +74,49 @@ const SearchAggregateMetaResponse$json = const {
     const {'1': 'query', '3': 2, '4': 1, '5': 9, '10': 'query'},
     const {'1': 'limit', '3': 3, '4': 1, '5': 5, '10': 'limit'},
     const {'1': 'offset', '3': 4, '4': 1, '5': 5, '10': 'offset'},
-    const {'1': 'nextOffset', '3': 5, '4': 1, '5': 5, '10': 'nextOffset'},
-    const {'1': 'statusCode', '3': 6, '4': 1, '5': 5, '10': 'statusCode'},
-    const {'1': 'reasonPhrase', '3': 7, '4': 1, '5': 9, '10': 'reasonPhrase'},
+    const {'1': 'total', '3': 5, '4': 1, '5': 5, '10': 'total'},
+    const {'1': 'nextOffset', '3': 6, '4': 1, '5': 5, '10': 'nextOffset'},
+    const {'1': 'statusCode', '3': 7, '4': 1, '5': 5, '10': 'statusCode'},
+    const {'1': 'reasonPhrase', '3': 8, '4': 1, '5': 9, '10': 'reasonPhrase'},
     const {
       '1': 'matches',
-      '3': 8,
+      '3': 9,
       '4': 1,
       '5': 11,
-      '6': '.org.discoos.io.JsonMatchList',
+      '6': '.org.discoos.es.AggregateMetaMatchList',
       '10': 'matches'
+    },
+  ],
+};
+
+const AggregateMetaMatchList$json = const {
+  '1': 'AggregateMetaMatchList',
+  '2': const [
+    const {'1': 'count', '3': 1, '4': 1, '5': 5, '10': 'count'},
+    const {'1': 'query', '3': 2, '4': 1, '5': 9, '10': 'query'},
+    const {
+      '1': 'items',
+      '3': 3,
+      '4': 3,
+      '5': 11,
+      '6': '.org.discoos.es.AggregateMetaMatch',
+      '10': 'items'
+    },
+  ],
+};
+
+const AggregateMetaMatch$json = const {
+  '1': 'AggregateMetaMatch',
+  '2': const [
+    const {'1': 'uuid', '3': 1, '4': 1, '5': 9, '10': 'uuid'},
+    const {'1': 'path', '3': 2, '4': 1, '5': 9, '10': 'path'},
+    const {
+      '1': 'meta',
+      '3': 3,
+      '4': 1,
+      '5': 11,
+      '6': '.org.discoos.es.AggregateMeta',
+      '10': 'meta'
     },
   ],
 };

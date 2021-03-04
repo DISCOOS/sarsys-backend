@@ -152,14 +152,14 @@ class AggregateGetCommand extends AggregateCommandBase {
         help: 'Aggregate type name',
       )
       ..addOption(
-        'uuid',
-        abbr: 'u',
-        help: 'Aggregate instance universal unique id',
-      )
-      ..addOption(
         'instance',
         abbr: 'i',
-        help: 'Aggregate server instance name',
+        help: 'Server instance name',
+      )
+      ..addOption(
+        'uuid',
+        abbr: 'u',
+        help: 'Aggregate instance id',
       );
   }
 
@@ -176,19 +176,20 @@ class AggregateGetCommand extends AggregateCommandBase {
       usageException(red(' Aggregate type is missing'));
       return writeln(red(' Aggregate type is missing'), stderr, force: true);
     }
+    final instance = argResults['instance'] as String;
+    if (instance == null) {
+      usageException(red(' Server instance name is missing'));
+      return writeln(red(' Server instance name is missing'), stderr);
+    }
     final uuid = argResults['uuid'] as String;
     if (uuid == null) {
       usageException(red(' Aggregate uuid is missing'));
       return writeln(red(' Aggregate uuid is missing'), stderr);
     }
     final token = await AuthUtils.getToken(this);
-    final instance = argResults['instance'] as String;
-    final uri = instance == null
-        ? '/ops/api/services/aggregate/$type/$uuid?expand=data'
-        : '/ops/api/services/aggregate/$type/$uuid/$instance?expand=data';
     return get(
       client,
-      uri,
+      '/ops/api/services/aggregate/$type/$instance/$uuid?expand=data',
       (meta) => jsonEncode(meta),
       token: token,
       format: (result) => result,
@@ -201,7 +202,12 @@ class AggregateGetCommand extends AggregateCommandBase {
     final type = argResults['type'] as String;
     if (type == null) {
       usageException(red(' Aggregate type is missing'));
-      return writeln(red(' Aggregate type is missing'), stderr);
+      return writeln(red(' Aggregate type is missing'), stderr, force: true);
+    }
+    final instance = argResults['instance'] as String;
+    if (instance == null) {
+      usageException(red(' Server instance name is missing'));
+      return writeln(red(' Server instance name is missing'), stderr);
     }
     final uuid = argResults['uuid'] as String;
     if (uuid == null) {
@@ -210,45 +216,29 @@ class AggregateGetCommand extends AggregateCommandBase {
     }
 
     // Prepare
-    final instance = argResults['instance'] as String;
     final verbose = globalResults['verbose'] as bool;
     final expand = verbose ? '?expand=all' : '';
 
     // Get metadata
     writeln(highlight('> Get ${capitalize(type)} $uuid'), stdout);
     final token = await AuthUtils.getToken(this);
-    if (instance == null) {
-      final statuses = await get(
-        client,
-        '/ops/api/services/aggregate/$type/$uuid$expand',
-        (meta) => toTypeStatus(
+    final status = await get(
+      client,
+      '/ops/api/services/aggregate/$type/$instance/$uuid$expand',
+      (meta) {
+        final buffer = StringBuffer();
+        toInstanceStatus(
           type,
-          Map.from(meta).listAt('items'),
+          meta,
+          buffer: buffer,
           verbose: verbose,
-        ),
-        token: token,
-        format: (result) => result,
-      );
-      writeln(statuses, stdout);
-    } else {
-      final status = await get(
-        client,
-        '/ops/api/services/aggregate/$type/$uuid/$instance$expand',
-        (meta) {
-          final buffer = StringBuffer();
-          toInstanceStatus(
-            type,
-            meta,
-            buffer: buffer,
-            verbose: verbose,
-          );
-          return buffer.toString();
-        },
-        token: token,
-        format: (result) => result,
-      );
-      writeln(status, stdout);
-    }
+        );
+        return buffer.toString();
+      },
+      token: token,
+      format: (result) => result,
+    );
+    writeln(status, stdout);
   }
 }
 
@@ -279,15 +269,20 @@ class AggregateSearchCommand extends AggregateCommandBase {
     final type = argResults['type'] as String;
     if (type == null) {
       usageException(red(' Aggregate type is missing'));
-      return writeln(red(' Aggregate type is missing'), stderr, force: true);
+      return writeln(red(' Aggregate type is missing'), stderr);
     }
     var query = argResults['query'] as String;
     if (query == null) {
       usageException(red(' Aggregate data query is missing'));
       return writeln(red(' Aggregate data query is missing'), stderr);
     }
+
+    // Prepare
+    final verbose = globalResults['verbose'] as bool;
+    final expand = verbose ? 'expand=all&' : '';
+
     final token = await AuthUtils.getToken(this);
-    final uri = '/ops/api/services/aggregate/$type?expand=all&$query';
+    final uri = '/ops/api/services/aggregate/$type?$expand$query';
     return get(
       client,
       uri,
@@ -317,7 +312,6 @@ class AggregateSearchCommand extends AggregateCommandBase {
 
     // Get metadata
     writeln(highlight('> Search ${capitalize(type)} with $query'), stdout);
-    // query = Uri.encodeQueryComponent(query);
     final uri = '/ops/api/services/aggregate/$type?${expand}query=$query}';
 
     final token = await AuthUtils.getToken(this);
@@ -393,7 +387,10 @@ class AggregateReplaceCommand extends AggregateCommandBase {
     }
     final data = jsonDecode(file.readAsStringSync());
 
-    writeln(highlight('> Replace ${capitalize(type)} $uuid in $instance with data from $path'), stdout);
+    writeln(
+      highlight('> Replace ${capitalize(type)} $uuid in $instance with data from $path'),
+      stdout,
+    );
     final status = await executeOn(
       type,
       uuid,
