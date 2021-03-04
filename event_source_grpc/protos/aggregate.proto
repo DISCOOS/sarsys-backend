@@ -9,7 +9,6 @@ option cc_enable_arenas = true;
 package org.discoos.es;
 
 import "any.proto";
-import "json.proto";
 import "event.proto";
 
 
@@ -17,12 +16,12 @@ service AggregateGrpcService {
 
     // Get Aggregate metadata
     //
-    // Service with return aggregate metadata for given aggregate.
+    // Service will return aggregate metadata for given aggregate.
     rpc GetMeta(GetAggregateMetaRequest) returns (GetAggregateMetaResponse) {}
 
     // Search for aggregate metadata
     //
-    // Service with return aggregate metadata matching given query
+    // Service will return aggregate metadata matching given query
     rpc SearchMeta(SearchAggregateMetaRequest) returns (SearchAggregateMetaResponse) {}
 
     // Execute replay command on Aggregate
@@ -98,20 +97,35 @@ message SearchAggregateMetaResponse {
     // Maximum number of matches to return
     int32 limit = 3;
 
-    // Fetch result from given offset
+    // Fetch results from given offset
     int32 offset = 4;
 
+    // Total number of results
+    int32 total = 5;
+
     // Next offset
-    int32 nextOffset = 5;
+    int32 nextOffset = 6;
 
     // Response status code
-    int32 statusCode = 6;
+    int32 statusCode = 7;
 
     // Response status code reason
-    string reasonPhrase = 7;
+    string reasonPhrase = 8;
 
     // List of aggregate query matches
-    org.discoos.io.JsonMatchList matches = 8;
+    AggregateMetaMatchList matches = 9;
+}
+
+message AggregateMetaMatchList {
+    int32 count = 1;
+    string query = 2;
+    repeated AggregateMetaMatch items = 3;
+}
+
+message AggregateMetaMatch {
+    string uuid = 1;
+    string path = 2;
+    AggregateMeta meta = 3;
 }
 
 // Replay events on given aggregate

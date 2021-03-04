@@ -5,6 +5,7 @@ import 'package:event_source/event_source.dart';
 import 'package:grpc/grpc.dart';
 import 'package:grpc/src/server/call.dart';
 import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
 
 import 'generated/aggregate.pbgrpc.dart';
 import 'utils.dart';
@@ -102,18 +103,25 @@ class AggregateGrpcService extends AggregateGrpcServiceBase {
         ..reasonPhrase = 'Repository for aggregate $type not found';
     }
     try {
-      final items = await _trySearch(
+      final matches = await _trySearch(
         type,
         request.query,
+        limit: request.limit,
+        offset: request.offset,
         expand: withAggregateField(
           request.expand,
           AggregateExpandFields.AGGREGATE_EXPAND_FIELDS_DATA,
         ),
       );
-      response.matches = toJsonMatchList(
-        request.query,
-        items,
-      );
+      response
+        ..total = matches.length
+        ..matches = toAggregateMatchList(
+          repo,
+          matches,
+          query: request.query,
+          expand: request.expand,
+        )
+        ..nextOffset = request.offset + matches.length;
     } on FormatException catch (error, stackTrace) {
       _log(
         'searchMeta',
@@ -354,17 +362,31 @@ class AggregateGrpcService extends AggregateGrpcServiceBase {
   FutureOr<List<SearchMatch>> _trySearch(
     String type,
     String query, {
+    @required int limit,
+    @required int offset,
     bool expand = true,
   }) async {
     final repo = manager.getFromTypeName(type);
     await repo.catchup(master: true);
-    final match = JsonUtils.matchQuery(query);
-    return repo
-        .search(
-          JsonUtils.toNamedQuery(query, match),
-          args: JsonUtils.toNamedArgs(query, match),
-          expand: expand,
-        )
+    if (query?.isNotEmpty == true) {
+      final match = JsonUtils.matchQuery(query);
+      return repo
+          .search(
+            JsonUtils.toNamedQuery(query, match),
+            args: JsonUtils.toNamedArgs(query, match),
+            expand: expand,
+          )
+          .toPage(limit: limit, offset: offset)
+          .toList();
+    }
+    return repo.aggregates
+        .skip(offset)
+        .take(limit)
+        .map((e) => SearchMatch(
+              path: r'$',
+              value: null,
+              uuid: e.uuid,
+            ))
         .toList();
   }
 

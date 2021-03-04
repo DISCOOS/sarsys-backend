@@ -105,8 +105,8 @@ void main() {
     expect(response.matches, isNotNull);
     expect(response.matches.count, 1);
     expect(
-      fromJsonValue(
-        response.matches.items.first.value,
+      toJsonFromAny(
+        response.matches.items.first.meta.data,
       ),
       equals(data1),
     );
@@ -139,8 +139,8 @@ void main() {
     expect(response.matches, isNotNull);
     expect(response.matches.count, 1);
     expect(
-      fromJsonValue(
-        response.matches.items.first.value,
+      toJsonFromAny(
+        response.matches.items.first.meta.data,
       ),
       equals(data1),
     );

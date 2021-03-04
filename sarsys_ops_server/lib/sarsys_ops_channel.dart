@@ -98,7 +98,7 @@ class SarSysOpsServerChannel extends SarSysServerChannelBase {
         () => ModuleStatusController(k8s, config),
       )
       ..secure(
-        '/ops/api/services/aggregate/:type[/:uuid[/:name]]',
+        '/ops/api/services/aggregate/:type[/:name[/:uuid]]',
         () => AggregateGrpcServiceController(
           k8s,
           channels,

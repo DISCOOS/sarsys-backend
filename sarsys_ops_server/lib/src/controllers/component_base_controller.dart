@@ -586,33 +586,6 @@ abstract class ComponentBaseController extends ResourceController {
     };
   }
 
-  Map<String, dynamic> toProto3SearchResult(
-    String type,
-    String name,
-    JsonMatchList list, {
-    @required int next,
-    @required int limit,
-    @required int offset,
-  }) {
-    final json = <String, dynamic>{
-      'type': type,
-      'name': name,
-      'limit': limit,
-      'offset': offset,
-      'nextOffset': next,
-      'count': list.count,
-      'query': list.query,
-      'items': list.items
-          .map((e) => {
-                'uuid': e.uuid,
-                'path': e.path,
-                'value': fromJsonValue(e.value),
-              })
-          .toList(),
-    };
-    return json;
-  }
-
   Map<String, dynamic> toProto3JsonInstanceMeta(
     String name,
     GeneratedMessage meta, {

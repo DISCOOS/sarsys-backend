@@ -21,11 +21,7 @@ class AggregateGrpcServiceController extends ComponentBaseController {
             'data',
             'items',
           ],
-          actions: [
-            'replay_all',
-            'catchup_all',
-            'replace_all',
-          ],
+          actions: [],
           instanceOptions: [
             'all',
             'data',
@@ -79,35 +75,45 @@ class AggregateGrpcServiceController extends ComponentBaseController {
     @required String expand,
   }) async {
     final names = <String>[];
+    final items = <Map<String, dynamic>>[];
     final errors = <Map<String, dynamic>>[];
     final pods = await k8s.getPodList(
       k8s.namespace,
       labels: toModuleLabels(),
     );
-    final items = <Map<String, dynamic>>[];
-    for (var pod in pods) {
-      final matches = await _doGetMetaByTypeAndQuery(
-        type,
-        query,
-        pod,
-        limit: limit,
-        offset: offset,
-        expand: expand,
-      );
-      final statusCode = matches.elementAt<int>(
+    final args = {
+      'query': query,
+      'limit': limit,
+      'offset': offset,
+      'expand': expand,
+    };
+    // Runs in parallel (reduces search time)
+    final results = await Future.wait<Map<String, dynamic>>(
+      pods.map((pod) => _doGetMetaByQuery(
+            type,
+            query,
+            pod,
+            limit: limit,
+            offset: offset,
+            expand: expand,
+          )),
+      eagerError: true,
+    );
+    for (var result in results) {
+      final statusCode = result.elementAt<int>(
         'error/statusCode',
         defaultValue: HttpStatus.ok,
       );
       if (statusCode == HttpStatus.ok) {
         items.add(
-          matches,
+          result,
         );
         names.add(
-          k8s.toPodName(pod),
+          result.elementAt('name'),
         );
       } else {
         errors.add(
-          matches.mapAt('error'),
+          result.mapAt('error'),
         );
       }
     }
@@ -115,24 +121,94 @@ class AggregateGrpcServiceController extends ComponentBaseController {
       type: type,
       name: '$names',
       body: toJsonItemsMeta(
-        items
-            .toPage(
-              offset: offset,
-              limit: limit,
-            )
-            .toList(),
+        items,
         errors,
       ),
-      args: {
-        'expand': expand,
-        'query': query,
-      },
+      args: args,
       statusCode: toStatusCode(errors),
       method: 'doGetMetaByTypeAndQuery',
     );
   }
 
-  Future<Map<String, dynamic>> _doGetMetaByTypeAndQuery(
+  @override
+  @Operation.get('type', 'name')
+  Future<Response> getMetaByNameAndType(
+    @Bind.path('name') String name,
+    @Bind.path('type') String type, {
+    @Bind.query('query') String query,
+    @Bind.query('expand') String expand,
+    @Bind.query('limit') int limit = 20,
+    @Bind.query('offset') int offset = 0,
+  }) async {
+    try {
+      return doGetMetaByTypeNameAndQuery(
+        type,
+        name,
+        query,
+        limit: limit,
+        offset: offset,
+        expand: expand,
+      );
+    } on InvalidOperation catch (e) {
+      return Response.badRequest(body: e.message);
+    } catch (e, stackTrace) {
+      return toServerError(e, stackTrace);
+    }
+  }
+
+  Future<Response> doGetMetaByTypeNameAndQuery(
+    String type,
+    String name,
+    String query, {
+    @required int limit,
+    @required int offset,
+    @required String expand,
+  }) async {
+    final pod = await k8s.getPod(
+      k8s.namespace,
+      name,
+    );
+    final args = {
+      'query': query,
+      'limit': limit,
+      'offset': offset,
+      'expand': expand,
+    };
+    if (pod?.isNotEmpty != true) {
+      return toResponse(
+        name: name,
+        type: type,
+        args: args,
+        statusCode: HttpStatus.notFound,
+        method: 'doGetMetaByNameTypeAndUuid',
+        body: "$target '$name' not found",
+      );
+    }
+    final matches = await _doGetMetaByQuery(
+      type,
+      query,
+      pod,
+      limit: limit,
+      offset: offset,
+      expand: expand,
+    );
+    return toResponse(
+      type: type,
+      name: name,
+      body: toJsonItemsMeta(
+        [matches],
+        [if (matches.hasPath('error')) matches.mapAt('error')],
+      ),
+      args: args,
+      statusCode: matches.elementAt<int>(
+        'error/statusCode',
+        defaultValue: HttpStatus.ok,
+      ),
+      method: 'doGetMetaByTypeNameAndQuery',
+    );
+  }
+
+  Future<Map<String, dynamic>> _doGetMetaByQuery(
     String type,
     String query,
     Map<String, dynamic> pod, {
@@ -143,16 +219,16 @@ class AggregateGrpcServiceController extends ComponentBaseController {
     final response = await toClient(pod).searchMeta(
       SearchAggregateMetaRequest()
         ..type = type
-        ..query = query
         ..limit = limit
         ..offset = offset
+        ..query = query ?? ''
         ..expand.addAll(
           toExpandFields(expand),
         ),
     );
 
     return {
-      ...toProto3SearchResult(
+      ..._toProto3AggregateMetaMatchList(
         type,
         k8s.toPodName(pod),
         response.matches,
@@ -162,67 +238,44 @@ class AggregateGrpcServiceController extends ComponentBaseController {
       ),
       if (response.statusCode >= HttpStatus.badRequest)
         'error': {
+          'type': type,
+          'name': k8s.toPodName(pod),
+          'query': query,
           'statusCode': response.statusCode,
           'reasonPhrase': response.reasonPhrase,
         }
     };
   }
 
-  @override
-  @Scope(['roles:admin'])
-  @Operation.get('type', 'uuid')
-  Future<Response> getMetaByTypeAndUuid(
-    @Bind.path('type') String type,
-    @Bind.path('uuid') String uuid, {
-    @Bind.query('expand') String expand,
-  }) {
-    return super.getMetaByTypeAndUuid(
-      type,
-      uuid,
-      expand: expand,
-    );
-  }
-
-  @override
-  Future<Response> doGetMetaByTypeAndUuid(
+  Map<String, dynamic> _toProto3AggregateMetaMatchList(
     String type,
-    String uuid,
-    String expand,
-  ) async {
-    final names = [];
-    final pods = await k8s.getPodList(
-      k8s.namespace,
-      labels: toModuleLabels(),
-    );
-    final items = <Map<String, dynamic>>[];
-    for (var pod in pods) {
-      final meta = await _doGetMetaByTypeAndUuid(
-        type,
-        uuid,
-        pod,
-        expand,
-      );
-      items.add(meta);
-      names.add(
-        k8s.toPodName(pod),
-      );
-    }
-    return toResponse(
-      type: type,
-      uuid: uuid,
-      name: '$names',
-      body: toJsonItemsMeta(
-        items,
-      ),
-      args: {'expand': expand},
-      statusCode: toStatusCode(items),
-      method: 'doGetMetaByTypeAndUuid',
-    );
+    String name,
+    AggregateMetaMatchList list, {
+    @required int next,
+    @required int limit,
+    @required int offset,
+  }) {
+    return <String, dynamic>{
+      'type': type,
+      'name': name,
+      'limit': limit,
+      'offset': offset,
+      'nextOffset': next,
+      'count': list.count,
+      'query': list.query,
+      'items': list.items
+          .map((e) => {
+                'uuid': e.uuid,
+                'path': e.path,
+                if (e.meta != null) 'meta': toProto3JsonInstanceMeta(name, e.meta),
+              })
+          .toList(),
+    };
   }
 
   @override
   @Scope(['roles:admin'])
-  @Operation.get('type', 'uuid', 'name')
+  @Operation.get('type', 'name', 'uuid')
   Future<Response> getMetaByNameTypeAndUuid(
     @Bind.path('name') String name,
     @Bind.path('type') String type,
@@ -255,7 +308,7 @@ class AggregateGrpcServiceController extends ComponentBaseController {
         args: {'expand': expand},
         statusCode: HttpStatus.notFound,
         method: 'doGetMetaByNameTypeAndUuid',
-        body: "$target instance '$name' not found",
+        body: "$target '$name' not found",
       );
     }
     final meta = await _doGetMetaByTypeAndUuid(
@@ -304,192 +357,6 @@ class AggregateGrpcServiceController extends ComponentBaseController {
       if (shouldExpand(expand, 'data')) AggregateExpandFields.AGGREGATE_EXPAND_FIELDS_DATA,
       if (shouldExpand(expand, 'items')) AggregateExpandFields.AGGREGATE_EXPAND_FIELDS_ITEMS,
     ];
-  }
-
-  @override
-  @Scope(['roles:admin'])
-  @Operation.post('type', 'uuid')
-  Future<Response> executeByTypeAndUuid(
-    @Bind.path('type') String type,
-    @Bind.path('uuid') String uuid,
-    @Bind.body() Map<String, dynamic> body, {
-    @Bind.query('expand') String expand,
-  }) =>
-      super.executeByTypeAndUuid(
-        type,
-        uuid,
-        body,
-        expand: expand,
-      );
-
-  @override
-  Future<Response> doExecuteByTypeAndUuid(
-    String type,
-    String uuid,
-    String command,
-    Map<String, dynamic> body,
-    String expand,
-  ) async {
-    final pods = await k8s.getPodList(
-      k8s.namespace,
-      labels: toModuleLabels(),
-    );
-    switch (command) {
-      case 'replay_all':
-        return doReplayAll(
-          type,
-          uuid,
-          pods,
-          expand,
-        );
-      case 'catchup_all':
-        return doCatchupAll(
-          type,
-          uuid,
-          pods,
-          expand,
-        );
-      case 'replace_all':
-        final data = body.mapAt<String, dynamic>('params/data');
-        if (data == null) {
-          return toResponse(
-            type: type,
-            uuid: uuid,
-            method: 'doExecuteByTypeAndUuid',
-            statusCode: HttpStatus.badRequest,
-            names: pods.map(k8s.toPodName).toList(),
-            args: {'command': command, 'expand': expand},
-            body: "param 'data' in $target command 'replace' is required",
-          );
-        }
-        return doReplaceAll(
-          type,
-          uuid,
-          data,
-          pods,
-          expand,
-        );
-    }
-    return toResponse(
-      type: type,
-      uuid: uuid,
-      method: 'doExecuteByTypeAndUuid',
-      statusCode: HttpStatus.badRequest,
-      names: pods.map(k8s.toPodName).toList(),
-      args: {'command': command, 'expand': expand},
-      body: "$target command '$command' not supported",
-    );
-  }
-
-  Future<Response> doReplayAll(
-    String type,
-    String uuid,
-    List<Map<String, dynamic>> pods,
-    String expand,
-  ) async {
-    final names = [];
-    final items = <Map<String, dynamic>>[];
-    for (var pod in pods) {
-      final meta = await _doReplay(
-        type,
-        uuid,
-        pod,
-        expand,
-      );
-      items.add(meta);
-      names.add(
-        k8s.toPodName(pod),
-      );
-    }
-    return toResponse(
-      type: type,
-      uuid: uuid,
-      name: '$names',
-      method: 'doReplayAll',
-      body: toJsonItemsMeta(
-        items,
-      ),
-      args: {
-        'command': 'replay_all',
-        'expand': expand,
-      },
-      statusCode: toStatusCode(items),
-    );
-  }
-
-  Future<Response> doCatchupAll(
-    String type,
-    String uuid,
-    List<Map<String, dynamic>> pods,
-    String expand,
-  ) async {
-    final names = [];
-    final items = <Map<String, dynamic>>[];
-    for (var pod in pods) {
-      final meta = await _doCatchup(
-        type,
-        uuid,
-        pod,
-        expand,
-      );
-      items.add(meta);
-      names.add(
-        k8s.toPodName(pod),
-      );
-    }
-    return toResponse(
-      type: type,
-      uuid: uuid,
-      name: '$names',
-      method: 'doCatchupAll',
-      body: toJsonItemsMeta(
-        items,
-      ),
-      args: {
-        'command': 'catchup_all',
-        'expand': expand,
-      },
-      statusCode: toStatusCode(items),
-    );
-  }
-
-  Future<Response> doReplaceAll(
-    String type,
-    String uuid,
-    Map<String, dynamic> data,
-    List<Map<String, dynamic>> pods,
-    String expand,
-  ) async {
-    final names = [];
-    final items = <Map<String, dynamic>>[];
-
-    for (var pod in pods) {
-      final meta = await _doReplace(
-        type,
-        uuid,
-        pod,
-        data,
-        expand,
-      );
-      items.add(meta);
-      names.add(
-        k8s.toPodName(pod),
-      );
-    }
-    return toResponse(
-      type: type,
-      uuid: uuid,
-      name: '$names',
-      method: 'doReplaceAll',
-      body: toJsonItemsMeta(
-        items,
-      ),
-      args: {
-        'command': 'replace_all',
-        'expand': expand,
-      },
-      statusCode: toStatusCode(items),
-    );
   }
 
   @override
