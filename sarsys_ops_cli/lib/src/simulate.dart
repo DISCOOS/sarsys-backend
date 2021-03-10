@@ -63,7 +63,7 @@ class SimulateDeviceCommand extends BaseCommand {
 
   @override
   FutureOr<String> run() async {
-    const max = 90;
+    const columns = 90;
     final tracks = <String, List<Map<String, dynamic>>>{};
     // Sanity checks
     final files = argResults['file'] as List<String>;
@@ -72,6 +72,7 @@ class SimulateDeviceCommand extends BaseCommand {
       return writeln(red(' File is missing'), stderr);
     }
     final offsets = <String, int>{};
+    final numbers = <String, int>{};
     final verbose = globalResults['verbose'] as bool;
     final pps = int.parse(argResults['pps'] as String);
     final batch = int.parse(argResults['batch'] as String);
@@ -79,7 +80,6 @@ class SimulateDeviceCommand extends BaseCommand {
     writeln(highlight('> Simulate ${files.length} devices with pps $pps'), stdout);
     var total = 0;
     for (var path in files) {
-      final buffer = StringBuffer();
       final file = File(path);
       if (!file.existsSync()) {
         usageException(red(' Simulate data file ${file.path} does not exist'));
@@ -93,49 +93,55 @@ class SimulateDeviceCommand extends BaseCommand {
       // Limit number of positions taken from file
       tracks[uuid] = track.take(limit > 0 ? min(track.length, limit) : track.length).toList();
       if (verbose) {
+        final buffer = StringBuffer();
         vprint(
           'Device',
           '$uuid',
-          max: max,
+          max: columns,
           buffer: buffer,
         );
         vprint(
           'Positions',
           '${track.length}',
-          max: max,
+          max: columns,
           left: 14,
           indent: 4,
           buffer: buffer,
         );
+        writeln(buffer.toString(), stdout);
       }
       offsets[uuid] = 0;
       total += tracks[uuid].length;
-      writeln(buffer.toString(), stdout);
+      numbers[uuid] = offsets.length;
     }
     if (verbose) {
       vprint(
         '∑ positions',
         '$total',
-        max: max,
+        max: columns,
         buffer: stdout,
       );
     } else {
       vprint(
         'Devices',
         '${offsets.length}',
-        max: max,
-        unit: '∑ $total positions',
+        max: columns,
+        unit: '$total positions',
         buffer: stdout,
       );
     }
+
     final completer = Completer<int>();
+
+    // Calculate period between writes to each device
     final period = Duration(
-      milliseconds: (batch / pps * 1000).toInt(),
+      milliseconds: (batch / pps / tracks.length * 1000).toInt(),
     );
-    sprint(max, buffer: stdout);
+    sprint(columns, buffer: stdout);
     writeln(
-      '  Simulating ${batch * tracks.length} positions '
-      'for ${tracks.length} devices every ${period.inMilliseconds}ms ($pps pps)',
+      '  Simulating $batch positions '
+      'for ${tracks.length} devices every ${period.inMilliseconds}ms '
+      '($pps pps/device | ${pps * tracks.length} pps/total)',
       stdout,
     );
 
@@ -145,55 +151,83 @@ class SimulateDeviceCommand extends BaseCommand {
       force: true,
     );
 
+    // Prepare
+    var processed = 0;
+    final round = <String>[];
+    final completed = <String>{};
+    final results = <String, HttpResult>{};
+
+    // Write to each device with fixed period
     Timer.periodic(period, (Timer timer) async {
-      var simulated = 0;
-      final results = <String, HttpResult>{};
-      for (var entry in tracks.entries) {
-        final uuid = entry.key;
-        final track = entry.value;
-        final buffer = StringBuffer();
-        final offset = offsets[uuid];
-        final take = offset + batch >= track.length ? track.length - offset : batch;
-        results[uuid] = await _simulate(
-          uuid,
-          offsets[uuid],
-          take,
-          track,
-          buffer: buffer,
-          write: verbose,
-        );
-        if (results[uuid].isSuccess) {
-          offsets[uuid] += take;
-          simulated += take;
-        }
-        if (offset + take >= track.length) {
-          timer.cancel();
-          completer.complete(track.length);
-        }
+      // Initialize new round?
+      if (round.isEmpty) {
+        round
+          ..addAll(tracks.keys)
+          ..removeWhere(
+            (uuid) => completed.contains(uuid),
+          );
       }
+      // Get next device to simulate
+      final uuid = round.first;
+      round.remove(uuid);
+      final track = tracks[uuid];
+      final buffer = StringBuffer();
+      final offset = offsets[uuid];
+      final take = offset + batch >= track.length ? track.length - offset : batch;
+
+      // Simulate events
+      results[uuid] = await _simulate(
+        uuid,
+        offsets[uuid],
+        take,
+        track,
+        buffer: buffer,
+        write: verbose,
+      );
+
+      // Process result
+      if (results[uuid].isSuccess) {
+        offsets[uuid] += take;
+        processed += take;
+      }
+      if (offset + take >= track.length) {
+        completed.add(uuid);
+      }
+
+      // Update progress
       _progress(
-        offsets,
-        tracks,
-        results,
-        simulated,
+        uuid,
+        numbers[uuid],
+        offsets[uuid],
+        tracks[uuid],
+        results[uuid],
+        take,
+        processed,
         total,
         verbose,
+        completed.contains(uuid),
       );
+
+      // Stop timer when target is meet
+      if (processed >= total || completed.length == offsets.length) {
+        timer.cancel();
+        completer.complete(processed);
+      }
     });
 
     // Wait for cancel
-    final processed = await completer.future;
+    final simulated = await completer.future;
 
     if (verbose || argResults['summary'] as bool) {
       stdout.writeln();
-      sprint(max, buffer: stdout);
+      sprint(columns, buffer: stdout);
       writeln('  Last position simulated was', stdout);
       stdout.writeln();
       for (var track in tracks.entries) {
         vprint(
           'Device',
           '${track.key}',
-          max: max,
+          max: columns,
           unit: 'uuid',
           buffer: stdout,
         );
@@ -206,74 +240,66 @@ class SimulateDeviceCommand extends BaseCommand {
       }
     }
     stdout.writeln();
-    sprint(max, buffer: stdout);
-    writeln('  Simulated $processed positions', stdout);
+    sprint(columns, buffer: stdout);
+    writeln('  Simulated $simulated positions on ${offsets.length} devices', stdout);
     stdout.writeln();
 
     return buffer.toString();
   }
 
   void _progress(
-    Map<String, int> offsets,
-    Map<String, List<Map<String, dynamic>>> tracks,
-    Map<String, HttpResult> results,
+    String uuid,
+    int number,
+    int offset,
+    List<Map<String, dynamic>> track,
+    HttpResult result,
     int simulated,
+    int processed,
     int total,
     bool verbose,
+    bool completed,
   ) {
+    const columns = 90;
+    final short = uuid.substring(uuid.length - 8);
     if (verbose) {
-      results.values.forEach(
-        (r) {
-          writeln('$r\n', stdout);
-        },
-      );
+      writeln('$result\n', stdout);
     } else {
-      final failed = results.entries.where((e) => e.value.isFailure).map((e) => e.key);
-      final processed = offsets.entries.fold(0, (prev, next) => prev + next.value);
-
+      sprint(columns, buffer: stdout);
       vprint(
         'Simulated',
-        '$simulated',
-        max: 90,
-        unit: '$processed positions, ${(processed / total * 100).toInt()}%',
+        '$simulated positions on ...$short${completed ? ' completed [✓]' : ''}',
+        max: columns,
+        unit: 'device $number | $processed p. | ${(processed / total * 100).toInt()}%',
         buffer: stdout,
         newline: true,
       );
-      for (var uuid in failed) {
+      if (result.isFailure) {
         vprint(
           '- Failed',
-          'Device ...${uuid.substring(uuid.length - 8)}',
-          unit: '${red(results[uuid].toStatusText)}',
-          max: 89,
+          'Device $uuid',
+          unit: '${red(result.toStatusText)}',
+          max: columns - 1,
           left: 15,
           indent: 3,
           buffer: stdout,
           newline: true,
         );
-        final json = results[uuid].content is Map ? Map.from(results[uuid].content) : null;
-        final message = json?.elementAt('error') ?? results[uuid].content.toString();
+        final json = result.content is Map ? Map.from(result.content) : null;
+        final message = json?.elementAt('error') ?? result.content.toString();
         vprint(
           '  Message',
-          '${message.replaceAll(uuid, '...${uuid.substring(uuid.length - 8)}')}',
-          max: 89,
+          '${message.replaceAll(uuid, '...$short')}',
+          max: columns - 1,
           left: 15,
           indent: 3,
           buffer: stdout,
           newline: true,
         );
-        if (json is Map) {
-          jPrint(
-            json,
-            buffer: stdout,
-            left: 15,
-            indent: 3,
-          );
-        }
         vprint(
           '  Headers',
-          '${results[uuid].headers.value('x-correlation-id')}',
+          '${result.headers.value('x-correlation-id')}',
           unit: 'x-correlation-id',
-          max: 89,
+          max: columns - 1,
           left: 15,
           indent: 3,
           buffer: stdout,
@@ -281,9 +307,9 @@ class SimulateDeviceCommand extends BaseCommand {
         );
         vprint(
           '  Headers',
-          '${results[uuid].headers.value('x-pod-name')}',
+          '${result.headers.value('x-pod-name')}',
           unit: 'x-pod-name',
-          max: 89,
+          max: columns - 1,
           left: 15,
           indent: 3,
           buffer: stdout,
