@@ -41,7 +41,7 @@ abstract class AggregateCommandBase extends BaseCommand {
     final expand = verbose ? '?expand=all' : '';
     final status = await post(
       client,
-      '/ops/api/services/aggregate/$type/$uuid${instance == null ? '$expand' : '/$instance$expand'}',
+      '/ops/api/services/aggregate/$type/$instance/$uuid$expand',
       args,
       (result) {
         final buffer = StringBuffer();
@@ -113,6 +113,17 @@ abstract class AggregateCommandBase extends BaseCommand {
         isDeleted ? 'Deleted When' : 'Updated When',
         changedWhen.toIso8601String(),
         unit: 'event #${instance.elementAt('$changedBy/number')}, ${tgo.format(changedWhen)}',
+        max: columns,
+        buffer: buffer,
+        indent: indent,
+      );
+      sprint(columns, buffer: buffer, format: gray);
+      vprint(
+        'Health',
+        !(instance.hasPath('taint') || instance.hasPath('cordon'))
+            ? 'OK'
+            : (instance.hasPath('taint') ? 'Tainted' : 'Cordoned'),
+        unit: 'OK/Tainted/Cordoned',
         max: columns,
         buffer: buffer,
         indent: indent,
@@ -251,6 +262,11 @@ class AggregateSearchCommand extends AggregateCommandBase {
         help: 'Aggregate type name',
       )
       ..addOption(
+        'instance',
+        abbr: 'i',
+        help: 'Server instance name',
+      )
+      ..addOption(
         'query',
         abbr: 'q',
         help: 'Aggregate search query (jsonpath)',
@@ -280,9 +296,12 @@ class AggregateSearchCommand extends AggregateCommandBase {
     // Prepare
     final verbose = globalResults['verbose'] as bool;
     final expand = verbose ? 'expand=all&' : '';
+    final instance = argResults['instance'] as String;
 
     final token = await AuthUtils.getToken(this);
-    final uri = '/ops/api/services/aggregate/$type?$expand$query';
+    final uri = instance == null
+        ? '/ops/api/services/aggregate/$type?${expand}query=$query'
+        : '/ops/api/services/aggregate/$type/$instance?${expand}query=$query';
     return get(
       client,
       uri,
@@ -309,16 +328,36 @@ class AggregateSearchCommand extends AggregateCommandBase {
     // Prepare
     final verbose = globalResults['verbose'] as bool;
     final expand = verbose ? 'expand=all&' : '';
+    final instance = argResults['instance'] as String;
 
     // Get metadata
     writeln(highlight('> Search ${capitalize(type)} with $query'), stdout);
-    final uri = '/ops/api/services/aggregate/$type?${expand}query=$query}';
+    final uri = instance == null
+        ? '/ops/api/services/aggregate/$type?${expand}query=$query'
+        : '/ops/api/services/aggregate/$type/$instance?${expand}query=$query';
 
     final token = await AuthUtils.getToken(this);
     final statuses = await get(
       client,
       uri,
-      (json) => prettyJson(json),
+      (json) {
+        if (verbose) {
+          return prettyJson(json);
+        }
+        final matcher = RegExp(r"\[\'([^\'\[\]]*)\'\]");
+        final matches = <Map<String, dynamic>>[];
+        for (var modules in (json as Map).listAt<Map>('items')) {
+          for (var item in modules.listAt<Map>('items')) {
+            final path = matcher.allMatches(item.elementAt<String>('path')).map((e) => e.group(1)).join('/');
+            matches.add({
+              'uuid': item.elementAt('uuid'),
+              'path': path,
+              if (item.hasPath(path)) 'match': item.elementAt(path),
+            });
+          }
+        }
+        return prettyJson(matches);
+      },
       token: token,
       format: (result) => result,
     );
@@ -365,11 +404,6 @@ class AggregateReplaceCommand extends AggregateCommandBase {
       usageException(red(' Aggregate type is missing'));
       return writeln(red(' Aggregate type is missing'), stderr);
     }
-    final uuid = argResults['uuid'] as String;
-    if (uuid == null) {
-      usageException(red(' Aggregate uuid is missing'));
-      return writeln(red(' Aggregate uuid is missing'), stderr);
-    }
     final instance = argResults['instance'] as String;
     if (instance == null) {
       usageException(red(' Aggregate service instance is missing'));
@@ -386,6 +420,11 @@ class AggregateReplaceCommand extends AggregateCommandBase {
       return writeln(red(' Aggregate data file ${file.path} does not exist'), stderr);
     }
     final data = jsonDecode(file.readAsStringSync());
+    final uuid = argResults['uuid'] as String ?? data['uuid'];
+    if (uuid == null) {
+      usageException(red(' Aggregate uuid is missing'));
+      return writeln(red(' Aggregate uuid is missing'), stderr);
+    }
 
     writeln(
       highlight('> Replace ${capitalize(type)} $uuid in $instance with data from $path'),
