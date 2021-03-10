@@ -4372,7 +4372,7 @@ class EntityArray {
   }
 
   List<Map<String, dynamic>> _asArray() {
-    return List.from(data[aggregateField] as List<dynamic>);
+    return data.listAt<Map<String, dynamic>>(aggregateField);
   }
 
   static Map<String, dynamic> _verify(String field, Map<String, dynamic> data) {
