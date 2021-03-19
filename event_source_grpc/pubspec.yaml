@@ -7,7 +7,10 @@ homepage: https://github.com/DISCOOS/sarsys-backend
 environment:
   sdk: '>=2.10.0 <3.0.0'
 
+publish_to: none
+
 dependencies:
+
   grpc: ^2.8.0
   strings: ^0.1.2
   protobuf: ^1.1.0
