@@ -6,6 +6,8 @@ author: Kenneth Gulbrandsøy <kenneth@discoos.org>
 environment:
   sdk: '>=2.9.0 <3.0.0'
 
+publish_to: none
+
 dependencies:
   args: ^1.6.0
   path: ^1.7.0

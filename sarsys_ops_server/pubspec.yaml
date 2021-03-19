@@ -6,8 +6,9 @@ author: Kenneth Gulbrandsøy <kenneth@discoos.org>
 environment:
   sdk: '>=2.9.0 <3.0.0'
 
-dependencies:
+publish_to: none
 
+dependencies:
   grpc: ^2.8.0
   logging: ^0.11.4
   protobuf: ^1.1.0

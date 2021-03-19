@@ -7,6 +7,8 @@ homepage: https://github.com/DISCOOS/sarsys-backend
 environment:
   sdk: '>=2.9.0 <3.0.0'
 
+publish_to: none
+
 dependencies:
   aqueduct_test: ^1.0.0
   mockito: ^4.1.1
