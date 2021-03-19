@@ -153,7 +153,7 @@ class ConcurrentWriteOperation extends InvalidOperation {
   @override
   String toString() {
     return Context.toObject('$runtimeType', [
-      'message: message',
+      'message: $message',
       Context.toObject(
         'transaction',
         transaction.toDebugData().entries.map((e) => '${e.key}: ${e.value}').toList(),

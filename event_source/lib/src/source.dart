@@ -1564,8 +1564,8 @@ class EventStore {
 
       context.debug(
         isApplied
-            ? 'Apply ${event.type}@${event.number} to ${repo.aggregateType} ${uuid}'
-            : 'Replace ${event.type}@${event.number} in ${repo.aggregateType} ${uuid}',
+            ? 'Replace ${event.type}@${event.number} in ${repo.aggregateType} ${uuid}'
+            : 'Apply ${event.type}@${event.number} to ${repo.aggregateType} ${uuid}',
         data: {
           'aggregate.uuid': '$uuid',
           'aggregate.stream': '$stream',
@@ -1586,11 +1586,14 @@ class EventStore {
       final allowTrxUpdates = !repo.inTransaction(uuid);
 
       if (isApplied || allowAnyUpdates && allowTrxUpdates) {
-        // Get domain event before applying it
+        // Get domain event before applying it.
         // This ensures that event contains
-        // previous equals head before it
-        // is applied.
-        final domainEvent = repo.toDomainEvent(event);
+        // previous equal to aggregate head
+        // before it is applied.
+        final domainEvent = repo.toDomainEvent(
+          event,
+          withPrevious: true,
+        );
 
         // Catch up with stream
         final aggregate = repo.get(uuid, context: context);
