@@ -822,7 +822,7 @@ class EventStore {
     if (unknown.isNotEmpty) {
       throw AggregateNotFound('Aggregates not found: $unknown');
     }
-    final next = LinkedHashMap<String, LinkedHashSet<SourceEvent>>(); // ignore: prefer_collection_literals
+    final next = <String, LinkedHashSet<SourceEvent>>{}; // ignore: prefer_collection_literals
     for (var uuid in uuids) {
       next[uuid] = _aggregates[uuid];
     }
@@ -1231,7 +1231,7 @@ class EventStore {
   void publish(Iterable<DomainEvent> events) {
     events.forEach((e) => bus.publish(this, e));
     if (_streamController != null) {
-      events.forEach(_streamController.add);
+      _streamController.add(events);
     }
   }
 
@@ -1440,8 +1440,9 @@ class EventStore {
       _controllers[repo.runtimeType] ??
           EventStoreSubscriptionController(
             onDone: _onSubscriptionDone,
-            onEvent: _onSubscriptionEvent,
             onError: _onSubscriptionError,
+            onEvent: _onSubscriptionEvent,
+            onResult: _onSubscriptionResult,
             maxBackoffTime: maxBackoffTime,
           ),
       repo,
@@ -1482,6 +1483,7 @@ class EventStore {
             onDone: _onSubscriptionDone,
             onEvent: _onSubscriptionEvent,
             onError: _onSubscriptionError,
+            onResult: _onSubscriptionResult,
             maxBackoffTime: maxBackoffTime,
           ),
       repository,
@@ -1522,7 +1524,23 @@ class EventStore {
           );
   }
 
-  /// Handle event from subscriptions
+  final _applied = <DomainEvent>[];
+
+  void _onSubscriptionResult(Context context, Repository repo, ReadResult result) {
+    try {
+      // Publish remotely created events.
+      // Handlers can determine events with
+      // local origin with field 'local'.
+      // Deleted data is found in field 'previous'.
+      publish(
+        _applied.toList(),
+      );
+    } finally {
+      _applied.clear();
+      snapshotWhen(repo);
+    }
+  }
+
   void _onSubscriptionEvent(Context context, Repository repo, SourceEvent event) {
     // In case paused after events
     // are sent from controller
@@ -1541,80 +1559,74 @@ class EventStore {
     final actual = last(uuid: uuid);
     final stream = toInstanceStream(uuid);
 
-    try {
-      // Event is already applied to aggregate?
-      // Since catchup is performed on get, this
-      // test must be applied before event is added
-      // to eventstore.
-      final isApplied = repo.isApplied(event);
+    // Event is already applied to aggregate?
+    // Since catchup is performed on get, this
+    // test must be applied before event is added
+    // to eventstore.
+    final isApplied = repo.isApplied(event);
 
-      // IMPORTANT: Add to eventstore before
-      // applying to repository! This ensures
-      // that the local event added to an
-      // aggregate during construction is
-      // overwritten with the remote event
-      // actual received here.
-      _updateAll(
-        uuid,
-        repo.uuidFieldName,
-        [event],
-        // Bubble up exceptions
-        strict: true,
+    // IMPORTANT: Add to eventstore before
+    // applying to repository! This ensures
+    // that the local event added to an
+    // aggregate during construction is
+    // overwritten with the remote event
+    // actual received here.
+    _updateAll(
+      uuid,
+      repo.uuidFieldName,
+      [event],
+      // Bubble up exceptions
+      strict: true,
+    );
+
+    context.debug(
+      isApplied
+          ? 'Replace ${event.type}@${event.number} in ${repo.aggregateType} ${uuid}'
+          : 'Apply ${event.type}@${event.number} to ${repo.aggregateType} ${uuid}',
+      data: {
+        'aggregate.uuid': '$uuid',
+        'aggregate.stream': '$stream',
+        'event.uuid': '${event.uuid}',
+        'event.number': '${event.number}',
+        'event.remote': '${event.remote}',
+        'event.sourced': '${_isSourced(uuid, event)}',
+        'store.aggregate.number': '$actual',
+      },
+      category: 'EventStore._onSubscriptionEvent',
+    );
+
+    // Do not apply when subscriptions are suspended
+    final allowAnyUpdates = !isPaused;
+
+    // Do not apply event on aggregate
+    // if an transaction exists for it
+    final allowTrxUpdates = !repo.inTransaction(uuid);
+
+    if (isApplied || allowAnyUpdates && allowTrxUpdates) {
+      // Get domain event before applying it.
+      // This ensures that event contains
+      // previous equal to aggregate head
+      // before it is applied.
+      final domainEvent = repo.toDomainEvent(
+        event,
+        withPrevious: true,
       );
 
-      context.debug(
-        isApplied
-            ? 'Replace ${event.type}@${event.number} in ${repo.aggregateType} ${uuid}'
-            : 'Apply ${event.type}@${event.number} to ${repo.aggregateType} ${uuid}',
-        data: {
-          'aggregate.uuid': '$uuid',
-          'aggregate.stream': '$stream',
-          'event.uuid': '${event.uuid}',
-          'event.number': '${event.number}',
-          'event.remote': '${event.remote}',
-          'event.sourced': '${_isSourced(uuid, event)}',
-          'store.aggregate.number': '$actual',
-        },
-        category: 'EventStore._onSubscriptionEvent',
-      );
+      // Catch up with stream
+      final aggregate = repo.get(uuid, context: context);
 
-      // Do not apply when subscriptions are suspended
-      final allowAnyUpdates = !isPaused;
+      if (isApplied) {
+        // Field 'created' is not stable until it is
+        // written to EventStore. This method  will
+        // apply event to aggregate which in turn
+        // calls method _setModifiers in AggregateRoot,
+        // overwriting fields _createdBy and _changedBy
+        // ensuring that the local 'created' value is
+        // replaced with the stable value.
+        aggregate.apply(domainEvent);
+      }
 
-      // Do not apply event on aggregate
-      // if an transaction exists for it
-      final allowTrxUpdates = !repo.inTransaction(uuid);
-
-      if (isApplied || allowAnyUpdates && allowTrxUpdates) {
-        // Get domain event before applying it.
-        // This ensures that event contains
-        // previous equal to aggregate head
-        // before it is applied.
-        final domainEvent = repo.toDomainEvent(
-          event,
-          withPrevious: true,
-        );
-
-        // Catch up with stream
-        final aggregate = repo.get(uuid, context: context);
-
-        if (isApplied) {
-          // Field 'created' is not stable until it is
-          // written to EventStore. This method  will
-          // apply event to aggregate which in turn
-          // calls method _setModifiers in AggregateRoot,
-          // overwriting fields _createdBy and _changedBy
-          // ensuring that the local 'created' value is
-          // replaced with the stable value.
-          aggregate.apply(domainEvent);
-        }
-
-        // Publish remotely created events.
-        // Handlers can determine events with
-        // local origin with field 'local'.
-        // Deleted data is found in field 'previous'.
-        publish([domainEvent]);
-
+      if (context.isLoggable(ContextLevel.debug)) {
         context.debug(
           'Handled ${event.type}@${event.number} in ${repo.aggregateType} ${uuid}',
           data: {
@@ -1639,8 +1651,7 @@ class EventStore {
           category: 'EventStore._onSubscriptionEvent',
         );
       }
-    } finally {
-      snapshotWhen(repo);
+      _applied.add(domainEvent);
     }
   }
 
@@ -1744,10 +1755,10 @@ class EventStore {
   }
 
   /// This stream will only contain [DomainEvent] pushed to remote stream
-  StreamController<Event> _streamController;
+  StreamController<Iterable<Event>> _streamController;
 
   /// Get remote [Event] stream.
-  Stream<Event> asStream() {
+  Stream<Iterable<Event>> asStream() {
     _streamController ??= StreamController.broadcast();
     return _streamController.stream;
   }
@@ -1975,14 +1986,16 @@ class AnalyzeResult {
 /// Class for handling a subscription with automatic reconnection on failures
 class EventStoreSubscriptionController<T extends Repository> {
   EventStoreSubscriptionController({
-    @required this.onEvent,
     @required this.onDone,
+    @required this.onEvent,
     @required this.onError,
+    this.onResult,
     this.maxBackoffTime = const Duration(seconds: 10),
   });
 
   final void Function(Context context, T repository) onDone;
   final void Function(Context context, T repository, SourceEvent event) onEvent;
+  final void Function(Context context, T repository, ReadResult result) onResult;
   final void Function(Context context, T repository, Object error, StackTrace stackTrace) onError;
 
   /// Maximum backoff duration between reconnect attempts
@@ -2106,7 +2119,7 @@ class EventStoreSubscriptionController<T extends Repository> {
     _isCancelled = false;
   }
 
-  void _listen(Stream<SourceEvent> events) async {
+  void _listen(Stream<ReadResult> events) async {
     assert(
       _handler?.isCancelled != false,
       'Handler must be cancelled',
@@ -2116,7 +2129,12 @@ class EventStoreSubscriptionController<T extends Repository> {
     _handler.listen(
       _repo,
       events,
-      onEvent: (SourceEvent event) {
+      onResult: onResult != null
+          ? (ReadResult result) {
+              onResult(context, _repo, result);
+            }
+          : null,
+      onEvent: (event) {
         _alive(_repo, event);
         onEvent(context, _repo, event);
       },
@@ -2250,7 +2268,7 @@ class SourceEventHandler {
   void Function(SourceEvent event) _onFatal;
 
   /// Underlying stream subscription
-  StreamSubscription<SourceEvent> _subscription;
+  StreamSubscription<ReadResult> _subscription;
 
   /// Check if underlying subscription is paused
   bool get isPaused => _subscription.isPaused == true;
@@ -2288,8 +2306,9 @@ class SourceEventHandler {
   /// Handle [Event] of type [T] from stream
   void listen(
     Repository repo,
-    Stream<SourceEvent> stream, {
+    Stream<ReadResult> stream, {
     @required Function(SourceEvent event) onEvent,
+    @required Function(ReadResult result) onResult,
     void Function() onDone,
     void Function() onPause,
     void Function() onResume,
@@ -2301,14 +2320,15 @@ class SourceEventHandler {
     _onFatal = onFatal;
     _onResume = onResume;
     _subscription = stream.listen(
-      (event) {
+      (result) {
         _checkState();
         if (!isPaused) {
-          _onEvent(
+          _onResult(
             onEvent,
-            event,
+            result,
             repo,
           );
+          onResult(result);
         }
       },
       onDone: onDone,
@@ -2317,13 +2337,16 @@ class SourceEventHandler {
     );
   }
 
-  Future _onEvent(
+  Future _onResult(
     Function(SourceEvent event) onEvent,
-    SourceEvent event,
+    ReadResult result,
     Repository repo,
   ) async {
+    SourceEvent event;
     try {
-      onEvent(event);
+      for (event in result.events) {
+        onEvent(event);
+      }
     } catch (error) {
       final uuid = repo.toAggregateUuid(event);
       if (SourceEventErrorHandler.isHandling(error)) {
@@ -3241,7 +3264,7 @@ class EventStoreConnection {
   }
 
   /// Subscribe to [SourceEvent]s from given [stream]
-  Stream<SourceEvent> subscribe({
+  Stream<ReadResult> subscribe({
     @required String stream,
     EventNumber number = EventNumber.last,
     Duration waitFor = defaultWaitFor,
@@ -3262,7 +3285,7 @@ class EventStoreConnection {
   }
 
   /// Compete for [SourceEvent]s from given [stream]
-  Stream<SourceEvent> compete({
+  Stream<ReadResult> compete({
     @required String stream,
     @required String group,
     int consume = 20,
@@ -3839,8 +3862,8 @@ class _EventStoreSubscriptionControllerImpl {
   ConsumerStrategy _strategy;
   ConsumerStrategy get strategy => _strategy;
 
-  StreamController<SourceEvent> _controller;
-  StreamController<SourceEvent> get controller => _controller;
+  StreamController<ReadResult> _controller;
+  StreamController<ReadResult> get controller => _controller;
 
   Timer _timer;
 
@@ -3861,7 +3884,7 @@ class _EventStoreSubscriptionControllerImpl {
   /// Get canonical stream name
   String get canonicalStream => [stream, if (group != null) group].join('/');
 
-  Stream<SourceEvent> pull({
+  Stream<ReadResult> pull({
     @required String stream,
     EventNumber number = EventNumber.last,
     Duration waitFor = defaultWaitFor,
@@ -3879,7 +3902,7 @@ class _EventStoreSubscriptionControllerImpl {
     _isCatchup = false == number.isLast;
 
     _controller?.close();
-    _controller = StreamController<SourceEvent>(
+    _controller = StreamController<ReadResult>(
       onPause: _pauseTimer,
       onCancel: _stopTimer,
       onListen: _startTimer,
@@ -3902,7 +3925,7 @@ class _EventStoreSubscriptionControllerImpl {
     }
   }
 
-  Stream<SourceEvent> consume({
+  Stream<ReadResult> consume({
     @required String stream,
     @required String group,
     int pageSize = 20,
@@ -3925,7 +3948,7 @@ class _EventStoreSubscriptionControllerImpl {
     _isCatchup = false == number.isLast;
 
     _controller?.close();
-    _controller = StreamController<SourceEvent>(
+    _controller = StreamController<ReadResult>(
       onPause: _pauseTimer,
       onCancel: _stopTimer,
       onListen: _startTimer,
@@ -4002,7 +4025,7 @@ class _EventStoreSubscriptionControllerImpl {
     _timer = null;
   }
 
-  Future _catchup(StreamController<SourceEvent> controller) async {
+  Future _catchup(StreamController<ReadResult> controller) async {
     logger.fine(
       'Subscription is catching up from $canonicalStream@$_number',
     );
@@ -4086,9 +4109,7 @@ class _EventStoreSubscriptionControllerImpl {
     }
     // Notify when all actions are done
     if (controller.hasListener) {
-      result.events.forEach(
-        controller.add,
-      );
+      controller.add(result);
     }
   }
 

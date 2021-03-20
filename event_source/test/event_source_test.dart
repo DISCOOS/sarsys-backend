@@ -83,8 +83,8 @@ Future main() async {
 
     // Wait for catchup from eventstore
     final pending = StreamGroup.merge([
-      repo2.store.asStream().where((event) => event.data.elementAt('uuid') == uuid),
-      repo3.store.asStream().where((event) => event.data.elementAt('uuid') == uuid),
+      repo2.store.asStream().expand((events) => events).where((event) => event.data.elementAt('uuid') == uuid),
+      repo3.store.asStream().expand((events) => events).where((event) => event.data.elementAt('uuid') == uuid),
     ]);
     await repo1.push(foo);
     await pending.take(2).toList();
