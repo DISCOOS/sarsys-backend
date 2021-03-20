@@ -45,11 +45,11 @@ Future main() async {
     ..install();
 
   test('Repository should support build operation', () async {
-    final repository = harness.get<FooRepository>();
-    final ready = await repository.readyAsync();
-    // Assert repository state
+    final repo = harness.get<FooRepository>();
+    final ready = await repo.readyAsync();
+    // Assert repo state
     expect(ready, equals(true), reason: 'Repository should be ready');
-    expect(repository.count(), equals(0), reason: 'Repository should be empty');
+    expect(repo.count(), equals(0), reason: 'Repository should be empty');
   });
 
   test('Repository should emit events with correct patches', () async {
@@ -101,13 +101,13 @@ Future main() async {
 
   test('Repository should support create -> patch -> push operations', () async {
     // Arrange
-    final repository = harness.get<FooRepository>();
-    final stream = harness.server().getStream(repository.store.aggregate);
-    await repository.readyAsync();
+    final repo = harness.get<FooRepository>();
+    final stream = harness.server().getStream(repo.store.aggregate);
+    await repo.readyAsync();
 
     // Assert create operation
     final uuid = Uuid().v4();
-    final foo = repository.get(uuid);
+    final foo = repo.get(uuid);
     expect(foo.uuid, equals(uuid), reason: 'Foo uuid should be $uuid');
     expect(foo.isNew, equals(true), reason: "Foo should be flagged as 'New'");
     expect(foo.isChanged, equals(true), reason: "Foo should be flagged as 'Changed'");
@@ -123,7 +123,7 @@ Future main() async {
     expect(stream.toEvents().isEmpty, equals(true), reason: 'Events should not be committed yet');
 
     // Assert push operation
-    final events = await repository.push(foo);
+    final events = await repo.push(foo);
     expect(events.length, equals(2), reason: 'Push should return 2 events');
     expect(foo.isNew, equals(false), reason: "Foo should not be flagged as 'New' after push");
     expect(foo.isChanged, equals(false), reason: "Foo should not be flagged as 'Changed' after push");
@@ -812,11 +812,7 @@ Future main() async {
     unawaited(repo.push(foo));
 
     // Allow subscription to catch up
-    await repo.store.asStream().where(
-      (event) {
-        return event.remote;
-      },
-    ).first;
+    await firstTypeRemote(repo.store.asStream());
     final createdWhen = repo.get(uuid).createdWhen;
 
     // Assert
@@ -830,12 +826,12 @@ Future main() async {
 
   test('Repository should update field updatedBy after patch and push', () async {
     // Arrange
-    final repository = harness.get<FooRepository>();
-    await repository.readyAsync();
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
 
     // Act
     final uuid = Uuid().v4();
-    final foo = repository.get(uuid);
+    final foo = repo.get(uuid);
     foo.patch({'property': 'patched'}, emits: FooUpdated);
     final createdBy = foo.createdBy;
     final changedBy = foo.changedBy;
@@ -844,11 +840,11 @@ Future main() async {
       isNot(equals(changedBy)),
       reason: 'Patch should changed updatedBy',
     );
-    unawaited(repository.push(foo));
+    unawaited(repo.push(foo));
 
     // Allow subscription to catch up
-    await repository.store.asStream().take(4).toList();
-    final changedWhen = repository.get(uuid).changedWhen;
+    await takeAny(repo.store.asStream(), 4);
+    final changedWhen = repo.get(uuid).changedWhen;
 
     // Assert
     expect(
@@ -865,12 +861,12 @@ Future main() async {
 
   test('Repository should only apply operations [add, replace, move] when patching local changes', () async {
     // Arrange
-    final repository = harness.get<FooRepository>();
-    await repository.readyAsync();
+    final repo = harness.get<FooRepository>();
+    await repo.readyAsync();
 
     // Act
     final uuid = Uuid().v4();
-    final foo = repository.get(uuid, data: {
+    final foo = repo.get(uuid, data: {
       'property1': 'value1',
       'property2': 'value2',
       'list1': ['item1', 'item2'],
@@ -934,8 +930,8 @@ Future main() async {
       }
     }, emits: FooUpdated);
     unawaited(repo2.push(foo2));
-    await repo1.store.asStream().where((event) {
-      return event.type == 'FooUpdated';
+    await repo1.store.asStream().where((events) {
+      return events.any((e) => e.type == 'FooUpdated');
     }).first;
 
     // Assert
@@ -1091,7 +1087,7 @@ Future main() async {
     final data1 = {'uuid': uuid, 'parameter1': 'value1'};
     final prev = repo.get(uuid, data: data1);
     await repo.push(prev);
-    await repo.store.asStream().where((e) => e.remote).first;
+    await repo.store.asStream().where((events) => events.any((e) => e.remote)).first;
 
     // Act
     final data2 = {'uuid': 'any', 'parameter2': 'value2'};
@@ -1297,8 +1293,8 @@ Future main() async {
     // before waiting on all
     // events to be seen
     final seen = <Event>[];
-    repo.store.asStream().where((e) => e.remote).listen((event) {
-      seen.add(event);
+    repo.store.asStream().where((events) => events.any((e) => e.remote)).listen((events) {
+      seen.addAll(events.where((e) => e.remote));
     });
 
     // Act - Force subscription behind
@@ -1714,8 +1710,8 @@ Future main() async {
       // before waiting on all
       // events to be seen
       final seen = <Event>[];
-      repo.store.asStream().where((e) => e.remote).listen((event) {
-        seen.add(event);
+      repo.store.asStream().listen((events) {
+        seen.addAll(events.where((e) => e.remote));
       });
 
       // Act - Simulate concurrent modification by manually updating remote stream
@@ -1759,7 +1755,7 @@ Future main() async {
     final repo2 = harness.get<FooRepository>(port: 4001);
     await repo1.readyAsync();
     await repo2.readyAsync();
-    final group = StreamGroup<Event>();
+    final group = StreamGroup<Iterable<Event>>();
     await group.add(repo1.store.asStream());
     await group.add(repo2.store.asStream());
 
@@ -1882,7 +1878,7 @@ Future main() async {
     await foos2.readyAsync();
     await bars2.readyAsync();
 
-    final group = StreamGroup<Event>.broadcast();
+    final group = StreamGroup<Iterable<Event>>.broadcast();
     await group.add(foos1.store.asStream());
     await group.add(bars1.store.asStream());
     await group.add(foos2.store.asStream());
@@ -1892,8 +1888,8 @@ Future main() async {
     // before waiting on all
     // events to be seen
     final seen = <Event>[];
-    group.stream.listen((event) {
-      seen.add(event);
+    group.stream.listen((events) {
+      seen.addAll(events);
     });
 
     // Act on first server
@@ -1908,7 +1904,7 @@ Future main() async {
     // Ensure Foo exists in server 4001 before
     // proceeding (boo rule will not wait if
     // catchup returns empty)
-    await foos2.store.asStream().where((e) => e is FooCreated).first;
+    await firstTypeAny<FooCreated>(foos2.store.asStream());
 
     // Act on second server
     final buuid = Uuid().v4();
@@ -1924,8 +1920,7 @@ Future main() async {
     // 3 local events
     // 3 _onReplace from subscription
     // 3 _onApply from subscription
-    await group.stream.take(9 - seen.length).toList();
-    // await group.close();
+    await takeAny(group.stream, 9 - seen.length);
 
     // Assert all states are up to date
     fdata.addAll({'updated': 'value'});
@@ -2174,67 +2169,71 @@ Future main() async {
     expect(repo.store.snapshots.keys.length, equals(keep), reason: 'Should have $keep snapshots');
   });
 
-  test('Repository should resume subscription on save snapshot automatically', () async {
-    // Arrange
-    final repo1 = harness.get<FooRepository>(port: 4000, instance: 1);
-    final repo2 = harness.get<FooRepository>(port: 4001, instance: 1);
-    await repo1.readyAsync();
-    await repo2.readyAsync();
-    expect(repo1.snapshot, isNull, reason: 'Should have NO snapshot');
-    expect(repo2.snapshot, isNull, reason: 'Should have NO snapshot');
+  test(
+    'Repository should resume subscription on save snapshot automatically',
+    () async {
+      // Arrange
+      final repo1 = harness.get<FooRepository>(port: 4000, instance: 1);
+      final repo2 = harness.get<FooRepository>(port: 4001, instance: 1);
+      await repo1.readyAsync();
+      await repo2.readyAsync();
+      expect(repo1.snapshot, isNull, reason: 'Should have NO snapshot');
+      expect(repo2.snapshot, isNull, reason: 'Should have NO snapshot');
 
-    // Disable snapshots for all for manual control
-    repo1.store.snapshots.automatic == false;
-    repo2.store.snapshots.automatic == false;
-    harness.get<FooRepository>(port: 4000, instance: 2).store.snapshots.automatic == false;
-    harness.get<FooRepository>(port: 4001, instance: 2).store.snapshots.automatic == false;
+      // Disable snapshots for all for manual control
+      repo1.store.snapshots.automatic == false;
+      repo2.store.snapshots.automatic == false;
+      harness.get<FooRepository>(port: 4000, instance: 2).store.snapshots.automatic == false;
+      harness.get<FooRepository>(port: 4001, instance: 2).store.snapshots.automatic == false;
 
-    // Arrange repo 1
-    final batch = 5;
-    final uuid1 = Uuid().v4();
-    final foo1 = repo1.get(uuid1);
-    await repo1.push(foo1);
-    for (var i = 1; i <= batch; i++) {
-      foo1.patch({'property1': 'value$i'}, emits: FooUpdated);
+      // Arrange repo 1
+      final batch = 5;
+      final uuid1 = Uuid().v4();
+      final foo1 = repo1.get(uuid1);
       await repo1.push(foo1);
-    }
-    expect(foo1.data, containsPair('property1', 'value$batch'));
-    expect(repo1.number.value, equals(batch));
+      for (var i = 1; i <= batch; i++) {
+        foo1.patch({'property1': 'value$i'}, emits: FooUpdated);
+        await repo1.push(foo1);
+      }
+      expect(foo1.data, containsPair('property1', 'value$batch'));
+      expect(repo1.number.value, equals(batch));
 
-    // Act - force snapshot save on repo 1
-    repo1.save(force: true);
-    await repo1.store.snapshots.onIdle;
+      // Act - force snapshot save on repo 1
+      repo1.save(force: true);
+      await repo1.store.snapshots.onIdle;
 
-    expect(repo1.isLocked, isFalse);
-    expect(repo1.store.isPaused, isFalse);
-    expect(repo1.snapshot, isNotNull, reason: 'Should have snapshot');
-    expect(repo1.snapshot.number.value, equals(batch), reason: 'Should have snapshot number $batch');
+      expect(repo1.isLocked, isFalse);
+      expect(repo1.store.isPaused, isFalse);
+      expect(repo1.snapshot, isNotNull, reason: 'Should have snapshot');
+      expect(repo1.snapshot.number.value, equals(batch), reason: 'Should have snapshot number $batch');
 
-    final seen = <Event>[];
-    repo1.store.asStream().where((e) => e.remote).listen((event) {
-      seen.add(event);
-    });
+      final seen = <Event>[];
+      repo1.store.asStream().listen((events) {
+        seen.addAll(events.where((e) => e.remote));
+      });
 
-    // Act - updated repo 2
-    final uuid2 = Uuid().v4();
-    final foo2 = repo2.get(uuid2);
-    await repo2.push(foo2);
-    for (var i = 1; i <= batch; i++) {
-      foo2.patch({'property2': 'value$i'}, emits: FooUpdated);
+      // Act - updated repo 2
+      final uuid2 = Uuid().v4();
+      final foo2 = repo2.get(uuid2);
       await repo2.push(foo2);
-    }
-    expect(foo2.data, containsPair('property2', 'value$batch'));
-    expect(repo2.number.value, equals(2 * batch + 1));
+      for (var i = 1; i <= batch; i++) {
+        foo2.patch({'property2': 'value$i'}, emits: FooUpdated);
+        await repo2.push(foo2);
+      }
+      expect(foo2.data, containsPair('property2', 'value$batch'));
+      expect(repo2.number.value, equals(2 * batch + 1));
 
-    // Assert - repo 1 is catching up
-    await repo1.store.asStream().where((e) => e.remote).take(6 - seen.length).toList();
+      // Assert - repo 1 is catching up
+      await takeRemote(repo1.store.asStream(), 6 - seen.length, distinct: false);
 
-    // Assert - repo 1 number and snapshot
-    expect(repo1.number.value, equals(2 * batch + 1), reason: 'Should be at number ${2 * batch + 1}');
-    expect(repo1.snapshot, isNotNull, reason: 'Should have snapshot');
-    expect(repo1.snapshot.number.value, equals(batch), reason: 'Event number should be $batch');
-    expect(repo1.store.snapshots.keys.length, equals(1), reason: 'Should have 1 snapshots');
-  });
+      // Assert - repo 1 number and snapshot
+      expect(repo1.number.value, equals(2 * batch + 1), reason: 'Should be at number ${2 * batch + 1}');
+      expect(repo1.snapshot, isNotNull, reason: 'Should have snapshot');
+      expect(repo1.snapshot.number.value, equals(batch), reason: 'Event number should be $batch');
+      expect(repo1.store.snapshots.keys.length, equals(1), reason: 'Should have 1 snapshots');
+    },
+    retry: 1,
+  );
 }
 
 Future _repositoryShouldCommitTransactionsOnPush(
@@ -2264,11 +2263,11 @@ Future _repositoryShouldCommitTransactionsOnPush(
   // events to be seen
   final seen1 = <Event>[];
   final seen2 = <Event>[];
-  repo1.store.asStream().where((e) => e.remote).listen((event) {
-    seen1.add(event);
+  repo1.store.asStream().listen((events) {
+    seen1.addAll(events.where((e) => e.remote));
   });
-  repo2.store.asStream().where((e) => e.remote).listen((event) {
-    seen2.add(event);
+  repo2.store.asStream().listen((events) {
+    seen2.addAll(events.where((e) => e.remote));
   });
 
   // Act on foo1 and foo2 concurrently
@@ -2290,8 +2289,8 @@ Future _repositoryShouldCommitTransactionsOnPush(
   }
 
   // Wait until all events is confirmed remote
-  await repo1.store.asStream().where((e) => e.remote).take(101 - seen1.length).toList();
-  await repo2.store.asStream().where((e) => e.remote).take(101 - seen2.length).toList();
+  await takeRemote(repo1.store.asStream(), 101 - seen1.length, distinct: false);
+  await takeRemote(repo2.store.asStream(), 101 - seen2.length, distinct: false);
 
   // Assert state of foo1
   expect(foo1.isChanged, isFalse);
@@ -2629,9 +2628,28 @@ Future _testShouldBuildFromLastSnapshot(
   expect(foo22.data, equals(partial ? data22 : data21));
 }
 
-Future<List<Event>> takeLocal(Stream<Event> stream, int count, {bool distinct = true}) {
+Future<T> firstTypeAny<T>(
+  Stream<Iterable<Event>> stream,
+) async {
+  return await stream.expand((events) => events).where((e) => e is T).first as T;
+}
+
+Future<T> firstTypeLocal<T>(
+  Stream<Iterable<Event>> stream,
+) async {
+  return await stream.expand((events) => events).where((e) => e.local && e is T).first as T;
+}
+
+Future<T> firstTypeRemote<T>(
+  Stream<Iterable<Event>> stream,
+) async {
+  return await stream.expand((events) => events).where((e) => e.remote && e is T).first as T;
+}
+
+Future<List<Event>> takeLocal(Stream<Iterable<Event>> stream, int count, {bool distinct = true}) {
   final seen = <Event>[];
   return stream
+      .expand((events) => events)
       .where((event) {
         final take = !distinct || !seen.contains(event);
         if (event.local) {
@@ -2644,12 +2662,13 @@ Future<List<Event>> takeLocal(Stream<Event> stream, int count, {bool distinct = 
 }
 
 Future<List<Event>> takeRemote(
-  Stream<Event> stream,
+  Stream<Iterable<Event>> stream,
   int count, {
   @required bool distinct,
 }) {
   final seen = <Event>[];
   return stream
+      .expand((events) => events)
       .where((event) {
         final take = !distinct || !seen.contains(event);
         if (event.remote) {
@@ -2661,13 +2680,21 @@ Future<List<Event>> takeRemote(
       .toList();
 }
 
+Future<List<Event>> takeAny(
+  Stream<Iterable<Event>> stream,
+  int count,
+) {
+  return stream.expand((events) => events).take(count).toList();
+}
+
 Future<List<Event>> takeDistinct(
-  Stream<Event> stream,
+  Stream<Iterable<Event>> stream,
   int count,
 ) {
   final seen = <Event>[];
   final distinct = <Event>[];
   return stream
+      .expand((events) => events)
       .where((event) {
         final take = !seen.contains(event);
         seen.add(event);
@@ -2686,7 +2713,7 @@ Future _assertCatchUp(FooRepository repo1, FooRepository repo2, FooRepository re
   final foo1 = repo1.get(uuid, data: {'property1': 'value1'});
 
   // Prepare join
-  final group = StreamGroup<Event>();
+  final group = StreamGroup<Iterable<Event>>();
   await group.add(repo2.store.asStream());
   await group.add(repo3.store.asStream());
 

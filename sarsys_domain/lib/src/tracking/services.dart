@@ -143,8 +143,8 @@ class TrackingService extends MessageHandler<DomainEvent> {
       // Start competition with other tracking service instances
       _subscription = EventStoreSubscriptionController<TrackingRepository>(
         onDone: _onDone,
-        onEvent: _onEvent,
         onError: _onError,
+        onEvent: _onEvent,
         maxBackoffTime: maxBackoffTime,
       );
       _subscription.compete(
@@ -199,6 +199,13 @@ class TrackingService extends MessageHandler<DomainEvent> {
     if (start) {
       await this.start();
     }
+
+    // TEST Tracking
+    _managed.add('72c3812c-8099-4939-99e3-911fdcdb7695');
+    _addSource(
+      '72c3812c-8099-4939-99e3-911fdcdb7695',
+      '48100452ca7e5f9a154f520863530dbdb8ee1fd25b7a5421939de3060382e808',
+    );
 
     _context.info(
       'Built with consumption count $consume from stream $STREAM',
@@ -560,9 +567,17 @@ class TrackingService extends MessageHandler<DomainEvent> {
   ) async {
     Transaction trx;
     try {
-      trx = repo.beginTransaction(tuuid);
+      // Only begin transaction if none exists already
+      trx = repo.tryTransaction(
+        tuuid,
+        context: _context,
+      );
       await handle(tuuid, event);
-      await trx?.push();
+      // Only push if transaction
+      // was started by this method
+      if (trx != null) {
+        await trx?.push();
+      }
     } catch (error, stackTrace) {
       _context.error(
         'Failed to push changes in Tracking $tuuid for event ${event.type} ${event.uuid} with: $error',
@@ -583,7 +598,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
             'trx.conflicts': '${trx.conflicting.length}',
             'trx.results': '${trx.result?.length}',
             'trx.remaining': '${trx.remaining.length}',
-            'trx.startedAt': '${Trace.from(trx.startedAt).frames.first}',
+            if (trx.startedAt != null) 'trx.startedAt': '${Trace.from(trx.startedAt).frames.first}',
             'trx.startedBy': '${trx.startedBy}',
             if (trx.hasFailed) 'trx.error': '${trx.error}',
           } else
