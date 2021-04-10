@@ -1,3 +1,4 @@
+// @dart=2.10
 import 'package:args/args.dart';
 import 'package:sarsys_core/sarsys_core.dart';
 import 'package:sarsys_tracking_server/sarsys_tracking_server.dart';
@@ -31,6 +32,7 @@ Future main(List<String> args) async {
   }
   await request;
 
-  stdout.writeln("Server started with ports {health: ${results['healthPort']}, grpc: ${results['grpcPort']}}.");
+  stdout.writeln(
+      "Server started with ports {health: ${results['healthPort']}, grpc: ${results['grpcPort']}}.");
   stdout.writeln("Use Ctrl-C (SIGINT) to stop running the server.");
 }

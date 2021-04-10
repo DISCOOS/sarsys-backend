@@ -1,3 +1,4 @@
+// @dart=2.10
 import 'dart:math';
 
 import 'package:args/args.dart';
@@ -18,7 +19,8 @@ Future main(List<String> args) async {
     ..isolateStartupTimeout = const Duration(seconds: isolateStartupTimeout)
     ..options.configurationFilePath = results['config'] as String
     ..options.port = int.tryParse(results['port'] as String) ?? 88
-    ..options.context['GRPC_PORT'] = int.tryParse(results['grpcPort'] as String) ?? 8080;
+    ..options.context['GRPC_PORT'] =
+        int.tryParse(results['grpcPort'] as String) ?? 8080;
 
   final count = min(
     Platform.numberOfProcessors ~/ 2,
