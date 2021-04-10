@@ -17,12 +17,12 @@ else
 endif
 
 .PHONY: \
-	check commit test serve document models snapshot localhost \
+	check commit test serve document snapshot localhost \
 	build push publish install delete restart rollback status eventstore \
     docker_is_up #verify_image
 
 .SILENT: \
-	check commit test serve document models snapshot localhost \
+	check commit test serve document snapshot localhost \
 	build push publish install delete restart rollback status eventstore \
 	docker_is_up #verify_image
 
@@ -33,12 +33,9 @@ commit:
 	if [[ `git status --porcelain` ]]; then git commit -am "Generated OpenAPI document"; fi
 
 test:
-	pub run test -j 1
-
-models:
-	echo "Generating SARSys Ops models..."; \
-	pub run build_runner build --delete-conflicting-outputs; \
-	echo "[✓] Generating models complete."
+	echo "Testing..."
+	dart --no-sound-null-safety test -j 1
+	echo "[✓] Testing complete."
 
 document:
 	echo "Generate OpenAPI document..."
@@ -48,7 +45,7 @@ document:
 
 snapshot:
 	echo "Build dart JIT snapshot of bin/main.dart (faster boot and less memory usage) ..."
-	dart --snapshot=bin/main.snapshot --snapshot-kind=app-jit bin/main.dart \
+	dart --no-sound-null-safety --snapshot=bin/main.snapshot --snapshot-kind=app-jit bin/main.dart \
 		--port 8082 --config config.src.yaml --training=true
 	echo "[✓] Building dart snapshot bin/main.snapshot finished"
 
@@ -56,7 +53,7 @@ docker_is_up:
 	docker info >/dev/null 2>&1
 	echo "Docker is running"
 
-build: docker_is_up models document test snapshot
+build: docker_is_up document test snapshot
 	echo "Build docker image..."
 	docker build --no-cache -t discoos/sarsys_ops_server:latest .
 	echo "[✓] Build docker image finished"

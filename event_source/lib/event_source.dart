@@ -1,3 +1,4 @@
+// @dart=2.10
 library event_source;
 
 export 'package:json_patch/json_patch.dart';

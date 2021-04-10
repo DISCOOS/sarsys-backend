@@ -10,4 +10,4 @@ models:
 	echo "[✓] Generating models complete."
 
 test:
-	pub run test -j 1
+	dart --no-sound-null-safety test -j 1

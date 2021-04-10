@@ -2,7 +2,7 @@
 //  Generated code. Do not modify.
 //  source: aggregate.proto
 //
-// @dart = 2.3
+// @dart = 2.12
 // ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
 
 import 'dart:core' as $core;
@@ -48,7 +48,23 @@ class GetAggregateMetaRequest extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   GetAggregateMetaRequest._() : super();
-  factory GetAggregateMetaRequest() => create();
+  factory GetAggregateMetaRequest({
+    $core.String? type,
+    $core.String? uuid,
+    $core.Iterable<AggregateExpandFields>? expand,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (uuid != null) {
+      _result.uuid = uuid;
+    }
+    if (expand != null) {
+      _result.expand.addAll(expand);
+    }
+    return _result;
+  }
   factory GetAggregateMetaRequest.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -65,8 +81,8 @@ class GetAggregateMetaRequest extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   GetAggregateMetaRequest copyWith(
           void Function(GetAggregateMetaRequest) updates) =>
-      super.copyWith((message) => updates(
-          message as GetAggregateMetaRequest)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as GetAggregateMetaRequest))
+          as GetAggregateMetaRequest; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static GetAggregateMetaRequest create() => GetAggregateMetaRequest._();
@@ -76,7 +92,7 @@ class GetAggregateMetaRequest extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static GetAggregateMetaRequest getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<GetAggregateMetaRequest>(create);
-  static GetAggregateMetaRequest _defaultInstance;
+  static GetAggregateMetaRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -135,7 +151,31 @@ class GetAggregateMetaResponse extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   GetAggregateMetaResponse._() : super();
-  factory GetAggregateMetaResponse() => create();
+  factory GetAggregateMetaResponse({
+    $core.String? type,
+    $core.String? uuid,
+    $core.int? statusCode,
+    $core.String? reasonPhrase,
+    AggregateMeta? meta,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (uuid != null) {
+      _result.uuid = uuid;
+    }
+    if (statusCode != null) {
+      _result.statusCode = statusCode;
+    }
+    if (reasonPhrase != null) {
+      _result.reasonPhrase = reasonPhrase;
+    }
+    if (meta != null) {
+      _result.meta = meta;
+    }
+    return _result;
+  }
   factory GetAggregateMetaResponse.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -152,8 +192,8 @@ class GetAggregateMetaResponse extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   GetAggregateMetaResponse copyWith(
           void Function(GetAggregateMetaResponse) updates) =>
-      super.copyWith((message) => updates(message
-          as GetAggregateMetaResponse)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as GetAggregateMetaResponse))
+          as GetAggregateMetaResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static GetAggregateMetaResponse create() => GetAggregateMetaResponse._();
@@ -163,7 +203,7 @@ class GetAggregateMetaResponse extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static GetAggregateMetaResponse getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<GetAggregateMetaResponse>(create);
-  static GetAggregateMetaResponse _defaultInstance;
+  static GetAggregateMetaResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -260,7 +300,31 @@ class SearchAggregateMetaRequest extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   SearchAggregateMetaRequest._() : super();
-  factory SearchAggregateMetaRequest() => create();
+  factory SearchAggregateMetaRequest({
+    $core.String? type,
+    $core.String? query,
+    $core.int? limit,
+    $core.int? offset,
+    $core.Iterable<AggregateExpandFields>? expand,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (query != null) {
+      _result.query = query;
+    }
+    if (limit != null) {
+      _result.limit = limit;
+    }
+    if (offset != null) {
+      _result.offset = offset;
+    }
+    if (expand != null) {
+      _result.expand.addAll(expand);
+    }
+    return _result;
+  }
   factory SearchAggregateMetaRequest.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -277,8 +341,9 @@ class SearchAggregateMetaRequest extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   SearchAggregateMetaRequest copyWith(
           void Function(SearchAggregateMetaRequest) updates) =>
-      super.copyWith((message) => updates(message
-          as SearchAggregateMetaRequest)); // ignore: deprecated_member_use
+      super.copyWith(
+              (message) => updates(message as SearchAggregateMetaRequest))
+          as SearchAggregateMetaRequest; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static SearchAggregateMetaRequest create() => SearchAggregateMetaRequest._();
@@ -288,7 +353,7 @@ class SearchAggregateMetaRequest extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static SearchAggregateMetaRequest getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<SearchAggregateMetaRequest>(create);
-  static SearchAggregateMetaRequest _defaultInstance;
+  static SearchAggregateMetaRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -378,7 +443,47 @@ class SearchAggregateMetaResponse extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   SearchAggregateMetaResponse._() : super();
-  factory SearchAggregateMetaResponse() => create();
+  factory SearchAggregateMetaResponse({
+    $core.String? type,
+    $core.String? query,
+    $core.int? limit,
+    $core.int? offset,
+    $core.int? total,
+    $core.int? nextOffset,
+    $core.int? statusCode,
+    $core.String? reasonPhrase,
+    AggregateMetaMatchList? matches,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (query != null) {
+      _result.query = query;
+    }
+    if (limit != null) {
+      _result.limit = limit;
+    }
+    if (offset != null) {
+      _result.offset = offset;
+    }
+    if (total != null) {
+      _result.total = total;
+    }
+    if (nextOffset != null) {
+      _result.nextOffset = nextOffset;
+    }
+    if (statusCode != null) {
+      _result.statusCode = statusCode;
+    }
+    if (reasonPhrase != null) {
+      _result.reasonPhrase = reasonPhrase;
+    }
+    if (matches != null) {
+      _result.matches = matches;
+    }
+    return _result;
+  }
   factory SearchAggregateMetaResponse.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -395,8 +500,9 @@ class SearchAggregateMetaResponse extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   SearchAggregateMetaResponse copyWith(
           void Function(SearchAggregateMetaResponse) updates) =>
-      super.copyWith((message) => updates(message
-          as SearchAggregateMetaResponse)); // ignore: deprecated_member_use
+      super.copyWith(
+              (message) => updates(message as SearchAggregateMetaResponse))
+          as SearchAggregateMetaResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static SearchAggregateMetaResponse create() =>
@@ -407,7 +513,7 @@ class SearchAggregateMetaResponse extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static SearchAggregateMetaResponse getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<SearchAggregateMetaResponse>(create);
-  static SearchAggregateMetaResponse _defaultInstance;
+  static SearchAggregateMetaResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -548,7 +654,23 @@ class AggregateMetaMatchList extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   AggregateMetaMatchList._() : super();
-  factory AggregateMetaMatchList() => create();
+  factory AggregateMetaMatchList({
+    $core.int? count,
+    $core.String? query,
+    $core.Iterable<AggregateMetaMatch>? items,
+  }) {
+    final _result = create();
+    if (count != null) {
+      _result.count = count;
+    }
+    if (query != null) {
+      _result.query = query;
+    }
+    if (items != null) {
+      _result.items.addAll(items);
+    }
+    return _result;
+  }
   factory AggregateMetaMatchList.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -565,8 +687,8 @@ class AggregateMetaMatchList extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   AggregateMetaMatchList copyWith(
           void Function(AggregateMetaMatchList) updates) =>
-      super.copyWith((message) => updates(
-          message as AggregateMetaMatchList)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as AggregateMetaMatchList))
+          as AggregateMetaMatchList; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static AggregateMetaMatchList create() => AggregateMetaMatchList._();
@@ -576,7 +698,7 @@ class AggregateMetaMatchList extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static AggregateMetaMatchList getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<AggregateMetaMatchList>(create);
-  static AggregateMetaMatchList _defaultInstance;
+  static AggregateMetaMatchList? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.int get count => $_getIZ(0);
@@ -635,7 +757,23 @@ class AggregateMetaMatch extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   AggregateMetaMatch._() : super();
-  factory AggregateMetaMatch() => create();
+  factory AggregateMetaMatch({
+    $core.String? uuid,
+    $core.String? path,
+    AggregateMeta? meta,
+  }) {
+    final _result = create();
+    if (uuid != null) {
+      _result.uuid = uuid;
+    }
+    if (path != null) {
+      _result.path = path;
+    }
+    if (meta != null) {
+      _result.meta = meta;
+    }
+    return _result;
+  }
   factory AggregateMetaMatch.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -650,8 +788,8 @@ class AggregateMetaMatch extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   AggregateMetaMatch copyWith(void Function(AggregateMetaMatch) updates) =>
-      super.copyWith((message) => updates(
-          message as AggregateMetaMatch)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as AggregateMetaMatch))
+          as AggregateMetaMatch; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static AggregateMetaMatch create() => AggregateMetaMatch._();
@@ -661,7 +799,7 @@ class AggregateMetaMatch extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static AggregateMetaMatch getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<AggregateMetaMatch>(create);
-  static AggregateMetaMatch _defaultInstance;
+  static AggregateMetaMatch? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get uuid => $_getSZ(0);
@@ -733,7 +871,23 @@ class ReplayAggregateEventsRequest extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   ReplayAggregateEventsRequest._() : super();
-  factory ReplayAggregateEventsRequest() => create();
+  factory ReplayAggregateEventsRequest({
+    $core.String? type,
+    $core.String? uuid,
+    $core.Iterable<AggregateExpandFields>? expand,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (uuid != null) {
+      _result.uuid = uuid;
+    }
+    if (expand != null) {
+      _result.expand.addAll(expand);
+    }
+    return _result;
+  }
   factory ReplayAggregateEventsRequest.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -750,8 +904,9 @@ class ReplayAggregateEventsRequest extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   ReplayAggregateEventsRequest copyWith(
           void Function(ReplayAggregateEventsRequest) updates) =>
-      super.copyWith((message) => updates(message
-          as ReplayAggregateEventsRequest)); // ignore: deprecated_member_use
+      super.copyWith(
+              (message) => updates(message as ReplayAggregateEventsRequest))
+          as ReplayAggregateEventsRequest; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static ReplayAggregateEventsRequest create() =>
@@ -762,7 +917,7 @@ class ReplayAggregateEventsRequest extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static ReplayAggregateEventsRequest getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<ReplayAggregateEventsRequest>(create);
-  static ReplayAggregateEventsRequest _defaultInstance;
+  static ReplayAggregateEventsRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -821,7 +976,31 @@ class ReplayAggregateEventsResponse extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   ReplayAggregateEventsResponse._() : super();
-  factory ReplayAggregateEventsResponse() => create();
+  factory ReplayAggregateEventsResponse({
+    $core.String? type,
+    $core.String? uuid,
+    $core.int? statusCode,
+    $core.String? reasonPhrase,
+    AggregateMeta? meta,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (uuid != null) {
+      _result.uuid = uuid;
+    }
+    if (statusCode != null) {
+      _result.statusCode = statusCode;
+    }
+    if (reasonPhrase != null) {
+      _result.reasonPhrase = reasonPhrase;
+    }
+    if (meta != null) {
+      _result.meta = meta;
+    }
+    return _result;
+  }
   factory ReplayAggregateEventsResponse.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -838,8 +1017,9 @@ class ReplayAggregateEventsResponse extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   ReplayAggregateEventsResponse copyWith(
           void Function(ReplayAggregateEventsResponse) updates) =>
-      super.copyWith((message) => updates(message
-          as ReplayAggregateEventsResponse)); // ignore: deprecated_member_use
+      super.copyWith(
+              (message) => updates(message as ReplayAggregateEventsResponse))
+          as ReplayAggregateEventsResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static ReplayAggregateEventsResponse create() =>
@@ -850,7 +1030,7 @@ class ReplayAggregateEventsResponse extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static ReplayAggregateEventsResponse getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<ReplayAggregateEventsResponse>(create);
-  static ReplayAggregateEventsResponse _defaultInstance;
+  static ReplayAggregateEventsResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -946,7 +1126,23 @@ class CatchupAggregateEventsRequest extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   CatchupAggregateEventsRequest._() : super();
-  factory CatchupAggregateEventsRequest() => create();
+  factory CatchupAggregateEventsRequest({
+    $core.String? type,
+    $core.String? uuid,
+    $core.Iterable<AggregateExpandFields>? expand,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (uuid != null) {
+      _result.uuid = uuid;
+    }
+    if (expand != null) {
+      _result.expand.addAll(expand);
+    }
+    return _result;
+  }
   factory CatchupAggregateEventsRequest.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -963,8 +1159,9 @@ class CatchupAggregateEventsRequest extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   CatchupAggregateEventsRequest copyWith(
           void Function(CatchupAggregateEventsRequest) updates) =>
-      super.copyWith((message) => updates(message
-          as CatchupAggregateEventsRequest)); // ignore: deprecated_member_use
+      super.copyWith(
+              (message) => updates(message as CatchupAggregateEventsRequest))
+          as CatchupAggregateEventsRequest; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static CatchupAggregateEventsRequest create() =>
@@ -975,7 +1172,7 @@ class CatchupAggregateEventsRequest extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static CatchupAggregateEventsRequest getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<CatchupAggregateEventsRequest>(create);
-  static CatchupAggregateEventsRequest _defaultInstance;
+  static CatchupAggregateEventsRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -1034,7 +1231,31 @@ class CatchupAggregateEventsResponse extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   CatchupAggregateEventsResponse._() : super();
-  factory CatchupAggregateEventsResponse() => create();
+  factory CatchupAggregateEventsResponse({
+    $core.String? type,
+    $core.String? uuid,
+    $core.int? statusCode,
+    $core.String? reasonPhrase,
+    AggregateMeta? meta,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (uuid != null) {
+      _result.uuid = uuid;
+    }
+    if (statusCode != null) {
+      _result.statusCode = statusCode;
+    }
+    if (reasonPhrase != null) {
+      _result.reasonPhrase = reasonPhrase;
+    }
+    if (meta != null) {
+      _result.meta = meta;
+    }
+    return _result;
+  }
   factory CatchupAggregateEventsResponse.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -1051,8 +1272,9 @@ class CatchupAggregateEventsResponse extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   CatchupAggregateEventsResponse copyWith(
           void Function(CatchupAggregateEventsResponse) updates) =>
-      super.copyWith((message) => updates(message
-          as CatchupAggregateEventsResponse)); // ignore: deprecated_member_use
+      super.copyWith(
+              (message) => updates(message as CatchupAggregateEventsResponse))
+          as CatchupAggregateEventsResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static CatchupAggregateEventsResponse create() =>
@@ -1063,7 +1285,7 @@ class CatchupAggregateEventsResponse extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static CatchupAggregateEventsResponse getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<CatchupAggregateEventsResponse>(create);
-  static CatchupAggregateEventsResponse _defaultInstance;
+  static CatchupAggregateEventsResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -1158,7 +1380,31 @@ class ReplaceAggregateDataRequest extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   ReplaceAggregateDataRequest._() : super();
-  factory ReplaceAggregateDataRequest() => create();
+  factory ReplaceAggregateDataRequest({
+    $core.String? type,
+    $core.String? uuid,
+    $core.Iterable<AggregateExpandFields>? expand,
+    $5.Any? data,
+    $core.Iterable<$5.Any>? patches,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (uuid != null) {
+      _result.uuid = uuid;
+    }
+    if (expand != null) {
+      _result.expand.addAll(expand);
+    }
+    if (data != null) {
+      _result.data = data;
+    }
+    if (patches != null) {
+      _result.patches.addAll(patches);
+    }
+    return _result;
+  }
   factory ReplaceAggregateDataRequest.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -1175,8 +1421,9 @@ class ReplaceAggregateDataRequest extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   ReplaceAggregateDataRequest copyWith(
           void Function(ReplaceAggregateDataRequest) updates) =>
-      super.copyWith((message) => updates(message
-          as ReplaceAggregateDataRequest)); // ignore: deprecated_member_use
+      super.copyWith(
+              (message) => updates(message as ReplaceAggregateDataRequest))
+          as ReplaceAggregateDataRequest; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static ReplaceAggregateDataRequest create() =>
@@ -1187,7 +1434,7 @@ class ReplaceAggregateDataRequest extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static ReplaceAggregateDataRequest getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<ReplaceAggregateDataRequest>(create);
-  static ReplaceAggregateDataRequest _defaultInstance;
+  static ReplaceAggregateDataRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -1263,7 +1510,31 @@ class ReplaceAggregateDataResponse extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   ReplaceAggregateDataResponse._() : super();
-  factory ReplaceAggregateDataResponse() => create();
+  factory ReplaceAggregateDataResponse({
+    $core.String? type,
+    $core.String? uuid,
+    $core.int? statusCode,
+    $core.String? reasonPhrase,
+    AggregateMeta? meta,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (uuid != null) {
+      _result.uuid = uuid;
+    }
+    if (statusCode != null) {
+      _result.statusCode = statusCode;
+    }
+    if (reasonPhrase != null) {
+      _result.reasonPhrase = reasonPhrase;
+    }
+    if (meta != null) {
+      _result.meta = meta;
+    }
+    return _result;
+  }
   factory ReplaceAggregateDataResponse.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -1280,8 +1551,9 @@ class ReplaceAggregateDataResponse extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   ReplaceAggregateDataResponse copyWith(
           void Function(ReplaceAggregateDataResponse) updates) =>
-      super.copyWith((message) => updates(message
-          as ReplaceAggregateDataResponse)); // ignore: deprecated_member_use
+      super.copyWith(
+              (message) => updates(message as ReplaceAggregateDataResponse))
+          as ReplaceAggregateDataResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static ReplaceAggregateDataResponse create() =>
@@ -1292,7 +1564,7 @@ class ReplaceAggregateDataResponse extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static ReplaceAggregateDataResponse getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<ReplaceAggregateDataResponse>(create);
-  static ReplaceAggregateDataResponse _defaultInstance;
+  static ReplaceAggregateDataResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -1383,7 +1655,19 @@ class AggregateMetaList extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   AggregateMetaList._() : super();
-  factory AggregateMetaList() => create();
+  factory AggregateMetaList({
+    $core.int? count,
+    $core.Iterable<AggregateMeta>? items,
+  }) {
+    final _result = create();
+    if (count != null) {
+      _result.count = count;
+    }
+    if (items != null) {
+      _result.items.addAll(items);
+    }
+    return _result;
+  }
   factory AggregateMetaList.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -1398,8 +1682,8 @@ class AggregateMetaList extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   AggregateMetaList copyWith(void Function(AggregateMetaList) updates) =>
-      super.copyWith((message) => updates(
-          message as AggregateMetaList)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as AggregateMetaList))
+          as AggregateMetaList; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static AggregateMetaList create() => AggregateMetaList._();
@@ -1409,7 +1693,7 @@ class AggregateMetaList extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static AggregateMetaList getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<AggregateMetaList>(create);
-  static AggregateMetaList _defaultInstance;
+  static AggregateMetaList? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.int get count => $_getIZ(0);
@@ -1466,7 +1750,63 @@ class AggregateMeta extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   AggregateMeta._() : super();
-  factory AggregateMeta() => create();
+  factory AggregateMeta({
+    $core.String? type,
+    $core.String? uuid,
+    $fixnum.Int64? number,
+    $fixnum.Int64? position,
+    $6.EventMeta? createdBy,
+    $6.EventMeta? changedBy,
+    $6.EventMeta? deletedBy,
+    $6.EventMetaList? applied,
+    $6.EventMetaList? pending,
+    $6.EventMetaList? skipped,
+    $5.Any? taint,
+    $5.Any? cordon,
+    $5.Any? data,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (uuid != null) {
+      _result.uuid = uuid;
+    }
+    if (number != null) {
+      _result.number = number;
+    }
+    if (position != null) {
+      _result.position = position;
+    }
+    if (createdBy != null) {
+      _result.createdBy = createdBy;
+    }
+    if (changedBy != null) {
+      _result.changedBy = changedBy;
+    }
+    if (deletedBy != null) {
+      _result.deletedBy = deletedBy;
+    }
+    if (applied != null) {
+      _result.applied = applied;
+    }
+    if (pending != null) {
+      _result.pending = pending;
+    }
+    if (skipped != null) {
+      _result.skipped = skipped;
+    }
+    if (taint != null) {
+      _result.taint = taint;
+    }
+    if (cordon != null) {
+      _result.cordon = cordon;
+    }
+    if (data != null) {
+      _result.data = data;
+    }
+    return _result;
+  }
   factory AggregateMeta.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -1481,8 +1821,8 @@ class AggregateMeta extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   AggregateMeta copyWith(void Function(AggregateMeta) updates) =>
-      super.copyWith((message) =>
-          updates(message as AggregateMeta)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as AggregateMeta))
+          as AggregateMeta; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static AggregateMeta create() => AggregateMeta._();
@@ -1492,7 +1832,7 @@ class AggregateMeta extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static AggregateMeta getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<AggregateMeta>(create);
-  static AggregateMeta _defaultInstance;
+  static AggregateMeta? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);

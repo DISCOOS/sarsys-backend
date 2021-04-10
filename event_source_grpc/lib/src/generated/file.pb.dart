@@ -2,7 +2,7 @@
 //  Generated code. Do not modify.
 //  source: file.proto
 //
-// @dart = 2.3
+// @dart = 2.12
 // ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
 
 import 'dart:core' as $core;
@@ -36,7 +36,27 @@ class FileChunk extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   FileChunk._() : super();
-  factory FileChunk() => create();
+  factory FileChunk({
+    $core.List<$core.int>? content,
+    $fixnum.Int64? fileSize,
+    $fixnum.Int64? chunkSize,
+    $core.String? fileName,
+  }) {
+    final _result = create();
+    if (content != null) {
+      _result.content = content;
+    }
+    if (fileSize != null) {
+      _result.fileSize = fileSize;
+    }
+    if (chunkSize != null) {
+      _result.chunkSize = chunkSize;
+    }
+    if (fileName != null) {
+      _result.fileName = fileName;
+    }
+    return _result;
+  }
   factory FileChunk.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -51,8 +71,8 @@ class FileChunk extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   FileChunk copyWith(void Function(FileChunk) updates) =>
-      super.copyWith((message) =>
-          updates(message as FileChunk)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as FileChunk))
+          as FileChunk; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static FileChunk create() => FileChunk._();
@@ -61,7 +81,7 @@ class FileChunk extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static FileChunk getDefault() =>
       _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<FileChunk>(create);
-  static FileChunk _defaultInstance;
+  static FileChunk? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.List<$core.int> get content => $_getN(0);

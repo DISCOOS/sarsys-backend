@@ -1,3 +1,5 @@
+// @dart=2.10
+
 library sarsys_domain;
 
 export 'src/affiliation/affiliation.dart';

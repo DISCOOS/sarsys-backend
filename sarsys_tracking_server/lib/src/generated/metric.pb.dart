@@ -2,7 +2,7 @@
 //  Generated code. Do not modify.
 //  source: metric.proto
 //
-// @dart = 2.3
+// @dart = 2.12
 // ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
 
 import 'dart:core' as $core;
@@ -40,7 +40,39 @@ class DurationMetricMeta extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   DurationMetricMeta._() : super();
-  factory DurationMetricMeta() => create();
+  factory DurationMetricMeta({
+    $fixnum.Int64? count,
+    $3.Timestamp? t0,
+    $3.Timestamp? tn,
+    $fixnum.Int64? last,
+    $fixnum.Int64? total,
+    DurationCumulativeAverage? cumulative,
+    DurationExponentialAverage? exponential,
+  }) {
+    final _result = create();
+    if (count != null) {
+      _result.count = count;
+    }
+    if (t0 != null) {
+      _result.t0 = t0;
+    }
+    if (tn != null) {
+      _result.tn = tn;
+    }
+    if (last != null) {
+      _result.last = last;
+    }
+    if (total != null) {
+      _result.total = total;
+    }
+    if (cumulative != null) {
+      _result.cumulative = cumulative;
+    }
+    if (exponential != null) {
+      _result.exponential = exponential;
+    }
+    return _result;
+  }
   factory DurationMetricMeta.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -55,8 +87,8 @@ class DurationMetricMeta extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   DurationMetricMeta copyWith(void Function(DurationMetricMeta) updates) =>
-      super.copyWith((message) => updates(
-          message as DurationMetricMeta)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as DurationMetricMeta))
+          as DurationMetricMeta; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static DurationMetricMeta create() => DurationMetricMeta._();
@@ -66,7 +98,7 @@ class DurationMetricMeta extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static DurationMetricMeta getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<DurationMetricMeta>(create);
-  static DurationMetricMeta _defaultInstance;
+  static DurationMetricMeta? _defaultInstance;
 
   @$pb.TagNumber(1)
   $fixnum.Int64 get count => $_getI64(0);
@@ -190,7 +222,27 @@ class DurationCumulativeAverage extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   DurationCumulativeAverage._() : super();
-  factory DurationCumulativeAverage() => create();
+  factory DurationCumulativeAverage({
+    $core.double? rate,
+    $fixnum.Int64? mean,
+    $core.double? variance,
+    $core.double? deviation,
+  }) {
+    final _result = create();
+    if (rate != null) {
+      _result.rate = rate;
+    }
+    if (mean != null) {
+      _result.mean = mean;
+    }
+    if (variance != null) {
+      _result.variance = variance;
+    }
+    if (deviation != null) {
+      _result.deviation = deviation;
+    }
+    return _result;
+  }
   factory DurationCumulativeAverage.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -207,8 +259,8 @@ class DurationCumulativeAverage extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   DurationCumulativeAverage copyWith(
           void Function(DurationCumulativeAverage) updates) =>
-      super.copyWith((message) => updates(message
-          as DurationCumulativeAverage)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as DurationCumulativeAverage))
+          as DurationCumulativeAverage; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static DurationCumulativeAverage create() => DurationCumulativeAverage._();
@@ -218,7 +270,7 @@ class DurationCumulativeAverage extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static DurationCumulativeAverage getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<DurationCumulativeAverage>(create);
-  static DurationCumulativeAverage _defaultInstance;
+  static DurationCumulativeAverage? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.double get rate => $_getN(0);
@@ -301,7 +353,35 @@ class DurationExponentialAverage extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   DurationExponentialAverage._() : super();
-  factory DurationExponentialAverage() => create();
+  factory DurationExponentialAverage({
+    $core.double? alpha,
+    $core.double? beta,
+    $core.double? rate,
+    $fixnum.Int64? mean,
+    $core.double? variance,
+    $core.double? deviation,
+  }) {
+    final _result = create();
+    if (alpha != null) {
+      _result.alpha = alpha;
+    }
+    if (beta != null) {
+      _result.beta = beta;
+    }
+    if (rate != null) {
+      _result.rate = rate;
+    }
+    if (mean != null) {
+      _result.mean = mean;
+    }
+    if (variance != null) {
+      _result.variance = variance;
+    }
+    if (deviation != null) {
+      _result.deviation = deviation;
+    }
+    return _result;
+  }
   factory DurationExponentialAverage.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -318,8 +398,9 @@ class DurationExponentialAverage extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   DurationExponentialAverage copyWith(
           void Function(DurationExponentialAverage) updates) =>
-      super.copyWith((message) => updates(message
-          as DurationExponentialAverage)); // ignore: deprecated_member_use
+      super.copyWith(
+              (message) => updates(message as DurationExponentialAverage))
+          as DurationExponentialAverage; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static DurationExponentialAverage create() => DurationExponentialAverage._();
@@ -329,7 +410,7 @@ class DurationExponentialAverage extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static DurationExponentialAverage getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<DurationExponentialAverage>(create);
-  static DurationExponentialAverage _defaultInstance;
+  static DurationExponentialAverage? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.double get alpha => $_getN(0);

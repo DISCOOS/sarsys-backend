@@ -98,7 +98,8 @@ class EventStoreMockServer {
   }
 
   bool _shouldTemporaryRedirect(HttpRequest request) =>
-      master != null && request.headers.value('es-requiremaster')?.toLowerCase() == 'true';
+      master != null &&
+      request.headers.value('es-requiremaster')?.toLowerCase() == 'true';
 
   HttpResponse _notFound(HttpRequest request) {
     return request.response
@@ -107,7 +108,8 @@ class EventStoreMockServer {
   }
 
   HttpResponse _temporaryRedirect(HttpRequest request) {
-    final url = 'http://${InternetAddress.loopbackIPv4.address}:$master${request.uri}';
+    final url =
+        'http://${InternetAddress.loopbackIPv4.address}:$master${request.uri}';
     return request.response
       ..headers.add('location', url)
       ..statusCode = HttpStatus.temporaryRedirect
@@ -171,7 +173,9 @@ class EventStoreMockServer {
 
   TestStream getStream(String name) => _streams[name];
 
-  TestStream _addStream(String name, bool useInstanceStreams, String tenant, String prefix) => _streams.putIfAbsent(
+  TestStream _addStream(
+          String name, bool useInstanceStreams, String tenant, String prefix) =>
+      _streams.putIfAbsent(
         name,
         () => TestStream(
           port,
@@ -270,7 +274,8 @@ class TestRoute {
   }
 }
 
-typedef RequestHandler = Future<bool> Function(HttpRequest request, String stream);
+typedef RequestHandler = Future<bool> Function(
+    HttpRequest request, String stream);
 
 class TestStream {
   TestStream(
@@ -297,12 +302,15 @@ class TestStream {
   final List<Map<String, Map<String, dynamic>>> _instances = [];
 
   /// LinkedHashMap ensures keys are insertion-ordered to honor event ordering
-  final LinkedHashMap<String, Map<String, dynamic>> _canonical = LinkedHashMap();
+  final LinkedHashMap<String, Map<String, dynamic>> _canonical =
+      LinkedHashMap();
 
   /// LinkedHashMap ensures keys are insertion-ordered to honor event ordering
-  final LinkedHashMap<String, List<Map<String, dynamic>>> _cached = LinkedHashMap();
+  final LinkedHashMap<String, List<Map<String, dynamic>>> _cached =
+      LinkedHashMap();
 
-  List<Map<String, Map<String, dynamic>>> get instances => List.unmodifiable(_instances);
+  List<Map<String, Map<String, dynamic>>> get instances =>
+      List.unmodifiable(_instances);
 
   /// Get [SourceEvent] from [DomainEvent]
   static Map<String, dynamic> fromDomainEvent(
@@ -342,7 +350,8 @@ class TestStream {
         },
       };
 
-  String get canonicalStream => useInstanceStreams ? categoryStream : instanceStream;
+  String get canonicalStream =>
+      useInstanceStreams ? categoryStream : instanceStream;
   String get categoryStream => '\$ce-$instanceStream';
   String get instanceStream => EventStore.toCanonical([
         tenant,
@@ -435,18 +444,22 @@ class TestStream {
   Future handlePUT(HttpRequest request) async {
     RegExp pattern;
     final path = request.uri.path;
-    if ((pattern = RegExp(TestSubscription.asSubscription(RegExp.escape(canonicalStream)))).hasMatch(path)) {
+    if ((pattern = RegExp(
+            TestSubscription.asSubscription(RegExp.escape(canonicalStream))))
+        .hasMatch(path)) {
       await _createSubscription(request, pattern, path);
     } else {
       _unsupported(request);
     }
   }
 
-  Future _createSubscription(HttpRequest request, RegExp pattern, String path) async {
+  Future _createSubscription(
+      HttpRequest request, RegExp pattern, String path) async {
     final content = await utf8.decoder.bind(request).join();
     final data = Map.from(json.decode(content) as Map);
     final offset = data['startFrom'] as int ?? 0;
-    final strategy = data['namedConsumerStrategy'] as String ?? enumName(ConsumerStrategy.RoundRobin);
+    final strategy = data['namedConsumerStrategy'] as String ??
+        enumName(ConsumerStrategy.RoundRobin);
     final type = ConsumerStrategy.values.firstWhere(
       (value) => enumName(value).toLowerCase() == strategy.toLowerCase(),
       orElse: () => null,
@@ -469,7 +482,7 @@ class TestStream {
           offset: offset,
           data: data,
         );
-        request.response..statusCode = HttpStatus.created;
+        request.response.statusCode = HttpStatus.created;
       }
     }
   }
@@ -515,9 +528,13 @@ class TestStream {
     final path = request.uri.path;
     if (RegExp(asStream(RegExp.escape(instanceStream))).hasMatch(path)) {
       await _writeEvent(request, path);
-    } else if ((pattern = RegExp(TestSubscription.asAck(RegExp.escape(canonicalStream)))).hasMatch(path)) {
+    } else if ((pattern =
+            RegExp(TestSubscription.asAck(RegExp.escape(canonicalStream))))
+        .hasMatch(path)) {
       await _ackEvents(request, pattern, path);
-    } else if ((pattern = RegExp(TestSubscription.asNack(RegExp.escape(canonicalStream)))).hasMatch(path)) {
+    } else if ((pattern =
+            RegExp(TestSubscription.asNack(RegExp.escape(canonicalStream))))
+        .hasMatch(path)) {
       await _nackEvents(request, pattern, path);
     } else {
       _unsupported(request);
@@ -537,7 +554,9 @@ class TestStream {
       final data = json.decode(content);
       final list = _toEvents(data);
       final current = _toEventsFromPath(path);
-      final offset = current.isEmpty ? -1 : (current.values.last.elementAt<int>('eventNumber') ?? 0);
+      final offset = current.isEmpty
+          ? -1
+          : (current.values.last.elementAt<int>('eventNumber') ?? 0);
       final events = append(path, list, offset: offset);
       request.response
         ..headers.add('location', '$path/${events.length - list.length}')
@@ -546,7 +565,8 @@ class TestStream {
   }
 
   bool _checkEventNumber(HttpRequest request, String path) {
-    final expectedNumber = int.tryParse(request.headers.value('ES-ExpectedVersion'));
+    final expectedNumber =
+        int.tryParse(request.headers.value('ES-ExpectedVersion'));
     if (expectedNumber != null) {
       final exists = _streamExists(path);
       final number = _toEventsFromPath(path).length - 1;
@@ -556,9 +576,15 @@ class TestStream {
       final isNotEmpty = expectedNumber > 0;
 
       if (!isAny && /* If ExpectedVersion.any is given, write should never conflict and should always succeed */
-          (isNotEmpty && number != expectedNumber || /* Should match exact event number given */
-              isNone && exists && number >= 0 || /* Should not exist at the time of the writing */
-              isEmpty && (!exists || number > 0)) /* Should exist and be empty */) {
+          (isNotEmpty &&
+                  number !=
+                      expectedNumber || /* Should match exact event number given */
+              isNone &&
+                  exists &&
+                  number >=
+                      0 || /* Should not exist at the time of the writing */
+              isEmpty &&
+                  (!exists || number > 0)) /* Should exist and be empty */) {
         request.response
           ..statusCode = HttpStatus.badRequest
           ..headers.add('ES-CurrentVersion', number)
@@ -569,10 +595,11 @@ class TestStream {
     return true;
   }
 
-  List<Map<String, dynamic>> _toEvents(dynamic data) =>
-      (data is List ? List<Map<String, dynamic>>.from(data) : [data as Map<String, dynamic>])
-          .map(_ensureUpdated)
-          .toList();
+  List<Map<String, dynamic>> _toEvents(dynamic data) => (data is List
+          ? List<Map<String, dynamic>>.from(data)
+          : [data as Map<String, dynamic>])
+      .map(_ensureUpdated)
+      .toList();
 
   /// If true, POSTS are cached locally until [join] is invoked
   bool get partitioned => _partitioned;
@@ -617,9 +644,11 @@ class TestStream {
     }
   }
 
-  HttpResponse _unsupported(HttpRequest request, {String message}) => request.response
-    ..statusCode = HttpStatus.badRequest
-    ..reasonPhrase = message ?? 'Request ${request.method} ${request.uri.path} not supported';
+  HttpResponse _unsupported(HttpRequest request, {String message}) =>
+      request.response
+        ..statusCode = HttpStatus.badRequest
+        ..reasonPhrase = message ??
+            'Request ${request.method} ${request.uri.path} not supported';
 
   /// Append [list] of data objects to [path]
   Map<String, Map<String, dynamic>> append(
@@ -631,7 +660,9 @@ class TestStream {
   }) {
     // Prepare
     final events = _toEventsFromPath(path);
-    final last = (events.isEmpty ? -1 : events.values.last.elementAt<int>('eventNumber'));
+    final last = (events.isEmpty
+        ? -1
+        : events.values.last.elementAt<int>('eventNumber'));
     var i = offset ?? last;
     if (offset != null) {
       assert(i == last, '$port:$path@$last not equal to offset $offset');
@@ -648,13 +679,15 @@ class TestStream {
         event.elementAt<String>('eventId'),
         event
           ..addAll({
-            'eventNumber': increment ? ++i : (event.elementAt<int>('eventNumber') ?? ++i),
+            'eventNumber':
+                increment ? ++i : (event.elementAt<int>('eventNumber') ?? ++i),
           }),
       );
     }));
 
     if (_partitioned) {
-      _cached.update(path, (events) => events..addAll(unseen), ifAbsent: () => unseen);
+      _cached.update(path, (events) => events..addAll(unseen),
+          ifAbsent: () => unseen);
     }
     _canonical.addAll(events);
 
@@ -662,7 +695,10 @@ class TestStream {
       _notify(
         path,
         offset,
-        list.map((e) => Map<String, dynamic>.from(e)..addAll({'replicatedBy': port})).toList(),
+        list
+            .map((e) =>
+                Map<String, dynamic>.from(e)..addAll({'replicatedBy': port}))
+            .toList(),
       );
     }
 
@@ -679,7 +715,8 @@ class TestStream {
     if (event.containsKey('updated')) {
       return event;
     }
-    return Map.from(event)..addAll({'updated': DateTime.now().toIso8601String()});
+    return Map.from(event)
+      ..addAll({'updated': DateTime.now().toIso8601String()});
   }
 
   bool _streamExists(String path) {
@@ -711,8 +748,9 @@ class TestStream {
     return _instances.first;
   }
 
-  Map<String, Map<String, dynamic>> toEvents({int id}) =>
-      _instances.isEmpty ? {} : (useInstanceStreams ? _instances.elementAt(id ?? 0) : _instances.first);
+  Map<String, Map<String, dynamic>> toEvents({int id}) => _instances.isEmpty
+      ? {}
+      : (useInstanceStreams ? _instances.elementAt(id ?? 0) : _instances.first);
 
   void handleGET(HttpRequest request) {
     final path = request.uri.path;
@@ -786,7 +824,8 @@ class TestStream {
       }
     } else if (RegExp(TestSubscription.asSubscription(stream)).hasMatch(path)) {
       // Fetch next events from subscription group for given consumer
-      _toCompetingAtomFeedResponse(request, TestSubscription.asSubscription(stream), path);
+      _toCompetingAtomFeedResponse(
+          request, TestSubscription.asSubscription(stream), path);
     } else {
       handled = false;
     }
@@ -808,14 +847,19 @@ class TestStream {
       int.parse(RegExp('/streams/$stream/(\\d+)').firstMatch(path)?.group(1));
 
   String asInstanceNumber(String stream) => '/streams/$stream-(\\d+)/(\\d+)';
-  int toInstanceNumber(String stream, String path) =>
-      int.parse(RegExp('/streams/$stream-(\\d+)/(\\d+)').firstMatch(path)?.group(1));
+  int toInstanceNumber(String stream, String path) => int.parse(
+      RegExp('/streams/$stream-(\\d+)/(\\d+)').firstMatch(path)?.group(1));
 
-  void _toAtomItemContentResponse(HttpRequest request, int number, Map<String, dynamic> data) {
-    if (request.headers.value('accept')?.contains('application/vnd.eventstore.atom+json') != true) {
+  void _toAtomItemContentResponse(
+      HttpRequest request, int number, Map<String, dynamic> data) {
+    if (request.headers
+            .value('accept')
+            ?.contains('application/vnd.eventstore.atom+json') !=
+        true) {
       _unsupported(
         request,
-        message: "TestStream only supports 'Accept:application/vnd.eventstore.atom+json'",
+        message:
+            "TestStream only supports 'Accept:application/vnd.eventstore.atom+json'",
       );
     } else {
       final selfUrl = toSelfURL(canonicalStream);
@@ -843,10 +887,14 @@ class TestStream {
     final match = RegExp(pattern).firstMatch(path);
     final offset = int.parse(match.group(1));
     final count = int.parse(match.group(2));
-    if (request.headers.value('accept')?.contains('application/vnd.eventstore.atom+json') != true) {
+    if (request.headers
+            .value('accept')
+            ?.contains('application/vnd.eventstore.atom+json') !=
+        true) {
       _unsupported(
         request,
-        message: "TestStream only supports 'Accept:application/vnd.eventstore.atom+json'",
+        message:
+            "TestStream only supports 'Accept:application/vnd.eventstore.atom+json'",
       );
     } else if (offset < 0 || count < 0 || offset > events.length) {
       _notFound(request);
@@ -880,11 +928,16 @@ class TestStream {
     ..statusCode = HttpStatus.notFound
     ..reasonPhrase = 'Not found';
 
-  void _toCompetingAtomFeedResponse(HttpRequest request, String pattern, String path) {
-    if (request.headers.value('accept')?.contains('application/vnd.eventstore.competingatom+json') != true) {
+  void _toCompetingAtomFeedResponse(
+      HttpRequest request, String pattern, String path) {
+    if (request.headers
+            .value('accept')
+            ?.contains('application/vnd.eventstore.competingatom+json') !=
+        true) {
       _unsupported(
         request,
-        message: "TestSubscription only supports 'Accept:application/vnd.eventstore.competingatom+json'",
+        message:
+            "TestSubscription only supports 'Accept:application/vnd.eventstore.competingatom+json'",
       );
     } else {
       final match = RegExp(pattern).firstMatch(path);
@@ -934,7 +987,9 @@ class TestSubscription {
 
   void consume(TestStream stream, HttpRequest request) {
     final path = request.uri.path;
-    final match = RegExp(asCount(RegExp.escape(this.stream), RegExp.escape(group))).firstMatch(path);
+    final match =
+        RegExp(asCount(RegExp.escape(this.stream), RegExp.escape(group)))
+            .firstMatch(path);
     final count = int.parse(match.group(1) ?? '1');
     final selfUrl = '${stream.toUrl()}/${asGroup(this.stream, group)}';
     final consumed = _evict(stream);
@@ -976,40 +1031,49 @@ class TestSubscription {
   Map<String, _Consumed> _evict(TestStream stream) {
     final now = DateTime.now();
     final evicted = consumed.keys.where(
-      (uuid) => !consumed[uuid].acknowledged && now.difference(consumed[uuid].timestamp).inMilliseconds > timeout,
+      (uuid) =>
+          !consumed[uuid].acknowledged &&
+          now.difference(consumed[uuid].timestamp).inMilliseconds > timeout,
     );
     if (evicted.isNotEmpty) {
       _offset = evicted.fold(
         _offset,
-        (offset, next) => min(offset, stream._canonical.keys.toList().indexOf(consumed[next].uuid)),
+        (offset, next) => min(offset,
+            stream._canonical.keys.toList().indexOf(consumed[next].uuid)),
       );
       consumed.removeWhere((uuid, _) => evicted.contains(uuid));
     }
     return consumed;
   }
 
-  static String asSubscription(String stream) => 'subscriptions/$stream/([\\w:-]+)';
-  static String asGroup(String stream, String group) => 'subscriptions/$stream/$group';
-  static String asCount(String stream, String group) => 'subscriptions/$stream/$group/(\\d+)';
+  static String asSubscription(String stream) =>
+      'subscriptions/$stream/([\\w:-]+)';
+  static String asGroup(String stream, String group) =>
+      'subscriptions/$stream/$group';
+  static String asCount(String stream, String group) =>
+      'subscriptions/$stream/$group/(\\d+)';
   static String asAck(String stream) => 'subscriptions/$stream/([\\w:-]+)/ack';
-  static String asNack(String stream) => 'subscriptions/$stream/([\\w:-]+)/nack';
+  static String asNack(String stream) =>
+      'subscriptions/$stream/([\\w:-]+)/nack';
 
   void ack(TestStream stream, HttpRequest request, List<String> ids) {
     // only acknowledge known ids
-    final known = ids.toList()..removeWhere((id) => !stream._canonical.containsKey(id));
+    final known = ids.toList()
+      ..removeWhere((id) => !stream._canonical.containsKey(id));
     if (known.isNotEmpty) {
       known.forEach((uuid) => consumed[uuid].acknowledged = true);
     }
-    request.response..statusCode = HttpStatus.accepted;
+    request.response.statusCode = HttpStatus.accepted;
   }
 
   void nack(TestStream stream, HttpRequest request, List<String> ids) {
     // only acknowledge known ids
-    final known = ids.toList()..removeWhere((id) => !stream._canonical.containsKey(id));
+    final known = ids.toList()
+      ..removeWhere((id) => !stream._canonical.containsKey(id));
     if (known.isNotEmpty) {
       consumed.removeWhere((id, _) => known.contains(id));
     }
-    request.response..statusCode = HttpStatus.accepted;
+    request.response.statusCode = HttpStatus.accepted;
   }
 }
 
@@ -1027,7 +1091,10 @@ class _Consumed {
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) || other is _Consumed && runtimeType == other.runtimeType && uuid == other.uuid;
+      identical(this, other) ||
+      other is _Consumed &&
+          runtimeType == other.runtimeType &&
+          uuid == other.uuid;
 
   @override
   int get hashCode => uuid.hashCode;
@@ -1036,7 +1103,8 @@ class _Consumed {
 String _lastUpdated(Iterable<Map<String, dynamic>> events) {
   return events.isEmpty
       ? null
-      : events.fold<DateTime>(DateTime.parse(events.first['updated'] as String), (updated, event) {
+      : events.fold<DateTime>(DateTime.parse(events.first['updated'] as String),
+          (updated, event) {
           var next = DateTime.parse(event['updated'] as String);
           if (next.difference(updated).inMilliseconds > 0) {
             next = updated;
@@ -1070,12 +1138,17 @@ AtomFeed _toAtomFeed(
     headOfStream: headOfStream,
     links: [
       AtomLink(uri: selfUrl, relation: 'self'),
-      if (!isSubscription) AtomLink(uri: '$selfUrl/head/backward/20', relation: 'first'),
-      if (!isSubscription) AtomLink(uri: '$selfUrl/1/forward/20', relation: 'previous'),
+      if (!isSubscription)
+        AtomLink(uri: '$selfUrl/head/backward/20', relation: 'first'),
+      if (!isSubscription)
+        AtomLink(uri: '$selfUrl/1/forward/20', relation: 'previous'),
       if (!isSubscription) AtomLink(uri: '$selfUrl/metadata', relation: 'meta'),
-      if (isSubscription) AtomLink(uri: '$selfUrl/ack?ids=$ids', relation: 'ackAll'),
-      if (isSubscription) AtomLink(uri: '$selfUrl/nack?ids=$ids', relation: 'nackAll'),
-      if (isSubscription) AtomLink(uri: '$selfUrl/$consume', relation: 'previous'),
+      if (isSubscription)
+        AtomLink(uri: '$selfUrl/ack?ids=$ids', relation: 'ackAll'),
+      if (isSubscription)
+        AtomLink(uri: '$selfUrl/nack?ids=$ids', relation: 'nackAll'),
+      if (isSubscription)
+        AtomLink(uri: '$selfUrl/$consume', relation: 'previous'),
     ],
     entries: _toAtomItems(
       host,
@@ -1161,14 +1234,18 @@ Map<String, dynamic> _toAtomItem(
       'links': [
         {
           'relation': 'edit',
-          'uri': '${isSubscription ? "$host/streams/$stream" : selfUrl}/$number',
+          'uri':
+              '${isSubscription ? "$host/streams/$stream" : selfUrl}/$number',
         },
         {
           'relation': 'alternate',
-          'uri': '${isSubscription ? "$host/streams/$stream" : selfUrl}/$number',
+          'uri':
+              '${isSubscription ? "$host/streams/$stream" : selfUrl}/$number',
         },
-        if (isSubscription) {'uri': '$selfUrl/ack/${data['eventId']}', 'relation': 'ack'},
-        if (isSubscription) {'uri': '$selfUrl/nack/${data['eventId']}', 'relation': 'nack'},
+        if (isSubscription)
+          {'uri': '$selfUrl/ack/${data['eventId']}', 'relation': 'ack'},
+        if (isSubscription)
+          {'uri': '$selfUrl/nack/${data['eventId']}', 'relation': 'nack'},
       ]
     };
 
@@ -1176,4 +1253,5 @@ Map<String, String> _toAtomAuthor() => {
       'name': '${typeOf<EventStoreMockServer>()}',
     };
 
-bool _isEmbedBody(HttpRequest request) => request.uri.queryParameters['embed']?.contains('body') == true;
+bool _isEmbedBody(HttpRequest request) =>
+    request.uri.queryParameters['embed']?.contains('body') == true;

@@ -33,13 +33,13 @@ commit:
 
 test:
 	echo "Testing..."
-	echo "event_source..."; cd event_source; pub run test -j 1
-	echo "event_source_grpc..."; cd event_source_grpc; pub run test -j 1
-	echo "sarsys_core..."; cd sarsys_core; pub run test -j 1
-	echo "sarsys_domain..."; cd sarsys_domain; pub run test -j 1
-	echo "sarsys_app_server..."; cd sarsys_app_server; pub run test -j 1
-	echo "sarsys_tracking_server..."; cd sarsys_tracking_server; pub run test -j 1
-	echo "sarsys_ops_server..."; cd sarsys_ops_server; pub run test -j 1
+	echo "event_source..."; cd event_source; dart --no-sound-null-safety test -j 1
+	echo "event_source_grpc..."; cd event_source_grpc; dart --no-sound-null-safety test -j 1
+	echo "sarsys_core..."; cd sarsys_core; dart --no-sound-null-safety test -j 1
+	echo "sarsys_domain..."; cd sarsys_domain; dart --no-sound-null-safety test -j 1
+	echo "sarsys_app_server..."; cd sarsys_app_server; dart --no-sound-null-safety test -j 1
+	echo "sarsys_tracking_server..."; cd sarsys_tracking_server; dart --no-sound-null-safety test -j 1
+	echo "sarsys_ops_server..."; cd sarsys_ops_server; dart --no-sound-null-safety test -j 1
 	echo "[✓] Testing complete."
 
 models:
@@ -72,7 +72,6 @@ models:
 		--proto_path protos \
 		tracking_service.proto; \
 	dartfmt -w lib/src/generated
-	echo "sarsys_app_server..."; cd sarsys_app_server; pub run build_runner build --delete-conflicting-outputs
 	echo "[✓] Generating models complete."
 
 docker_is_up:

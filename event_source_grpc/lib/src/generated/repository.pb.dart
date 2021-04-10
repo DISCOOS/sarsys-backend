@@ -2,7 +2,7 @@
 //  Generated code. Do not modify.
 //  source: repository.proto
 //
-// @dart = 2.3
+// @dart = 2.12
 // ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
 
 import 'dart:core' as $core;
@@ -44,7 +44,19 @@ class GetRepoMetaRequest extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   GetRepoMetaRequest._() : super();
-  factory GetRepoMetaRequest() => create();
+  factory GetRepoMetaRequest({
+    $core.String? type,
+    $core.Iterable<RepoExpandFields>? expand,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (expand != null) {
+      _result.expand.addAll(expand);
+    }
+    return _result;
+  }
   factory GetRepoMetaRequest.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -59,8 +71,8 @@ class GetRepoMetaRequest extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   GetRepoMetaRequest copyWith(void Function(GetRepoMetaRequest) updates) =>
-      super.copyWith((message) => updates(
-          message as GetRepoMetaRequest)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as GetRepoMetaRequest))
+          as GetRepoMetaRequest; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static GetRepoMetaRequest create() => GetRepoMetaRequest._();
@@ -70,7 +82,7 @@ class GetRepoMetaRequest extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static GetRepoMetaRequest getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<GetRepoMetaRequest>(create);
-  static GetRepoMetaRequest _defaultInstance;
+  static GetRepoMetaRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -112,7 +124,27 @@ class GetRepoMetaResponse extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   GetRepoMetaResponse._() : super();
-  factory GetRepoMetaResponse() => create();
+  factory GetRepoMetaResponse({
+    $core.String? type,
+    $core.int? statusCode,
+    $core.String? reasonPhrase,
+    RepositoryMeta? meta,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (statusCode != null) {
+      _result.statusCode = statusCode;
+    }
+    if (reasonPhrase != null) {
+      _result.reasonPhrase = reasonPhrase;
+    }
+    if (meta != null) {
+      _result.meta = meta;
+    }
+    return _result;
+  }
   factory GetRepoMetaResponse.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -127,8 +159,8 @@ class GetRepoMetaResponse extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   GetRepoMetaResponse copyWith(void Function(GetRepoMetaResponse) updates) =>
-      super.copyWith((message) => updates(
-          message as GetRepoMetaResponse)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as GetRepoMetaResponse))
+          as GetRepoMetaResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static GetRepoMetaResponse create() => GetRepoMetaResponse._();
@@ -138,7 +170,7 @@ class GetRepoMetaResponse extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static GetRepoMetaResponse getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<GetRepoMetaResponse>(create);
-  static GetRepoMetaResponse _defaultInstance;
+  static GetRepoMetaResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -222,7 +254,23 @@ class ReplayRepoEventsRequest extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   ReplayRepoEventsRequest._() : super();
-  factory ReplayRepoEventsRequest() => create();
+  factory ReplayRepoEventsRequest({
+    $core.String? type,
+    $core.Iterable<$core.String>? uuids,
+    $core.Iterable<RepoExpandFields>? expand,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (uuids != null) {
+      _result.uuids.addAll(uuids);
+    }
+    if (expand != null) {
+      _result.expand.addAll(expand);
+    }
+    return _result;
+  }
   factory ReplayRepoEventsRequest.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -239,8 +287,8 @@ class ReplayRepoEventsRequest extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   ReplayRepoEventsRequest copyWith(
           void Function(ReplayRepoEventsRequest) updates) =>
-      super.copyWith((message) => updates(
-          message as ReplayRepoEventsRequest)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as ReplayRepoEventsRequest))
+          as ReplayRepoEventsRequest; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static ReplayRepoEventsRequest create() => ReplayRepoEventsRequest._();
@@ -250,7 +298,7 @@ class ReplayRepoEventsRequest extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static ReplayRepoEventsRequest getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<ReplayRepoEventsRequest>(create);
-  static ReplayRepoEventsRequest _defaultInstance;
+  static ReplayRepoEventsRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -300,7 +348,31 @@ class ReplayRepoEventsResponse extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   ReplayRepoEventsResponse._() : super();
-  factory ReplayRepoEventsResponse() => create();
+  factory ReplayRepoEventsResponse({
+    $core.String? type,
+    $core.Iterable<$core.String>? uuids,
+    $core.int? statusCode,
+    $core.String? reasonPhrase,
+    RepositoryMeta? meta,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (uuids != null) {
+      _result.uuids.addAll(uuids);
+    }
+    if (statusCode != null) {
+      _result.statusCode = statusCode;
+    }
+    if (reasonPhrase != null) {
+      _result.reasonPhrase = reasonPhrase;
+    }
+    if (meta != null) {
+      _result.meta = meta;
+    }
+    return _result;
+  }
   factory ReplayRepoEventsResponse.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -317,8 +389,8 @@ class ReplayRepoEventsResponse extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   ReplayRepoEventsResponse copyWith(
           void Function(ReplayRepoEventsResponse) updates) =>
-      super.copyWith((message) => updates(message
-          as ReplayRepoEventsResponse)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as ReplayRepoEventsResponse))
+          as ReplayRepoEventsResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static ReplayRepoEventsResponse create() => ReplayRepoEventsResponse._();
@@ -328,7 +400,7 @@ class ReplayRepoEventsResponse extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static ReplayRepoEventsResponse getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<ReplayRepoEventsResponse>(create);
-  static ReplayRepoEventsResponse _defaultInstance;
+  static ReplayRepoEventsResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -415,7 +487,23 @@ class CatchupRepoEventsRequest extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   CatchupRepoEventsRequest._() : super();
-  factory CatchupRepoEventsRequest() => create();
+  factory CatchupRepoEventsRequest({
+    $core.String? type,
+    $core.Iterable<$core.String>? uuids,
+    $core.Iterable<RepoExpandFields>? expand,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (uuids != null) {
+      _result.uuids.addAll(uuids);
+    }
+    if (expand != null) {
+      _result.expand.addAll(expand);
+    }
+    return _result;
+  }
   factory CatchupRepoEventsRequest.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -432,8 +520,8 @@ class CatchupRepoEventsRequest extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   CatchupRepoEventsRequest copyWith(
           void Function(CatchupRepoEventsRequest) updates) =>
-      super.copyWith((message) => updates(message
-          as CatchupRepoEventsRequest)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as CatchupRepoEventsRequest))
+          as CatchupRepoEventsRequest; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static CatchupRepoEventsRequest create() => CatchupRepoEventsRequest._();
@@ -443,7 +531,7 @@ class CatchupRepoEventsRequest extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static CatchupRepoEventsRequest getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<CatchupRepoEventsRequest>(create);
-  static CatchupRepoEventsRequest _defaultInstance;
+  static CatchupRepoEventsRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -493,7 +581,31 @@ class CatchupRepoEventsResponse extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   CatchupRepoEventsResponse._() : super();
-  factory CatchupRepoEventsResponse() => create();
+  factory CatchupRepoEventsResponse({
+    $core.String? type,
+    $core.Iterable<$core.String>? uuids,
+    $core.int? statusCode,
+    $core.String? reasonPhrase,
+    RepositoryMeta? meta,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (uuids != null) {
+      _result.uuids.addAll(uuids);
+    }
+    if (statusCode != null) {
+      _result.statusCode = statusCode;
+    }
+    if (reasonPhrase != null) {
+      _result.reasonPhrase = reasonPhrase;
+    }
+    if (meta != null) {
+      _result.meta = meta;
+    }
+    return _result;
+  }
   factory CatchupRepoEventsResponse.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -510,8 +622,8 @@ class CatchupRepoEventsResponse extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   CatchupRepoEventsResponse copyWith(
           void Function(CatchupRepoEventsResponse) updates) =>
-      super.copyWith((message) => updates(message
-          as CatchupRepoEventsResponse)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as CatchupRepoEventsResponse))
+          as CatchupRepoEventsResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static CatchupRepoEventsResponse create() => CatchupRepoEventsResponse._();
@@ -521,7 +633,7 @@ class CatchupRepoEventsResponse extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static CatchupRepoEventsResponse getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<CatchupRepoEventsResponse>(create);
-  static CatchupRepoEventsResponse _defaultInstance;
+  static CatchupRepoEventsResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -608,7 +720,23 @@ class RepairRepoRequest extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   RepairRepoRequest._() : super();
-  factory RepairRepoRequest() => create();
+  factory RepairRepoRequest({
+    $core.String? type,
+    $core.bool? master,
+    $core.Iterable<RepoExpandFields>? expand,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (master != null) {
+      _result.master = master;
+    }
+    if (expand != null) {
+      _result.expand.addAll(expand);
+    }
+    return _result;
+  }
   factory RepairRepoRequest.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -623,8 +751,8 @@ class RepairRepoRequest extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   RepairRepoRequest copyWith(void Function(RepairRepoRequest) updates) =>
-      super.copyWith((message) => updates(
-          message as RepairRepoRequest)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as RepairRepoRequest))
+          as RepairRepoRequest; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static RepairRepoRequest create() => RepairRepoRequest._();
@@ -634,7 +762,7 @@ class RepairRepoRequest extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static RepairRepoRequest getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<RepairRepoRequest>(create);
-  static RepairRepoRequest _defaultInstance;
+  static RepairRepoRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -690,7 +818,35 @@ class RepairRepoResponse extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   RepairRepoResponse._() : super();
-  factory RepairRepoResponse() => create();
+  factory RepairRepoResponse({
+    $core.String? type,
+    $core.int? statusCode,
+    $core.String? reasonPhrase,
+    RepositoryMeta? meta,
+    AnalysisMeta? before,
+    AnalysisMeta? after,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (statusCode != null) {
+      _result.statusCode = statusCode;
+    }
+    if (reasonPhrase != null) {
+      _result.reasonPhrase = reasonPhrase;
+    }
+    if (meta != null) {
+      _result.meta = meta;
+    }
+    if (before != null) {
+      _result.before = before;
+    }
+    if (after != null) {
+      _result.after = after;
+    }
+    return _result;
+  }
   factory RepairRepoResponse.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -705,8 +861,8 @@ class RepairRepoResponse extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   RepairRepoResponse copyWith(void Function(RepairRepoResponse) updates) =>
-      super.copyWith((message) => updates(
-          message as RepairRepoResponse)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as RepairRepoResponse))
+          as RepairRepoResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static RepairRepoResponse create() => RepairRepoResponse._();
@@ -716,7 +872,7 @@ class RepairRepoResponse extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static RepairRepoResponse getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<RepairRepoResponse>(create);
-  static RepairRepoResponse _defaultInstance;
+  static RepairRepoResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -827,7 +983,27 @@ class AnalysisMeta extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   AnalysisMeta._() : super();
-  factory AnalysisMeta() => create();
+  factory AnalysisMeta({
+    $core.int? count,
+    $core.int? wrong,
+    $core.int? multiple,
+    $core.Iterable<$core.String>? summary,
+  }) {
+    final _result = create();
+    if (count != null) {
+      _result.count = count;
+    }
+    if (wrong != null) {
+      _result.wrong = wrong;
+    }
+    if (multiple != null) {
+      _result.multiple = multiple;
+    }
+    if (summary != null) {
+      _result.summary.addAll(summary);
+    }
+    return _result;
+  }
   factory AnalysisMeta.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -842,8 +1018,8 @@ class AnalysisMeta extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   AnalysisMeta copyWith(void Function(AnalysisMeta) updates) =>
-      super.copyWith((message) =>
-          updates(message as AnalysisMeta)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as AnalysisMeta))
+          as AnalysisMeta; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static AnalysisMeta create() => AnalysisMeta._();
@@ -853,7 +1029,7 @@ class AnalysisMeta extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static AnalysisMeta getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<AnalysisMeta>(create);
-  static AnalysisMeta _defaultInstance;
+  static AnalysisMeta? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.int get count => $_getIZ(0);
@@ -926,7 +1102,23 @@ class RebuildRepoRequest extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   RebuildRepoRequest._() : super();
-  factory RebuildRepoRequest() => create();
+  factory RebuildRepoRequest({
+    $core.String? type,
+    $core.bool? master,
+    $core.Iterable<RepoExpandFields>? expand,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (master != null) {
+      _result.master = master;
+    }
+    if (expand != null) {
+      _result.expand.addAll(expand);
+    }
+    return _result;
+  }
   factory RebuildRepoRequest.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -941,8 +1133,8 @@ class RebuildRepoRequest extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   RebuildRepoRequest copyWith(void Function(RebuildRepoRequest) updates) =>
-      super.copyWith((message) => updates(
-          message as RebuildRepoRequest)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as RebuildRepoRequest))
+          as RebuildRepoRequest; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static RebuildRepoRequest create() => RebuildRepoRequest._();
@@ -952,7 +1144,7 @@ class RebuildRepoRequest extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static RebuildRepoRequest getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<RebuildRepoRequest>(create);
-  static RebuildRepoRequest _defaultInstance;
+  static RebuildRepoRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -1006,7 +1198,27 @@ class RebuildRepoResponse extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   RebuildRepoResponse._() : super();
-  factory RebuildRepoResponse() => create();
+  factory RebuildRepoResponse({
+    $core.String? type,
+    $core.int? statusCode,
+    $core.String? reasonPhrase,
+    RepositoryMeta? meta,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (statusCode != null) {
+      _result.statusCode = statusCode;
+    }
+    if (reasonPhrase != null) {
+      _result.reasonPhrase = reasonPhrase;
+    }
+    if (meta != null) {
+      _result.meta = meta;
+    }
+    return _result;
+  }
   factory RebuildRepoResponse.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -1021,8 +1233,8 @@ class RebuildRepoResponse extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   RebuildRepoResponse copyWith(void Function(RebuildRepoResponse) updates) =>
-      super.copyWith((message) => updates(
-          message as RebuildRepoResponse)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as RebuildRepoResponse))
+          as RebuildRepoResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static RebuildRepoResponse create() => RebuildRepoResponse._();
@@ -1032,7 +1244,7 @@ class RebuildRepoResponse extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static RebuildRepoResponse getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<RebuildRepoResponse>(create);
-  static RebuildRepoResponse _defaultInstance;
+  static RebuildRepoResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -1110,7 +1322,31 @@ class RepositoryMeta extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   RepositoryMeta._() : super();
-  factory RepositoryMeta() => create();
+  factory RepositoryMeta({
+    $core.String? type,
+    $6.EventMeta? lastEvent,
+    RepositoryQueueMeta? queue,
+    RepositoryMetricsMeta? metrics,
+    ConnectionMetricsMeta? connection,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (lastEvent != null) {
+      _result.lastEvent = lastEvent;
+    }
+    if (queue != null) {
+      _result.queue = queue;
+    }
+    if (metrics != null) {
+      _result.metrics = metrics;
+    }
+    if (connection != null) {
+      _result.connection = connection;
+    }
+    return _result;
+  }
   factory RepositoryMeta.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -1125,8 +1361,8 @@ class RepositoryMeta extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   RepositoryMeta copyWith(void Function(RepositoryMeta) updates) =>
-      super.copyWith((message) =>
-          updates(message as RepositoryMeta)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as RepositoryMeta))
+          as RepositoryMeta; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static RepositoryMeta create() => RepositoryMeta._();
@@ -1136,7 +1372,7 @@ class RepositoryMeta extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static RepositoryMeta getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<RepositoryMeta>(create);
-  static RepositoryMeta _defaultInstance;
+  static RepositoryMeta? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -1228,7 +1464,23 @@ class RepositoryQueueMeta extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   RepositoryQueueMeta._() : super();
-  factory RepositoryQueueMeta() => create();
+  factory RepositoryQueueMeta({
+    RepositoryQueuePressureMeta? pressure,
+    RepositoryQueueStatusMeta? status,
+    RepositoryMetricsMeta? metrics,
+  }) {
+    final _result = create();
+    if (pressure != null) {
+      _result.pressure = pressure;
+    }
+    if (status != null) {
+      _result.status = status;
+    }
+    if (metrics != null) {
+      _result.metrics = metrics;
+    }
+    return _result;
+  }
   factory RepositoryQueueMeta.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -1243,8 +1495,8 @@ class RepositoryQueueMeta extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   RepositoryQueueMeta copyWith(void Function(RepositoryQueueMeta) updates) =>
-      super.copyWith((message) => updates(
-          message as RepositoryQueueMeta)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as RepositoryQueueMeta))
+          as RepositoryQueueMeta; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static RepositoryQueueMeta create() => RepositoryQueueMeta._();
@@ -1254,7 +1506,7 @@ class RepositoryQueueMeta extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static RepositoryQueueMeta getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<RepositoryQueueMeta>(create);
-  static RepositoryQueueMeta _defaultInstance;
+  static RepositoryQueueMeta? _defaultInstance;
 
   @$pb.TagNumber(1)
   RepositoryQueuePressureMeta get pressure => $_getN(0);
@@ -1330,7 +1582,31 @@ class RepositoryQueuePressureMeta extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   RepositoryQueuePressureMeta._() : super();
-  factory RepositoryQueuePressureMeta() => create();
+  factory RepositoryQueuePressureMeta({
+    $core.int? push,
+    $core.int? commands,
+    $core.int? total,
+    $core.int? maximum,
+    $core.bool? exceeded,
+  }) {
+    final _result = create();
+    if (push != null) {
+      _result.push = push;
+    }
+    if (commands != null) {
+      _result.commands = commands;
+    }
+    if (total != null) {
+      _result.total = total;
+    }
+    if (maximum != null) {
+      _result.maximum = maximum;
+    }
+    if (exceeded != null) {
+      _result.exceeded = exceeded;
+    }
+    return _result;
+  }
   factory RepositoryQueuePressureMeta.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -1347,8 +1623,9 @@ class RepositoryQueuePressureMeta extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   RepositoryQueuePressureMeta copyWith(
           void Function(RepositoryQueuePressureMeta) updates) =>
-      super.copyWith((message) => updates(message
-          as RepositoryQueuePressureMeta)); // ignore: deprecated_member_use
+      super.copyWith(
+              (message) => updates(message as RepositoryQueuePressureMeta))
+          as RepositoryQueuePressureMeta; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static RepositoryQueuePressureMeta create() =>
@@ -1359,7 +1636,7 @@ class RepositoryQueuePressureMeta extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static RepositoryQueuePressureMeta getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<RepositoryQueuePressureMeta>(create);
-  static RepositoryQueuePressureMeta _defaultInstance;
+  static RepositoryQueuePressureMeta? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.int get push => $_getIZ(0);
@@ -1450,7 +1727,23 @@ class RepositoryQueueStatusMeta extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   RepositoryQueueStatusMeta._() : super();
-  factory RepositoryQueueStatusMeta() => create();
+  factory RepositoryQueueStatusMeta({
+    $core.bool? idle,
+    $core.bool? ready,
+    $core.bool? disposed,
+  }) {
+    final _result = create();
+    if (idle != null) {
+      _result.idle = idle;
+    }
+    if (ready != null) {
+      _result.ready = ready;
+    }
+    if (disposed != null) {
+      _result.disposed = disposed;
+    }
+    return _result;
+  }
   factory RepositoryQueueStatusMeta.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -1467,8 +1760,8 @@ class RepositoryQueueStatusMeta extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   RepositoryQueueStatusMeta copyWith(
           void Function(RepositoryQueueStatusMeta) updates) =>
-      super.copyWith((message) => updates(message
-          as RepositoryQueueStatusMeta)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as RepositoryQueueStatusMeta))
+          as RepositoryQueueStatusMeta; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static RepositoryQueueStatusMeta create() => RepositoryQueueStatusMeta._();
@@ -1478,7 +1771,7 @@ class RepositoryQueueStatusMeta extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static RepositoryQueueStatusMeta getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<RepositoryQueueStatusMeta>(create);
-  static RepositoryQueueStatusMeta _defaultInstance;
+  static RepositoryQueueStatusMeta? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.bool get idle => $_getBF(0);
@@ -1545,7 +1838,27 @@ class RepositoryMetricsMeta extends $pb.GeneratedMessage {
         ..hasRequiredFields = false;
 
   RepositoryMetricsMeta._() : super();
-  factory RepositoryMetricsMeta() => create();
+  factory RepositoryMetricsMeta({
+    $fixnum.Int64? events,
+    $core.int? transactions,
+    RepositoryMetricsAggregateMeta? aggregates,
+    $7.DurationMetricMeta? push,
+  }) {
+    final _result = create();
+    if (events != null) {
+      _result.events = events;
+    }
+    if (transactions != null) {
+      _result.transactions = transactions;
+    }
+    if (aggregates != null) {
+      _result.aggregates = aggregates;
+    }
+    if (push != null) {
+      _result.push = push;
+    }
+    return _result;
+  }
   factory RepositoryMetricsMeta.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -1562,8 +1875,8 @@ class RepositoryMetricsMeta extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   RepositoryMetricsMeta copyWith(
           void Function(RepositoryMetricsMeta) updates) =>
-      super.copyWith((message) => updates(
-          message as RepositoryMetricsMeta)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as RepositoryMetricsMeta))
+          as RepositoryMetricsMeta; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static RepositoryMetricsMeta create() => RepositoryMetricsMeta._();
@@ -1573,7 +1886,7 @@ class RepositoryMetricsMeta extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static RepositoryMetricsMeta getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<RepositoryMetricsMeta>(create);
-  static RepositoryMetricsMeta _defaultInstance;
+  static RepositoryMetricsMeta? _defaultInstance;
 
   @$pb.TagNumber(1)
   $fixnum.Int64 get events => $_getI64(0);
@@ -1657,7 +1970,27 @@ class RepositoryMetricsAggregateMeta extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   RepositoryMetricsAggregateMeta._() : super();
-  factory RepositoryMetricsAggregateMeta() => create();
+  factory RepositoryMetricsAggregateMeta({
+    $core.int? count,
+    $core.int? changed,
+    $0.AggregateMetaList? tainted,
+    $0.AggregateMetaList? cordoned,
+  }) {
+    final _result = create();
+    if (count != null) {
+      _result.count = count;
+    }
+    if (changed != null) {
+      _result.changed = changed;
+    }
+    if (tainted != null) {
+      _result.tainted = tainted;
+    }
+    if (cordoned != null) {
+      _result.cordoned = cordoned;
+    }
+    return _result;
+  }
   factory RepositoryMetricsAggregateMeta.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -1674,8 +2007,9 @@ class RepositoryMetricsAggregateMeta extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   RepositoryMetricsAggregateMeta copyWith(
           void Function(RepositoryMetricsAggregateMeta) updates) =>
-      super.copyWith((message) => updates(message
-          as RepositoryMetricsAggregateMeta)); // ignore: deprecated_member_use
+      super.copyWith(
+              (message) => updates(message as RepositoryMetricsAggregateMeta))
+          as RepositoryMetricsAggregateMeta; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static RepositoryMetricsAggregateMeta create() =>
@@ -1686,7 +2020,7 @@ class RepositoryMetricsAggregateMeta extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static RepositoryMetricsAggregateMeta getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<RepositoryMetricsAggregateMeta>(create);
-  static RepositoryMetricsAggregateMeta _defaultInstance;
+  static RepositoryMetricsAggregateMeta? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.int get count => $_getIZ(0);
@@ -1763,7 +2097,19 @@ class ConnectionMetricsMeta extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   ConnectionMetricsMeta._() : super();
-  factory ConnectionMetricsMeta() => create();
+  factory ConnectionMetricsMeta({
+    $7.DurationMetricMeta? read,
+    $7.DurationMetricMeta? write,
+  }) {
+    final _result = create();
+    if (read != null) {
+      _result.read = read;
+    }
+    if (write != null) {
+      _result.write = write;
+    }
+    return _result;
+  }
   factory ConnectionMetricsMeta.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -1780,8 +2126,8 @@ class ConnectionMetricsMeta extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   ConnectionMetricsMeta copyWith(
           void Function(ConnectionMetricsMeta) updates) =>
-      super.copyWith((message) => updates(
-          message as ConnectionMetricsMeta)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as ConnectionMetricsMeta))
+          as ConnectionMetricsMeta; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static ConnectionMetricsMeta create() => ConnectionMetricsMeta._();
@@ -1791,7 +2137,7 @@ class ConnectionMetricsMeta extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static ConnectionMetricsMeta getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<ConnectionMetricsMeta>(create);
-  static ConnectionMetricsMeta _defaultInstance;
+  static ConnectionMetricsMeta? _defaultInstance;
 
   @$pb.TagNumber(1)
   $7.DurationMetricMeta get read => $_getN(0);

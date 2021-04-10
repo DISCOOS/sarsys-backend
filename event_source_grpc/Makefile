@@ -23,7 +23,7 @@ endif
 	test models
 
 test:
-	pub run test -j 1
+	dart --no-sound-null-safety test -j 1
 
 models:
 	echo "Generating models..."; \

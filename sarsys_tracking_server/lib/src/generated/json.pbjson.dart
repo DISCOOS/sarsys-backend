@@ -2,9 +2,14 @@
 //  Generated code. Do not modify.
 //  source: json.proto
 //
-// @dart = 2.3
-// ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
+// @dart = 2.12
+// ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields,deprecated_member_use_from_same_package
 
+import 'dart:core' as $core;
+import 'dart:convert' as $convert;
+import 'dart:typed_data' as $typed_data;
+
+@$core.Deprecated('Use jsonDataCompressionDescriptor instead')
 const JsonDataCompression$json = const {
   '1': 'JsonDataCompression',
   '2': const [
@@ -14,6 +19,10 @@ const JsonDataCompression$json = const {
   ],
 };
 
+/// Descriptor for `JsonDataCompression`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List jsonDataCompressionDescriptor = $convert.base64Decode(
+    'ChNKc29uRGF0YUNvbXByZXNzaW9uEh4KGkpTT05fREFUQV9DT01QUkVTU0lPTl9OT05FEAASHgoaSlNPTl9EQVRBX0NPTVBSRVNTSU9OX1pMSUIQARIeChpKU09OX0RBVEFfQ09NUFJFU1NJT05fR1pJUBAC');
+@$core.Deprecated('Use jsonValueDescriptor instead')
 const JsonValue$json = const {
   '1': 'JsonValue',
   '2': const [
@@ -29,6 +38,10 @@ const JsonValue$json = const {
   ],
 };
 
+/// Descriptor for `JsonValue`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List jsonValueDescriptor = $convert.base64Decode(
+    'CglKc29uVmFsdWUSRQoLY29tcHJlc3Npb24YASABKA4yIy5vcmcuZGlzY29vcy5pby5Kc29uRGF0YUNvbXByZXNzaW9uUgtjb21wcmVzc2lvbhISCgRkYXRhGAIgASgMUgRkYXRh');
+@$core.Deprecated('Use jsonMatchListDescriptor instead')
 const JsonMatchList$json = const {
   '1': 'JsonMatchList',
   '2': const [
@@ -45,6 +58,10 @@ const JsonMatchList$json = const {
   ],
 };
 
+/// Descriptor for `JsonMatchList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List jsonMatchListDescriptor = $convert.base64Decode(
+    'Cg1Kc29uTWF0Y2hMaXN0EhQKBWNvdW50GAEgASgFUgVjb3VudBIUCgVxdWVyeRgCIAEoCVIFcXVlcnkSLwoFaXRlbXMYAyADKAsyGS5vcmcuZGlzY29vcy5pby5Kc29uTWF0Y2hSBWl0ZW1z');
+@$core.Deprecated('Use jsonMatchDescriptor instead')
 const JsonMatch$json = const {
   '1': 'JsonMatch',
   '2': const [
@@ -60,3 +77,7 @@ const JsonMatch$json = const {
     },
   ],
 };
+
+/// Descriptor for `JsonMatch`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List jsonMatchDescriptor = $convert.base64Decode(
+    'CglKc29uTWF0Y2gSEgoEdXVpZBgBIAEoCVIEdXVpZBISCgRwYXRoGAIgASgJUgRwYXRoEi8KBXZhbHVlGAMgASgLMhkub3JnLmRpc2Nvb3MuaW8uSnNvblZhbHVlUgV2YWx1ZQ==');

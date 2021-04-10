@@ -2,7 +2,7 @@
 //  Generated code. Do not modify.
 //  source: event.proto
 //
-// @dart = 2.3
+// @dart = 2.12
 // ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
 
 import 'dart:core' as $core;
@@ -44,7 +44,35 @@ class EventMeta extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   EventMeta._() : super();
-  factory EventMeta() => create();
+  factory EventMeta({
+    $core.String? type,
+    $core.String? uuid,
+    $core.bool? remote,
+    $fixnum.Int64? number,
+    $fixnum.Int64? position,
+    $4.Timestamp? timestamp,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (uuid != null) {
+      _result.uuid = uuid;
+    }
+    if (remote != null) {
+      _result.remote = remote;
+    }
+    if (number != null) {
+      _result.number = number;
+    }
+    if (position != null) {
+      _result.position = position;
+    }
+    if (timestamp != null) {
+      _result.timestamp = timestamp;
+    }
+    return _result;
+  }
   factory EventMeta.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -59,8 +87,8 @@ class EventMeta extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   EventMeta copyWith(void Function(EventMeta) updates) =>
-      super.copyWith((message) =>
-          updates(message as EventMeta)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as EventMeta))
+          as EventMeta; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static EventMeta create() => EventMeta._();
@@ -69,7 +97,7 @@ class EventMeta extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static EventMeta getDefault() =>
       _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<EventMeta>(create);
-  static EventMeta _defaultInstance;
+  static EventMeta? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -172,7 +200,19 @@ class EventMetaList extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   EventMetaList._() : super();
-  factory EventMetaList() => create();
+  factory EventMetaList({
+    $core.int? count,
+    $core.Iterable<EventMeta>? items,
+  }) {
+    final _result = create();
+    if (count != null) {
+      _result.count = count;
+    }
+    if (items != null) {
+      _result.items.addAll(items);
+    }
+    return _result;
+  }
   factory EventMetaList.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -187,8 +227,8 @@ class EventMetaList extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   EventMetaList copyWith(void Function(EventMetaList) updates) =>
-      super.copyWith((message) =>
-          updates(message as EventMetaList)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as EventMetaList))
+          as EventMetaList; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static EventMetaList create() => EventMetaList._();
@@ -198,7 +238,7 @@ class EventMetaList extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static EventMetaList getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<EventMetaList>(create);
-  static EventMetaList _defaultInstance;
+  static EventMetaList? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.int get count => $_getIZ(0);

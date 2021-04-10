@@ -1,3 +1,5 @@
+// @dart=2.10
+
 /// sarsys_app_server
 ///
 /// A Aqueduct web server.

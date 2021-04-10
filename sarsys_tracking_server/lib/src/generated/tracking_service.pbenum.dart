@@ -2,7 +2,7 @@
 //  Generated code. Do not modify.
 //  source: tracking_service.proto
 //
-// @dart = 2.3
+// @dart = 2.12
 // ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
 
 // ignore_for_file: UNDEFINED_SHOWN_NAME
@@ -51,7 +51,7 @@ class TrackingServerStatus extends $pb.ProtobufEnum {
 
   static final $core.Map<$core.int, TrackingServerStatus> _byValue =
       $pb.ProtobufEnum.initByValue(values);
-  static TrackingServerStatus valueOf($core.int value) => _byValue[value];
+  static TrackingServerStatus? valueOf($core.int value) => _byValue[value];
 
   const TrackingServerStatus._($core.int v, $core.String n) : super(v, n);
 }
@@ -112,7 +112,7 @@ class TrackingExpandFields extends $pb.ProtobufEnum {
 
   static final $core.Map<$core.int, TrackingExpandFields> _byValue =
       $pb.ProtobufEnum.initByValue(values);
-  static TrackingExpandFields valueOf($core.int value) => _byValue[value];
+  static TrackingExpandFields? valueOf($core.int value) => _byValue[value];
 
   const TrackingExpandFields._($core.int v, $core.String n) : super(v, n);
 }

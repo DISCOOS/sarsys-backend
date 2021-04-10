@@ -2,7 +2,7 @@
 //  Generated code. Do not modify.
 //  source: snapshot.proto
 //
-// @dart = 2.3
+// @dart = 2.12
 // ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
 
 import 'dart:core' as $core;
@@ -44,7 +44,19 @@ class GetSnapshotMetaRequest extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   GetSnapshotMetaRequest._() : super();
-  factory GetSnapshotMetaRequest() => create();
+  factory GetSnapshotMetaRequest({
+    $core.String? type,
+    $core.Iterable<SnapshotExpandFields>? expand,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (expand != null) {
+      _result.expand.addAll(expand);
+    }
+    return _result;
+  }
   factory GetSnapshotMetaRequest.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -61,8 +73,8 @@ class GetSnapshotMetaRequest extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   GetSnapshotMetaRequest copyWith(
           void Function(GetSnapshotMetaRequest) updates) =>
-      super.copyWith((message) => updates(
-          message as GetSnapshotMetaRequest)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as GetSnapshotMetaRequest))
+          as GetSnapshotMetaRequest; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static GetSnapshotMetaRequest create() => GetSnapshotMetaRequest._();
@@ -72,7 +84,7 @@ class GetSnapshotMetaRequest extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static GetSnapshotMetaRequest getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<GetSnapshotMetaRequest>(create);
-  static GetSnapshotMetaRequest _defaultInstance;
+  static GetSnapshotMetaRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -114,7 +126,27 @@ class GetSnapshotMetaResponse extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   GetSnapshotMetaResponse._() : super();
-  factory GetSnapshotMetaResponse() => create();
+  factory GetSnapshotMetaResponse({
+    $core.String? type,
+    $core.int? statusCode,
+    $core.String? reasonPhrase,
+    SnapshotMeta? meta,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (statusCode != null) {
+      _result.statusCode = statusCode;
+    }
+    if (reasonPhrase != null) {
+      _result.reasonPhrase = reasonPhrase;
+    }
+    if (meta != null) {
+      _result.meta = meta;
+    }
+    return _result;
+  }
   factory GetSnapshotMetaResponse.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -131,8 +163,8 @@ class GetSnapshotMetaResponse extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   GetSnapshotMetaResponse copyWith(
           void Function(GetSnapshotMetaResponse) updates) =>
-      super.copyWith((message) => updates(
-          message as GetSnapshotMetaResponse)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as GetSnapshotMetaResponse))
+          as GetSnapshotMetaResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static GetSnapshotMetaResponse create() => GetSnapshotMetaResponse._();
@@ -142,7 +174,7 @@ class GetSnapshotMetaResponse extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static GetSnapshotMetaResponse getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<GetSnapshotMetaResponse>(create);
-  static GetSnapshotMetaResponse _defaultInstance;
+  static GetSnapshotMetaResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -229,7 +261,43 @@ class SnapshotMeta extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   SnapshotMeta._() : super();
-  factory SnapshotMeta() => create();
+  factory SnapshotMeta({
+    $core.String? type,
+    $core.String? uuid,
+    $core.String? last,
+    $fixnum.Int64? number,
+    $fixnum.Int64? position,
+    SnapshotConfig? config,
+    SnapshotMetricsMeta? metrics,
+    $0.AggregateMetaList? aggregates,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (uuid != null) {
+      _result.uuid = uuid;
+    }
+    if (last != null) {
+      _result.last = last;
+    }
+    if (number != null) {
+      _result.number = number;
+    }
+    if (position != null) {
+      _result.position = position;
+    }
+    if (config != null) {
+      _result.config = config;
+    }
+    if (metrics != null) {
+      _result.metrics = metrics;
+    }
+    if (aggregates != null) {
+      _result.aggregates = aggregates;
+    }
+    return _result;
+  }
   factory SnapshotMeta.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -244,8 +312,8 @@ class SnapshotMeta extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   SnapshotMeta copyWith(void Function(SnapshotMeta) updates) =>
-      super.copyWith((message) =>
-          updates(message as SnapshotMeta)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as SnapshotMeta))
+          as SnapshotMeta; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static SnapshotMeta create() => SnapshotMeta._();
@@ -255,7 +323,7 @@ class SnapshotMeta extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static SnapshotMeta getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<SnapshotMeta>(create);
-  static SnapshotMeta _defaultInstance;
+  static SnapshotMeta? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -387,7 +455,23 @@ class SnapshotConfig extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   SnapshotConfig._() : super();
-  factory SnapshotConfig() => create();
+  factory SnapshotConfig({
+    $core.int? keep,
+    $core.int? threshold,
+    $core.bool? automatic,
+  }) {
+    final _result = create();
+    if (keep != null) {
+      _result.keep = keep;
+    }
+    if (threshold != null) {
+      _result.threshold = threshold;
+    }
+    if (automatic != null) {
+      _result.automatic = automatic;
+    }
+    return _result;
+  }
   factory SnapshotConfig.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -402,8 +486,8 @@ class SnapshotConfig extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   SnapshotConfig copyWith(void Function(SnapshotConfig) updates) =>
-      super.copyWith((message) =>
-          updates(message as SnapshotConfig)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as SnapshotConfig))
+          as SnapshotConfig; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static SnapshotConfig create() => SnapshotConfig._();
@@ -413,7 +497,7 @@ class SnapshotConfig extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static SnapshotConfig getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<SnapshotConfig>(create);
-  static SnapshotConfig _defaultInstance;
+  static SnapshotConfig? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.int get keep => $_getIZ(0);
@@ -483,7 +567,31 @@ class SnapshotMetricsMeta extends $pb.GeneratedMessage {
         ..hasRequiredFields = false;
 
   SnapshotMetricsMeta._() : super();
-  factory SnapshotMetricsMeta() => create();
+  factory SnapshotMetricsMeta({
+    $fixnum.Int64? snapshots,
+    $fixnum.Int64? unsaved,
+    $fixnum.Int64? missing,
+    $core.bool? isPartial,
+    $7.DurationMetricMeta? save,
+  }) {
+    final _result = create();
+    if (snapshots != null) {
+      _result.snapshots = snapshots;
+    }
+    if (unsaved != null) {
+      _result.unsaved = unsaved;
+    }
+    if (missing != null) {
+      _result.missing = missing;
+    }
+    if (isPartial != null) {
+      _result.isPartial = isPartial;
+    }
+    if (save != null) {
+      _result.save = save;
+    }
+    return _result;
+  }
   factory SnapshotMetricsMeta.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -498,8 +606,8 @@ class SnapshotMetricsMeta extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   SnapshotMetricsMeta copyWith(void Function(SnapshotMetricsMeta) updates) =>
-      super.copyWith((message) => updates(
-          message as SnapshotMetricsMeta)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as SnapshotMetricsMeta))
+          as SnapshotMetricsMeta; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static SnapshotMetricsMeta create() => SnapshotMetricsMeta._();
@@ -509,7 +617,7 @@ class SnapshotMetricsMeta extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static SnapshotMetricsMeta getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<SnapshotMetricsMeta>(create);
-  static SnapshotMetricsMeta _defaultInstance;
+  static SnapshotMetricsMeta? _defaultInstance;
 
   @$pb.TagNumber(1)
   $fixnum.Int64 get snapshots => $_getI64(0);
@@ -608,7 +716,31 @@ class ConfigureSnapshotRequest extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   ConfigureSnapshotRequest._() : super();
-  factory ConfigureSnapshotRequest() => create();
+  factory ConfigureSnapshotRequest({
+    $core.String? type,
+    $core.bool? automatic,
+    $core.int? keep,
+    $core.int? threshold,
+    $core.Iterable<SnapshotExpandFields>? expand,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (automatic != null) {
+      _result.automatic = automatic;
+    }
+    if (keep != null) {
+      _result.keep = keep;
+    }
+    if (threshold != null) {
+      _result.threshold = threshold;
+    }
+    if (expand != null) {
+      _result.expand.addAll(expand);
+    }
+    return _result;
+  }
   factory ConfigureSnapshotRequest.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -625,8 +757,8 @@ class ConfigureSnapshotRequest extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   ConfigureSnapshotRequest copyWith(
           void Function(ConfigureSnapshotRequest) updates) =>
-      super.copyWith((message) => updates(message
-          as ConfigureSnapshotRequest)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as ConfigureSnapshotRequest))
+          as ConfigureSnapshotRequest; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static ConfigureSnapshotRequest create() => ConfigureSnapshotRequest._();
@@ -636,7 +768,7 @@ class ConfigureSnapshotRequest extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static ConfigureSnapshotRequest getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<ConfigureSnapshotRequest>(create);
-  static ConfigureSnapshotRequest _defaultInstance;
+  static ConfigureSnapshotRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -714,7 +846,27 @@ class ConfigureSnapshotResponse extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   ConfigureSnapshotResponse._() : super();
-  factory ConfigureSnapshotResponse() => create();
+  factory ConfigureSnapshotResponse({
+    $core.String? type,
+    $core.int? statusCode,
+    $core.String? reasonPhrase,
+    SnapshotMeta? meta,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (statusCode != null) {
+      _result.statusCode = statusCode;
+    }
+    if (reasonPhrase != null) {
+      _result.reasonPhrase = reasonPhrase;
+    }
+    if (meta != null) {
+      _result.meta = meta;
+    }
+    return _result;
+  }
   factory ConfigureSnapshotResponse.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -731,8 +883,8 @@ class ConfigureSnapshotResponse extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   ConfigureSnapshotResponse copyWith(
           void Function(ConfigureSnapshotResponse) updates) =>
-      super.copyWith((message) => updates(message
-          as ConfigureSnapshotResponse)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as ConfigureSnapshotResponse))
+          as ConfigureSnapshotResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static ConfigureSnapshotResponse create() => ConfigureSnapshotResponse._();
@@ -742,7 +894,7 @@ class ConfigureSnapshotResponse extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static ConfigureSnapshotResponse getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<ConfigureSnapshotResponse>(create);
-  static ConfigureSnapshotResponse _defaultInstance;
+  static ConfigureSnapshotResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -826,7 +978,23 @@ class SaveSnapshotRequest extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   SaveSnapshotRequest._() : super();
-  factory SaveSnapshotRequest() => create();
+  factory SaveSnapshotRequest({
+    $core.String? type,
+    $core.bool? force,
+    $core.Iterable<SnapshotExpandFields>? expand,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (force != null) {
+      _result.force = force;
+    }
+    if (expand != null) {
+      _result.expand.addAll(expand);
+    }
+    return _result;
+  }
   factory SaveSnapshotRequest.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -841,8 +1009,8 @@ class SaveSnapshotRequest extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   SaveSnapshotRequest copyWith(void Function(SaveSnapshotRequest) updates) =>
-      super.copyWith((message) => updates(
-          message as SaveSnapshotRequest)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as SaveSnapshotRequest))
+          as SaveSnapshotRequest; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static SaveSnapshotRequest create() => SaveSnapshotRequest._();
@@ -852,7 +1020,7 @@ class SaveSnapshotRequest extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static SaveSnapshotRequest getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<SaveSnapshotRequest>(create);
-  static SaveSnapshotRequest _defaultInstance;
+  static SaveSnapshotRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -906,7 +1074,27 @@ class SaveSnapshotResponse extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   SaveSnapshotResponse._() : super();
-  factory SaveSnapshotResponse() => create();
+  factory SaveSnapshotResponse({
+    $core.String? type,
+    $core.int? statusCode,
+    $core.String? reasonPhrase,
+    SnapshotMeta? meta,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (statusCode != null) {
+      _result.statusCode = statusCode;
+    }
+    if (reasonPhrase != null) {
+      _result.reasonPhrase = reasonPhrase;
+    }
+    if (meta != null) {
+      _result.meta = meta;
+    }
+    return _result;
+  }
   factory SaveSnapshotResponse.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -922,8 +1110,8 @@ class SaveSnapshotResponse extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   SaveSnapshotResponse copyWith(void Function(SaveSnapshotResponse) updates) =>
-      super.copyWith((message) => updates(
-          message as SaveSnapshotResponse)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as SaveSnapshotResponse))
+          as SaveSnapshotResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static SaveSnapshotResponse create() => SaveSnapshotResponse._();
@@ -933,7 +1121,7 @@ class SaveSnapshotResponse extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static SaveSnapshotResponse getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<SaveSnapshotResponse>(create);
-  static SaveSnapshotResponse _defaultInstance;
+  static SaveSnapshotResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -1012,7 +1200,19 @@ class DownloadSnapshotRequest extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   DownloadSnapshotRequest._() : super();
-  factory DownloadSnapshotRequest() => create();
+  factory DownloadSnapshotRequest({
+    $core.String? type,
+    $fixnum.Int64? chunkSize,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (chunkSize != null) {
+      _result.chunkSize = chunkSize;
+    }
+    return _result;
+  }
   factory DownloadSnapshotRequest.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -1029,8 +1229,8 @@ class DownloadSnapshotRequest extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   DownloadSnapshotRequest copyWith(
           void Function(DownloadSnapshotRequest) updates) =>
-      super.copyWith((message) => updates(
-          message as DownloadSnapshotRequest)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as DownloadSnapshotRequest))
+          as DownloadSnapshotRequest; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static DownloadSnapshotRequest create() => DownloadSnapshotRequest._();
@@ -1040,7 +1240,7 @@ class DownloadSnapshotRequest extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static DownloadSnapshotRequest getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<DownloadSnapshotRequest>(create);
-  static DownloadSnapshotRequest _defaultInstance;
+  static DownloadSnapshotRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -1091,7 +1291,19 @@ class SnapshotChunk extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   SnapshotChunk._() : super();
-  factory SnapshotChunk() => create();
+  factory SnapshotChunk({
+    $core.String? type,
+    $3.FileChunk? chunk,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (chunk != null) {
+      _result.chunk = chunk;
+    }
+    return _result;
+  }
   factory SnapshotChunk.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -1106,8 +1318,8 @@ class SnapshotChunk extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   SnapshotChunk copyWith(void Function(SnapshotChunk) updates) =>
-      super.copyWith((message) =>
-          updates(message as SnapshotChunk)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as SnapshotChunk))
+          as SnapshotChunk; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static SnapshotChunk create() => SnapshotChunk._();
@@ -1117,7 +1329,7 @@ class SnapshotChunk extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static SnapshotChunk getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<SnapshotChunk>(create);
-  static SnapshotChunk _defaultInstance;
+  static SnapshotChunk? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);
@@ -1173,7 +1385,31 @@ class UploadSnapshotResponse extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   UploadSnapshotResponse._() : super();
-  factory UploadSnapshotResponse() => create();
+  factory UploadSnapshotResponse({
+    $core.String? type,
+    $fixnum.Int64? chunkSize,
+    $core.int? statusCode,
+    $core.String? reasonPhrase,
+    SnapshotMeta? meta,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (chunkSize != null) {
+      _result.chunkSize = chunkSize;
+    }
+    if (statusCode != null) {
+      _result.statusCode = statusCode;
+    }
+    if (reasonPhrase != null) {
+      _result.reasonPhrase = reasonPhrase;
+    }
+    if (meta != null) {
+      _result.meta = meta;
+    }
+    return _result;
+  }
   factory UploadSnapshotResponse.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -1190,8 +1426,8 @@ class UploadSnapshotResponse extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   UploadSnapshotResponse copyWith(
           void Function(UploadSnapshotResponse) updates) =>
-      super.copyWith((message) => updates(
-          message as UploadSnapshotResponse)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as UploadSnapshotResponse))
+          as UploadSnapshotResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static UploadSnapshotResponse create() => UploadSnapshotResponse._();
@@ -1201,7 +1437,7 @@ class UploadSnapshotResponse extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static UploadSnapshotResponse getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<UploadSnapshotResponse>(create);
-  static UploadSnapshotResponse _defaultInstance;
+  static UploadSnapshotResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get type => $_getSZ(0);

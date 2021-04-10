@@ -2,7 +2,7 @@
 //  Generated code. Do not modify.
 //  source: tracking_service.proto
 //
-// @dart = 2.3
+// @dart = 2.12
 // ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
 
 import 'dart:core' as $core;
@@ -43,7 +43,19 @@ class AddTrackingsRequest extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   AddTrackingsRequest._() : super();
-  factory AddTrackingsRequest() => create();
+  factory AddTrackingsRequest({
+    $core.Iterable<$core.String>? uuids,
+    $core.Iterable<TrackingExpandFields>? expand,
+  }) {
+    final _result = create();
+    if (uuids != null) {
+      _result.uuids.addAll(uuids);
+    }
+    if (expand != null) {
+      _result.expand.addAll(expand);
+    }
+    return _result;
+  }
   factory AddTrackingsRequest.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -58,8 +70,8 @@ class AddTrackingsRequest extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   AddTrackingsRequest copyWith(void Function(AddTrackingsRequest) updates) =>
-      super.copyWith((message) => updates(
-          message as AddTrackingsRequest)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as AddTrackingsRequest))
+          as AddTrackingsRequest; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static AddTrackingsRequest create() => AddTrackingsRequest._();
@@ -69,7 +81,7 @@ class AddTrackingsRequest extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static AddTrackingsRequest getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<AddTrackingsRequest>(create);
-  static AddTrackingsRequest _defaultInstance;
+  static AddTrackingsRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.List<$core.String> get uuids => $_getList(0);
@@ -106,7 +118,31 @@ class AddTrackingsResponse extends $pb.GeneratedMessage {
         ..hasRequiredFields = false;
 
   AddTrackingsResponse._() : super();
-  factory AddTrackingsResponse() => create();
+  factory AddTrackingsResponse({
+    $core.Iterable<$core.String>? uuids,
+    $core.Iterable<$core.String>? failed,
+    $core.int? statusCode,
+    $core.String? reasonPhrase,
+    GetTrackingMetaResponse? meta,
+  }) {
+    final _result = create();
+    if (uuids != null) {
+      _result.uuids.addAll(uuids);
+    }
+    if (failed != null) {
+      _result.failed.addAll(failed);
+    }
+    if (statusCode != null) {
+      _result.statusCode = statusCode;
+    }
+    if (reasonPhrase != null) {
+      _result.reasonPhrase = reasonPhrase;
+    }
+    if (meta != null) {
+      _result.meta = meta;
+    }
+    return _result;
+  }
   factory AddTrackingsResponse.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -122,8 +158,8 @@ class AddTrackingsResponse extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   AddTrackingsResponse copyWith(void Function(AddTrackingsResponse) updates) =>
-      super.copyWith((message) => updates(
-          message as AddTrackingsResponse)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as AddTrackingsResponse))
+          as AddTrackingsResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static AddTrackingsResponse create() => AddTrackingsResponse._();
@@ -133,7 +169,7 @@ class AddTrackingsResponse extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static AddTrackingsResponse getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<AddTrackingsResponse>(create);
-  static AddTrackingsResponse _defaultInstance;
+  static AddTrackingsResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.List<$core.String> get uuids => $_getList(0);
@@ -201,7 +237,15 @@ class StartTrackingRequest extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   StartTrackingRequest._() : super();
-  factory StartTrackingRequest() => create();
+  factory StartTrackingRequest({
+    $core.Iterable<TrackingExpandFields>? expand,
+  }) {
+    final _result = create();
+    if (expand != null) {
+      _result.expand.addAll(expand);
+    }
+    return _result;
+  }
   factory StartTrackingRequest.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -217,8 +261,8 @@ class StartTrackingRequest extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   StartTrackingRequest copyWith(void Function(StartTrackingRequest) updates) =>
-      super.copyWith((message) => updates(
-          message as StartTrackingRequest)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as StartTrackingRequest))
+          as StartTrackingRequest; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static StartTrackingRequest create() => StartTrackingRequest._();
@@ -228,7 +272,7 @@ class StartTrackingRequest extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static StartTrackingRequest getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<StartTrackingRequest>(create);
-  static StartTrackingRequest _defaultInstance;
+  static StartTrackingRequest? _defaultInstance;
 
   @$pb.TagNumber(2)
   $core.List<TrackingExpandFields> get expand => $_getList(0);
@@ -258,7 +302,27 @@ class StartTrackingResponse extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   StartTrackingResponse._() : super();
-  factory StartTrackingResponse() => create();
+  factory StartTrackingResponse({
+    $core.Iterable<$core.String>? uuids,
+    $core.int? statusCode,
+    $core.String? reasonPhrase,
+    GetTrackingMetaResponse? meta,
+  }) {
+    final _result = create();
+    if (uuids != null) {
+      _result.uuids.addAll(uuids);
+    }
+    if (statusCode != null) {
+      _result.statusCode = statusCode;
+    }
+    if (reasonPhrase != null) {
+      _result.reasonPhrase = reasonPhrase;
+    }
+    if (meta != null) {
+      _result.meta = meta;
+    }
+    return _result;
+  }
   factory StartTrackingResponse.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -275,8 +339,8 @@ class StartTrackingResponse extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   StartTrackingResponse copyWith(
           void Function(StartTrackingResponse) updates) =>
-      super.copyWith((message) => updates(
-          message as StartTrackingResponse)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as StartTrackingResponse))
+          as StartTrackingResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static StartTrackingResponse create() => StartTrackingResponse._();
@@ -286,7 +350,7 @@ class StartTrackingResponse extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static StartTrackingResponse getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<StartTrackingResponse>(create);
-  static StartTrackingResponse _defaultInstance;
+  static StartTrackingResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.List<$core.String> get uuids => $_getList(0);
@@ -351,7 +415,15 @@ class StopTrackingRequest extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   StopTrackingRequest._() : super();
-  factory StopTrackingRequest() => create();
+  factory StopTrackingRequest({
+    $core.Iterable<TrackingExpandFields>? expand,
+  }) {
+    final _result = create();
+    if (expand != null) {
+      _result.expand.addAll(expand);
+    }
+    return _result;
+  }
   factory StopTrackingRequest.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -366,8 +438,8 @@ class StopTrackingRequest extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   StopTrackingRequest copyWith(void Function(StopTrackingRequest) updates) =>
-      super.copyWith((message) => updates(
-          message as StopTrackingRequest)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as StopTrackingRequest))
+          as StopTrackingRequest; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static StopTrackingRequest create() => StopTrackingRequest._();
@@ -377,7 +449,7 @@ class StopTrackingRequest extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static StopTrackingRequest getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<StopTrackingRequest>(create);
-  static StopTrackingRequest _defaultInstance;
+  static StopTrackingRequest? _defaultInstance;
 
   @$pb.TagNumber(2)
   $core.List<TrackingExpandFields> get expand => $_getList(0);
@@ -407,7 +479,27 @@ class StopTrackingResponse extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   StopTrackingResponse._() : super();
-  factory StopTrackingResponse() => create();
+  factory StopTrackingResponse({
+    $core.Iterable<$core.String>? uuids,
+    $core.int? statusCode,
+    $core.String? reasonPhrase,
+    GetTrackingMetaResponse? meta,
+  }) {
+    final _result = create();
+    if (uuids != null) {
+      _result.uuids.addAll(uuids);
+    }
+    if (statusCode != null) {
+      _result.statusCode = statusCode;
+    }
+    if (reasonPhrase != null) {
+      _result.reasonPhrase = reasonPhrase;
+    }
+    if (meta != null) {
+      _result.meta = meta;
+    }
+    return _result;
+  }
   factory StopTrackingResponse.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -423,8 +515,8 @@ class StopTrackingResponse extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   StopTrackingResponse copyWith(void Function(StopTrackingResponse) updates) =>
-      super.copyWith((message) => updates(
-          message as StopTrackingResponse)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as StopTrackingResponse))
+          as StopTrackingResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static StopTrackingResponse create() => StopTrackingResponse._();
@@ -434,7 +526,7 @@ class StopTrackingResponse extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static StopTrackingResponse getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<StopTrackingResponse>(create);
-  static StopTrackingResponse _defaultInstance;
+  static StopTrackingResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.List<$core.String> get uuids => $_getList(0);
@@ -504,7 +596,19 @@ class RemoveTrackingsRequest extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   RemoveTrackingsRequest._() : super();
-  factory RemoveTrackingsRequest() => create();
+  factory RemoveTrackingsRequest({
+    $core.Iterable<$core.String>? uuids,
+    $core.Iterable<TrackingExpandFields>? expand,
+  }) {
+    final _result = create();
+    if (uuids != null) {
+      _result.uuids.addAll(uuids);
+    }
+    if (expand != null) {
+      _result.expand.addAll(expand);
+    }
+    return _result;
+  }
   factory RemoveTrackingsRequest.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -521,8 +625,8 @@ class RemoveTrackingsRequest extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   RemoveTrackingsRequest copyWith(
           void Function(RemoveTrackingsRequest) updates) =>
-      super.copyWith((message) => updates(
-          message as RemoveTrackingsRequest)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as RemoveTrackingsRequest))
+          as RemoveTrackingsRequest; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static RemoveTrackingsRequest create() => RemoveTrackingsRequest._();
@@ -532,7 +636,7 @@ class RemoveTrackingsRequest extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static RemoveTrackingsRequest getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<RemoveTrackingsRequest>(create);
-  static RemoveTrackingsRequest _defaultInstance;
+  static RemoveTrackingsRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.List<$core.String> get uuids => $_getList(0);
@@ -569,7 +673,31 @@ class RemoveTrackingsResponse extends $pb.GeneratedMessage {
         ..hasRequiredFields = false;
 
   RemoveTrackingsResponse._() : super();
-  factory RemoveTrackingsResponse() => create();
+  factory RemoveTrackingsResponse({
+    $core.Iterable<$core.String>? uuids,
+    $core.Iterable<$core.String>? failed,
+    $core.int? statusCode,
+    $core.String? reasonPhrase,
+    GetTrackingMetaResponse? meta,
+  }) {
+    final _result = create();
+    if (uuids != null) {
+      _result.uuids.addAll(uuids);
+    }
+    if (failed != null) {
+      _result.failed.addAll(failed);
+    }
+    if (statusCode != null) {
+      _result.statusCode = statusCode;
+    }
+    if (reasonPhrase != null) {
+      _result.reasonPhrase = reasonPhrase;
+    }
+    if (meta != null) {
+      _result.meta = meta;
+    }
+    return _result;
+  }
   factory RemoveTrackingsResponse.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -586,8 +714,8 @@ class RemoveTrackingsResponse extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   RemoveTrackingsResponse copyWith(
           void Function(RemoveTrackingsResponse) updates) =>
-      super.copyWith((message) => updates(
-          message as RemoveTrackingsResponse)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as RemoveTrackingsResponse))
+          as RemoveTrackingsResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static RemoveTrackingsResponse create() => RemoveTrackingsResponse._();
@@ -597,7 +725,7 @@ class RemoveTrackingsResponse extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static RemoveTrackingsResponse getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<RemoveTrackingsResponse>(create);
-  static RemoveTrackingsResponse _defaultInstance;
+  static RemoveTrackingsResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.List<$core.String> get uuids => $_getList(0);
@@ -665,7 +793,15 @@ class GetTrackingMetaRequest extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   GetTrackingMetaRequest._() : super();
-  factory GetTrackingMetaRequest() => create();
+  factory GetTrackingMetaRequest({
+    $core.Iterable<TrackingExpandFields>? expand,
+  }) {
+    final _result = create();
+    if (expand != null) {
+      _result.expand.addAll(expand);
+    }
+    return _result;
+  }
   factory GetTrackingMetaRequest.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -682,8 +818,8 @@ class GetTrackingMetaRequest extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   GetTrackingMetaRequest copyWith(
           void Function(GetTrackingMetaRequest) updates) =>
-      super.copyWith((message) => updates(
-          message as GetTrackingMetaRequest)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as GetTrackingMetaRequest))
+          as GetTrackingMetaRequest; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static GetTrackingMetaRequest create() => GetTrackingMetaRequest._();
@@ -693,7 +829,7 @@ class GetTrackingMetaRequest extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static GetTrackingMetaRequest getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<GetTrackingMetaRequest>(create);
-  static GetTrackingMetaRequest _defaultInstance;
+  static GetTrackingMetaRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.List<TrackingExpandFields> get expand => $_getList(0);
@@ -723,7 +859,31 @@ class GetTrackingMetaResponse extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   GetTrackingMetaResponse._() : super();
-  factory GetTrackingMetaResponse() => create();
+  factory GetTrackingMetaResponse({
+    TrackingServerStatus? status,
+    TrackingsMeta? trackings,
+    PositionsMeta? positions,
+    $core.Iterable<TrackingMeta>? managerOf,
+    $1.RepositoryMeta? repo,
+  }) {
+    final _result = create();
+    if (status != null) {
+      _result.status = status;
+    }
+    if (trackings != null) {
+      _result.trackings = trackings;
+    }
+    if (positions != null) {
+      _result.positions = positions;
+    }
+    if (managerOf != null) {
+      _result.managerOf.addAll(managerOf);
+    }
+    if (repo != null) {
+      _result.repo = repo;
+    }
+    return _result;
+  }
   factory GetTrackingMetaResponse.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -740,8 +900,8 @@ class GetTrackingMetaResponse extends $pb.GeneratedMessage {
       'Will be removed in next major version')
   GetTrackingMetaResponse copyWith(
           void Function(GetTrackingMetaResponse) updates) =>
-      super.copyWith((message) => updates(
-          message as GetTrackingMetaResponse)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as GetTrackingMetaResponse))
+          as GetTrackingMetaResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static GetTrackingMetaResponse create() => GetTrackingMetaResponse._();
@@ -751,7 +911,7 @@ class GetTrackingMetaResponse extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static GetTrackingMetaResponse getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<GetTrackingMetaResponse>(create);
-  static GetTrackingMetaResponse _defaultInstance;
+  static GetTrackingMetaResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
   TrackingServerStatus get status => $_getN(0);
@@ -836,7 +996,27 @@ class TrackingMeta extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   TrackingMeta._() : super();
-  factory TrackingMeta() => create();
+  factory TrackingMeta({
+    $core.String? uuid,
+    $fixnum.Int64? trackCount,
+    $fixnum.Int64? positionCount,
+    $4.EventMeta? lastEvent,
+  }) {
+    final _result = create();
+    if (uuid != null) {
+      _result.uuid = uuid;
+    }
+    if (trackCount != null) {
+      _result.trackCount = trackCount;
+    }
+    if (positionCount != null) {
+      _result.positionCount = positionCount;
+    }
+    if (lastEvent != null) {
+      _result.lastEvent = lastEvent;
+    }
+    return _result;
+  }
   factory TrackingMeta.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -851,8 +1031,8 @@ class TrackingMeta extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   TrackingMeta copyWith(void Function(TrackingMeta) updates) =>
-      super.copyWith((message) =>
-          updates(message as TrackingMeta)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as TrackingMeta))
+          as TrackingMeta; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static TrackingMeta create() => TrackingMeta._();
@@ -862,7 +1042,7 @@ class TrackingMeta extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static TrackingMeta getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<TrackingMeta>(create);
-  static TrackingMeta _defaultInstance;
+  static TrackingMeta? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get uuid => $_getSZ(0);
@@ -940,7 +1120,31 @@ class TrackingsMeta extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   TrackingsMeta._() : super();
-  factory TrackingsMeta() => create();
+  factory TrackingsMeta({
+    $fixnum.Int64? total,
+    $core.double? fractionManaged,
+    $core.double? eventsPerMinute,
+    $core.int? averageProcessingTimeMillis,
+    $4.EventMeta? lastEvent,
+  }) {
+    final _result = create();
+    if (total != null) {
+      _result.total = total;
+    }
+    if (fractionManaged != null) {
+      _result.fractionManaged = fractionManaged;
+    }
+    if (eventsPerMinute != null) {
+      _result.eventsPerMinute = eventsPerMinute;
+    }
+    if (averageProcessingTimeMillis != null) {
+      _result.averageProcessingTimeMillis = averageProcessingTimeMillis;
+    }
+    if (lastEvent != null) {
+      _result.lastEvent = lastEvent;
+    }
+    return _result;
+  }
   factory TrackingsMeta.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -955,8 +1159,8 @@ class TrackingsMeta extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   TrackingsMeta copyWith(void Function(TrackingsMeta) updates) =>
-      super.copyWith((message) =>
-          updates(message as TrackingsMeta)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as TrackingsMeta))
+          as TrackingsMeta; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static TrackingsMeta create() => TrackingsMeta._();
@@ -966,7 +1170,7 @@ class TrackingsMeta extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static TrackingsMeta getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<TrackingsMeta>(create);
-  static TrackingsMeta _defaultInstance;
+  static TrackingsMeta? _defaultInstance;
 
   @$pb.TagNumber(1)
   $fixnum.Int64 get total => $_getI64(0);
@@ -1057,7 +1261,27 @@ class PositionsMeta extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   PositionsMeta._() : super();
-  factory PositionsMeta() => create();
+  factory PositionsMeta({
+    $fixnum.Int64? total,
+    $core.double? eventsPerMinute,
+    $core.int? averageProcessingTimeMillis,
+    $4.EventMeta? lastEvent,
+  }) {
+    final _result = create();
+    if (total != null) {
+      _result.total = total;
+    }
+    if (eventsPerMinute != null) {
+      _result.eventsPerMinute = eventsPerMinute;
+    }
+    if (averageProcessingTimeMillis != null) {
+      _result.averageProcessingTimeMillis = averageProcessingTimeMillis;
+    }
+    if (lastEvent != null) {
+      _result.lastEvent = lastEvent;
+    }
+    return _result;
+  }
   factory PositionsMeta.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -1072,8 +1296,8 @@ class PositionsMeta extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   PositionsMeta copyWith(void Function(PositionsMeta) updates) =>
-      super.copyWith((message) =>
-          updates(message as PositionsMeta)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as PositionsMeta))
+          as PositionsMeta; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static PositionsMeta create() => PositionsMeta._();
@@ -1083,7 +1307,7 @@ class PositionsMeta extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static PositionsMeta getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<PositionsMeta>(create);
-  static PositionsMeta _defaultInstance;
+  static PositionsMeta? _defaultInstance;
 
   @$pb.TagNumber(1)
   $fixnum.Int64 get total => $_getI64(0);

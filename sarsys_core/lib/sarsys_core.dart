@@ -1,3 +1,5 @@
+// @dart=2.10
+
 /// SARSys shared kernel code
 ///
 library sarsys_core;

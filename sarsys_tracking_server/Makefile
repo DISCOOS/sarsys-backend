@@ -33,8 +33,9 @@ commit:
 	if [[ `git status --porcelain` ]]; then git commit -am "Generated OpenAPI document"; fi
 
 test:
-	pub run test -j 1
-	pub run test -j 1 ../sarsys_domain/test/services/tracking_service_test.dart
+	echo "Testing..."
+	dart --no-sound-null-safety test -j 1
+	echo "[✓] Testing complete."
 
 models:
 	echo "Generating models..."; \
@@ -55,7 +56,7 @@ models:
 
 snapshot:
 	echo "Build dart JIT snapshot of bin/main.dart (faster boot and less memory usage) ..."
-	dart --snapshot=bin/main.snapshot --snapshot-kind=app-jit bin/main.dart \
+	dart --no-sound-null-safety --snapshot=bin/main.snapshot --snapshot-kind=app-jit bin/main.dart \
 		--healthPort 8082 --grpcPort 8083 --config config.src.yaml --training=true
 	echo "[✓] Building dart snapshot bin/main.snapshot finished"
 

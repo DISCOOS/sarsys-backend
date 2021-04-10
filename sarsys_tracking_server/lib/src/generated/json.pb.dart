@@ -2,7 +2,7 @@
 //  Generated code. Do not modify.
 //  source: json.proto
 //
-// @dart = 2.3
+// @dart = 2.12
 // ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
 
 import 'dart:core' as $core;
@@ -39,7 +39,19 @@ class JsonValue extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   JsonValue._() : super();
-  factory JsonValue() => create();
+  factory JsonValue({
+    JsonDataCompression? compression,
+    $core.List<$core.int>? data,
+  }) {
+    final _result = create();
+    if (compression != null) {
+      _result.compression = compression;
+    }
+    if (data != null) {
+      _result.data = data;
+    }
+    return _result;
+  }
   factory JsonValue.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -54,8 +66,8 @@ class JsonValue extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   JsonValue copyWith(void Function(JsonValue) updates) =>
-      super.copyWith((message) =>
-          updates(message as JsonValue)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as JsonValue))
+          as JsonValue; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static JsonValue create() => JsonValue._();
@@ -64,7 +76,7 @@ class JsonValue extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static JsonValue getDefault() =>
       _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<JsonValue>(create);
-  static JsonValue _defaultInstance;
+  static JsonValue? _defaultInstance;
 
   @$pb.TagNumber(1)
   JsonDataCompression get compression => $_getN(0);
@@ -119,7 +131,23 @@ class JsonMatchList extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   JsonMatchList._() : super();
-  factory JsonMatchList() => create();
+  factory JsonMatchList({
+    $core.int? count,
+    $core.String? query,
+    $core.Iterable<JsonMatch>? items,
+  }) {
+    final _result = create();
+    if (count != null) {
+      _result.count = count;
+    }
+    if (query != null) {
+      _result.query = query;
+    }
+    if (items != null) {
+      _result.items.addAll(items);
+    }
+    return _result;
+  }
   factory JsonMatchList.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -134,8 +162,8 @@ class JsonMatchList extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   JsonMatchList copyWith(void Function(JsonMatchList) updates) =>
-      super.copyWith((message) =>
-          updates(message as JsonMatchList)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as JsonMatchList))
+          as JsonMatchList; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static JsonMatchList create() => JsonMatchList._();
@@ -145,7 +173,7 @@ class JsonMatchList extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static JsonMatchList getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<JsonMatchList>(create);
-  static JsonMatchList _defaultInstance;
+  static JsonMatchList? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.int get count => $_getIZ(0);
@@ -204,7 +232,23 @@ class JsonMatch extends $pb.GeneratedMessage {
     ..hasRequiredFields = false;
 
   JsonMatch._() : super();
-  factory JsonMatch() => create();
+  factory JsonMatch({
+    $core.String? uuid,
+    $core.String? path,
+    JsonValue? value,
+  }) {
+    final _result = create();
+    if (uuid != null) {
+      _result.uuid = uuid;
+    }
+    if (path != null) {
+      _result.path = path;
+    }
+    if (value != null) {
+      _result.value = value;
+    }
+    return _result;
+  }
   factory JsonMatch.fromBuffer($core.List<$core.int> i,
           [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
       create()..mergeFromBuffer(i, r);
@@ -219,8 +263,8 @@ class JsonMatch extends $pb.GeneratedMessage {
       'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
       'Will be removed in next major version')
   JsonMatch copyWith(void Function(JsonMatch) updates) =>
-      super.copyWith((message) =>
-          updates(message as JsonMatch)); // ignore: deprecated_member_use
+      super.copyWith((message) => updates(message as JsonMatch))
+          as JsonMatch; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static JsonMatch create() => JsonMatch._();
@@ -229,7 +273,7 @@ class JsonMatch extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static JsonMatch getDefault() =>
       _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<JsonMatch>(create);
-  static JsonMatch _defaultInstance;
+  static JsonMatch? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get uuid => $_getSZ(0);

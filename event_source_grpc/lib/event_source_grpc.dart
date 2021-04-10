@@ -1,3 +1,4 @@
+// @dart=2.10
 /// Event Source Grpc library
 ///
 library event_source_grpc;

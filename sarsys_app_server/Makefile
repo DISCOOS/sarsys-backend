@@ -17,12 +17,12 @@ else
 endif
 
 .PHONY: \
-	check commit test serve document models snapshot localhost \
+	check commit test serve document snapshot localhost \
 	build push publish install delete restart rollback status eventstore \
     docker_is_up download-snapshots
 
 .SILENT: \
-	check commit test serve document models snapshot localhost \
+	check commit test serve document snapshot localhost \
 	build push publish install delete restart rollback status eventstore \
 	docker_is_up download-snapshots
 
@@ -33,11 +33,9 @@ commit:
 	if [[ `git status --porcelain` ]]; then git commit -am "Generated OpenAPI document"; fi
 
 test:
-	cd ../event_source; pub run test -j 1
-	cd ../event_source_grpc; pub run test -j 1
-	cd ../sarsys_domain; pub run test -j 1
-	cd ../sarsys_core; pub run test -j 1
-	cd ../sarsys_app_server; pub run test -j 1
+	echo "Testing..."
+	dart --no-sound-null-safety test -j 1
+	echo "[✓] Testing complete"
 
 serve:
 	pub run aqueduct:aqueduct serve --port 80 --isolates 1
@@ -48,14 +46,9 @@ document:
 		--host http://localhost --machine | tail -1 > web/sarsys-app.json
 	echo "[✓] Generate OpenAPI document"
 
-models:
-	echo "Generating models..."; \
-	pub run build_runner build --delete-conflicting-outputs; \
-	echo "[✓] Generating models complete."
-
 snapshot:
 	echo "Build dart JIT snapshot of bin/main.dart (faster boot and less memory usage) ..."
-	dart --snapshot=bin/main.snapshot --snapshot-kind=app-jit bin/main.dart \
+	dart --no-sound-null-safety --snapshot=bin/main.snapshot --snapshot-kind=app-jit bin/main.dart \
 		--port 8082 --instances 1 --config config.src.yaml --training=true
 	echo "[✓] Building dart snapshot bin/main.snapshot finished"
 

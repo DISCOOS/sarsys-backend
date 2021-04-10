@@ -2,9 +2,14 @@
 //  Generated code. Do not modify.
 //  source: snapshot.proto
 //
-// @dart = 2.3
-// ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
+// @dart = 2.12
+// ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields,deprecated_member_use_from_same_package
 
+import 'dart:core' as $core;
+import 'dart:convert' as $convert;
+import 'dart:typed_data' as $typed_data;
+
+@$core.Deprecated('Use snapshotExpandFieldsDescriptor instead')
 const SnapshotExpandFields$json = const {
   '1': 'SnapshotExpandFields',
   '2': const [
@@ -16,6 +21,10 @@ const SnapshotExpandFields$json = const {
   ],
 };
 
+/// Descriptor for `SnapshotExpandFields`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List snapshotExpandFieldsDescriptor = $convert.base64Decode(
+    'ChRTbmFwc2hvdEV4cGFuZEZpZWxkcxIfChtTTkFQU0hPVF9FWFBBTkRfRklFTERTX05PTkUQABIeChpTTkFQU0hPVF9FWFBBTkRfRklFTERTX0FMTBABEiAKHFNOQVBTSE9UX0VYUEFORF9GSUVMRFNfSVRFTVMQAhIfChtTTkFQU0hPVF9FWFBBTkRfRklFTERTX0RBVEEQAxIiCh5TTkFQU0hPVF9FWFBBTkRfRklFTERTX01FVFJJQ1MQBA==');
+@$core.Deprecated('Use getSnapshotMetaRequestDescriptor instead')
 const GetSnapshotMetaRequest$json = const {
   '1': 'GetSnapshotMetaRequest',
   '2': const [
@@ -31,6 +40,11 @@ const GetSnapshotMetaRequest$json = const {
   ],
 };
 
+/// Descriptor for `GetSnapshotMetaRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getSnapshotMetaRequestDescriptor =
+    $convert.base64Decode(
+        'ChZHZXRTbmFwc2hvdE1ldGFSZXF1ZXN0EhIKBHR5cGUYASABKAlSBHR5cGUSPAoGZXhwYW5kGAIgAygOMiQub3JnLmRpc2Nvb3MuZXMuU25hcHNob3RFeHBhbmRGaWVsZHNSBmV4cGFuZA==');
+@$core.Deprecated('Use getSnapshotMetaResponseDescriptor instead')
 const GetSnapshotMetaResponse$json = const {
   '1': 'GetSnapshotMetaResponse',
   '2': const [
@@ -48,6 +62,11 @@ const GetSnapshotMetaResponse$json = const {
   ],
 };
 
+/// Descriptor for `GetSnapshotMetaResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getSnapshotMetaResponseDescriptor =
+    $convert.base64Decode(
+        'ChdHZXRTbmFwc2hvdE1ldGFSZXNwb25zZRISCgR0eXBlGAEgASgJUgR0eXBlEh4KCnN0YXR1c0NvZGUYAiABKAVSCnN0YXR1c0NvZGUSIgoMcmVhc29uUGhyYXNlGAMgASgJUgxyZWFzb25QaHJhc2USMAoEbWV0YRgEIAEoCzIcLm9yZy5kaXNjb29zLmVzLlNuYXBzaG90TWV0YVIEbWV0YQ==');
+@$core.Deprecated('Use snapshotMetaDescriptor instead')
 const SnapshotMeta$json = const {
   '1': 'SnapshotMeta',
   '2': const [
@@ -83,6 +102,10 @@ const SnapshotMeta$json = const {
   ],
 };
 
+/// Descriptor for `SnapshotMeta`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List snapshotMetaDescriptor = $convert.base64Decode(
+    'CgxTbmFwc2hvdE1ldGESEgoEdHlwZRgBIAEoCVIEdHlwZRISCgR1dWlkGAIgASgJUgR1dWlkEhIKBGxhc3QYAyABKAlSBGxhc3QSFgoGbnVtYmVyGAQgASgDUgZudW1iZXISGgoIcG9zaXRpb24YBSABKANSCHBvc2l0aW9uEjYKBmNvbmZpZxgGIAEoCzIeLm9yZy5kaXNjb29zLmVzLlNuYXBzaG90Q29uZmlnUgZjb25maWcSPQoHbWV0cmljcxgHIAEoCzIjLm9yZy5kaXNjb29zLmVzLlNuYXBzaG90TWV0cmljc01ldGFSB21ldHJpY3MSQQoKYWdncmVnYXRlcxgIIAEoCzIhLm9yZy5kaXNjb29zLmVzLkFnZ3JlZ2F0ZU1ldGFMaXN0UgphZ2dyZWdhdGVz');
+@$core.Deprecated('Use snapshotConfigDescriptor instead')
 const SnapshotConfig$json = const {
   '1': 'SnapshotConfig',
   '2': const [
@@ -92,6 +115,10 @@ const SnapshotConfig$json = const {
   ],
 };
 
+/// Descriptor for `SnapshotConfig`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List snapshotConfigDescriptor = $convert.base64Decode(
+    'Cg5TbmFwc2hvdENvbmZpZxISCgRrZWVwGAEgASgFUgRrZWVwEhwKCXRocmVzaG9sZBgCIAEoBVIJdGhyZXNob2xkEhwKCWF1dG9tYXRpYxgDIAEoCFIJYXV0b21hdGlj');
+@$core.Deprecated('Use snapshotMetricsMetaDescriptor instead')
 const SnapshotMetricsMeta$json = const {
   '1': 'SnapshotMetricsMeta',
   '2': const [
@@ -110,6 +137,10 @@ const SnapshotMetricsMeta$json = const {
   ],
 };
 
+/// Descriptor for `SnapshotMetricsMeta`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List snapshotMetricsMetaDescriptor = $convert.base64Decode(
+    'ChNTbmFwc2hvdE1ldHJpY3NNZXRhEhwKCXNuYXBzaG90cxgBIAEoA1IJc25hcHNob3RzEhgKB3Vuc2F2ZWQYAiABKANSB3Vuc2F2ZWQSGAoHbWlzc2luZxgDIAEoA1IHbWlzc2luZxIcCglpc1BhcnRpYWwYBCABKAhSCWlzUGFydGlhbBI2CgRzYXZlGAUgASgLMiIub3JnLmRpc2Nvb3MuZXMuRHVyYXRpb25NZXRyaWNNZXRhUgRzYXZl');
+@$core.Deprecated('Use configureSnapshotRequestDescriptor instead')
 const ConfigureSnapshotRequest$json = const {
   '1': 'ConfigureSnapshotRequest',
   '2': const [
@@ -128,6 +159,11 @@ const ConfigureSnapshotRequest$json = const {
   ],
 };
 
+/// Descriptor for `ConfigureSnapshotRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List configureSnapshotRequestDescriptor =
+    $convert.base64Decode(
+        'ChhDb25maWd1cmVTbmFwc2hvdFJlcXVlc3QSEgoEdHlwZRgBIAEoCVIEdHlwZRIcCglhdXRvbWF0aWMYAiABKAhSCWF1dG9tYXRpYxISCgRrZWVwGAMgASgFUgRrZWVwEhwKCXRocmVzaG9sZBgEIAEoBVIJdGhyZXNob2xkEjwKBmV4cGFuZBgFIAMoDjIkLm9yZy5kaXNjb29zLmVzLlNuYXBzaG90RXhwYW5kRmllbGRzUgZleHBhbmQ=');
+@$core.Deprecated('Use configureSnapshotResponseDescriptor instead')
 const ConfigureSnapshotResponse$json = const {
   '1': 'ConfigureSnapshotResponse',
   '2': const [
@@ -145,6 +181,11 @@ const ConfigureSnapshotResponse$json = const {
   ],
 };
 
+/// Descriptor for `ConfigureSnapshotResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List configureSnapshotResponseDescriptor =
+    $convert.base64Decode(
+        'ChlDb25maWd1cmVTbmFwc2hvdFJlc3BvbnNlEhIKBHR5cGUYASABKAlSBHR5cGUSHgoKc3RhdHVzQ29kZRgCIAEoBVIKc3RhdHVzQ29kZRIiCgxyZWFzb25QaHJhc2UYAyABKAlSDHJlYXNvblBocmFzZRIwCgRtZXRhGAQgASgLMhwub3JnLmRpc2Nvb3MuZXMuU25hcHNob3RNZXRhUgRtZXRh');
+@$core.Deprecated('Use saveSnapshotRequestDescriptor instead')
 const SaveSnapshotRequest$json = const {
   '1': 'SaveSnapshotRequest',
   '2': const [
@@ -161,6 +202,10 @@ const SaveSnapshotRequest$json = const {
   ],
 };
 
+/// Descriptor for `SaveSnapshotRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List saveSnapshotRequestDescriptor = $convert.base64Decode(
+    'ChNTYXZlU25hcHNob3RSZXF1ZXN0EhIKBHR5cGUYASABKAlSBHR5cGUSFAoFZm9yY2UYAiABKAhSBWZvcmNlEjwKBmV4cGFuZBgDIAMoDjIkLm9yZy5kaXNjb29zLmVzLlNuYXBzaG90RXhwYW5kRmllbGRzUgZleHBhbmQ=');
+@$core.Deprecated('Use saveSnapshotResponseDescriptor instead')
 const SaveSnapshotResponse$json = const {
   '1': 'SaveSnapshotResponse',
   '2': const [
@@ -178,6 +223,10 @@ const SaveSnapshotResponse$json = const {
   ],
 };
 
+/// Descriptor for `SaveSnapshotResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List saveSnapshotResponseDescriptor = $convert.base64Decode(
+    'ChRTYXZlU25hcHNob3RSZXNwb25zZRISCgR0eXBlGAEgASgJUgR0eXBlEh4KCnN0YXR1c0NvZGUYAiABKAVSCnN0YXR1c0NvZGUSIgoMcmVhc29uUGhyYXNlGAMgASgJUgxyZWFzb25QaHJhc2USMAoEbWV0YRgEIAEoCzIcLm9yZy5kaXNjb29zLmVzLlNuYXBzaG90TWV0YVIEbWV0YQ==');
+@$core.Deprecated('Use downloadSnapshotRequestDescriptor instead')
 const DownloadSnapshotRequest$json = const {
   '1': 'DownloadSnapshotRequest',
   '2': const [
@@ -186,6 +235,11 @@ const DownloadSnapshotRequest$json = const {
   ],
 };
 
+/// Descriptor for `DownloadSnapshotRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List downloadSnapshotRequestDescriptor =
+    $convert.base64Decode(
+        'ChdEb3dubG9hZFNuYXBzaG90UmVxdWVzdBISCgR0eXBlGAEgASgJUgR0eXBlEhwKCWNodW5rU2l6ZRgCIAEoBFIJY2h1bmtTaXpl');
+@$core.Deprecated('Use snapshotChunkDescriptor instead')
 const SnapshotChunk$json = const {
   '1': 'SnapshotChunk',
   '2': const [
@@ -201,6 +255,10 @@ const SnapshotChunk$json = const {
   ],
 };
 
+/// Descriptor for `SnapshotChunk`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List snapshotChunkDescriptor = $convert.base64Decode(
+    'Cg1TbmFwc2hvdENodW5rEhIKBHR5cGUYASABKAlSBHR5cGUSLwoFY2h1bmsYAyABKAsyGS5vcmcuZGlzY29vcy5pby5GaWxlQ2h1bmtSBWNodW5r');
+@$core.Deprecated('Use uploadSnapshotResponseDescriptor instead')
 const UploadSnapshotResponse$json = const {
   '1': 'UploadSnapshotResponse',
   '2': const [
@@ -218,3 +276,8 @@ const UploadSnapshotResponse$json = const {
     },
   ],
 };
+
+/// Descriptor for `UploadSnapshotResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List uploadSnapshotResponseDescriptor =
+    $convert.base64Decode(
+        'ChZVcGxvYWRTbmFwc2hvdFJlc3BvbnNlEhIKBHR5cGUYASABKAlSBHR5cGUSHAoJY2h1bmtTaXplGAIgASgEUgljaHVua1NpemUSHgoKc3RhdHVzQ29kZRgDIAEoBVIKc3RhdHVzQ29kZRIiCgxyZWFzb25QaHJhc2UYBCABKAlSDHJlYXNvblBocmFzZRIwCgRtZXRhGAUgASgLMhwub3JnLmRpc2Nvb3MuZXMuU25hcHNob3RNZXRhUgRtZXRh');

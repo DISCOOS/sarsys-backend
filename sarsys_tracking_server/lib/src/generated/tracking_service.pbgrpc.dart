@@ -2,7 +2,7 @@
 //  Generated code. Do not modify.
 //  source: tracking_service.proto
 //
-// @dart = 2.3
+// @dart = 2.12
 // ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
 
 import 'dart:async' as $async;
@@ -46,37 +46,37 @@ class SarSysTrackingServiceClient extends $grpc.Client {
               $2.RemoveTrackingsResponse.fromBuffer(value));
 
   SarSysTrackingServiceClient($grpc.ClientChannel channel,
-      {$grpc.CallOptions options,
-      $core.Iterable<$grpc.ClientInterceptor> interceptors})
+      {$grpc.CallOptions? options,
+      $core.Iterable<$grpc.ClientInterceptor>? interceptors})
       : super(channel, options: options, interceptors: interceptors);
 
   $grpc.ResponseFuture<$2.GetTrackingMetaResponse> getMeta(
       $2.GetTrackingMetaRequest request,
-      {$grpc.CallOptions options}) {
+      {$grpc.CallOptions? options}) {
     return $createUnaryCall(_$getMeta, request, options: options);
   }
 
   $grpc.ResponseFuture<$2.StartTrackingResponse> start(
       $2.StartTrackingRequest request,
-      {$grpc.CallOptions options}) {
+      {$grpc.CallOptions? options}) {
     return $createUnaryCall(_$start, request, options: options);
   }
 
   $grpc.ResponseFuture<$2.StopTrackingResponse> stop(
       $2.StopTrackingRequest request,
-      {$grpc.CallOptions options}) {
+      {$grpc.CallOptions? options}) {
     return $createUnaryCall(_$stop, request, options: options);
   }
 
   $grpc.ResponseFuture<$2.AddTrackingsResponse> addTrackings(
       $2.AddTrackingsRequest request,
-      {$grpc.CallOptions options}) {
+      {$grpc.CallOptions? options}) {
     return $createUnaryCall(_$addTrackings, request, options: options);
   }
 
   $grpc.ResponseFuture<$2.RemoveTrackingsResponse> removeTrackings(
       $2.RemoveTrackingsRequest request,
-      {$grpc.CallOptions options}) {
+      {$grpc.CallOptions? options}) {
     return $createUnaryCall(_$removeTrackings, request, options: options);
   }
 }
