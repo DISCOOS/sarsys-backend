@@ -104,7 +104,7 @@ publish: check build commit push
 	echo "[✓] Publish to kubernetes finished"
 
 install:
-	echo "Applying SARSys Tracking server..."
+	echo "Applying SARSys Tracking server..."; \
 	kubectl apply -f ../k8s/ns.yaml; \
 	kubectl apply -f ../k8s/rbac.yaml; \
 	kubectl apply -f ../k8s/tracking/config.yaml; \
@@ -113,11 +113,7 @@ install:
 	echo "[✓] SARSys applied"
 
 delete:
-	echo "Deleting SARSys Tracking Server server..."
-	# DO NOT DELETE NAMESPACE AND RBACK unless you know what you are doing!
-	# kubectl apply -f ../k8s/ns.yaml;
-	# kubectl delete -f ../k8s/rbac.yaml; \
-	kubectl delete -f ../k8s/tracking/rbac.yaml; \
+	echo "Deleting SARSys Tracking Server server..."; \
 	kubectl delete -f ../k8s/tracking/config.yaml; \
 	kubectl delete -f ../k8s/tracking/server.yaml; \
 	echo "1) Manually delete PersistentVolumeClaims"; \

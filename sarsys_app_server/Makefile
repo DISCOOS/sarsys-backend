@@ -104,19 +104,16 @@ publish: check build commit push
 	echo "[✓] SARSys App Server publish to kubernetes finished"
 
 install:
-	echo "Applying SARSys App server..."
+	echo "Applying SARSys App server..."; \
 	kubectl apply -f ../k8s/ns.yaml; \
-	kubectl apply -f ../k8s/app/rbac.yaml; \
+	kubectl apply -f ../k8s/rbac.yaml; \
 	kubectl apply -f ../k8s/app/config.yaml; \
 	kubectl apply -f ../k8s/app/server.yaml; \
     kubectl -n sarsys rollout status statefulset sarsys-app-server; \
 	echo "[✓] SARSys App Server applied"
 
 delete:
-	echo "Deleting SARSys App Server..."
-	# DO NOT DELETE NAMESPACE AND RBACK unless you know what you are doing!
-	# kubectl apply -f ../k8s/ns.yaml;
-	# kubectl delete -f ../k8s/rbac.yaml; \
+	echo "Deleting SARSys App Server..."; \
 	kubectl delete -f ../k8s/app/config.yaml; \
 	kubectl delete -f ../k8s/app/server.yaml; \
 	echo "1) Manually delete PersistentVolumeClaims"; \
