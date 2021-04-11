@@ -20,6 +20,7 @@ class EventSourceHarness {
   EventSourceHarness._();
   factory EventSourceHarness() {
     if (!exists) {
+      Logger.root.level = Level.SEVERE;
       _singleton = EventSourceHarness._();
     }
     return _singleton;
@@ -112,7 +113,10 @@ class EventSourceHarness {
   bool _debug = false;
 
   Logger _logger;
-  EventSourceHarness withLogger({bool debug = false, Level level = Level.INFO}) {
+  EventSourceHarness withLogger({
+    bool debug = false,
+    Level level = Level.SEVERE,
+  }) {
     _logger = Logger('$runtimeType');
     if (debug) {
       _debug = debug;
@@ -161,8 +165,8 @@ class EventSourceHarness {
         port,
         master: port == _master ? null : _master,
         replicate: replicate,
+        verbose: _debug,
         logger: _logger,
-        verbose: _logger != null,
       ),
     );
     return this;
