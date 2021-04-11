@@ -73,13 +73,19 @@ class SarSysAppHarness extends TestHarness<SarSysAppServerChannel> {
   final Map<String, dynamic> _context = {};
   SarSysAppHarness withContext({
     String podName = 'bar',
+    bool debug,
     String dataPath,
+    String logLevel,
+    bool printStdOut,
     String apiSpecPath,
   }) {
     _context.clear();
     _context.addAll({
+      if (debug != null) 'DEBUG': debug,
       if (podName != null) 'POD_NAME': podName,
       if (dataPath != null) 'DATA_PATH': dataPath,
+      if (logLevel != null) 'LOG_LEVEL': logLevel,
+      if (printStdOut != null) 'LOG_STDOUT': printStdOut,
       if (apiSpecPath != null) 'API_SPEC_PATH': apiSpecPath,
     });
     return this;
@@ -130,6 +136,8 @@ class SarSysAppHarness extends TestHarness<SarSysAppServerChannel> {
   }
 
   void _configureContext(Application application) {
+    _context['LOG_STDOUT'] ??= false;
+    _context['LOG_LEVEL'] ??= 'SEVERE';
     application.options.context.addAll(_context);
     if (_withSnapshots) {
       application.options.context['DATA_ENABLED'] = true;

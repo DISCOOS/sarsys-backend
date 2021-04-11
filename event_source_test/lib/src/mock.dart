@@ -27,7 +27,7 @@ class EventStoreMockServer {
     Logger logger,
     this.master,
     this.replicate,
-    this.verbose = true,
+    this.verbose = false,
   }) : logger = Logger('EventStoreMockServer');
 
   /// Port to listen on.
