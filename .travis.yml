@@ -3,7 +3,7 @@ dart:
   # Install the latest stable release
   - stable
 install: make pub_upgrade
-script: make pub_upgrade
+script: make test
 branches:
   only:
     - master
