@@ -1,7 +1,8 @@
 import 'dart:async';
 
 import 'package:aqueduct/aqueduct.dart';
-import 'package:event_source/event_source.dart' show MapX;
+import 'package:collection_x/collection_x.dart' show MapX;
+
 import 'package:jose/jose.dart';
 import 'package:sarsys_core/sarsys_core.dart';
 

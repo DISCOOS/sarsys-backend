@@ -1,3 +1,4 @@
+import 'package:collection_x/collection_x.dart';
 import 'package:event_source/event_source.dart';
 
 class TrackRequestUtils {

@@ -17,6 +17,8 @@ dependencies:
   fixnum: ^0.10.11
   stack_trace: ^1.9.6
   chunked_stream: ^1.2.0
+  collection_x:
+    path: ../collection_x
   event_source:
     path: ../event_source
 

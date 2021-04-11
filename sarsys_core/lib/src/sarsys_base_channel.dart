@@ -1,11 +1,13 @@
 import 'dart:convert';
 
-import 'package:aqueduct/aqueduct.dart';
-import 'package:aqueduct/aqueduct.dart' as aq;
-import 'package:event_source/event_source.dart';
 import 'package:http/http.dart';
 import 'package:jose/jose.dart';
 import 'package:meta/meta.dart';
+
+import 'package:aqueduct/aqueduct.dart';
+import 'package:aqueduct/aqueduct.dart' as aq;
+import 'package:collection_x/collection_x.dart';
+import 'package:event_source/event_source.dart';
 
 import 'auth/auth.dart';
 import 'config.dart';

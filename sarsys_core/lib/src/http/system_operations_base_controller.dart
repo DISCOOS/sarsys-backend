@@ -1,4 +1,5 @@
 import 'package:sarsys_core/sarsys_core.dart';
+import 'package:collection_x/collection_x.dart';
 
 /// A [ResourceController] base class for operations requests
 abstract class SystemOperationsBaseController<T> extends ResourceController {

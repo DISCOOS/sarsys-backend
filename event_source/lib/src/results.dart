@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:event_source/event_source.dart';
+import 'package:collection_x/collection_x.dart';
 import 'package:http/http.dart';
 import 'package:meta/meta.dart';
 
@@ -82,7 +83,8 @@ class FeedResult extends StreamResult {
   }) {
     switch (response.statusCode) {
       case HttpStatus.ok:
-        final feed = Map<String, dynamic>.from(json.decode(response.body) as Map);
+        final feed =
+            Map<String, dynamic>.from(json.decode(response.body) as Map);
         feed['entries'] = _toEntries(feed);
         return FeedResult(
           stream: stream,
@@ -105,7 +107,10 @@ class FeedResult extends StreamResult {
   }
 
   static List<Map<String, dynamic>> _toEntries(Map<String, dynamic> feed) =>
-      feed.listAt<Map<String, dynamic>>('entries').where((entry) => entry.containsKey('data')).map((entry) {
+      feed
+          .listAt<Map<String, dynamic>>('entries')
+          .where((entry) => entry.containsKey('data'))
+          .map((entry) {
         entry['data'] = json.decode(entry['data'] as String);
         return entry;
       }).toList();
@@ -151,7 +156,8 @@ class FeedResult extends StreamResult {
 
   FeedResult assertResult() {
     if (isOK == false) {
-      throw FeedFailed('Failed to get atom feed for $stream because: $statusCode $reasonPhrase');
+      throw FeedFailed(
+          'Failed to get atom feed for $stream because: $statusCode $reasonPhrase');
     }
     return this;
   }
@@ -292,7 +298,8 @@ class WriteResult extends StreamResult {
           statusCode: response.statusCode,
           reasonPhrase: response.reasonPhrase,
           actual: EventNumber(int.tryParse(
-            response.headers['es-currentversion'] ?? '${EventNumber.none.value}',
+            response.headers['es-currentversion'] ??
+                '${EventNumber.none.value}',
           )),
         );
       default:
@@ -325,7 +332,8 @@ class WriteResult extends StreamResult {
 
   /// Check if 400 Wrong expected EventNumber
   bool get isWrongESNumber =>
-      statusCode == HttpStatus.badRequest && 'wrong expected eventnumber' == reasonPhrase.toLowerCase();
+      statusCode == HttpStatus.badRequest &&
+      'wrong expected eventnumber' == reasonPhrase.toLowerCase();
 
   /// Calculate event number from response
   static int _toNumber(Response response, Iterable<SourceEvent> events) =>

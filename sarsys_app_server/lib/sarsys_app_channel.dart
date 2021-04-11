@@ -1,9 +1,11 @@
 import 'dart:convert';
 
-import 'package:event_source/event_source.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart';
 import 'package:stack_trace/stack_trace.dart';
+
+import 'package:collection_x/collection_x.dart';
+import 'package:event_source/event_source.dart';
 
 import 'package:event_source_grpc/event_source_grpc.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;

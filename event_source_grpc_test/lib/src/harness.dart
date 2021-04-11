@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:collection_x/collection_x.dart';
 import 'package:event_source/event_source.dart';
 import 'package:event_source_grpc/event_source_grpc.dart';
 import 'package:event_source_test/event_source_test.dart';

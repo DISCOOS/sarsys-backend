@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 import 'package:async/async.dart';
 import 'package:pedantic/pedantic.dart';
 
+import 'package:collection_x/collection_x.dart';
 import 'package:event_source/event_source.dart';
 import 'package:event_source_test/event_source_test.dart';
 import 'package:event_source/src/models/aggregate_root_model.dart';
@@ -2242,10 +2243,10 @@ Future _repositoryShouldCommitTransactionsOnPush(
 }) async {
   final repo1 = harness.get<FooRepository>(port: 4000, instance: 1)..store.snapshots.automatic = withSnapshots;
   final repo2 = harness.get<FooRepository>(port: 4000, instance: 2)..store.snapshots.automatic = withSnapshots;
-  harness.get<FooRepository>(port: 4001, instance: 1)..store.snapshots.automatic = withSnapshots;
-  harness.get<FooRepository>(port: 4001, instance: 2)..store.snapshots.automatic = withSnapshots;
-  harness.get<FooRepository>(port: 4002, instance: 1)..store.snapshots.automatic = withSnapshots;
-  harness.get<FooRepository>(port: 4002, instance: 2)..store.snapshots.automatic = withSnapshots;
+  harness.get<FooRepository>(port: 4001, instance: 1).store.snapshots.automatic = withSnapshots;
+  harness.get<FooRepository>(port: 4001, instance: 2).store.snapshots.automatic = withSnapshots;
+  harness.get<FooRepository>(port: 4002, instance: 1).store.snapshots.automatic = withSnapshots;
+  harness.get<FooRepository>(port: 4002, instance: 2).store.snapshots.automatic = withSnapshots;
 
   await repo1.readyAsync();
   await repo2.readyAsync();
@@ -2357,7 +2358,7 @@ Future _testShouldBuildFromLastSnapshot(
   // Arrange stream and storage
   // -----------------------------------
   final stream = harness.server().getStream(repo1.store.aggregate);
-  final box = await Hive.lazyBox<StorageState>(repo1.store.snapshots.filename);
+  final box = Hive.lazyBox<StorageState>(repo1.store.snapshots.filename);
 
   // -----------------------------------
   // Arrange Foo1

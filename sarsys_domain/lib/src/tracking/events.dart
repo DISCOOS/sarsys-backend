@@ -1,5 +1,6 @@
 import 'package:meta/meta.dart';
 import 'package:event_source/event_source.dart';
+import 'package:collection_x/collection_x.dart';
 import 'package:sarsys_domain/sarsys_domain.dart';
 
 //////////////////////////////////////

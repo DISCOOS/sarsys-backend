@@ -1,3 +1,4 @@
+import 'package:collection_x/collection_x.dart';
 import 'package:event_source_grpc/event_source_grpc.dart';
 import 'package:grpc/grpc.dart' hide Response;
 import 'package:grpc/grpc_connection_interface.dart';

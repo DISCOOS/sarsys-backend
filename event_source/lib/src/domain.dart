@@ -14,6 +14,7 @@ import 'package:uuid/uuid.dart';
 import 'package:event_source/src/storage.dart';
 import 'package:event_source/src/stream.dart';
 import 'package:event_source/src/util.dart';
+import 'package:collection_x/collection_x.dart' hide IterableX;
 
 import 'bus.dart';
 import 'context.dart';
@@ -867,7 +868,7 @@ class Transaction {
               'event_source',
             ],
           )}',
-        if (hasFailed) 'error': '${_error}',
+        if (hasFailed) 'error': '$_error',
       };
 
   @override
@@ -881,8 +882,8 @@ class Transaction {
   int get hashCode => uuid.hashCode;
 
   /// Get [StreamRequest.tag]
-  Object toTagAsString() => '${aggregate.runtimeType} ${uuid} '
-      'in transaction ${seqnum} with ${_changes.length} changes';
+  Object toTagAsString() => '${aggregate.runtimeType} $uuid '
+      'in transaction $seqnum with ${_changes.length} changes';
 
   @override
   String toString() {
@@ -895,7 +896,7 @@ class Transaction {
         'trx.changes.last: ${_changes?.lastOrNull?.type}@${_changes?.lastOrNull?.number}',
       Context.toObject('aggregate', [
         'type: ${aggregate?.runtimeType}',
-        'uuid: ${uuid}',
+        'uuid: $uuid',
         'number: ${aggregate?.number}',
         'modifications: ${aggregate?.modifications}',
         'changes.length: ${aggregate?._localEvents?.length ?? 0}',
@@ -1110,7 +1111,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       );
     }
 
-    _storeSubscriptionController = await subscribe(
+    _storeSubscriptionController = subscribe(
       context: context,
     );
 
@@ -1359,7 +1360,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       _context.debug(
         Context.toObject('Unlocked $runtimeType', [
           'locks: $_locks',
-          'callee: ${callee}',
+          'callee: $callee',
         ]),
         category: 'Repository.unlock',
       );
@@ -1507,7 +1508,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         final delta = baseEvent.number.value - snapshot.number.value;
         if (delta != 0) {
           RepositoryError(Context.toObject(
-            'Snapshot of ${aggregateType} ${snapshot.uuid} does not match head',
+            'Snapshot of $aggregateType ${snapshot.uuid} does not match head',
             [
               Context.toObject('snapshot', [
                 'number: ${snapshot.number}',
@@ -2311,7 +2312,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           ? getTransaction(uuid).changes
           : aggregate?.getLocalEvents());
       throw RepositoryMaxPressureExceeded(
-        'Push of ${changes.length} changes in ${aggregateType} $uuid failed',
+        'Push of ${changes.length} changes in $aggregateType $uuid failed',
         uuid,
         this,
       );
@@ -2337,7 +2338,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     final aggregate = transaction.aggregate as T;
     if (!inTransaction(aggregate.uuid)) {
       throw InvalidOperation(
-        'No transaction found for aggregate ${aggregateType} ${aggregate.uuid}',
+        'No transaction found for aggregate $aggregateType ${aggregate.uuid}',
       );
     }
     if (transaction.hasConflicts) {
@@ -3837,7 +3838,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         ),
       )..number = number;
     }
-    throw InvalidOperation('Message ${emits} not recognized');
+    throw InvalidOperation('Message $emits not recognized');
   }
 
   /// Apply remote change to [data].
@@ -4461,7 +4462,7 @@ class EntityArray {
       return data[entityIdFieldName] as String;
     }
     throw ArgumentError(
-      'Field data[${entityIdFieldName}] is not a String: '
+      'Field data[$entityIdFieldName] is not a String: '
       'is type: ${data[entityIdFieldName]?.runtimeType}',
     );
   }

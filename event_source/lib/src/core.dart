@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:collection_x/collection_x.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 import 'package:uuid/uuid.dart';
 
 import 'domain.dart';
-import 'extension.dart';
 
 /// Message interface
 class Message {
@@ -100,7 +100,8 @@ class Message {
   }
 
   @override
-  bool operator ==(Object other) => identical(this, other) || other is Message && uuid == other.uuid;
+  bool operator ==(Object other) =>
+      identical(this, other) || other is Message && uuid == other.uuid;
   /* &&
           // DO NOT COMPARE - equality is guaranteed by type and uuid
           // data == other.data &&
@@ -110,7 +111,8 @@ class Message {
    */
 
   @override
-  int get hashCode => uuid.hashCode; /* ^ data.hashCode ^ _type.hashCode ^ created.hashCode; */
+  int get hashCode =>
+      uuid.hashCode; /* ^ data.hashCode ^ _type.hashCode ^ created.hashCode; */
 }
 
 /// Event class
@@ -171,7 +173,8 @@ class Event extends Message {
 
   /// Get list of JSON Patch methods from `data['patches']`
   List<Map<String, dynamic>> get patches => List.from(
-        (data['patches'] as List).map((e) => Map<String, dynamic>.from(e as Map)),
+        (data['patches'] as List)
+            .map((e) => Map<String, dynamic>.from(e as Map)),
       );
 
   /// Get [Event] as json map
@@ -336,9 +339,12 @@ class EntityObjectEvent extends DomainEvent {
   final String aggregateField;
 
   int get index => data['index'] as int;
-  String toId(Map<String, dynamic> data) => toEntity(data)?.elementAt(idFieldName);
-  Map<String, dynamic> toEntity(Map<String, dynamic> data) => data?.mapAt('$aggregateField/$index');
-  EntityObject toEntityObject(Map<String, dynamic> data) => EntityObject(toId(data), toEntity(data), idFieldName);
+  String toId(Map<String, dynamic> data) =>
+      toEntity(data)?.elementAt(idFieldName);
+  Map<String, dynamic> toEntity(Map<String, dynamic> data) =>
+      data?.mapAt('$aggregateField/$index');
+  EntityObject toEntityObject(Map<String, dynamic> data) =>
+      EntityObject(toId(data), toEntity(data), idFieldName);
 }
 
 class ValueObjectEvent<T> extends DomainEvent {
@@ -559,7 +565,8 @@ abstract class MessageHandler<T extends Message> {
 class EventNumber extends Equatable {
   const EventNumber(this.value);
 
-  factory EventNumber.from(ExpectedVersion current) => EventNumber(current.value);
+  factory EventNumber.from(ExpectedVersion current) =>
+      EventNumber(current.value);
 
   // First event in stream
   static const first = EventNumber(0);
@@ -608,7 +615,8 @@ enum Direction { forward, backward }
 class ExpectedVersion {
   const ExpectedVersion(this.value);
 
-  factory ExpectedVersion.from(EventNumber number) => ExpectedVersion(number.value);
+  factory ExpectedVersion.from(EventNumber number) =>
+      ExpectedVersion(number.value);
 
   /// Stream should exist but be empty when writing.
   static const empty = ExpectedVersion(0);
@@ -717,7 +725,8 @@ class DurationMetric {
   Duration get total => isZero ? Duration.zero : tn.difference(t0);
 
   /// Get cumulative average of calculations per second from [t0] to [tn]
-  double get rateCum => isZero || t0 == tn ? 0.0 : count / max(1.0, total.inSeconds);
+  double get rateCum =>
+      isZero || t0 == tn ? 0.0 : count / max(1.0, total.inSeconds);
 
   /// Get exponential moving average of calculations per second from [t0] to [tn]
   final double rateExp;
@@ -726,7 +735,8 @@ class DurationMetric {
   DurationMetric next(DateTime tic) => calc(DateTime.now().difference(tic));
 
   /// Calculate metric from difference between [tic] and [toc]
-  DurationMetric difference(DateTime tic, DateTime toc) => calc(toc.difference(tic));
+  DurationMetric difference(DateTime tic, DateTime toc) =>
+      calc(toc.difference(tic));
 
   /// Calculate metric.
   DurationMetric calc(Duration duration) {
@@ -784,7 +794,8 @@ class DurationMetric {
   // Calculate auxiliary variable for cumulative variances iteratively, see
   // https://nestedsoftware.com/2018/03/27/calculating-standard-deviation-on-streaming-data-253l.23919.html
   int _calcDSquaredCum(Duration duration, Duration newMeanCum) =>
-      (duration - newMeanCum).inMilliseconds * (newMeanCum - meanCum).inMilliseconds;
+      (duration - newMeanCum).inMilliseconds *
+      (newMeanCum - meanCum).inMilliseconds;
 
   // Calculate exponential moving duration mean iteratively, see
   // https://nestedsoftware.com/2018/04/04/exponential-moving-average-on-streaming-data-4hhl.24876.html
@@ -800,7 +811,8 @@ class DurationMetric {
 
   // Calculate exponential moving variances iteratively, see
   // https://nestedsoftware.com/2018/03/27/calculating-standard-deviation-on-streaming-data-253l.23919.html
-  double _calcVarianceExp(Duration next) => (beta * (varianceExp + (alpha * pow((next - meanExp).inMilliseconds, 2))));
+  double _calcVarianceExp(Duration next) => (beta *
+      (varianceExp + (alpha * pow((next - meanExp).inMilliseconds, 2))));
 }
 
 /// Get enum value name

@@ -1,6 +1,7 @@
-import 'package:event_source_grpc/event_source_grpc.dart';
 import 'package:protobuf/protobuf.dart';
 import 'package:sarsys_core/sarsys_core.dart';
+import 'package:collection_x/collection_x.dart';
+import 'package:event_source_grpc/event_source_grpc.dart';
 import 'package:sarsys_ops_server/sarsys_ops_server.dart';
 import 'package:sarsys_ops_server/src/config.dart';
 

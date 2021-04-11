@@ -1,4 +1,4 @@
-import 'package:sarsys_ops_server/sarsys_ops_server.dart';
+import 'package:collection_x/collection_x.dart';
 
 Map<String, dynamic> toPodMetrics(String type, Map<String, dynamic> pod) {
   final metrics = Map<String, dynamic>.from(pod['metrics'])

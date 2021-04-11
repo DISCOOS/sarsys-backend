@@ -1,7 +1,7 @@
-import 'package:event_source/event_source.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 import 'package:meta/meta.dart';
+import 'package:collection_x/collection_x.dart';
 
 import 'package:sarsys_app_server_test/sarsys_app_server_test.dart';
 

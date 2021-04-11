@@ -11,6 +11,8 @@ publish_to: none
 
 dependencies:
   jaguar_jwt: ^2.1.6
+  collection_x:
+    path: ../collection_x
   event_source:
     path: ../event_source
   event_source_grpc:

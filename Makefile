@@ -105,7 +105,7 @@ pub_upgrade:
 	echo "sarsys_app_server..."; cd sarsys_app_server; pub upgrade
 	echo "sarsys_app_server_test..."; cd sarsys_app_server_test; pub upgrade
 	echo "sarsys_tracking_server..."; cd sarsys_tracking_server; pub upgrade
-	echo "sarsys_tracking_server_test..."; cd sarsys_tracking_server_test; get
+	echo "sarsys_tracking_server_test..."; cd sarsys_tracking_server_test; pub upgrade
 	echo "sarsys_ops_server..."; cd sarsys_ops_server; pub upgrade
 	echo "sarsys_ops_server_test..."; cd sarsys_ops_server_test; pub upgrade
 	echo "[✓] Upgrade dependencies finished"

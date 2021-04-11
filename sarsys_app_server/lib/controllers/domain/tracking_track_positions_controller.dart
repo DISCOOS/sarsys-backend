@@ -1,3 +1,4 @@
+import 'package:collection_x/collection_x.dart';
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 

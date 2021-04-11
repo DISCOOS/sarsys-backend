@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:meta/meta.dart';
 import 'package:uuid/uuid.dart';
 import 'package:logging/logging.dart';
+import 'package:collection_x/collection_x.dart';
 
 import 'core.dart';
 import 'error.dart';
-import 'extension.dart';
 import 'domain.dart';
 
 /// Rule (invariant) builder function for given [repository]
@@ -66,7 +66,10 @@ class Range {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is Range && runtimeType == other.runtimeType && max == other.max && min == other.min;
+      other is Range &&
+          runtimeType == other.runtimeType &&
+          max == other.max &&
+          min == other.min;
 
   @override
   int get hashCode => max.hashCode ^ min.hashCode;
@@ -138,7 +141,10 @@ class Cardinality {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is Cardinality && runtimeType == other.runtimeType && left == other.left && right == other.right;
+      other is Cardinality &&
+          runtimeType == other.runtimeType &&
+          left == other.left &&
+          right == other.right;
 
   @override
   int get hashCode => left.hashCode ^ right.hashCode;
@@ -215,7 +221,7 @@ abstract class AggregateRule {
     if (command != null) {
       final shouldExecute = await _shouldExecute(command, uuid);
       logger.fine(
-        '$runtimeType should execute command ${command} on ${target.runtimeType}: $shouldExecute',
+        '$runtimeType should execute command $command on ${target.runtimeType}: $shouldExecute',
       );
       // Try to catch up before executing
       if (shouldExecute) {
@@ -368,11 +374,12 @@ class AssociationRule extends AggregateRule {
     return event.previous.elementAt<String>(field);
   }
 
-  Iterable<String> find(Repository repo, String field, String match) => repo.aggregates
-      .where((aggregate) => !aggregate.isDeleted)
-      .where((aggregate) => contains(aggregate, field, match))
-      .map((aggregate) => aggregate.uuid)
-      .toList();
+  Iterable<String> find(Repository repo, String field, String match) =>
+      repo.aggregates
+          .where((aggregate) => !aggregate.isDeleted)
+          .where((aggregate) => contains(aggregate, field, match))
+          .map((aggregate) => aggregate.uuid)
+          .toList();
 
   bool contains(AggregateRoot aggregate, String field, String match) {
     final value = aggregate.data.elementAt(field);
@@ -424,7 +431,8 @@ class AssociationRule extends AggregateRule {
       case CardinalityType.m2o:
       case CardinalityType.m2m:
         // Do not delete until last source is deleted
-        return find(source, sourceField, reference).isEmpty && targets.isNotEmpty;
+        return find(source, sourceField, reference).isEmpty &&
+            targets.isNotEmpty;
       case CardinalityType.any:
       case CardinalityType.none:
       default:

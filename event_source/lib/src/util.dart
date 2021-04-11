@@ -2,7 +2,7 @@ import 'dart:collection';
 
 import 'package:json_patch/json_patch.dart';
 import 'package:json_path/json_path.dart';
-import 'extension.dart';
+import 'package:collection_x/collection_x.dart';
 
 bool isEmptyOrNull(value) => emptyAsNull(value) == null;
 
@@ -39,16 +39,23 @@ Map<K, V> sortMapValues<K, V>(Map<K, V> map, {int Function(V a, V b) compare}) {
 class JsonUtils {
   static const ops = ['add', 'remove', 'replace', 'move'];
 
-  Iterable<T> added<T>(List<Map<String, dynamic>> patches, Pattern path) => _select<T>(patches, 'add', path);
-  Iterable<T> moved<T>(List<Map<String, dynamic>> patches, Pattern path) => _select<T>(patches, 'move', path);
-  Iterable<T> removed<T>(List<Map<String, dynamic>> patches, Pattern path) => _select<T>(patches, 'remove', path);
-  Iterable<T> replaced<T>(List<Map<String, dynamic>> patches, Pattern path) => _select<T>(patches, 'replace', path);
+  Iterable<T> added<T>(List<Map<String, dynamic>> patches, Pattern path) =>
+      _select<T>(patches, 'add', path);
+  Iterable<T> moved<T>(List<Map<String, dynamic>> patches, Pattern path) =>
+      _select<T>(patches, 'move', path);
+  Iterable<T> removed<T>(List<Map<String, dynamic>> patches, Pattern path) =>
+      _select<T>(patches, 'remove', path);
+  Iterable<T> replaced<T>(List<Map<String, dynamic>> patches, Pattern path) =>
+      _select<T>(patches, 'replace', path);
 
-  Iterable<T> _select<T>(List<Map<String, dynamic>> patches, String op, Pattern path) => patches
-      .where((patch) => patch['op'] == op)
-      .where((patch) => patch['path'] == (patch['path'] as String).startsWith(path))
-      .map((patch) => patch['value'])
-      .cast<T>();
+  Iterable<T> _select<T>(
+          List<Map<String, dynamic>> patches, String op, Pattern path) =>
+      patches
+          .where((patch) => patch['op'] == op)
+          .where((patch) =>
+              patch['path'] == (patch['path'] as String).startsWith(path))
+          .map((patch) => patch['value'])
+          .cast<T>();
 
   /// Calculate key-stable patches enforcing
   /// a 'append-only' rule for keys and
@@ -94,13 +101,15 @@ class JsonUtils {
     return patches.reversed.toList();
   }
 
-  static Map<String, dynamic> apply(Map<String, dynamic> data, List<Map<String, dynamic>> patches) => data == null
-      ? <String, dynamic>{}
-      : JsonPatch.apply(
-          data,
-          patches,
-          strict: false,
-        ) as Map<String, dynamic>;
+  static Map<String, dynamic> apply(
+          Map<String, dynamic> data, List<Map<String, dynamic>> patches) =>
+      data == null
+          ? <String, dynamic>{}
+          : JsonPatch.apply(
+              data,
+              patches,
+              strict: false,
+            ) as Map<String, dynamic>;
 
   static RegExpMatch matchQuery(String query) => RegExp(
         // If number, g5 and g6 should be null
@@ -166,28 +175,36 @@ class JsonUtils {
                 e,
                 args,
                 'le',
-                (v1, v2) => v1 is num && v2 is num ? v1 <= v2 : '$v1'.compareTo('$v2') <= 0,
+                (v1, v2) => v1 is num && v2 is num
+                    ? v1 <= v2
+                    : '$v1'.compareTo('$v2') <= 0,
               ),
         if (args.hasPath('ge'))
           'ge': (e) => _eval(
                 e,
                 args,
                 'ge',
-                (v1, v2) => v1 is num && v2 is num ? v1 >= v2 : '$v1'.compareTo('$v2') >= 0,
+                (v1, v2) => v1 is num && v2 is num
+                    ? v1 >= v2
+                    : '$v1'.compareTo('$v2') >= 0,
               ),
         if (args.hasPath('lt'))
           'lt': (e) => _eval(
                 e,
                 args,
                 'lt',
-                (v1, v2) => v1 is num && v2 is num ? v1 < v2 : '$v1'.compareTo('$v2') < 0,
+                (v1, v2) => v1 is num && v2 is num
+                    ? v1 < v2
+                    : '$v1'.compareTo('$v2') < 0,
               ),
         if (args.hasPath('gt'))
           'gt': (e) => _eval(
                 e,
                 args,
                 'gt',
-                (v1, v2) => v1 is num && v2 is num ? v1 > v2 : '$v1'.compareTo('$v2') > 0,
+                (v1, v2) => v1 is num && v2 is num
+                    ? v1 > v2
+                    : '$v1'.compareTo('$v2') > 0,
               ),
         if (args.hasPath('rx'))
           'rx': (e) => _eval(

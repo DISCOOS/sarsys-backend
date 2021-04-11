@@ -1,11 +1,12 @@
-import 'package:event_source/event_source.dart';
-import 'package:event_source/src/error.dart';
-import 'package:event_source_test/src/mock.dart';
-import 'package:event_source_test/event_source_test.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 import 'package:async/async.dart';
 import 'package:pedantic/pedantic.dart';
+import 'package:collection_x/collection_x.dart';
+import 'package:event_source/event_source.dart';
+import 'package:event_source/src/error.dart';
+import 'package:event_source_test/src/mock.dart';
+import 'package:event_source_test/event_source_test.dart';
 
 import 'event_domain_test.dart';
 
@@ -25,7 +26,8 @@ Future main() async {
     ..addServer(port: 4002)
     ..install();
 
-  test('EventStore throws WrongExpectedEventVersion on second concurrent write', () async {
+  test('EventStore throws WrongExpectedEventVersion on second concurrent write',
+      () async {
     // Arrange
     final repo = harness.get<FooRepository>();
     await repo.readyAsync();
@@ -83,8 +85,14 @@ Future main() async {
 
     // Wait for catchup from eventstore
     final pending = StreamGroup.merge([
-      repo2.store.asStream().expand((events) => events).where((event) => event.data.elementAt('uuid') == uuid),
-      repo3.store.asStream().expand((events) => events).where((event) => event.data.elementAt('uuid') == uuid),
+      repo2.store
+          .asStream()
+          .expand((events) => events)
+          .where((event) => event.data.elementAt('uuid') == uuid),
+      repo3.store
+          .asStream()
+          .expand((events) => events)
+          .where((event) => event.data.elementAt('uuid') == uuid),
     ]);
     await repo1.push(foo);
     await pending.take(2).toList();
@@ -114,18 +122,21 @@ Future main() async {
     _assertUniqueEvents(repo1, events1);
     expect(repo1.number.value, 9);
     expect(repo1.count(), equals(1), reason: 'Should contain one aggregate');
-    expect(repo1.get(uuid).applied.length, equals(10), reason: 'Should contain 10 events');
+    expect(repo1.get(uuid).applied.length, equals(10),
+        reason: 'Should contain 10 events');
 
     // Assert - repo 2
     final events2 = _assertEventNumberStrictOrder(repo2, uuid);
     _assertUniqueEvents(repo2, events2);
     expect(repo2.number.value, 9);
     expect(repo2.count(), equals(1), reason: 'Should contain one aggregate');
-    expect(repo2.get(uuid).applied.length, equals(10), reason: 'Should contain 10 events');
+    expect(repo2.get(uuid).applied.length, equals(10),
+        reason: 'Should contain 10 events');
   });
 }
 
-Future<FooRepository> _createStreamsAndReplay(EventSourceHarness harness, int port, int existing, int count) async {
+Future<FooRepository> _createStreamsAndReplay(
+    EventSourceHarness harness, int port, int existing, int count) async {
   final repo = harness.get<FooRepository>(port: port);
   await repo.readyAsync();
   final stream = harness.server(port: port).getStream(repo.store.aggregate);
@@ -154,7 +165,8 @@ Map<String, Map<String, dynamic>> _createStream(
   ]);
 }
 
-Future<List<DomainEvent>> _createMultipleEvents(FooRepository repo, String uuid) async {
+Future<List<DomainEvent>> _createMultipleEvents(
+    FooRepository repo, String uuid) async {
   final operations = <DomainEvent>[];
   final foo = repo.get(uuid, data: {'index': 0});
   // Create
@@ -179,7 +191,8 @@ Future<List<DomainEvent>> _createMultipleEvents(FooRepository repo, String uuid)
   return operations;
 }
 
-Iterable<SourceEvent> _assertEventNumberStrictOrder(Repository repo, String uuid) {
+Iterable<SourceEvent> _assertEventNumberStrictOrder(
+    Repository repo, String uuid) {
   final events = repo.store.aggregateMap[uuid].toList();
   for (var i = 0; i < events.length; i++) {
     expect(

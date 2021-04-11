@@ -33,7 +33,7 @@ void main() async {
     expect(queue.isProcessing, isFalse, reason: 'should not be processing');
 
     // Cleanup
-    await queue.cancel();
+    queue.cancel();
   });
 
   test('StreamRequestQueue should remove pending request and continue', () async {
@@ -61,7 +61,7 @@ void main() async {
     expect(queue.isCurrent(request.key), isFalse, reason: 'should be current');
 
     // Cleanup
-    await queue.cancel();
+    queue.cancel();
   });
 
   test('StreamRequestQueue should clear all pending request and continue', () async {
@@ -93,7 +93,7 @@ void main() async {
     expect(queue.isProcessing, isTrue, reason: 'should not processing');
 
     // Cleanup
-    await queue.cancel();
+    queue.cancel();
   });
 
   test('StreamRequestQueue should clear all pending request and stop', () async {
@@ -125,7 +125,7 @@ void main() async {
     }
 
     // Cancel pending commands
-    await queue.cancel();
+    queue.cancel();
 
     // Assert
     expect(queue.current, isNotNull, reason: 'should have current');
@@ -136,7 +136,7 @@ void main() async {
     expect(queue.isProcessing, isFalse, reason: 'should not be processing');
 
     // Cleanup
-    await queue.cancel();
+    queue.cancel();
   });
 
   test('StreamRequestQueue should stop processing requests', () async {
@@ -168,7 +168,7 @@ void main() async {
     }
 
     // Stop processing commands
-    await queue.stop();
+    queue.stop();
 
     // Assert
     expect(queue.current, isNotNull, reason: 'should have current');
@@ -178,7 +178,7 @@ void main() async {
     expect(queue.isProcessing, isFalse, reason: 'should not be processing');
 
     // Cleanup
-    await queue.cancel();
+    queue.cancel();
   });
 
   test('StreamRequestQueue should resume processing requests', () async {
@@ -200,7 +200,7 @@ void main() async {
     // Wait for first command to be processed before stopping
     final first = requests.first;
     expect(await first.onResult.future, isNull, reason: 'should execute');
-    await queue.stop();
+    queue.stop();
 
     // Act
     final started = queue.start();
@@ -215,7 +215,7 @@ void main() async {
     expect(queue.isEmpty, isTrue, reason: 'should be empty');
 
     // Cleanup
-    await queue.cancel();
+    queue.cancel();
   });
 
   test('StreamRequestQueue should throw StreamRequestTimeouts', () async {
@@ -263,6 +263,6 @@ void main() async {
     expect(queue.failures, 0, reason: 'should have failed zero times');
 
     // Cleanup
-    await queue.cancel();
+    queue.cancel();
   });
 }

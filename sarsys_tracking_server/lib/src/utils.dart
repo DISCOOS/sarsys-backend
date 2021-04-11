@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:event_source/event_source.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:protobuf/protobuf.dart';
+import 'package:collection_x/collection_x.dart';
+import 'package:event_source/event_source.dart';
+
 import 'generated/any.pb.dart';
 import 'generated/json.pb.dart';
 import 'generated/metric.pb.dart';

@@ -167,8 +167,7 @@ class EventStore {
   Map<String, String> get eventMap => Map.unmodifiable(_events);
 
   /// Map from [AggregateRoot.uuid] to set of [Event.uuid]s
-  Map<String, Set<SourceEvent>> get aggregateMap =>
-      Map.unmodifiable(_aggregates);
+  Map<String, Set<SourceEvent>> get aggregateMap => Map.unmodifiable(_aggregates);
 
   /// [Map] of events for each aggregate root sourced from stream.
   ///
@@ -200,9 +199,8 @@ class EventStore {
   bool containsEvent(Event event) => _events.containsKey(event.uuid);
 
   /// Check event [SourceEvent] with given [uuid]
-  SourceEvent getEvent(String uuid) => _events.containsKey(uuid)
-      ? _aggregates[_events[uuid]].where((e) => e.uuid == uuid).firstOrNull
-      : null;
+  SourceEvent getEvent(String uuid) =>
+      _events.containsKey(uuid) ? _aggregates[_events[uuid]].where((e) => e.uuid == uuid).firstOrNull : null;
 
   /// Get [Event] position in [canonicalStream]
   int toPosition(Event event) {
@@ -286,8 +284,7 @@ class EventStore {
     if (stream != canonicalStream) {
       final isInstance = (uuid != null || stream != null);
       if (isInstance) {
-        assert(
-            useInstanceStreams, 'only allowed when instance streams are used');
+        assert(useInstanceStreams, 'only allowed when instance streams are used');
         // Stream takes precedence over uuid
         if (stream != null) {
           uuid = toAggregateUuid(stream);
@@ -350,8 +347,7 @@ class EventStore {
     if (stream != canonicalStream) {
       final isInstance = (uuid != null || stream != null);
       if (isInstance) {
-        assert(
-            useInstanceStreams, 'only allowed when instance streams are used');
+        assert(useInstanceStreams, 'only allowed when instance streams are used');
         // Stream takes precedence over uuid
         if (stream != null) {
           uuid = toAggregateUuid(stream);
@@ -424,9 +420,7 @@ class EventStore {
 
       // Check state after reset
       final isPartial = repo.hasSnapshot && repo.snapshot.isPartial;
-      final snapshot = repo.hasSnapshot
-          ? (repo.snapshot.isPartial ? '(partial snapshot) ' : '(snapshot) ')
-          : '';
+      final snapshot = repo.hasSnapshot ? (repo.snapshot.isPartial ? '(partial snapshot) ' : '(snapshot) ') : '';
       if (isPartial) {
         uuids += repo.snapshot.aggregates.keys.toList();
       }
@@ -445,9 +439,7 @@ class EventStore {
               // Start from next event in
               // instance stream after
               // event stored in snapshot
-              ? (repo.snapshot.aggregates[uuid]?.number?.toNumber() ??
-                      EventNumber.none) +
-                  1
+              ? (repo.snapshot.aggregates[uuid]?.number?.toNumber() ?? EventNumber.none) + 1
               : EventNumber.first;
 
           final stream = toInstanceStream(uuid);
@@ -491,7 +483,7 @@ class EventStore {
           stream: canonicalStream,
         );
         context.info(
-          "Replayed $events events from stream '${canonicalStream}' with offset ${offset.value} $snapshot"
+          "Replayed $events events from stream '$canonicalStream' with offset ${offset.value} $snapshot"
           'in ${DateTime.now().difference(tic).inMilliseconds} ms',
           category: 'EventStore.replay',
         );
@@ -668,8 +660,7 @@ class EventStore {
     Context context,
   }) {
     _assertRepo(repo);
-    _tainted[uuid] =
-        reason is ContextEvent ? reason.toJson() : toJsonSafe(reason);
+    _tainted[uuid] = reason is ContextEvent ? reason.toJson() : toJsonSafe(reason);
     (context ?? _context).error(
       'Tainted ${repo.aggregateType} $uuid',
       error: _tainted[uuid],
@@ -711,8 +702,7 @@ class EventStore {
   }) {
     _assertRepo(repo);
     _tainted.remove(uuid);
-    _cordoned[uuid] =
-        reason is ContextEvent ? reason.toJson() : toJsonSafe(reason);
+    _cordoned[uuid] = reason is ContextEvent ? reason.toJson() : toJsonSafe(reason);
 
     (context ?? _context).error(
       'Cordoned ${repo.aggregateType} $uuid',
@@ -773,8 +763,7 @@ class EventStore {
     }
 
     final wrong = analysis.values.where((a) => a.isWrongStream).length;
-    final multiple =
-        analysis.values.where((a) => a.isMultipleAggregates).length;
+    final multiple = analysis.values.where((a) => a.isMultipleAggregates).length;
     final invalid = wrong > 0 || multiple > 0;
     final message = 'Analyzed ${analysis.length} aggregates '
         'in ${DateTime.now().difference(tic).inMilliseconds} ms';
@@ -800,8 +789,7 @@ class EventStore {
     return analysis;
   }
 
-  AnalyzeResult _onAnalyze(
-      ReadResult result, Repository repo, String uuid, int pageSize) {
+  AnalyzeResult _onAnalyze(ReadResult result, Repository repo, String uuid, int pageSize) {
     if (result.isOK) {
       // Group events by aggregate uuid
       final eventsPerAggregate = groupBy<SourceEvent, String>(
@@ -816,8 +804,7 @@ class EventStore {
         statusCode: result.statusCode,
         reasonPhrase: result.reasonPhrase,
         streams: Map.from(
-          eventsPerAggregate
-              .map((uuid, _) => MapEntry(uuid, toInstanceStream(uuid))),
+          eventsPerAggregate.map((uuid, _) => MapEntry(uuid, toInstanceStream(uuid))),
         ),
       );
     }
@@ -831,13 +818,11 @@ class EventStore {
 
   /// Reorder aggregates with streams
   void reorder(Iterable<String> uuids) {
-    final unknown =
-        _aggregates.keys.where((uuid) => !uuids.contains(uuid)).toList();
+    final unknown = _aggregates.keys.where((uuid) => !uuids.contains(uuid)).toList();
     if (unknown.isNotEmpty) {
       throw AggregateNotFound('Aggregates not found: $unknown');
     }
-    final next = <String,
-        LinkedHashSet<SourceEvent>>{}; // ignore: prefer_collection_literals
+    final next = <String, LinkedHashSet<SourceEvent>>{}; // ignore: prefer_collection_literals
     for (var uuid in uuids) {
       next[uuid] = _aggregates[uuid];
     }
@@ -1215,8 +1200,7 @@ class EventStore {
   bool contains(String uuid) => _aggregates.containsKey(uuid);
 
   /// Get unmodifiable list of events for given [AggregateRoot.uuid]
-  Iterable<SourceEvent> get(String uuid) =>
-      List.unmodifiable(_aggregates[uuid] ?? {});
+  Iterable<SourceEvent> get(String uuid) => List.unmodifiable(_aggregates[uuid] ?? {});
 
   /// Commit applied events to store.
   Iterable<DomainEvent> _commit(
@@ -1260,10 +1244,7 @@ class EventStore {
   String toInstanceStream(String uuid) {
     if (useInstanceStreams) {
       final index = _aggregates.keys.toList().indexOf(uuid);
-      return '${toCanonical([
-        prefix,
-        aggregate
-      ])}-${index < 0 ? _aggregates.length : index}';
+      return '${toCanonical([prefix, aggregate])}-${index < 0 ? _aggregates.length : index}';
     }
     return canonicalStream;
   }
@@ -1545,8 +1526,7 @@ class EventStore {
 
   final _applied = <DomainEvent>[];
 
-  void _onSubscriptionResult(
-      Context context, Repository repo, ReadResult result) {
+  void _onSubscriptionResult(Context context, Repository repo, ReadResult result) {
     try {
       // Publish remotely created events.
       // Handlers can determine events with
@@ -1561,8 +1541,7 @@ class EventStore {
     }
   }
 
-  void _onSubscriptionEvent(
-      Context context, Repository repo, SourceEvent event) {
+  void _onSubscriptionEvent(Context context, Repository repo, SourceEvent event) {
     // In case paused after events
     // are sent from controller
     if (_shouldSkipEvents) {
@@ -1570,9 +1549,7 @@ class EventStore {
         'Skipping ${event.type}@${event.number} ',
         category: 'EventStore._onSubscriptionEvent',
         data: {
-          'reason': isPaused
-              ? Context.toObject('is paused', ['count: $_paused'])
-              : 'is disposed',
+          'reason': isPaused ? Context.toObject('is paused', ['count: $_paused']) : 'is disposed',
         },
       );
       return;
@@ -1604,8 +1581,8 @@ class EventStore {
 
     context.debug(
       isApplied
-          ? 'Replace ${event.type}@${event.number} in ${repo.aggregateType} ${uuid}'
-          : 'Apply ${event.type}@${event.number} to ${repo.aggregateType} ${uuid}',
+          ? 'Replace ${event.type}@${event.number} in ${repo.aggregateType} $uuid'
+          : 'Apply ${event.type}@${event.number} to ${repo.aggregateType} $uuid',
       data: {
         'aggregate.uuid': '$uuid',
         'aggregate.stream': '$stream',
@@ -1651,7 +1628,7 @@ class EventStore {
 
       if (context.isLoggable(ContextLevel.debug)) {
         context.debug(
-          'Handled ${event.type}@${event.number} in ${repo.aggregateType} ${uuid}',
+          'Handled ${event.type}@${event.number} in ${repo.aggregateType} $uuid',
           data: {
             'event.type': '${event.type}',
             'event.uuid': '${event.uuid}',
@@ -1694,8 +1671,7 @@ class EventStore {
   }
 
   /// Handle subscription errors
-  void _onSubscriptionError(Context context, Repository repository,
-      Object error, StackTrace stackTrace) {
+  void _onSubscriptionError(Context context, Repository repository, Object error, StackTrace stackTrace) {
     _onFatal(
       context,
       '${repository.runtimeType} subscription failed',
@@ -1707,8 +1683,7 @@ class EventStore {
     }
   }
 
-  void _onFatal(
-      Context context, String message, Object error, StackTrace stackTrace) {
+  void _onFatal(Context context, String message, Object error, StackTrace stackTrace) {
     context.error(
       message,
       error: error,
@@ -1731,14 +1706,12 @@ class EventStore {
   /// Assert that this this [EventStore] is managed by [repo]
   void _assertRepo(Repository repo) {
     if (repo.store != this) {
-      throw InvalidOperation(
-          'This $this is not managed by ${repo.runtimeType}');
+      throw InvalidOperation('This $this is not managed by ${repo.runtimeType}');
     }
   }
 
   /// Assert that current event number for [stream] is caught up with last known event
-  void _assertCurrentVersion(Context context, String stream, EventNumber actual,
-      {String reason = 'Catch up failed'}) {
+  void _assertCurrentVersion(Context context, String stream, EventNumber actual, {String reason = 'Catch up failed'}) {
     final number = last(stream: stream);
     if (number != actual) {
       final stackTrace = StackTrace.current;
@@ -1811,7 +1784,7 @@ class EventStore {
       context.debug(
         Context.toObject('Paused $runtimeType', [
           'paused: $_paused',
-          'callee: ${callee}',
+          'callee: $callee',
         ]),
         category: 'EventStore.pause',
       );
@@ -1864,7 +1837,7 @@ class EventStore {
       context.debug(
         Context.toObject('Resumed $runtimeType', [
           'paused: $_paused',
-          'callee: ${callee}',
+          'callee: $callee',
         ]),
         category: 'EventStore.resume',
       );
@@ -1908,8 +1881,7 @@ class EventStore {
     }
 
     _controllers.clear();
-    if (_streamController?.hasListener == true &&
-        _streamController?.isClosed == false) {
+    if (_streamController?.hasListener == true && _streamController?.isClosed == false) {
       // See https://github.com/dart-lang/sdk/issues/19095#issuecomment-108436560
       // ignore: unawaited_futures
       _streamController.close();
@@ -1949,12 +1921,10 @@ class EventStore {
 
   /// Check if a [EventStoreSubscriptionController]
   /// exists for given [repository]
-  bool hasSubscription(Repository repository) =>
-      _controllers[repository.runtimeType]?.isOK != false;
+  bool hasSubscription(Repository repository) => _controllers[repository.runtimeType]?.isOK != false;
 
   /// Get [EventStoreSubscriptionController] for given [repository]
-  EventStoreSubscriptionController getSubscription(Repository repository) =>
-      _controllers[repository.runtimeType];
+  EventStoreSubscriptionController getSubscription(Repository repository) => _controllers[repository.runtimeType];
 }
 
 class AnalyzeResult {
@@ -2025,11 +1995,8 @@ class EventStoreSubscriptionController<T extends Repository> {
 
   final void Function(Context context, T repository) onDone;
   final void Function(Context context, T repository, SourceEvent event) onEvent;
-  final void Function(Context context, T repository, ReadResult result)
-      onResult;
-  final void Function(
-          Context context, T repository, Object error, StackTrace stackTrace)
-      onError;
+  final void Function(Context context, T repository, ReadResult result) onResult;
+  final void Function(Context context, T repository, Object error, StackTrace stackTrace) onError;
 
   /// Maximum backoff duration between reconnect attempts
   final Duration maxBackoffTime;
@@ -2209,7 +2176,7 @@ class EventStoreSubscriptionController<T extends Repository> {
   Future _restart() async {
     await _handler?.cancel();
     if (_competing) {
-      final controller = await _repo.store.compete(
+      final controller = _repo.store.compete(
         _repo,
         consume: _consume,
         strategy: _strategy,
@@ -2217,7 +2184,7 @@ class EventStoreSubscriptionController<T extends Repository> {
       );
       _handler = controller._handler;
     } else {
-      final controller = await repo.store.subscribe(
+      final controller = repo.store.subscribe(
         _repo,
         maxBackoffTime: maxBackoffTime,
       );
@@ -2251,7 +2218,7 @@ class EventStoreSubscriptionController<T extends Repository> {
       final connection = repository.store.connection;
       context.info(
         '${repository.runtimeType} reconnected to '
-        "'${connection.host}:${connection.port}' after ${reconnects} attempts",
+        "'${connection.host}:${connection.port}' after $reconnects attempts",
         category: 'EventStoreSubscriptionController._alive',
       );
       reconnects = 0;
@@ -2514,8 +2481,7 @@ class SourceEventErrorHandler {
         'error.number.actual': '${error.actual}',
         'error.number.expected': '${error.expected}',
       },
-      error:
-          'Failed to apply ${event.type}@${event.number} on ${repo.aggregateType} $uuid',
+      error: 'Failed to apply ${event.type}@${event.number} on ${repo.aggregateType} $uuid',
     );
   }
 
@@ -2562,8 +2528,7 @@ class SourceEventErrorHandler {
         'error.number.actual': '${error.actual}',
         'error.number.expected': '${error.expected}',
       },
-      error:
-          'Failed to apply ${event.type}@${event.number} on ${repo.aggregateType} $uuid',
+      error: 'Failed to apply ${event.type}@${event.number} on ${repo.aggregateType} $uuid',
     );
   }
 
@@ -2602,8 +2567,7 @@ class SourceEventErrorHandler {
       cause: error,
       aggregate: aggregate,
       stackTrace: Trace.from(stackTrace),
-      error:
-          'Failed to apply ${event.type}@${event.number} on ${repo.aggregateType} ${aggregate.uuid}',
+      error: 'Failed to apply ${event.type}@${event.number} on ${repo.aggregateType} ${aggregate.uuid}',
     );
   }
 
@@ -2669,9 +2633,7 @@ class SourceEventErrorHandler {
         error: error,
         stackTrace: stackTrace,
         category: 'SourceEventErrorHandler._handle',
-        data: {'resolution': 'event skipped'}
-          ..addAll(data)
-          ..addAll(toDebugData(event, repo, aggregate)),
+        data: {'resolution': 'event skipped'}..addAll(data)..addAll(toDebugData(event, repo, aggregate)),
       );
     }
 
@@ -2707,11 +2669,9 @@ class SourceEventErrorHandler {
     );
   }
 
-  static bool isHandling(Object error) =>
-      error is JsonPatchError || error is EventNumberNotStrictMonotone;
+  static bool isHandling(Object error) => error is JsonPatchError || error is EventNumberNotStrictMonotone;
 
-  Map<String, String> toDebugData(
-      SourceEvent event, Repository repo, AggregateRoot aggregate) {
+  Map<String, String> toDebugData(SourceEvent event, Repository repo, AggregateRoot aggregate) {
     final uuid = aggregate?.uuid;
     return {
       'event.type': '${event.type}',
@@ -2741,10 +2701,8 @@ class SourceEventErrorHandler {
       if (repo.snapshot == null)
         'repository.snapshot.aggregate.number': 'null'
       else
-        'repository.snapshot.aggregate.number':
-            '${repo.snapshot.aggregates[uuid]?.number}',
-      'store.connection':
-          '${repo.store.connection.host}:${repo.store.connection.port}',
+        'repository.snapshot.aggregate.number': '${repo.snapshot.aggregates[uuid]?.number}',
+      'store.connection': '${repo.store.connection.host}:${repo.store.connection.port}',
       'store.events.count': '${repo.store.length}',
       'store.number.instance': '${repo.store.last(uuid: aggregate.uuid)}',
       'store.number.canonical': '${repo.store.last()}',
@@ -2878,17 +2836,14 @@ class EventStoreConnection {
     return location;
   }
 
-  String _toFeedUri(
-      {EventNumber number, Direction direction, int pageSize, bool embed}) {
+  String _toFeedUri({EventNumber number, Direction direction, int pageSize, bool embed}) {
     String uri;
     if (number.isFirst) {
-      uri =
-          '/0/${direction == Direction.forward ? 'forward' : 'backward'}/$pageSize';
+      uri = '/0/${direction == Direction.forward ? 'forward' : 'backward'}/$pageSize';
     } else if (number.isLast) {
       uri = '/head/backward/$pageSize';
     } else if (!number.isNone) {
-      uri =
-          '/${number.value}/${direction == Direction.forward ? 'forward' : 'backward'}/$pageSize';
+      uri = '/${number.value}/${direction == Direction.forward ? 'forward' : 'backward'}/$pageSize';
     } else {
       throw ArgumentError('Event number can not be $number');
     }
@@ -2977,8 +2932,7 @@ class EventStoreConnection {
       reasonPhrase: events.isEmpty ? 'Not found' : 'OK',
       events: events,
       atomFeed: result.atomFeed,
-      number:
-          events.isEmpty ? result.number : result.number + (events.length - 1),
+      number: events.isEmpty ? result.number : result.number + (events.length - 1),
       direction: result.direction,
     );
   }
@@ -3072,8 +3026,7 @@ class EventStoreConnection {
   }
 
   /// Check if pagination is reached its end
-  bool hasNextFeed(FeedResult result) =>
-      !(result.direction == Direction.forward ? result.isHead : result.isTail);
+  bool hasNextFeed(FeedResult result) => !(result.direction == Direction.forward ? result.isHead : result.isTail);
 
   /// Get next [AtomFeed] from previous [FeedResult.atomFeed] in given [FeedResult.direction].
   Future<FeedResult> getNextFeed(FeedResult result) async {
@@ -3120,9 +3073,7 @@ class EventStoreConnection {
   ) {
     var entries = _ensureOrder(atomFeed, direction);
 
-    if (atomFeed.headOfStream &&
-        number.isLast &&
-        direction == Direction.forward) {
+    if (atomFeed.headOfStream && number.isLast && direction == Direction.forward) {
       // We do not know the EventNumber of the last
       // event in each stream other than
       // '/streams/{name}/head'. When paginating
@@ -3394,8 +3345,7 @@ class EventStoreConnection {
           strategy: strategy,
         );
         if (result.isCreated || result.isConflict) {
-          final retry =
-              await _getSubscriptionGroup(stream, group, consume, embed);
+          final retry = await _getSubscriptionGroup(stream, group, consume, embed);
           _logger.finer('getSubscriptionFeed: RETRY ${response.statusCode}');
           return FeedResult.from(
             stream: stream,
@@ -3452,8 +3402,7 @@ class EventStoreConnection {
     );
   }
 
-  Future<Response> _getSubscriptionGroup(
-      String stream, String group, int count, bool embed) {
+  Future<Response> _getSubscriptionGroup(String stream, String group, int count, bool embed) {
     var url = _mapUrlTo(
       toURL('subscriptions/$stream/$group/$count'),
     );
@@ -3526,8 +3475,7 @@ class EventStoreConnection {
     final answer = nack ? 'nack' : 'ack';
     final ids = events.map((event) => event.uuid).join(',');
     final nackAction = nack ? '?action=${enumName(action)}' : '';
-    final url =
-        toURL('subscriptions/$stream/$group/$answer?ids=$ids$nackAction');
+    final url = toURL('subscriptions/$stream/$group/$answer?ids=$ids$nackAction');
     final result = await client.post(
       url,
       headers: {
@@ -3605,8 +3553,7 @@ class EventStoreConnection {
       var uri = Uri.parse(url);
       final host = uri.host;
       if (uri.hasPort) {
-        final next =
-            url.replaceFirst('${uri.scheme}://$host:${uri.port}', '$baseUrl');
+        final next = url.replaceFirst('${uri.scheme}://$host:${uri.port}', '$baseUrl');
         return next;
       }
       return url.replaceFirst('$host', '$baseUrl');
@@ -3703,8 +3650,7 @@ class _EventStreamController {
             DurationMetric.limit,
           );
         }
-      } while (
-          feed != null && feed.isOK && !(feed.headOfStream || feed.isEmpty));
+      } while (feed != null && feed.isOK && !(feed.headOfStream || feed.isEmpty));
       _stopRead();
     } catch (e, stackTrace) {
       _onFatal(
@@ -3772,14 +3718,12 @@ class _EventStreamController {
       );
     } else {
       logger.fine(
-        Context.toMethod(
-            'Failed to read from $_stream@${_current}, listening for $_current',
-            [
-              Context.toObject('result', [
-                'status: ${result.statusCode}',
-                'reason: ${result.reasonPhrase}',
-              ]),
-            ]),
+        Context.toMethod('Failed to read from $_stream@$_current, listening for $_current', [
+          Context.toObject('result', [
+            'status: ${result.statusCode}',
+            'reason: ${result.reasonPhrase}',
+          ]),
+        ]),
       );
     }
     // Notify when all actions are done
@@ -3819,8 +3763,7 @@ class UserCredentials {
   final String login;
   final String password;
 
-  String get header =>
-      "Basic ${base64.encode(utf8.encode("$login:$password"))}";
+  String get header => "Basic ${base64.encode(utf8.encode("$login:$password"))}";
 }
 
 /// Projection command enum
@@ -3880,8 +3823,7 @@ enum SubscriptionAction {
 
 /// Implements periodic fetch of events from event-store
 class _EventStoreSubscriptionControllerImpl {
-  _EventStoreSubscriptionControllerImpl(this.connection)
-      : logger = connection._logger {
+  _EventStoreSubscriptionControllerImpl(this.connection) : logger = connection._logger {
     _readQueue.catchError((e, stackTrace) {
       logger.network(
         'Processing fetch requests failed with: $e',
@@ -4105,8 +4047,7 @@ class _EventStoreSubscriptionControllerImpl {
       if (_number < _current) {
         // This should sum up for pull-subscriptions!
         // If it doesn't something is wrong!
-        if (_strategy == null &&
-            (_number + fetched + (number.isNone ? 1 : 0)) != _current) {
+        if (_strategy == null && (_number + fetched + (number.isNone ? 1 : 0)) != _current) {
           throw StateError(
             '$fetched events fetched from $canonicalStream@$_number does not match current $_current',
           );
@@ -4119,8 +4060,7 @@ class _EventStoreSubscriptionControllerImpl {
     return _current;
   }
 
-  bool _shouldReadNext(FeedResult feed) =>
-      feed != null && feed.isOK && !(feed.headOfStream || feed.isEmpty);
+  bool _shouldReadNext(FeedResult feed) => feed != null && feed.isOK && !(feed.headOfStream || feed.isEmpty);
 
   Future<FeedResult> _readNext() async {
     FeedResult feed;

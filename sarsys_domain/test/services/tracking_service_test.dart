@@ -1,11 +1,13 @@
 import 'dart:async';
 
-import 'package:async/async.dart';
-import 'package:event_source/event_source.dart';
-import 'package:event_source_test/event_source_test.dart';
-import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
+import 'package:async/async.dart';
+
+import 'package:event_source/event_source.dart';
+import 'package:sarsys_domain/sarsys_domain.dart';
+import 'package:event_source_test/event_source_test.dart';
+import 'package:collection_x/collection_x.dart';
 
 import 'harness.dart';
 
@@ -17,8 +19,7 @@ Future main() async {
     ..withTenant()
     ..withPrefix()
     ..withLogger(debug: false)
-    ..withStream(subscription,
-        useInstanceStreams: false, useCanonicalName: false)
+    ..withStream(subscription, useInstanceStreams: false, useCanonicalName: false)
     ..withSubscription(subscription, group: group)
     ..withProjections(projections: ['\$by_category', '\$by_event_type'])
     ..withRepository<Device>((_, store, __) => DeviceRepository(store))
@@ -51,10 +52,8 @@ Future main() async {
         ]));
 
     // Act - service 1
-    final service1 =
-        TrackingService(repo, devices: devices, consume: 1, snapshot: false);
-    final service2 =
-        TrackingService(repo, devices: devices, consume: 1, snapshot: false);
+    final service1 = TrackingService(repo, devices: devices, consume: 1, snapshot: false);
+    final service2 = TrackingService(repo, devices: devices, consume: 1, snapshot: false);
     service1.build();
     service2.build();
 
@@ -102,9 +101,7 @@ Future main() async {
       tuuid,
       await _createDevice(devices),
     );
-    final service =
-        TrackingService(repo, devices: devices, consume: 1, snapshot: false)
-          ..build();
+    final service = TrackingService(repo, devices: devices, consume: 1, snapshot: false)..build();
     await expectLater(
       service.asStream(),
       emitsInOrder([
@@ -138,9 +135,7 @@ Future main() async {
 
     // Act - add empty tracking object
     final tuuid = await _createTracking(repo, stream, subscription);
-    final service =
-        TrackingService(repo, devices: devices, consume: 1, snapshot: false)
-          ..build();
+    final service = TrackingService(repo, devices: devices, consume: 1, snapshot: false)..build();
     await expectLater(service.asStream(), emits(isA<TrackingCreated>()));
 
     // Act - create device and add source after service has consumed TrackingCreated
@@ -175,9 +170,7 @@ Future main() async {
     await service.dispose();
   });
 
-  test(
-      'Tracking service aggregates position on DevicePositionChanged when device is trackable',
-      () async {
+  test('Tracking service aggregates position on DevicePositionChanged when device is trackable', () async {
     // Arrange
     final stream = harness.server().getStream('\$et-TrackingCreated');
     final devices = harness.get<DeviceRepository>();
@@ -187,9 +180,7 @@ Future main() async {
 
     // Act - add empty tracking object
     final tuuid = await _createTracking(repo, stream, subscription);
-    final service =
-        TrackingService(repo, devices: devices, consume: 1, snapshot: false)
-          ..build();
+    final service = TrackingService(repo, devices: devices, consume: 1, snapshot: false)..build();
     await expectLater(service.asStream(), emits(isA<TrackingCreated>()));
 
     // Act - add device 1 and update position
@@ -253,20 +244,15 @@ Future main() async {
 
     // Assert aggregation
     final tracking = repo.get(tuuid);
-    expect(tracking.elementAt('position/geometry/coordinates/0'), 5.0,
-        reason: 'Should aggregate to 5.0');
-    expect(tracking.elementAt('position/geometry/coordinates/1'), 10.0,
-        reason: 'Should aggregate to 10.0');
-    expect(tracking.elementAt('position/properties/accuracy'), 20.0,
-        reason: 'Should aggregate to 20.0');
+    expect(tracking.elementAt('position/geometry/coordinates/0'), 5.0, reason: 'Should aggregate to 5.0');
+    expect(tracking.elementAt('position/geometry/coordinates/1'), 10.0, reason: 'Should aggregate to 10.0');
+    expect(tracking.elementAt('position/properties/accuracy'), 20.0, reason: 'Should aggregate to 20.0');
 
     // Cleanup
     await service.dispose();
   });
 
-  test(
-      'Tracking service does not aggregates position on DevicePositionChanged when device is not trackable',
-      () async {
+  test('Tracking service does not aggregates position on DevicePositionChanged when device is not trackable', () async {
     // Arrange
     final stream = harness.server().getStream('\$et-TrackingCreated');
     final devices = harness.get<DeviceRepository>();
@@ -276,9 +262,7 @@ Future main() async {
 
     // Act - add empty tracking object
     final tuuid = await _createTracking(repo, stream, subscription);
-    final service =
-        TrackingService(repo, devices: devices, consume: 1, snapshot: false)
-          ..build();
+    final service = TrackingService(repo, devices: devices, consume: 1, snapshot: false)..build();
     await expectLater(service.asStream(), emits(isA<TrackingCreated>()));
 
     // Act - create device, add source and update device position with two positions
@@ -327,15 +311,13 @@ Future main() async {
 
     // Assert aggregation
     final tracking = repo.get(tuuid);
-    expect(tracking.elementAt('position'), isNull,
-        reason: 'Should not aggregate positions');
+    expect(tracking.elementAt('position'), isNull, reason: 'Should not aggregate positions');
 
     // Cleanup
     await service.dispose();
   });
 
-  test('Tracking services shall detach track on TrackingSourceRemoved',
-      () async {
+  test('Tracking services shall detach track on TrackingSourceRemoved', () async {
     // Arrange
     final stream = harness.server().getStream('\$et-TrackingCreated');
     final devices = harness.get<DeviceRepository>();
@@ -345,9 +327,7 @@ Future main() async {
 
     // Act - add empty tracking object
     final tuuid = await _createTracking(repo, stream, subscription);
-    final service =
-        TrackingService(repo, devices: devices, consume: 1, snapshot: false)
-          ..build();
+    final service = TrackingService(repo, devices: devices, consume: 1, snapshot: false)..build();
     await expectLater(
       service.asStream(),
       emitsInOrder([
@@ -421,9 +401,7 @@ Future main() async {
       tuuid,
       await _createDevice(devices),
     );
-    final service =
-        TrackingService(repo, devices: devices, consume: 1, snapshot: false)
-          ..build();
+    final service = TrackingService(repo, devices: devices, consume: 1, snapshot: false)..build();
     await expectLater(
       service.asStream(),
       emitsInOrder([
@@ -479,21 +457,18 @@ void _assertStates(
     expect(tracks.length, equals(trackCount));
   }
   if (status?.isNotEmpty == true) {
-    expect(tracks['0']?.data['status'],
-        contains(attached ? 'attached' : 'detached'));
+    expect(tracks['0']?.data['status'], contains(attached ? 'attached' : 'detached'));
     expect(tracking.elementAt('status'), equals(status));
   }
 }
 
-Future<String> _createDevice(DeviceRepository repo,
-    {bool trackable = true}) async {
+Future<String> _createDevice(DeviceRepository repo, {bool trackable = true}) async {
   final uuid = Uuid().v4();
   await repo.execute(CreateDevice(createDevice(uuid, trackable: trackable)));
   return uuid;
 }
 
-FutureOr<String> _createTracking(
-    TrackingRepository repo, TestStream stream, String subscription) async {
+FutureOr<String> _createTracking(TrackingRepository repo, TestStream stream, String subscription) async {
   final uuid = Uuid().v4();
   final events = await repo.execute(CreateTracking(createTracking(uuid)));
   stream.append(subscription, [
@@ -502,27 +477,21 @@ FutureOr<String> _createTracking(
   return uuid;
 }
 
-FutureOr<String> _addTrackingSource(
-    TrackingRepository repo, String uuid, String device) async {
+FutureOr<String> _addTrackingSource(TrackingRepository repo, String uuid, String device) async {
   await repo.execute(AddSourceToTracking(uuid, createSource(uuid: device)));
   return device;
 }
 
-FutureOr _updateDevicePosition(
-    DeviceRepository repo, String uuid, Map<String, dynamic> position) async {
-  await repo
-      .execute(UpdateDevicePosition({'uuid': uuid, 'position': position}));
+FutureOr _updateDevicePosition(DeviceRepository repo, String uuid, Map<String, dynamic> position) async {
+  await repo.execute(UpdateDevicePosition({'uuid': uuid, 'position': position}));
 }
 
-FutureOr<String> _removeTrackingSource(
-    TrackingRepository repo, String tuuid, String suuid) async {
-  await repo
-      .execute(RemoveSourceFromTracking(tuuid, createSource(uuid: suuid)));
+FutureOr<String> _removeTrackingSource(TrackingRepository repo, String tuuid, String suuid) async {
+  await repo.execute(RemoveSourceFromTracking(tuuid, createSource(uuid: suuid)));
   return suuid;
 }
 
-FutureOr<String> _deleteTracking(TrackingRepository repo, TestStream stream,
-    String subscription, String uuid) async {
+FutureOr<String> _deleteTracking(TrackingRepository repo, TestStream stream, String subscription, String uuid) async {
   final events = await repo.execute(DeleteTracking(createTracking(uuid)));
   stream.append(subscription, [
     TestStream.fromDomainEvent(events.first),

@@ -11,6 +11,8 @@ publish_to: none
 
 dependencies:
   aqueduct_test: ^1.0.0
+  collection_x:
+    path: ../collection_x
   event_source_test:
     path: ../event_source_test
   sarsys_app_server:

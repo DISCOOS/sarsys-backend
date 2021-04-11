@@ -1,9 +1,10 @@
 import 'dart:async';
 
-import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
 
+import 'package:collection_x/collection_x.dart';
+import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:sarsys_app_server_test/sarsys_app_server_test.dart';
 
 Future main() async {

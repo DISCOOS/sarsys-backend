@@ -10,6 +10,7 @@ import 'package:test/test.dart';
 import 'package:meta/meta.dart';
 import 'package:hive/hive.dart';
 
+import 'package:collection_x/collection_x.dart';
 export 'package:event_source/event_source.dart';
 export 'package:aqueduct_test/aqueduct_test.dart';
 export 'package:test/test.dart';

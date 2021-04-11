@@ -1,4 +1,5 @@
 import 'package:sarsys_core/sarsys_core.dart';
+import 'package:collection_x/collection_x.dart';
 
 /// A basic CRUD ResourceController for [AggregateRoot] requests
 abstract class AggregateController<S extends Command, T extends AggregateRoot> extends ResourceController

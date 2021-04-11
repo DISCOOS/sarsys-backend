@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:meta/meta.dart';
+import 'package:collection_x/collection_x.dart';
 import 'package:event_source/event_source.dart';
 import 'package:event_source_grpc/event_source_grpc.dart';
 import 'package:fixnum/fixnum.dart';
@@ -27,8 +28,7 @@ Any toAny(GeneratedMessage value) {
 
 Any toAnyFromJson(
   dynamic data, [
-  JsonDataCompression compression =
-      JsonDataCompression.JSON_DATA_COMPRESSION_ZLIB,
+  JsonDataCompression compression = JsonDataCompression.JSON_DATA_COMPRESSION_ZLIB,
 ]) {
   return Any.pack(
     toJsonValue(data, compression),
@@ -38,8 +38,7 @@ Any toAnyFromJson(
 
 Map<String, dynamic> ensureAnyJsonValue(
   Map<String, dynamic> json, [
-  JsonDataCompression compression =
-      JsonDataCompression.JSON_DATA_COMPRESSION_ZLIB,
+  JsonDataCompression compression = JsonDataCompression.JSON_DATA_COMPRESSION_ZLIB,
 ]) {
   final data = json.elementAt('data');
   if (data != null) {
@@ -56,8 +55,7 @@ Map<String, dynamic> ensureAnyJsonValue(
 
 JsonValue toJsonValue(
   dynamic data, [
-  JsonDataCompression compression =
-      JsonDataCompression.JSON_DATA_COMPRESSION_ZLIB,
+  JsonDataCompression compression = JsonDataCompression.JSON_DATA_COMPRESSION_ZLIB,
 ]) {
   return JsonValueWrapper()
     ..compression = compression
@@ -66,8 +64,7 @@ JsonValue toJsonValue(
 
 List<int> toJsonValueBytes(
   dynamic data, [
-  JsonDataCompression compression =
-      JsonDataCompression.JSON_DATA_COMPRESSION_ZLIB,
+  JsonDataCompression compression = JsonDataCompression.JSON_DATA_COMPRESSION_ZLIB,
 ]) {
   switch (compression) {
     case JsonDataCompression.JSON_DATA_COMPRESSION_ZLIB:
@@ -87,9 +84,7 @@ dynamic toJsonFromAny(Any value) {
 }
 
 JsonValue toJsonValueFromAny(Any value) {
-  return value.hasTypeUrl()
-      ? value.unpackInto<JsonValue>(JsonValueWrapper())
-      : null;
+  return value.hasTypeUrl() ? value.unpackInto<JsonValue>(JsonValueWrapper()) : null;
 }
 
 dynamic fromJsonValue(JsonValue value) {
@@ -103,8 +98,7 @@ dynamic fromJsonValue(JsonValue value) {
 
 dynamic fromJsonDataBytes(
   List<int> data, [
-  JsonDataCompression compression =
-      JsonDataCompression.JSON_DATA_COMPRESSION_ZLIB,
+  JsonDataCompression compression = JsonDataCompression.JSON_DATA_COMPRESSION_ZLIB,
 ]) {
   switch (compression) {
     case JsonDataCompression.JSON_DATA_COMPRESSION_ZLIB:
@@ -117,8 +111,7 @@ dynamic fromJsonDataBytes(
 
 Value toValueFromJson(dynamic data) {
   if (data is List) {
-    return Value()
-      ..listValue = (ListValue()..values.addAll(data.map(toValueFromJson)));
+    return Value()..listValue = (ListValue()..values.addAll(data.map(toValueFromJson)));
   }
   if (data is Map<String, dynamic>) {
     return Value()..mergeFromProto3Json(Map<String, dynamic>.from(data));
@@ -129,8 +122,7 @@ Value toValueFromJson(dynamic data) {
 }
 
 bool withRepoField(List<RepoExpandFields> expand, RepoExpandFields field) =>
-    expand.contains(RepoExpandFields.REPO_EXPAND_FIELDS_ALL) ||
-    expand.contains(field);
+    expand.contains(RepoExpandFields.REPO_EXPAND_FIELDS_ALL) || expand.contains(field);
 
 AnalysisMeta toAnalysisMeta(
   Map<String, dynamic> meta,
@@ -233,8 +225,7 @@ RepositoryMetricsMeta toRepoMetricsMeta(
               ),
           ));
       });
-    meta.setIfExists<Map>(
-        metrics, 'push', (push) => meta.push = toDurationMetricMeta(push));
+    meta.setIfExists<Map>(metrics, 'push', (push) => meta.push = toDurationMetricMeta(push));
   }
   return meta;
 }
@@ -339,10 +330,8 @@ AggregateMetaList toAggregateMetaList(
     ]);
 }
 
-bool withAggregateField(
-        List<AggregateExpandFields> expand, AggregateExpandFields field) =>
-    expand.contains(AggregateExpandFields.AGGREGATE_EXPAND_FIELDS_ALL) ||
-    expand.contains(field);
+bool withAggregateField(List<AggregateExpandFields> expand, AggregateExpandFields field) =>
+    expand.contains(AggregateExpandFields.AGGREGATE_EXPAND_FIELDS_ALL) || expand.contains(field);
 
 AggregateMeta toAggregateMetaFromRoot(
   AggregateRoot aggregate,
@@ -452,16 +441,13 @@ EventMeta toEventMetaFromMap(Map<String, dynamic> event) {
       ..number = Int64(event.elementAt<int>('number', defaultValue: -1))
       ..position = Int64(event.elementAt<int>('position', defaultValue: -1));
     meta.setIfExists<bool>(event, 'remote', (remote) => meta.remote = remote);
-    meta.setIfExists<String>(event, 'created',
-        (ts) => meta.timestamp = Timestamp.fromDateTime(DateTime.parse(ts)));
+    meta.setIfExists<String>(event, 'created', (ts) => meta.timestamp = Timestamp.fromDateTime(DateTime.parse(ts)));
   }
   return meta;
 }
 
-bool withSnapshotField(
-        List<SnapshotExpandFields> expand, SnapshotExpandFields field) =>
-    expand.contains(SnapshotExpandFields.SNAPSHOT_EXPAND_FIELDS_ALL) ||
-    expand.contains(field);
+bool withSnapshotField(List<SnapshotExpandFields> expand, SnapshotExpandFields field) =>
+    expand.contains(SnapshotExpandFields.SNAPSHOT_EXPAND_FIELDS_ALL) || expand.contains(field);
 
 SnapshotMeta toSnapshotMeta(
   String type,
@@ -470,8 +456,7 @@ SnapshotMeta toSnapshotMeta(
 ) {
   final meta = SnapshotMeta()..type = capitalize(type);
   meta.setIfExists<int>(repo, 'number', (value) => meta.number = Int64(value));
-  meta.setIfExists<int>(
-      repo, 'position', (value) => meta.number = Int64(value));
+  meta.setIfExists<int>(repo, 'position', (value) => meta.number = Int64(value));
   meta
     ..metrics = toSnapshotMetricsMeta(
       repo.mapAt<String, dynamic>('metrics'),
@@ -497,19 +482,15 @@ SnapshotMetricsMeta toSnapshotMetricsMeta(
   if (metrics != null) {
     meta.snapshots = Int64(metrics.elementAt<int>('snapshots'));
     meta.isPartial = metrics.elementAt<bool>('partial', defaultValue: false);
-    meta.setIfExists<int>(
-        metrics, 'unsaved', (unsaved) => meta.unsaved = Int64(unsaved));
-    meta.setIfExists<Map>(metrics, 'partial',
-        (partial) => meta.missing = Int64(partial.elementAt<int>('missing')));
-    meta.setIfExists<Map>(
-        metrics, 'save', (save) => meta.save = toDurationMetricMeta(save));
+    meta.setIfExists<int>(metrics, 'unsaved', (unsaved) => meta.unsaved = Int64(unsaved));
+    meta.setIfExists<Map>(metrics, 'partial', (partial) => meta.missing = Int64(partial.elementAt<int>('missing')));
+    meta.setIfExists<Map>(metrics, 'save', (save) => meta.save = toDurationMetricMeta(save));
   }
   return meta;
 }
 
 extension GeneratedMessageX on GeneratedMessage {
-  void setIfExists<T>(
-      Map<String, dynamic> map, String path, void Function(T) set) {
+  void setIfExists<T>(Map<String, dynamic> map, String path, void Function(T) set) {
     if (map.hasPath(path)) {
       set(map.elementAt<T>(path));
     }

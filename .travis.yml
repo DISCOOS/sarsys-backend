@@ -1,0 +1,9 @@
+language: dart
+dart:
+  # Install the latest stable release
+  - stable
+install: make pub_upgrade
+script: make pub_upgrade
+branches:
+  only:
+    - master

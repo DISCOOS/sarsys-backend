@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:event_source/event_source.dart';
+import 'package:collection_x/collection_x.dart';
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 import 'package:sarsys_domain/sarsys_domain.dart';
 import 'package:sarsys_ops_server_test/sarsys_ops_server_test.dart';

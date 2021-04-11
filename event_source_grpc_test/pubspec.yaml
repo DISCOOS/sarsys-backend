@@ -11,6 +11,8 @@ environment:
 publish_to: none
 
 dependencies:
+  collection_x:
+    path: ../collection_x
   event_source_grpc:
     path: ../event_source_grpc
 

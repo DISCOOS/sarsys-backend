@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:meta/meta.dart';
 
 import 'package:sarsys_core/sarsys_core.dart';
+import 'package:collection_x/collection_x.dart';
 
 import 'mixins.dart';
 
