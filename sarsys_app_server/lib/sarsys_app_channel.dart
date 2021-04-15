@@ -8,9 +8,10 @@ import 'package:collection_x/collection_x.dart';
 import 'package:event_source/event_source.dart';
 
 import 'package:event_source_grpc/event_source_grpc.dart';
+import 'package:grpc/grpc.dart' as grpc;
+import 'package:sentry/sentry.dart' hide Device;
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
-import 'package:grpc/grpc.dart' as grpc;
 
 import 'package:sarsys_core/sarsys_core.dart';
 import 'controllers/domain/controllers.dart';
@@ -79,7 +80,7 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
     try {
       final stopwatch = Stopwatch()..start();
 
-      _loadConfig();
+      await _loadConfig();
       _initHive();
       _buildValidators();
       _buildRepoManager();
@@ -411,7 +412,7 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
     }
   }
 
-  void _loadConfig() {
+  Future<void> _loadConfig() async {
     // Parse from config file, given by --config to document.dart or default config.yaml
     config = SarSysAppConfig.fromFile(
       options.configurationFilePath,
@@ -431,12 +432,15 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
             stdout: config.logging.stdout,
           ),
         );
-    logger.info("Server log level set to ${Logger.root.level.name}");
+    logger.info(
+      "Server log level set to ${Logger.root.level.name}",
+    );
     if (config.logging.sentry != null) {
       _remoteLogger = RemoteLogger(
         config.logging.sentry,
         config.tenant,
       );
+      await _remoteLogger.init();
       logger.info("Sentry DSN is ${config.logging.sentry.dsn}");
       logger.info("Sentry log level set to ${_remoteLogger.level}");
     }

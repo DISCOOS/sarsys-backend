@@ -27,7 +27,7 @@ dependencies:
   json_schema: ^2.2.1
   stack_trace: ^1.9.6
   validators: ^2.0.0+1
-  sentry: ^3.0.1
+  sentry: ^4.0.6
   collection_x:
     path: ../collection_x
   event_source:

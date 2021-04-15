@@ -65,7 +65,7 @@ class SarSysOpsServerChannel extends SarSysServerChannelBase {
     try {
       final stopwatch = Stopwatch()..start();
 
-      _loadConfig();
+      await _loadConfig();
       _initHive();
       _buildValidators();
       await _configureK8sApi();
@@ -167,7 +167,7 @@ class SarSysOpsServerChannel extends SarSysServerChannelBase {
     }
   }
 
-  void _loadConfig() {
+  Future<void> _loadConfig() async {
     // Parse from config file, given by --config to document.dart or default config.yaml
     config = SarSysOpsConfig(options.configurationFilePath);
 
@@ -195,6 +195,7 @@ class SarSysOpsServerChannel extends SarSysServerChannelBase {
         config.logging.sentry,
         config.tenant,
       );
+      await _remoteLogger.init();
       logger.info("Sentry DSN is ${config.logging.sentry.dsn}");
       logger.info("Sentry log level set to ${_remoteLogger.level}");
     }

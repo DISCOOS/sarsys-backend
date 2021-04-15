@@ -119,11 +119,11 @@ class SarSysTrackingServer {
     }
   }
 
-  Future _build(SarSysModuleConfig config) {
+  Future<void> _build(SarSysModuleConfig config) async {
     try {
       final stopwatch = Stopwatch()..start();
 
-      _loadConfig(config);
+      await _loadConfig(config);
       _initHive();
       _buildRepoManager();
       _buildRepos(
@@ -134,10 +134,9 @@ class SarSysTrackingServer {
     } catch (e, stackTrace) {
       _terminateOnFailure(e, stackTrace);
     }
-    return Future.value();
   }
 
-  void _loadConfig(SarSysTrackingConfig config) {
+  Future<void> _loadConfig(SarSysTrackingConfig config) async {
     this.config = config;
     config.host = Platform.localHostname;
     final level = LoggerConfig.toLevel(
@@ -157,6 +156,7 @@ class SarSysTrackingServer {
         config.logging.sentry,
         config.tenant,
       );
+      await _remoteLogger.init();
       logger.info("Sentry DSN is ${config.logging.sentry.dsn}");
       logger.info("Sentry log level set to ${_remoteLogger.level}");
     }
