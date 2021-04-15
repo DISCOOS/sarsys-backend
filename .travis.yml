@@ -1,9 +1,409 @@
+# Created with package:mono_repo v3.4.7
 language: dart
-dart:
-  # Install the latest stable release
-  - stable
-install: make pub_upgrade
-script: make test
+
+jobs:
+  include:
+    - stage: analyze
+      name: "PKG: collection_x; `dartanalyzer .`"
+      dart: dev
+      os: linux
+      env: PKGS="collection_x"
+      script: tool/ci.sh dartanalyzer
+    - stage: analyze
+      name: "PKG: collection_x; `dartfmt -n --set-exit-if-changed .`"
+      dart: dev
+      os: linux
+      env: PKGS="collection_x"
+      script: tool/ci.sh dartfmt
+    - stage: analyze
+      name: "PKG: event_source; `dartanalyzer .`"
+      dart: dev
+      os: linux
+      env: PKGS="event_source"
+      script: tool/ci.sh dartanalyzer
+    - stage: analyze
+      name: "PKG: event_source; `dartfmt -n --set-exit-if-changed .`"
+      dart: dev
+      os: linux
+      env: PKGS="event_source"
+      script: tool/ci.sh dartfmt
+    - stage: analyze
+      name: "PKG: event_source_grpc; `dartanalyzer .`"
+      dart: dev
+      os: linux
+      env: PKGS="event_source_grpc"
+      script: tool/ci.sh dartanalyzer
+    - stage: analyze
+      name: "PKG: event_source_grpc; `dartfmt -n --set-exit-if-changed .`"
+      dart: dev
+      os: linux
+      env: PKGS="event_source_grpc"
+      script: tool/ci.sh dartfmt
+    - stage: analyze
+      name: "PKG: event_source_grpc_test; `dartanalyzer .`"
+      dart: dev
+      os: linux
+      env: PKGS="event_source_grpc_test"
+      script: tool/ci.sh dartanalyzer
+    - stage: analyze
+      name: "PKG: event_source_grpc_test; `dartfmt -n --set-exit-if-changed .`"
+      dart: dev
+      os: linux
+      env: PKGS="event_source_grpc_test"
+      script: tool/ci.sh dartfmt
+    - stage: analyze
+      name: "PKG: event_source_test; `dartanalyzer .`"
+      dart: dev
+      os: linux
+      env: PKGS="event_source_test"
+      script: tool/ci.sh dartanalyzer
+    - stage: analyze
+      name: "PKG: event_source_test; `dartfmt -n --set-exit-if-changed .`"
+      dart: dev
+      os: linux
+      env: PKGS="event_source_test"
+      script: tool/ci.sh dartfmt
+    - stage: analyze
+      name: "PKG: sarsys_app_server; `dartanalyzer .`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_app_server"
+      script: tool/ci.sh dartanalyzer
+    - stage: analyze
+      name: "PKG: sarsys_app_server; `dartfmt -n --set-exit-if-changed .`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_app_server"
+      script: tool/ci.sh dartfmt
+    - stage: analyze
+      name: "PKG: sarsys_app_server_test; `dartanalyzer .`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_app_server_test"
+      script: tool/ci.sh dartanalyzer
+    - stage: analyze
+      name: "PKG: sarsys_app_server_test; `dartfmt -n --set-exit-if-changed .`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_app_server_test"
+      script: tool/ci.sh dartfmt
+    - stage: analyze
+      name: "PKG: sarsys_core; `dartanalyzer .`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_core"
+      script: tool/ci.sh dartanalyzer
+    - stage: analyze
+      name: "PKG: sarsys_core; `dartfmt -n --set-exit-if-changed .`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_core"
+      script: tool/ci.sh dartfmt
+    - stage: analyze
+      name: "PKG: sarsys_domain; `dartanalyzer .`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_domain"
+      script: tool/ci.sh dartanalyzer
+    - stage: analyze
+      name: "PKG: sarsys_domain; `dartfmt -n --set-exit-if-changed .`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_domain"
+      script: tool/ci.sh dartfmt
+    - stage: analyze
+      name: "PKG: sarsys_ops_server; `dartanalyzer .`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_ops_server"
+      script: tool/ci.sh dartanalyzer
+    - stage: analyze
+      name: "PKG: sarsys_ops_server; `dartfmt -n --set-exit-if-changed .`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_ops_server"
+      script: tool/ci.sh dartfmt
+    - stage: analyze
+      name: "PKG: sarsys_ops_server_test; `dartanalyzer .`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_ops_server_test"
+      script: tool/ci.sh dartanalyzer
+    - stage: analyze
+      name: "PKG: sarsys_ops_server_test; `dartfmt -n --set-exit-if-changed .`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_ops_server_test"
+      script: tool/ci.sh dartfmt
+    - stage: analyze
+      name: "PKG: sarsys_tracking_server; `dartanalyzer .`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_tracking_server"
+      script: tool/ci.sh dartanalyzer
+    - stage: analyze
+      name: "PKG: sarsys_tracking_server; `dartfmt -n --set-exit-if-changed .`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_tracking_server"
+      script: tool/ci.sh dartfmt
+    - stage: analyze
+      name: "PKG: sarsys_tracking_server_test; `dartanalyzer .`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_tracking_server_test"
+      script: tool/ci.sh dartanalyzer
+    - stage: analyze
+      name: "PKG: sarsys_tracking_server_test; `dartfmt -n --set-exit-if-changed .`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_tracking_server_test"
+      script: tool/ci.sh dartfmt
+    - stage: unit_test
+      name: "PKG: collection_x; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="collection_x"
+      script: tool/ci.sh test
+    - stage: unit_test
+      name: "PKG: event_source; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="event_source"
+      script: tool/ci.sh test
+    - stage: unit_test
+      name: "PKG: event_source_grpc; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="event_source_grpc"
+      script: tool/ci.sh test
+    - stage: unit_test
+      name: "PKG: event_source_grpc_test; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="event_source_grpc_test"
+      script: tool/ci.sh test
+    - stage: unit_test
+      name: "PKG: event_source_test; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="event_source_test"
+      script: tool/ci.sh test
+    - stage: unit_test
+      name: "PKG: sarsys_app_server; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_app_server"
+      script: tool/ci.sh test
+    - stage: unit_test
+      name: "PKG: sarsys_app_server_test; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_app_server_test"
+      script: tool/ci.sh test
+    - stage: unit_test
+      name: "PKG: sarsys_core; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_core"
+      script: tool/ci.sh test
+    - stage: unit_test
+      name: "PKG: sarsys_domain; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_domain"
+      script: tool/ci.sh test
+    - stage: unit_test
+      name: "PKG: sarsys_ops_server; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_ops_server"
+      script: tool/ci.sh test
+    - stage: unit_test
+      name: "PKG: sarsys_ops_server_test; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_ops_server_test"
+      script: tool/ci.sh test
+    - stage: unit_test
+      name: "PKG: sarsys_tracking_server; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_tracking_server"
+      script: tool/ci.sh test
+    - stage: unit_test
+      name: "PKG: sarsys_tracking_server_test; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_tracking_server_test"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: collection_x; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="collection_x"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: collection_x; `pub run test`"
+      dart: dev
+      os: windows
+      env: PKGS="collection_x"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: event_source; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="event_source"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: event_source; `pub run test`"
+      dart: dev
+      os: windows
+      env: PKGS="event_source"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: event_source_grpc; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="event_source_grpc"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: event_source_grpc; `pub run test`"
+      dart: dev
+      os: windows
+      env: PKGS="event_source_grpc"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: event_source_grpc_test; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="event_source_grpc_test"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: event_source_grpc_test; `pub run test`"
+      dart: dev
+      os: windows
+      env: PKGS="event_source_grpc_test"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: event_source_test; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="event_source_test"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: event_source_test; `pub run test`"
+      dart: dev
+      os: windows
+      env: PKGS="event_source_test"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: sarsys_app_server; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_app_server"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: sarsys_app_server; `pub run test`"
+      dart: dev
+      os: windows
+      env: PKGS="sarsys_app_server"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: sarsys_app_server_test; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_app_server_test"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: sarsys_app_server_test; `pub run test`"
+      dart: dev
+      os: windows
+      env: PKGS="sarsys_app_server_test"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: sarsys_core; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_core"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: sarsys_core; `pub run test`"
+      dart: dev
+      os: windows
+      env: PKGS="sarsys_core"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: sarsys_domain; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_domain"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: sarsys_domain; `pub run test`"
+      dart: dev
+      os: windows
+      env: PKGS="sarsys_domain"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: sarsys_ops_server; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_ops_server"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: sarsys_ops_server; `pub run test`"
+      dart: dev
+      os: windows
+      env: PKGS="sarsys_ops_server"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: sarsys_ops_server_test; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_ops_server_test"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: sarsys_ops_server_test; `pub run test`"
+      dart: dev
+      os: windows
+      env: PKGS="sarsys_ops_server_test"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: sarsys_tracking_server; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_tracking_server"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: sarsys_tracking_server; `pub run test`"
+      dart: dev
+      os: windows
+      env: PKGS="sarsys_tracking_server"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: sarsys_tracking_server_test; `pub run test`"
+      dart: dev
+      os: linux
+      env: PKGS="sarsys_tracking_server_test"
+      script: tool/ci.sh test
+    - stage: cron
+      name: "PKG: sarsys_tracking_server_test; `pub run test`"
+      dart: dev
+      os: windows
+      env: PKGS="sarsys_tracking_server_test"
+      script: tool/ci.sh test
+
+stages:
+  - analyze
+  - unit_test
+  - cron
+
+# Only building master means that we don't run two builds for each pull request.
 branches:
   only:
     - master
+
+cache:
+  directories:
+    - $HOME/.pub-cache

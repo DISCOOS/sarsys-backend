@@ -23,6 +23,7 @@ endif
 	configure pub_get pub_upgrade docker_is_up models check commit test \
 
 configure:
+	pub global activate mono_repo
 	pub global activate protoc_plugin
 
 check:
