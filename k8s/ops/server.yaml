@@ -14,7 +14,7 @@ spec:
   # StatefulSet needs a headless service
   clusterIP: None
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: sarsys-ops-server
@@ -34,9 +34,12 @@ spec:
       http:
         paths:
           - path: /ops/api
+            pathType: Prefix
             backend:
-              serviceName: sarsys-ops-server
-              servicePort: 8082
+              service:
+                name: sarsys-ops-server
+                port:
+                  number: 8082
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -60,8 +63,8 @@ spec:
         role: backend
         module: sarsys-ops-server
     spec:
-      # Only schedule on given node pool
       nodeSelector:
+        # Only schedule on given node pool.
         doks.digitalocean.com/node-pool: k8s-2
       affinity:
         podAntiAffinity:

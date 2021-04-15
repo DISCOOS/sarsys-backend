@@ -40,8 +40,8 @@ spec:
         role: backend
         module: sarsys-tracking-server
     spec:
-      # Only schedule on given node pool
       nodeSelector:
+        # Only schedule on given node pool.
         doks.digitalocean.com/node-pool: k8s-4
       affinity:
         podAntiAffinity:

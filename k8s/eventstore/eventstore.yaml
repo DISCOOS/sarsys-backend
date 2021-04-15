@@ -1,7 +1,8 @@
 imageTag: release-5.0.9
 clusterSize: 3
-nodeSelector: 
- doks.digitalocean.com/node-pool: k8s-4
+nodeSelector:
+ # Only schedule on given node pool
+ doks.digitalocean.com/node-pool: k8s-2
 
 resources:
   requests:

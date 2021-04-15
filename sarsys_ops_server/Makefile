@@ -103,11 +103,7 @@ install:
 	echo "[✓] SARSys applied"
 
 delete:
-	echo "Deleting SARSys Ops server..."
-	# DO NOT DELETE NAMESPACE AND RBAC unless you know what you are doing!
-	# kubectl apply -f ../k8s/ns.yaml;
-	# kubectl delete -f ../k8s/rbac.yaml; \
-	kubectl delete -f ../k8s/ops/rbac.yaml; \
+	echo "Deleting SARSys Ops server..."; \
 	kubectl delete -f ../k8s/ops/config.yaml; \
 	kubectl delete -f ../k8s/ops/server.yaml; \
 	echo "1) Manually delete PersistentVolumeClaims"; \
