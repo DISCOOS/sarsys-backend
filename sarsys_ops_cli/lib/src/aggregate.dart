@@ -4,7 +4,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:meta/meta.dart';
-import 'package:event_source/event_source.dart';
+import 'package:collection_x/collection_x.dart';
 import 'package:pretty_json/pretty_json.dart';
 import 'package:sarsys_ops_cli/sarsys_ops_cli.dart';
 import 'package:strings/strings.dart';

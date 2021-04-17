@@ -21,6 +21,9 @@ dependencies:
   dart_app_data: ^1.0.1
   openid_client: ^0.3.1
 
+  collection_x:
+    path: ../collection_x
+
   event_source:
     path: ../event_source
 

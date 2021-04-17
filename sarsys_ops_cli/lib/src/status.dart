@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:event_source/event_source.dart';
+import 'package:collection_x/collection_x.dart';
 import 'package:sarsys_ops_cli/sarsys_ops_cli.dart';
 import 'package:strings/strings.dart';
 

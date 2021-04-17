@@ -9,7 +9,6 @@ import 'package:event_source/event_source.dart';
 
 import 'package:event_source_grpc/event_source_grpc.dart';
 import 'package:grpc/grpc.dart' as grpc;
-import 'package:sentry/sentry.dart' hide Device;
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
 

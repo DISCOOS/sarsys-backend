@@ -13,7 +13,7 @@ import 'package:yaml/yaml.dart';
 import 'package:path/path.dart' as p;
 import 'package:pretty_json/pretty_json.dart';
 import 'package:timeago/timeago.dart' as tgo;
-import 'package:event_source/event_source.dart' hide Command;
+import 'package:collection_x/collection_x.dart';
 
 final highlight = AnsiPen()..gray();
 final red = AnsiPen()..red(bold: true);

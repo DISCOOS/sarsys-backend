@@ -1,4 +1,5 @@
-import 'package:event_source/event_source.dart';
+import 'package:collection_x/collection_x.dart';
+
 import 'package:sarsys_ops_cli/src/core.dart';
 import 'package:sarsys_ops_server_test/sarsys_ops_server_test.dart';
 
