@@ -8,11 +8,13 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     this.repository, {
     this.tag,
     this.validation,
+    String schemaName,
     this.readOnly = const [],
     this.validators = const [],
-  });
+  }) : _schemaName = schemaName;
 
   final String tag;
+  final String _schemaName;
   final Repository<S, T> repository;
 
   @override
@@ -27,8 +29,15 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   /// Get aggregate [Type]
   Type get aggregateType => typeOf<T>();
 
+  /// Get Schema name
+  String get schemaName => _schemaName ?? aggregateType.toString();
+
   @override
   Logger get logger => Logger('$runtimeType');
+
+  bool isUser(Map<String, dynamic> data, {String path = 'userId'}) {
+    return data[path] == request.authorization.ownerID;
+  }
 
   @override
   FutureOr<RequestOrResponse> willProcessRequest(Request req) => repository.isReady
@@ -84,7 +93,9 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   Future<Response> getByUuid(@Bind.path('uuid') String uuid) async {
     try {
       if (!await exists(uuid)) {
-        return Response.notFound(body: '$aggregateType $uuid not found');
+        return Response.notFound(
+          body: '$aggregateType $uuid not found',
+        );
       }
       return okAggregate(repository.get(uuid));
     } on InvalidOperation catch (e) {
@@ -100,7 +111,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   ) async {
     try {
       await repository.execute(
-        onCreate(validate('$aggregateType', data)),
+        onCreate(validate('$schemaName', data)),
         context: request.toContext(logger),
       );
       return Response.created(
@@ -167,7 +178,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
         context: request.toContext(logger),
       );
       final commands = onUpdate(
-        validate('$aggregateType', data, isPatch: true),
+        validate('$schemaName', data, isPatch: true),
       );
       for (var command in commands) {
         events.addAll(
@@ -408,15 +419,15 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     switch (operation.method) {
       case 'POST':
         return APIRequestBody.schema(
-          context.schema['$aggregateType'],
-          description: 'New $aggregateType Request',
+          context.schema['$schemaName'],
+          description: 'New $schemaName Request',
           required: true,
         );
         break;
       case 'PATCH':
         return APIRequestBody.schema(
-          context.schema['$aggregateType'],
-          description: 'Update $aggregateType Request. Only fields in request are updated.',
+          context.schema['$schemaName'],
+          description: 'Update $schemaName Request. Only fields in request are updated.',
           required: true,
         );
         break;
@@ -437,14 +448,14 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
           responses.addAll({
             '200': APIResponse.schema(
               'Successful response.',
-              documentAggregatePageResponse(context, type: '$aggregateType'),
+              documentAggregatePageResponse(context, type: '$schemaName'),
             )
           });
         } else {
           responses.addAll({
             '200': APIResponse.schema(
               'Successful response',
-              documentAggregateResponse(context, type: '$aggregateType'),
+              documentAggregateResponse(context, type: '$schemaName'),
             ),
           });
         }
@@ -492,7 +503,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
       if (object.description?.isNotEmpty == false) {
         object.description = '$name schema';
       }
-      if (object.title == '$aggregateType' && object.required?.contains(repository.uuidFieldName) == false) {
+      if (object.title == '$schemaName' && object.required?.contains(repository.uuidFieldName) == false) {
         if (!object.properties.containsKey(repository.uuidFieldName)) {
           throw UnimplementedError("Property '${repository.uuidFieldName}' is required for aggregates");
         }
@@ -503,7 +514,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   }
 
   Map<String, APISchemaObject> documentSchemaObjects(APIDocumentContext context) => {
-        '$aggregateType': documentAggregateRoot(context),
+        '$schemaName': documentAggregateRoot(context),
       }
         ..addAll(documentEntities(context))
         ..addAll(documentValues(context));

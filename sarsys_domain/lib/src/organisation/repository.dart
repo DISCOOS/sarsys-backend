@@ -26,7 +26,7 @@ class OrganisationRepository extends Repository<OrganisationCommand, Organisatio
   void willStartProcessingEvents() {
     // Delete all organisation-to-affiliation
     // relations if any exist
-    rule<OrganisationDeleted>(affiliations.newDeleteOrganisationRule);
+    rule<OrganisationDeleted>(affiliations.newOrganisationDeletedRule);
 
     super.willStartProcessingEvents();
   }

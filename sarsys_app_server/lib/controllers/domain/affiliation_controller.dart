@@ -203,40 +203,10 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
     return parameters;
   }
 
-  /// Affiliation - Aggregate root
   @override
-  APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object({
-        "uuid": context.schema['UUID']..description = "Unique Affiliation id",
-        "person": documentAggregateRef(
-          context,
-          defaultType: 'Person',
-          description: "Person reference for PII lookup",
-        ),
-        "org": documentAggregateRef(
-          context,
-          readOnly: false,
-          defaultType: 'Organisation',
-          description: "Organisation which personnel is affiliated with",
-        ),
-        "div": documentAggregateRef(
-          context,
-          readOnly: false,
-          defaultType: 'Division',
-          description: "Division which personnel is affiliated with",
-        ),
-        "dep": documentAggregateRef(
-          context,
-          readOnly: false,
-          description: "Department which personnel is affiliated with",
-          defaultType: 'Department',
-        ),
-        "type": documentAffiliationType(),
-        "status": documentAffiliationStandbyStatus(),
-        "active": APISchemaObject.boolean()..description = "Affiliation status flag"
-      })
-        ..description = "Affiliation information"
-        ..required = ['person']
-        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
+  APISchemaObject documentAggregateRoot(APIDocumentContext context) => documentAffiliation(
+        context,
+      );
 
   @override
   Map<String, APISchemaObject> documentValues(APIDocumentContext context) => {
@@ -244,7 +214,48 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
         "AffiliationStandbyStatus": documentAffiliationType(),
       };
 
-  APISchemaObject documentAffiliationType() => APISchemaObject.string()
+  static APISchemaObject documentAffiliation(
+    APIDocumentContext context, {
+    APISchemaObject person,
+  }) {
+    return APISchemaObject.object({
+      "uuid": context.schema['UUID']..description = "Unique Affiliation id",
+      "person": person ??
+          documentAggregateRef(
+            context,
+            defaultType: 'Person',
+            description: "Person reference for PII lookup",
+          ),
+      "org": documentAggregateRef(
+        context,
+        readOnly: false,
+        defaultType: 'Organisation',
+        description: "Organisation which personnel is affiliated with",
+      ),
+      "div": documentAggregateRef(
+        context,
+        readOnly: false,
+        defaultType: 'Division',
+        description: "Division which personnel is affiliated with",
+      ),
+      "dep": documentAggregateRef(
+        context,
+        readOnly: false,
+        description: "Department which personnel is affiliated with",
+        defaultType: 'Department',
+      ),
+      "type": documentAffiliationType(),
+      "status": documentAffiliationStandbyStatus(),
+      "active": APISchemaObject.boolean()..description = "Affiliation status flag"
+    })
+      ..description = "Affiliation information"
+      ..required = [
+        'uuid',
+      ]
+      ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
+  }
+
+  static APISchemaObject documentAffiliationType() => APISchemaObject.string()
     ..description = "Affiliation type"
     ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
     ..defaultValue = "member"
@@ -255,7 +266,7 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
       'volunteer',
     ];
 
-  APISchemaObject documentAffiliationStandbyStatus() => APISchemaObject.string()
+  static APISchemaObject documentAffiliationStandbyStatus() => APISchemaObject.string()
     ..description = "Personnel standby status"
     ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
     ..defaultValue = "available"

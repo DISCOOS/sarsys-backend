@@ -14,7 +14,7 @@ class AffiliationRepository extends Repository<AffiliationCommand, Affiliation> 
           AffiliationDeleted: (event) => AffiliationDeleted(event),
         });
 
-  AggregateRule newDeleteOrganisationRule(Repository repo) => AssociationRule(
+  AggregateRule newOrganisationDeletedRule(Repository repo) => AssociationRule(
         (source, target) => DeleteAffiliation(
           get(target).data,
         ),
@@ -50,7 +50,7 @@ class AffiliationRepository extends Repository<AffiliationCommand, Affiliation> 
         cardinality: Cardinality.o2m,
       );
 
-  AggregateRule newDeleteDepartmentRule(Repository repo) => AssociationRule(
+  AggregateRule newDepartmentDeletedRule(Repository repo) => AssociationRule(
         (source, target) => DeleteAffiliation(
           get(target).data,
         ),
@@ -68,7 +68,7 @@ class AffiliationRepository extends Repository<AffiliationCommand, Affiliation> 
         cardinality: Cardinality.o2m,
       );
 
-  AggregateRule newDeleteDivisionRule(Repository repo) => AssociationRule(
+  AggregateRule newDivisionDeletedRule(Repository repo) => AssociationRule(
         (source, target) => DeleteAffiliation(
           get(target).data,
         ),

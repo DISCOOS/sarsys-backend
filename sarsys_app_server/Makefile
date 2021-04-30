@@ -56,7 +56,7 @@ docker_is_up:
 	docker info >/dev/null 2>&1
 	echo "Docker is running"
 
-build: docker_is_up test document snapshot
+build: docker_is_up test snapshot
 	echo "Build docker image..."
 	docker build --no-cache -t discoos/sarsys_app_server:latest .
 	echo "[✓] Build docker image finished"

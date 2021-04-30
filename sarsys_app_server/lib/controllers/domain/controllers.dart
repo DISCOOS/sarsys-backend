@@ -1,5 +1,5 @@
 export 'affiliation_controller.dart';
-export 'affiliation_person_controller.dart';
+export 'affiliation_onboard_controller.dart';
 export 'clue_controller.dart';
 export 'department_controller.dart';
 export 'device_controller.dart';

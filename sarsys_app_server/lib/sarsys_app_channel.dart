@@ -23,13 +23,6 @@ import 'sarsys_app_server.dart';
 /// MUST BE used when bootstrapping Aqueduct
 const int isolateStartupTimeout = 30;
 
-const List<String> allScopes = [
-//  'roles:admin',
-//  'roles:commander',
-//  'roles:unit_leader',
-  'roles:personnel',
-];
-
 /// This initializes a SARSys http backend apps server
 class SarSysAppServerChannel extends SarSysServerChannelBase {
   /// Channel responsible for distributing messages to client applications
@@ -145,7 +138,7 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
               ))
       ..secure(
           '/api/affiliations/onboard',
-          () => AffiliationPersonController(
+          () => AffiliationOnboardController(
                 manager.get<PersonRepository>(),
                 manager.get<AffiliationRepository>(),
                 requestValidator,
@@ -807,12 +800,10 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
   }
 
   Future _buildSecureRouter() async {
-    router = SecureRouter(config.auth, [
-      'roles:admin',
-      'roles:commander',
-      'roles:unit_leader',
-      'roles:personnel',
-    ]);
+    router = SecureRouter(
+      config.auth,
+      AllowedScopes.all,
+    );
     if (config.auth.enabled) {
       await router.prepare();
     }

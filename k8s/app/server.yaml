@@ -30,8 +30,9 @@ metadata:
     traefik.ingress.kubernetes.io/redirect-entry-point: https
     # Enable transaction scope from apps that want
     # to ensure all requests going to the same app instance
+    traefik.backend.loadbalancer.sticky: "true"
     traefik.ingress.kubernetes.io/affinity: "true"
-    traefik.ingress.kubernetes.io/session-cookie-name: x-transaction-id
+    traefik.ingress.kubernetes.io/session-cookie-name: "x-transaction-id"
 spec:
   rules:
     - host: sarsys.app

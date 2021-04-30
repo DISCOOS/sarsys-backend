@@ -51,7 +51,12 @@ class AccessTokenValidator extends AuthValidator {
       _verifyScopes(scopesRequired, token);
     }
 
-    return Authorization(token.clientID, token.resourceOwnerIdentifier, this, scopes: token.scopes);
+    return Authorization(
+      token.clientID,
+      token.resourceOwnerIdentifier,
+      this,
+      scopes: token.scopes,
+    );
   }
 
   void _verifyScopes(List<AuthScope> scopesRequired, OAuth2Token token) {

@@ -95,19 +95,23 @@ class PersonController extends AggregateController<PersonCommand, Person> {
   //////////////////////////////////
 
   @override
-  APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object(
-        {
-          "uuid": context.schema['UUID']..description = "Unique Person id",
-          "fname": APISchemaObject.string()..description = "First name",
-          "lname": APISchemaObject.string()..description = "Last name",
-          "phone": APISchemaObject.string()..description = "Phone number",
-          "email": APISchemaObject.string()..description = "E-mail address",
-          "userId": APISchemaObject.string()..description = "Authenticated used id",
-          "temporary": APISchemaObject.boolean()..description = "Temporary person",
-        },
-      )
-        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
-        ..required = [
-          'uuid',
-        ];
+  APISchemaObject documentAggregateRoot(APIDocumentContext context) => documentPerson(context);
+
+  static APISchemaObject documentPerson(APIDocumentContext context) {
+    return APISchemaObject.object(
+      {
+        "uuid": context.schema['UUID']..description = "Unique Person id",
+        "fname": APISchemaObject.string()..description = "First name",
+        "lname": APISchemaObject.string()..description = "Last name",
+        "phone": APISchemaObject.string()..description = "Phone number",
+        "email": APISchemaObject.string()..description = "E-mail address",
+        "userId": APISchemaObject.string()..description = "Authenticated used id",
+        "temporary": APISchemaObject.boolean()..description = "Temporary person",
+      },
+    )
+      ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+      ..required = [
+        'uuid',
+      ];
+  }
 }

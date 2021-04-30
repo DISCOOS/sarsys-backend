@@ -35,7 +35,7 @@ class DivisionRepository extends Repository<DivisionCommand, Division> {
 
     // Delete all division-to-affiliation
     // relations if any exist
-    rule<DivisionDeleted>(affiliations.newDeleteDivisionRule);
+    rule<DivisionDeleted>(affiliations.newDivisionDeletedRule);
 
     super.willStartProcessingEvents();
   }

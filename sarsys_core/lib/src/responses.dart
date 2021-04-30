@@ -62,34 +62,45 @@ Response serverError(
   return Response.serverError(body: body);
 }
 
-Response okAggregate(AggregateRoot aggregate) => Response.ok(
-      toAggregateData(
-        aggregate,
-      ),
-    );
+Response okAggregate(
+  AggregateRoot aggregate, {
+  Map<String, dynamic> data,
+}) {
+  return Response.ok(
+    toAggregateData(
+      aggregate,
+      data: data,
+    ),
+  );
+}
 
 Response okAggregatePaged(
   int count,
   int offset,
   int limit,
   Iterable<AggregateRoot> aggregates,
-) =>
-    Response.ok(
-      toDataPaged(
-        count,
-        offset,
-        limit,
-        aggregates.map(toAggregateData),
-      ),
-    );
+) {
+  return Response.ok(
+    toDataPaged(
+      count,
+      offset,
+      limit,
+      aggregates.map(toAggregateData),
+    ),
+  );
+}
 
-Map<String, dynamic> toAggregateData(AggregateRoot aggregate) => {
+Map<String, dynamic> toAggregateData(
+  AggregateRoot aggregate, {
+  Map<String, dynamic> data,
+}) =>
+    {
       'type': '${aggregate.runtimeType}',
       'number': aggregate.number.value,
       'created': aggregate.createdWhen.toIso8601String(),
       'changed': aggregate.changedWhen.toIso8601String(),
       if (aggregate.isDeleted) 'deleted': aggregate.deletedWhen.toIso8601String(),
-      'data': aggregate.data,
+      'data': data ?? aggregate.data,
     };
 
 Response okEntityObject<T extends AggregateRoot>(

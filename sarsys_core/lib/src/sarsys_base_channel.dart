@@ -159,6 +159,64 @@ class RequestContext {
   final String transactionId;
 }
 
+class AllowedScopes {
+  static const List<String> all = [
+    ...leaders,
+    role_personnel,
+  ];
+
+  static const List<String> leaders = [
+    ...command,
+    role_unit_leader,
+  ];
+
+  static const List<String> command = [
+    role_admin,
+    role_commander,
+    role_planning_chief,
+    role_operations_chief,
+  ];
+
+  static const String role_admin = 'roles:admin';
+  static const String role_personnel = 'roles:personnel';
+  static const String role_commander = 'roles:commander';
+  static const String role_unit_leader = 'roles:unit_leader';
+  static const String role_planning_chief = 'roles:planning_chief';
+  static const String role_operations_chief = 'roles:operations_chief';
+
+  static bool isAdmin(Authorization auth) {
+    return auth.isAuthorizedForScope(role_admin);
+  }
+
+  static bool isLeader(Authorization auth) {
+    return leaders.any((role) => auth.isAuthorizedForScope(role));
+  }
+
+  static bool isCommand(Authorization auth) {
+    return command.any((role) => auth.isAuthorizedForScope(role));
+  }
+
+  static bool isCommander(Authorization auth) {
+    return auth.isAuthorizedForScope(role_commander);
+  }
+
+  static bool isPersonnel(Authorization auth) {
+    return auth.isAuthorizedForScope(role_personnel);
+  }
+
+  static bool isUnitLeader(Authorization auth) {
+    return auth.isAuthorizedForScope(role_unit_leader);
+  }
+
+  static bool isPlanningChief(Authorization auth) {
+    return auth.isAuthorizedForScope(role_planning_chief);
+  }
+
+  static bool isOperationsChief(Authorization auth) {
+    return auth.isAuthorizedForScope(role_operations_chief);
+  }
+}
+
 class SecureRouter extends Router {
   SecureRouter(this.config, this.scopes) : keyStore = JsonWebKeyStore();
   final AuthConfig config;
@@ -170,7 +228,7 @@ class SecureRouter extends Router {
   static RequestContext getContext(RequestOrResponse lookup) => _contexts[lookup];
   static bool hasContext(RequestOrResponse lookup) => _contexts.containsKey(lookup);
 
-  Future<RequestOrResponse> setRequest(aq.Request request) async {
+  Future<RequestOrResponse> onRequest(aq.Request request) async {
     final correlationId = request.raw.headers.value('x-correlation-id') ?? randomAlpha(16);
     final transactionId = request.raw.cookies
         // Find cookie for sticky session
@@ -207,7 +265,7 @@ class SecureRouter extends Router {
   }
 
   void secure(String pattern, Controller Function() creator) {
-    super.route(pattern).linkFunction(setRequest).link(authorizer).link(creator);
+    super.route(pattern).linkFunction(onRequest).link(authorizer).link(creator);
   }
 
   Controller authorizer() {

@@ -8,8 +8,7 @@ extension MapX on Map {
   /// Returns [null] if not found
   T elementAt<T>(String path, {String delimiter = '/', T defaultValue}) {
     final parts = path.split(delimiter);
-    dynamic found =
-        parts.skip(parts.first.isEmpty ? 1 : 0).fold(this, (parent, name) {
+    dynamic found = parts.skip(parts.first.isEmpty ? 1 : 0).fold(this, (parent, name) {
       if (parent is Map<String, dynamic>) {
         if (parent.containsKey(name)) {
           return parent[name];
@@ -19,11 +18,7 @@ extension MapX on Map {
       final index = int.tryParse(name);
       return element is Map
           ? element[name]
-          : element is List &&
-                  element.isNotEmpty &&
-                  index != null &&
-                  index >= 0 &&
-                  index < element.length
+          : element is List && element.isNotEmpty && index != null && index >= 0 && index < element.length
               ? element[index]
               : defaultValue;
     });
@@ -67,11 +62,8 @@ extension MapX on Map {
   }
 
   /// Joint elements at given paths as string
-  String jointAt<T>(List<String> paths,
-          {String separator = '', T defaultValue}) =>
-      paths
-          .map(
-              (path) => elementAt(path, defaultValue: defaultValue)?.toString())
-          .where((e) => e != null)
-          .join(separator);
+  String jointAt<T>(List<String> paths, {String separator = '', T defaultValue}) => paths
+      .map((path) => elementAt(path, defaultValue: defaultValue)?.toString())
+      .where((e) => e != null)
+      .join(separator);
 }

@@ -29,7 +29,7 @@ class DepartmentRepository extends Repository<DepartmentCommand, Department> {
 
     // Delete all department-to-affiliation
     // relations if any exist
-    rule<DepartmentDeleted>(affiliations.newDeleteDepartmentRule);
+    rule<DepartmentDeleted>(affiliations.newDepartmentDeletedRule);
 
     super.willStartProcessingEvents();
   }
