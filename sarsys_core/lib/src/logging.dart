@@ -42,7 +42,9 @@ class RemoteLogger {
 
   Future<void> init() {
     return Sentry.init(
-      (options) => options.environment = Platform.environment['POD_NAMESPACE'] ?? _tenant,
+      (options) => options
+        ..dsn = _config.dsn
+        ..environment = Platform.environment['POD_NAMESPACE'] ?? _tenant,
     );
   }
 
