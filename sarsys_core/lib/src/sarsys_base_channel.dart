@@ -184,6 +184,17 @@ class AllowedScopes {
   static const String role_planning_chief = 'roles:planning_chief';
   static const String role_operations_chief = 'roles:operations_chief';
 
+  static bool any(Authorization auth, {List<String> scopes = all}) {
+    return scopes.any((role) => auth.isAuthorizedForScope(role));
+  }
+
+  static bool isSuperUser(Authorization auth) {
+    return any(auth, scopes: const [
+      role_admin,
+      ...command,
+    ]);
+  }
+
   static bool isAdmin(Authorization auth) {
     return auth.isAuthorizedForScope(role_admin);
   }

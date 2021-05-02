@@ -19,6 +19,168 @@ Future main() async {
     expectResponse(await harness.agent.post("/api/affiliations", body: body), 201, body: null);
   });
 
+  test("POST /api/affiliations creates permanent person", () async {
+    final auuid = Uuid().v4();
+    final puuid = Uuid().v4();
+    final orguuid = Uuid().v4();
+    await _prepare(harness, puuid: puuid, orguuid: orguuid);
+    final person = createPerson(puuid);
+    final affiliation = createAffiliation(auuid, puuid: puuid, orguuid: orguuid);
+    final affiliate = Map.from(affiliation);
+    affiliate['person'] = person;
+
+    // Act
+    expectResponse(await harness.agent.post("/api/affiliations", body: affiliate), 201, body: null);
+
+    // Assert
+    final response1 = expectResponse(await harness.agent.get("/api/persons/$puuid"), 200);
+    final actualPerson = await response1.body.decode();
+    expect(actualPerson['data'], person);
+    final response2 = expectResponse(await harness.agent.get("/api/affiliations/$auuid"), 200);
+    final actualAffiliation = await response2.body.decode();
+    expect(actualAffiliation['data'], affiliation);
+  });
+
+  test("POST /api/affiliations creates temporary person", () async {
+    final auuid = Uuid().v4();
+    final puuid = Uuid().v4();
+    final orguuid = Uuid().v4();
+    await _prepare(harness, orguuid: orguuid);
+    final person = createPerson(puuid, temporary: true);
+    final affiliation = createAffiliation(auuid, puuid: puuid, orguuid: orguuid);
+    final affiliate = Map.from(affiliation);
+    affiliate['person'] = person;
+
+    // Act
+    expectResponse(
+      await harness.agent.post("/api/affiliations", body: affiliate),
+      201,
+      body: null,
+    );
+
+    // Assert
+    final response1 = expectResponse(await harness.agent.get("/api/persons/$puuid"), 200);
+    final actualPerson = await response1.body.decode();
+    expect(actualPerson['data'], person);
+    final response2 = expectResponse(await harness.agent.get("/api/affiliations/$auuid"), 200);
+    final actualAffiliation = await response2.body.decode();
+    expect(actualAffiliation['data'], affiliation);
+  });
+
+  test("POST /api/affiliations returns status code 201 when same person exists", () async {
+    final auuid = Uuid().v4();
+    final puuid = Uuid().v4();
+    final orguuid = Uuid().v4();
+    await _prepare(harness, orguuid: orguuid);
+    final person = createPerson(puuid);
+    final affiliation = createAffiliation(auuid, puuid: puuid, orguuid: orguuid);
+    final affiliate = Map.from(affiliation);
+    affiliate['person'] = person;
+
+    // Act
+    expectResponse(await harness.agent.post("/api/persons", body: person), 201);
+
+    // Assert
+    expectResponse(
+      await harness.agent.post("/api/affiliations", body: affiliate),
+      201,
+      body: null,
+    );
+  });
+
+  test("POST /api/affiliations returns status code 200 when person is updated", () async {
+    final auuid = Uuid().v4();
+    final puuid = Uuid().v4();
+    final orguuid = Uuid().v4();
+    await _prepare(harness, orguuid: orguuid);
+    final person = createPerson(puuid);
+    final affiliation = createAffiliation(auuid, puuid: puuid, orguuid: orguuid);
+    final affiliate = Map.from(affiliation);
+    affiliate['person'] = Map.from(person)..addAll({'fname': 'updated'});
+
+    // Act
+    expectResponse(await harness.agent.post("/api/persons", body: person), 201);
+
+    // Assert
+    final response = expectResponse(
+      await harness.agent.post("/api/affiliations", body: affiliate),
+      200,
+      body: null,
+    );
+    final actual = await response.body.decode();
+    expect(actual['data'], affiliate);
+  });
+
+  test("POST /api/affiliations returns status code 200 when same user exists", () async {
+    const userid = 'user1';
+
+    final auuid = Uuid().v4();
+    final puuid1 = Uuid().v4();
+    final puuid2 = Uuid().v4();
+    final orguuid = Uuid().v4();
+    final user1 = createPerson(puuid1, userId: userid);
+    final person2 = createPerson(puuid2, userId: userid);
+    await _prepare(harness, orguuid: orguuid);
+    final affiliation = createAffiliation(auuid, puuid: puuid1, orguuid: orguuid);
+    final affiliate = Map.from(affiliation);
+    affiliate['person'] = person2;
+
+    // Act
+    expectResponse(await harness.agent.post("/api/persons", body: user1), 201);
+
+    // Assert
+    final response = expectResponse(
+      await harness.agent.post("/api/affiliations", body: affiliate),
+      200,
+      body: null,
+    );
+
+    // Assert
+    final actualAffiliate = await response.body.decode();
+    expect(
+      actualAffiliate['data'],
+      affiliate
+        ..addAll({
+          'person': user1,
+        }),
+    );
+  });
+
+  test("POST /api/affiliations returns status code 200 when affiliation of type 'volunteer' exists", () async {
+    const userid = 'user1';
+
+    final auuid = Uuid().v4();
+    final puuid1 = Uuid().v4();
+    final puuid2 = Uuid().v4();
+    final orguuid = Uuid().v4();
+    final user1 = createPerson(puuid1, userId: userid);
+    final person2 = createPerson(puuid2, userId: userid);
+    await _prepare(harness, orguuid: orguuid);
+    final affiliation = createAffiliation(auuid, puuid: puuid1, orguuid: orguuid);
+    final affiliate = Map.from(affiliation);
+    affiliate['person'] = person2;
+
+    // Act
+    expectResponse(await harness.agent.post("/api/persons", body: user1), 201);
+
+    // Assert
+    final response = expectResponse(
+      await harness.agent.post("/api/affiliations", body: affiliate),
+      200,
+      body: null,
+    );
+
+    // Assert
+    final actualAffiliate = await response.body.decode();
+    expect(
+      actualAffiliate['data'],
+      affiliate
+        ..addAll({
+          'person': user1,
+        }),
+    );
+  });
+
   test("GET /api/affiliations/{uuid} returns 200", () async {
     await _testGet(harness, expand: false);
   });
@@ -225,10 +387,12 @@ Future _prepare(
       201,
     );
   }
-  expectResponse(
-    await harness.agent.post("/api/persons", body: createPerson(puuid ?? Uuid().v4())),
-    201,
-  );
+  if (puuid != null) {
+    expectResponse(
+      await harness.agent.post("/api/persons", body: createPerson(puuid ?? Uuid().v4())),
+      201,
+    );
+  }
 }
 
 Map<String, Object> _createData(

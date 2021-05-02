@@ -78,120 +78,6 @@
         },
         "type": "object"
       },
-      "Affiliate": {
-        "additionalProperties": false,
-        "description": "Affiliate information",
-        "properties": {
-          "active": {
-            "description": "Affiliation status flag",
-            "type": "boolean"
-          },
-          "dep": {
-            "additionalProperties": false,
-            "description": "Department which personnel is affiliated with",
-            "properties": {
-              "type": {
-                "default": "Department",
-                "description": "Department Type",
-                "readOnly": false,
-                "type": "string"
-              },
-              "uuid": {
-                "description": "Department UUID",
-                "readOnly": false,
-                "type": "string"
-              }
-            },
-            "readOnly": false,
-            "required": [
-              "uuid"
-            ],
-            "type": "object"
-          },
-          "div": {
-            "additionalProperties": false,
-            "description": "Division which personnel is affiliated with",
-            "properties": {
-              "type": {
-                "default": "Division",
-                "description": "Division Type",
-                "readOnly": false,
-                "type": "string"
-              },
-              "uuid": {
-                "description": "Division UUID",
-                "readOnly": false,
-                "type": "string"
-              }
-            },
-            "readOnly": false,
-            "required": [
-              "uuid"
-            ],
-            "type": "object"
-          },
-          "org": {
-            "additionalProperties": false,
-            "description": "Organisation which personnel is affiliated with",
-            "properties": {
-              "type": {
-                "default": "Organisation",
-                "description": "Organisation Type",
-                "readOnly": false,
-                "type": "string"
-              },
-              "uuid": {
-                "description": "Organisation UUID",
-                "readOnly": false,
-                "type": "string"
-              }
-            },
-            "readOnly": false,
-            "required": [
-              "uuid"
-            ],
-            "type": "object"
-          },
-          "person": {
-            "$ref": "#/components/schemas/Person",
-            "description": "Person"
-          },
-          "status": {
-            "additionalProperties": false,
-            "default": "available",
-            "description": "Personnel standby status",
-            "enum": [
-              "available",
-              "short_notice",
-              "unavailable"
-            ],
-            "type": "string"
-          },
-          "type": {
-            "additionalProperties": false,
-            "default": "member",
-            "description": "Affiliation type",
-            "enum": [
-              "member",
-              "employee",
-              "external",
-              "volunteer"
-            ],
-            "type": "string"
-          },
-          "uuid": {
-            "$ref": "#/components/schemas/UUID"
-          }
-        },
-        "required": [
-          "uuid",
-          "type",
-          "person",
-          "active",
-          "status"
-        ],
-        "type": "object"
-      },
       "Affiliation": {
         "additionalProperties": false,
         "description": "Affiliation information",
@@ -200,6 +86,34 @@
             "description": "Affiliation status flag",
             "type": "boolean"
           },
+          "person": {
+            "anyOf": [
+              {
+                "title": "Person reference",
+                "additionalProperties": false,
+                "description": "Person reference for PII lookup",
+                "properties": {
+                  "type": {
+                    "default": "Person",
+                    "description": "Person Type",
+                    "type": "string"
+                  },
+                  "uuid": {
+                    "description": "Person UUID",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "uuid"
+                ],
+                "type": "object"
+              },
+              {
+                "title": "Person",
+                "$ref": "#/components/schemas/Person"
+              }
+            ]
+          },
           "dep": {
             "additionalProperties": false,
             "description": "Department which personnel is affiliated with",
@@ -266,32 +180,10 @@
             ],
             "type": "object"
           },
-          "person": {
-            "additionalProperties": false,
-            "description": "Person reference for PII lookup",
-            "properties": {
-              "type": {
-                "default": "Person",
-                "description": "Person Type",
-                "readOnly": true,
-                "type": "string"
-              },
-              "uuid": {
-                "description": "Person UUID",
-                "readOnly": true,
-                "type": "string"
-              }
-            },
-            "readOnly": true,
-            "required": [
-              "uuid"
-            ],
-            "type": "object"
-          },
           "status": {
             "additionalProperties": false,
             "default": "available",
-            "description": "Personnel standby status",
+            "description": "Affiliate standby status",
             "enum": [
               "available",
               "short_notice",
@@ -2397,9 +2289,13 @@
         "additionalProperties": false,
         "properties": {
           "affiliation": {
-            "oneOf": [
-              { "$ref": "#/components/schemas/Affiliate" },
+            "anyOf": [
               {
+                "title": "Affiliation",
+                "$ref": "#/components/schemas/Affiliation"
+              },
+              {
+                "title": "Affiliation reference",
                 "additionalProperties": false,
                 "description": "Affiliation reference for PII lookup",
                 "properties": {
@@ -3481,52 +3377,6 @@
         "summary": "Create affiliation",
         "tags": [
           "Affiliations"
-        ]
-      }
-    },
-    "/api/affiliations/onboard": {
-      "parameters": [],
-      "post": {
-        "description": "Create affiliate. The field [uuid] MUST BE unique for each Affiliation. Use a [universally unique identifier](https://en.wikipedia.org/wiki/Universally_unique_identifier).",
-        "operationId": "create",
-        "parameters": [],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Affiliate"
-              }
-            }
-          },
-          "description": "Onboard Affiliate Request",
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "$ref": "#/components/responses/200"
-          },
-          "201": {
-            "$ref": "#/components/responses/201"
-          },
-          "400": {
-            "$ref": "#/components/responses/400"
-          },
-          "401": {
-            "$ref": "#/components/responses/401"
-          },
-          "403": {
-            "$ref": "#/components/responses/403"
-          },
-          "409": {
-            "$ref": "#/components/responses/409"
-          },
-          "503": {
-            "$ref": "#/components/responses/503"
-          }
-        },
-        "summary": "Create affiliate",
-        "tags": [
-          "Affiliations > Onboard"
         ]
       }
     },

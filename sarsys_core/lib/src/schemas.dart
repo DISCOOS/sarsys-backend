@@ -24,6 +24,7 @@ APISchemaObject documentAggregateRef(
         ..isReadOnly = readOnly
         ..defaultValue = defaultType,
     })
+      ..title = defaultType
       ..description = description
       ..isReadOnly = readOnly
       ..required = ['uuid']

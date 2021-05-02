@@ -9,7 +9,11 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
     this.persons,
     AffiliationRepository affiliations,
     JsonValidation validation,
-  ) : super(affiliations, validation: validation, tag: 'Affiliations');
+  ) : super(
+          affiliations,
+          validation: validation,
+          tag: 'Affiliations',
+        );
 
   final PersonRepository persons;
 
@@ -143,8 +147,127 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
 
   @override
   @Operation.post()
-  Future<Response> create(@Bind.body() Map<String, dynamic> data) {
-    return super.create(data);
+  Future<Response> create(@Bind.body() Map<String, dynamic> data) async {
+    // Validate
+    try {
+      final affiliation = validate<Map<String, dynamic>>(schemaName, data);
+      final person = affiliation.mapAt<String, dynamic>('person');
+
+      // Is user authorized?
+      if (isUser(person) || isEditor()) {
+        final puuid = person.elementAt<String>('uuid');
+
+        // Does person exists?
+        if (await exists(puuid, repo: persons)) {
+          final events = await persons.execute(
+            UpdatePersonInformation(person),
+            context: request.toContext(logger),
+          );
+
+          final response = await _createIfUnique(
+            affiliation,
+            puuid,
+          );
+
+          // If events are empty, person was not updated
+          if (events.isEmpty || response.statusCode >= 400) {
+            return response;
+          }
+
+          return _ok(
+            affiliation.elementAt<String>('uuid'),
+            puuid,
+          );
+        }
+
+        // Look for existing user?
+        final existing = _findUser(
+          person.elementAt('userId'),
+        );
+
+        // Onboard person allowed?
+        if (existing == null) {
+          await persons.execute(
+            CreatePerson(person),
+            context: request.toContext(logger),
+          );
+
+          return _createIfUnique(
+            affiliation,
+            puuid,
+          );
+        }
+
+        final response = await _createIfUnique(
+          affiliation,
+          // Replace person with existing
+          existing.elementAt<String>('uuid'),
+        );
+        if (response.statusCode >= 400) {
+          return response;
+        }
+
+        return _ok(
+          affiliation.elementAt<String>('uuid'),
+          existing.uuid,
+        );
+      }
+      return Response.unauthorized();
+    } on UUIDIsNull {
+      return Response.badRequest(body: "Field [uuid] in $aggregateType is required");
+    } on SchemaException catch (e) {
+      return Response.badRequest(body: e.message);
+    } on SocketException catch (e) {
+      return serviceUnavailable(body: "Eventstore unavailable: $e");
+    } on AggregateExists catch (e) {
+      return conflict(
+        ConflictType.exists,
+        e.message,
+      );
+    } on ConflictNotReconcilable catch (e) {
+      return conflict(
+        ConflictType.merge,
+        e.message,
+        base: e.base,
+        mine: e.mine,
+        yours: e.yours,
+      );
+    } on InvalidOperation catch (e) {
+      return Response.badRequest(body: e.message);
+    } on Exception catch (e, stackTrace) {
+      return toServerError(e, stackTrace);
+    }
+  }
+
+  bool isEditor() => AllowedScopes.isSuperUser(request.authorization);
+
+  Response _ok(String auuid, String puuid) {
+    final affiliation = repository.get(auuid);
+    return okAggregate(
+      affiliation,
+      data: Map.from(affiliation.data)
+        ..addAll({
+          'person': persons.get(puuid).data,
+        }),
+    );
+  }
+
+  Person _findUser(userId) {
+    return userId != null
+        ? persons.aggregates.firstWhere(
+            (person) => person.data.elementAt('userId') == userId,
+            orElse: () => null,
+          )
+        : null;
+  }
+
+  Future<Response> _createIfUnique(Map<String, dynamic> affiliation, String puuid) {
+    // TODO: Look for duplicates
+
+    return super.create(affiliation
+      ..addAll({
+        'person': {'uuid': puuid}
+      }));
   }
 
   @override
@@ -220,13 +343,15 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
   }) {
     return APISchemaObject.object({
       "uuid": context.schema['UUID']..description = "Unique Affiliation id",
-      "person": person ??
+      "person": person ?? APISchemaObject()
+        ..anyOf = [
+          context.schema['Person'],
           documentAggregateRef(
             context,
-            readOnly: false,
             defaultType: 'Person',
             description: "Person reference for PII lookup",
           ),
+        ],
       "org": documentAggregateRef(
         context,
         readOnly: false,
@@ -249,6 +374,7 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
       "status": documentAffiliationStandbyStatus(),
       "active": APISchemaObject.boolean()..description = "Affiliation status flag"
     })
+      ..title = "Affiliation"
       ..description = "Affiliation information"
       ..required = [
         'uuid',
@@ -268,7 +394,7 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
     ];
 
   static APISchemaObject documentAffiliationStandbyStatus() => APISchemaObject.string()
-    ..description = "Personnel standby status"
+    ..description = "Affiliate standby status"
     ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
     ..defaultValue = "available"
     ..enumerated = [

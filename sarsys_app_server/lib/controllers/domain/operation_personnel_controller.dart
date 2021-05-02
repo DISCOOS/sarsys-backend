@@ -12,7 +12,7 @@ class OperationPersonnelController
     this.persons,
     this.affiliations,
     JsonValidation validation,
-  )   : _onboardController = AffiliationOnboardController(persons, affiliations, validation),
+  )   : _affiliateController = AffiliationController(persons, affiliations, validation),
         super(
           'personnels',
           primary,
@@ -29,9 +29,9 @@ class OperationPersonnelController
 
   final PersonRepository persons;
   final AffiliationRepository affiliations;
-  final AffiliationOnboardController _onboardController;
+  final AffiliationController _affiliateController;
 
-  AffiliationOnboardController get onboardController => _onboardController..request = request;
+  AffiliationController get affiliates => _affiliateController..request = request;
 
   @override
   @Operation.get('uuid')
@@ -123,7 +123,7 @@ class OperationPersonnelController
           body: 'Affiliation $auuid not found',
         );
       }
-      final affiliate = await onboardController.create(
+      final affiliate = await affiliates.create(
         affiliation,
       );
       // Failed?

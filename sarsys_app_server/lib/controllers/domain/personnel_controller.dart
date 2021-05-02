@@ -159,7 +159,7 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
           'function': documentFunction(),
           'affiliation': APISchemaObject()
             ..anyOf = [
-              context.schema['Affiliate'],
+              context.schema['Affiliation'],
               documentAggregateRef(
                 context,
                 readOnly: false,

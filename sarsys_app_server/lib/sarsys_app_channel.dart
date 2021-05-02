@@ -137,13 +137,6 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
                 requestValidator,
               ))
       ..secure(
-          '/api/affiliations/onboard',
-          () => AffiliationOnboardController(
-                manager.get<PersonRepository>(),
-                manager.get<AffiliationRepository>(),
-                requestValidator,
-              ))
-      ..secure(
           '/api/incidents[/:uuid]',
           () => IncidentController(
                 manager.get<IncidentRepository>(),

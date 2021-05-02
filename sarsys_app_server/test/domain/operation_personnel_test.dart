@@ -127,7 +127,7 @@ Future<Map<String, dynamic>> _createAffiliation(SarSysAppHarness harness, String
     person: createPerson(puuid),
   );
   expectResponse(
-    await harness.agent.post("/api/affiliations/onboard", body: affiliation),
+    await harness.agent.post("/api/affiliations", body: affiliation),
     201,
   );
   return affiliation;

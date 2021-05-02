@@ -97,7 +97,10 @@ class PersonController extends AggregateController<PersonCommand, Person> {
   @override
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => documentPerson(context);
 
-  static APISchemaObject documentPerson(APIDocumentContext context) {
+  static APISchemaObject documentPerson(
+    APIDocumentContext context, {
+    bool isReadOnly = false,
+  }) {
     return APISchemaObject.object(
       {
         "uuid": context.schema['UUID']..description = "Unique Person id",
@@ -109,7 +112,9 @@ class PersonController extends AggregateController<PersonCommand, Person> {
         "temporary": APISchemaObject.boolean()..description = "Temporary person",
       },
     )
+      ..title = "Person"
       ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
+      ..isReadOnly = isReadOnly
       ..required = [
         'uuid',
       ];
