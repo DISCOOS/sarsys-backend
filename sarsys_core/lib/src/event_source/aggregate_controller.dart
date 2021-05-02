@@ -36,7 +36,7 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   Logger get logger => Logger('$runtimeType');
 
   bool isUser(Map<String, dynamic> data, {String path = 'userId'}) {
-    return data[path] == request.authorization.ownerID;
+    return data[path] == request.authorization?.ownerID;
   }
 
   @override
@@ -48,14 +48,15 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
 
   /// Check if exist. Preform catchup if
   /// not found before checking again.
-  Future<bool> exists(String uuid) async {
-    if (!repository.exists(uuid)) {
-      await repository.catchup(
+  Future<bool> exists(String uuid, {Repository repo}) async {
+    final _repo = repo ?? repository;
+    if (!_repo.exists(uuid)) {
+      await _repo.catchup(
         master: true,
         uuids: [uuid],
       );
     }
-    return repository.exists(uuid);
+    return _repo.exists(uuid);
   }
 
   //////////////////////////////////

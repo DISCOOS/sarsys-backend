@@ -22,8 +22,15 @@ abstract class AggregateListController<R extends Command, S extends AggregateRoo
     Repository<R, S> foreign,
     this.validation, {
     String tag,
+    String schemaName,
     this.readOnly = const [],
-  }) : super(field, primary, foreign, tag: tag);
+  }) : super(
+          field,
+          primary,
+          foreign,
+          tag: tag,
+          schemaName: schemaName,
+        );
 
   @override
   final List<String> readOnly;

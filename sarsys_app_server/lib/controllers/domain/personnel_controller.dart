@@ -10,15 +10,17 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
     this.affiliations,
     PersonnelRepository repository,
     JsonValidation validation,
-  ) : super(repository,
-            validation: validation,
-            readOnly: const [
-              'unit',
-              'messages',
-              'operation',
-              'transitions',
-            ],
-            tag: 'Personnels');
+  ) : super(
+          repository,
+          validation: validation,
+          readOnly: const [
+            'unit',
+            'messages',
+            'operation',
+            'transitions',
+          ],
+          tag: 'Personnels',
+        );
 
   final PersonRepository persons;
   final AffiliationRepository affiliations;
@@ -63,7 +65,7 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
   }) async {
     try {
       if (!await exists(uuid)) {
-        return Response.notFound(body: "$aggregateType $uuid not found");
+        return Response.notFound(body: '$aggregateType $uuid not found');
       }
       final aggregate = repository.get(uuid);
       return Response.ok(
@@ -152,36 +154,41 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
   @override
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object(
         {
-          "uuid": context.schema['UUID']..description = "Unique Personnel id",
-          "status": documentStatus(),
-          "function": documentFunction(),
-          "operation": documentAggregateRef(
+          'uuid': context.schema['UUID']..description = 'Unique Personnel id',
+          'status': documentStatus(),
+          'function': documentFunction(),
+          'affiliation': APISchemaObject()
+            ..anyOf = [
+              context.schema['Affiliate'],
+              documentAggregateRef(
+                context,
+                readOnly: false,
+                description: "Affiliation reference for PII lookup",
+                defaultType: 'Affiliation',
+              ),
+            ],
+          'operation': documentAggregateRef(
             context,
-            description: "Operation which this personnel is allocated to",
+            description: 'Operation which this personnel is allocated to',
             defaultType: 'Operation',
           ),
-          "unit": documentAggregateRef(
+          'unit': documentAggregateRef(
             context,
-            description: "Unit which this personnel is assigned to",
+            description: 'Unit which this personnel is assigned to',
             defaultType: 'Unit',
           ),
-          "affiliation": documentAggregateRef(
+          'tracking': documentAggregateRef(
             context,
-            description: "Affiliation reference for PII lookup",
-            defaultType: 'Affiliation',
-          ),
-          "tracking": documentAggregateRef(
-            context,
-            description: "Unique id of tracking object created "
-                "for this personnel. Only writable on creation.",
+            description: 'Unique id of tracking object created '
+                'for this personnel. Only writable on creation.',
             defaultType: 'Tracking',
           ),
-          "transitions": APISchemaObject.array(ofSchema: documentTransition())
+          'transitions': APISchemaObject.array(ofSchema: documentTransition())
             ..isReadOnly = true
-            ..description = "State transitions (read only)",
-          "messages": APISchemaObject.array(ofSchema: context.schema['Message'])
+            ..description = 'State transitions (read only)',
+          'messages': APISchemaObject.array(ofSchema: context.schema['Message'])
             ..isReadOnly = true
-            ..description = "List of messages added to Personnel",
+            ..description = 'List of messages added to Personnel',
         },
       )
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
@@ -191,18 +198,18 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
         ];
 
   APISchemaObject documentTransition() => APISchemaObject.object({
-        "status": documentStatus(),
-        "timestamp": APISchemaObject.string()
-          ..description = "When transition occurred"
+        'status': documentStatus(),
+        'timestamp': APISchemaObject.string()
+          ..description = 'When transition occurred'
           ..format = 'date-time',
       })
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
 
   /// Personnel Status - Value Object
   APISchemaObject documentStatus() => APISchemaObject.string()
-    ..description = "Personnel status"
+    ..description = 'Personnel status'
     ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
-    ..defaultValue = "alerted"
+    ..defaultValue = 'alerted'
     ..enumerated = [
       'none',
       'alerted',
@@ -214,20 +221,22 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
 
   /// Personnel function - Value Object
   APISchemaObject documentFunction() => APISchemaObject.string()
-    ..description = "Personnel function"
+    ..description = 'Personnel function'
     ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
-    ..defaultValue = "personnel"
+    ..defaultValue = 'personnel'
     ..enumerated = [
       'personnel',
       'commander',
       'unit_leader',
+      'planning_chief',
+      'operations_chief',
     ];
 
   @override
   List<APIParameter> documentOperationParameters(APIDocumentContext context, Operation operation) {
     final parameters = super.documentOperationParameters(context, operation);
     switch (operation.method) {
-      case "GET":
+      case 'GET':
         parameters.add(
           APIParameter.query('expand')
             ..description = "Expand response with information from references. Legal values are: 'person'",

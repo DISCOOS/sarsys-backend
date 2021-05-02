@@ -464,6 +464,7 @@ Map<String, dynamic> createPersonnel(
   String ouuid,
   String uuuid,
   String tuuid,
+  Map<String, dynamic> affiliate,
 }) =>
     {
       'uuid': uuid,
@@ -472,22 +473,23 @@ Map<String, dynamic> createPersonnel(
       if (tuuid != null) 'tracking': {'uuid': tuuid},
       if (ouuid != null) 'operation': {'uuid': ouuid},
       if (uuuid != null) 'unit': {'uuid': uuuid},
-      if (auuid != null) 'affiliation': {'uuid': auuid},
+      if (auuid != null || affiliate != null) 'affiliation': affiliate ?? {'uuid': auuid},
     };
 
 Map<String, dynamic> createAffiliation(
   String uuid, {
-  @required String puuid,
-  @required String orguuid,
+  String puuid,
+  String orguuid,
   String divuuid,
   String depuuid,
+  Map<String, dynamic> person,
 }) =>
     {
       'uuid': uuid,
       'type': 'member',
       'status': 'available',
       'active': true,
-      if (puuid != null) 'person': {'uuid': puuid},
+      if (puuid != null || person != null) 'person': person ?? {'uuid': puuid},
       if (orguuid != null) 'org': {'uuid': orguuid},
       if (divuuid != null) 'div': {'uuid': divuuid},
       if (depuuid != null) 'dep': {'uuid': depuuid},

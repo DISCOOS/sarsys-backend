@@ -38,7 +38,7 @@ Future main() async {
     expect(actualAffiliation['data'], affiliation);
   });
 
-  test("POST /api/affiliations/onboard returns status code 200 when same person exists", () async {
+  test("POST /api/affiliations/onboard returns status code 201 when same person exists", () async {
     final auuid = Uuid().v4();
     final puuid = Uuid().v4();
     final orguuid = Uuid().v4();
@@ -47,6 +47,30 @@ Future main() async {
     final affiliation = createAffiliation(auuid, puuid: puuid, orguuid: orguuid);
     final affiliate = Map.from(affiliation);
     affiliate['person'] = person;
+
+    // Act
+    expectResponse(await harness.agent.post("/api/persons", body: person), 201);
+
+    // Assert
+    expectResponse(
+      await harness.agent.post(
+        "/api/affiliations/onboard",
+        body: affiliate,
+      ),
+      201,
+      body: null,
+    );
+  });
+
+  test("POST /api/affiliations/onboard returns status code 200 when person is updated", () async {
+    final auuid = Uuid().v4();
+    final puuid = Uuid().v4();
+    final orguuid = Uuid().v4();
+    await _prepare(harness, puuid: puuid, orguuid: orguuid);
+    final person = createPerson(puuid);
+    final affiliation = createAffiliation(auuid, puuid: puuid, orguuid: orguuid);
+    final affiliate = Map.from(affiliation);
+    affiliate['person'] = Map.from(person)..addAll({'fname': 'updated'});
 
     // Act
     expectResponse(await harness.agent.post("/api/persons", body: person), 201);
@@ -129,7 +153,7 @@ Future main() async {
   });
 }
 
-Future _prepare(
+Future<void> _prepare(
   SarSysAppHarness harness, {
   String puuid,
   String orguuid,

@@ -98,7 +98,6 @@
               },
               "uuid": {
                 "description": "Department UUID",
-                "format": "uuid",
                 "readOnly": false,
                 "type": "string"
               }
@@ -121,7 +120,6 @@
               },
               "uuid": {
                 "description": "Division UUID",
-                "format": "uuid",
                 "readOnly": false,
                 "type": "string"
               }
@@ -144,7 +142,6 @@
               },
               "uuid": {
                 "description": "Organisation UUID",
-                "format": "uuid",
                 "readOnly": false,
                 "type": "string"
               }
@@ -215,7 +212,6 @@
               },
               "uuid": {
                 "description": "Department UUID",
-                "format": "uuid",
                 "readOnly": false,
                 "type": "string"
               }
@@ -238,7 +234,6 @@
               },
               "uuid": {
                 "description": "Division UUID",
-                "format": "uuid",
                 "readOnly": false,
                 "type": "string"
               }
@@ -261,7 +256,6 @@
               },
               "uuid": {
                 "description": "Organisation UUID",
-                "format": "uuid",
                 "readOnly": false,
                 "type": "string"
               }
@@ -284,7 +278,6 @@
               },
               "uuid": {
                 "description": "Person UUID",
-                "format": "uuid",
                 "readOnly": true,
                 "type": "string"
               }
@@ -356,7 +349,6 @@
         "description": "List of Aggregate Root uuids",
         "items": {
           "description": "A [universally unique identifier](https://en.wikipedia.org/wiki/Universally_unique_identifier).",
-          "format": "uuid",
           "type": "string"
         },
         "readOnly": true,
@@ -446,7 +438,6 @@
           },
           "uuid": {
             "description": "Aggregate Root UUID",
-            "format": "uuid",
             "readOnly": true,
             "type": "string"
           }
@@ -676,7 +667,6 @@
           },
           "udid": {
             "description": "Unique device id, typically [ANDROID_ID] for Android and [identifierForVendor] for iOS platforms",
-            "format": "uuid",
             "type": "string"
           },
           "units": {
@@ -688,7 +678,6 @@
           },
           "uuid": {
             "description": "Unique application configuration id",
-            "format": "uuid",
             "type": "string"
           },
           "version": {
@@ -872,7 +861,6 @@
               },
               "uuid": {
                 "description": "Operation UUID",
-                "format": "uuid",
                 "readOnly": true,
                 "type": "string"
               }
@@ -1628,7 +1616,6 @@
               },
               "uuid": {
                 "description": "Unit UUID",
-                "format": "uuid",
                 "readOnly": true,
                 "type": "string"
               }
@@ -2410,27 +2397,28 @@
         "additionalProperties": false,
         "properties": {
           "affiliation": {
-            "additionalProperties": false,
-            "description": "Affiliation reference for PII lookup",
-            "properties": {
-              "type": {
-                "default": "Affiliation",
-                "description": "Affiliation Type",
-                "readOnly": true,
-                "type": "string"
-              },
-              "uuid": {
-                "description": "Affiliation UUID",
-                "format": "uuid",
-                "readOnly": true,
-                "type": "string"
+            "oneOf": [
+              { "$ref": "#/components/schemas/Affiliate" },
+              {
+                "additionalProperties": false,
+                "description": "Affiliation reference for PII lookup",
+                "properties": {
+                  "type": {
+                    "default": "Affiliation",
+                    "description": "Affiliation Type",
+                    "type": "string"
+                  },
+                  "uuid": {
+                    "description": "Affiliation UUID",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "uuid"
+                ],
+                "type": "object"
               }
-            },
-            "readOnly": true,
-            "required": [
-              "uuid"
-            ],
-            "type": "object"
+            ]
           },
           "function": {
             "additionalProperties": false,
@@ -2439,7 +2427,9 @@
             "enum": [
               "personnel",
               "commander",
-              "unit_leader"
+              "unit_leader",
+              "planning_chief",
+              "operations_chief"
             ],
             "type": "string"
           },
@@ -2463,7 +2453,6 @@
               },
               "uuid": {
                 "description": "Operation UUID",
-                "format": "uuid",
                 "readOnly": true,
                 "type": "string"
               }
@@ -2500,7 +2489,6 @@
               },
               "uuid": {
                 "description": "Tracking UUID",
-                "format": "uuid",
                 "readOnly": true,
                 "type": "string"
               }
@@ -2553,7 +2541,6 @@
               },
               "uuid": {
                 "description": "Unit UUID",
-                "format": "uuid",
                 "readOnly": true,
                 "type": "string"
               }
@@ -2803,7 +2790,6 @@
           },
           "uuid": {
             "description": "Foreign key to unique source identifier.",
-            "format": "uuid",
             "type": "string"
           }
         },
@@ -2822,7 +2808,6 @@
             "properties": {
               "uuid": {
                 "description": "Uuid of incident which this subject is affected by",
-                "format": "uuid",
                 "type": "string"
               }
             },
@@ -3115,7 +3100,6 @@
       },
       "UUID": {
         "description": "A [universally unique identifier](https://en.wikipedia.org/wiki/Universally_unique_identifier).",
-        "format": "uuid",
         "type": "string"
       },
       "Unit": {

@@ -2,13 +2,26 @@ import 'package:sarsys_core/sarsys_core.dart';
 
 /// A basic ResourceController for ReadModel requests
 class AggregateLookupController<S extends Command, T extends AggregateRoot> extends ResourceController {
-  AggregateLookupController(this.field, this.primary, this.foreign, {this.tag});
+  AggregateLookupController(
+    this.field,
+    this.primary,
+    this.foreign, {
+    this.tag,
+    String schemaName,
+  }) : _schemaName = schemaName;
+
   final String tag;
   final String field;
   final Repository primary;
+  final String _schemaName;
   final Repository<S, T> foreign;
 
+  /// Get aggregate [Type]
   Type get aggregateType => typeOf<T>();
+
+  /// Get Schema name
+  String get schemaName => _schemaName ?? aggregateType.toString();
+
   Type get primaryType => primary.aggregateType;
   Type get foreignType => foreign.aggregateType;
 
@@ -136,7 +149,7 @@ class AggregateLookupController<S extends Command, T extends AggregateRoot> exte
         responses.addAll({
           '200': APIResponse.schema(
             'Successful response.',
-            APISchemaObject.array(ofSchema: context.schema['$aggregateType']),
+            APISchemaObject.array(ofSchema: context.schema[schemaName]),
           )
         });
         break;

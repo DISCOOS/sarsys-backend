@@ -28,25 +28,42 @@ class AffiliationOnboardController extends AggregateController<AffiliationComman
 
       // Is user authorized?
       if (isUser(person) || AllowedScopes.isCommander(request.authorization)) {
-        // Create or update person
         final puuid = person.elementAt<String>('uuid');
-        if (await exists(puuid)) {
-          await persons.execute(
+        // Does person exists?
+        if (await exists(puuid, repo: persons)) {
+          final events = await persons.execute(
             UpdatePersonInformation(person),
             context: request.toContext(logger),
           );
-          return super.create(onboard
+
+          final response = await super.create(onboard
             ..addAll({
               'person': {'uuid': puuid}
             }));
+
+          // If events are empty, person was not updated
+          if (events.isEmpty || response.statusCode >= 400) {
+            return response;
+          }
+
+          // Return affiliate with updated person
+          return okAggregate(
+            repository.get(onboard.elementAt('uuid')),
+            data: onboard
+              ..addAll({
+                'person': persons.get(puuid).data,
+              }),
+          );
         }
 
-        // Look for existing user
+        // Look for existing user?
         final userId = person.elementAt('userId');
-        final existing = persons.aggregates.firstWhere(
-          (person) => person.data.elementAt('userId') == userId,
-          orElse: () => null,
-        );
+        final existing = userId != null
+            ? persons.aggregates.firstWhere(
+                (person) => person.data.elementAt('userId') == userId,
+                orElse: () => null,
+              )
+            : null;
 
         // Onboard person allowed?
         if (existing == null) {
@@ -62,22 +79,23 @@ class AffiliationOnboardController extends AggregateController<AffiliationComman
         }
 
         // Create affiliation
-        await super.create(onboard
+        final response = await super.create(onboard
           ..addAll({
             'person': {
               // Replace person with existing
               'uuid': existing.elementAt<String>('uuid'),
             }
           }));
+        if (response.statusCode >= 400) {
+          return response;
+        }
 
-        // Return affiliate with replaced person
+        // Return affiliate with existing person
+        final affiliate = repository.get(onboard.elementAt('uuid'));
         return okAggregate(
-          repository.get(onboard.elementAt('uuid')),
-          data: onboard
-            ..addAll({
-              // Ensure person as reference
-              'person': existing.data
-            }),
+          affiliate,
+          // Replace person reference with existing
+          data: Map.from(affiliate.data)..addAll({'person': existing.data}),
         );
       }
       return Response.unauthorized();

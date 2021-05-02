@@ -67,9 +67,7 @@ class SubjectController extends AggregateController<SubjectCommand, Subject> {
         {
           "uuid": context.schema['UUID']..description = "Unique subject id",
           "incident": APISchemaObject.object({
-            "uuid": APISchemaObject.string()
-              ..format = 'uuid'
-              ..description = "Uuid of incident which this subject is affected by"
+            "uuid": APISchemaObject.string()..description = "UUID of incident which this subject is affected by",
           })
             ..isReadOnly = true
             ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,

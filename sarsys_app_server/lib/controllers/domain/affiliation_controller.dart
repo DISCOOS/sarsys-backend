@@ -223,6 +223,7 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
       "person": person ??
           documentAggregateRef(
             context,
+            readOnly: false,
             defaultType: 'Person',
             description: "Person reference for PII lookup",
           ),

@@ -3,7 +3,7 @@ import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 
-/// Implement controller for field `missions` in [sar.Operation]
+/// Implement controller for field `personnels` in [sar.Operation]
 class OperationPersonnelController
     extends AggregateListController<PersonnelCommand, Personnel, OperationCommand, sar.Operation> {
   OperationPersonnelController(
@@ -12,17 +12,26 @@ class OperationPersonnelController
     this.persons,
     this.affiliations,
     JsonValidation validation,
-  ) : super('personnels', primary, foreign, validation,
-            readOnly: const [
-              'unit',
-              'messages',
-              'operation',
-              'transitions',
-            ],
-            tag: 'Operations > Personnels');
+  )   : _onboardController = AffiliationOnboardController(persons, affiliations, validation),
+        super(
+          'personnels',
+          primary,
+          foreign,
+          validation,
+          readOnly: const [
+            'unit',
+            'messages',
+            'operation',
+            'transitions',
+          ],
+          tag: 'Operations > Personnels',
+        );
 
   final PersonRepository persons;
   final AffiliationRepository affiliations;
+  final AffiliationOnboardController _onboardController;
+
+  AffiliationOnboardController get onboardController => _onboardController..request = request;
 
   @override
   @Operation.get('uuid')
@@ -34,7 +43,7 @@ class OperationPersonnelController
   }) async {
     try {
       if (!await exists(primary, uuid)) {
-        return Response.notFound(body: "$primaryType $uuid not found");
+        return Response.notFound(body: '$primaryType $uuid not found');
       }
       // Only use uuids that exists
       final uuids = await removeDeleted(uuid);
@@ -67,7 +76,7 @@ class OperationPersonnelController
         return true;
       }
       if (expand.isNotEmpty) {
-        throw "Invalid query parameter 'expand' values: $expand, expected any of: person";
+        throw "Invalid query parameter 'expand' values: $expand, expected any of: 'person'";
       }
     }
     return false;
@@ -104,13 +113,25 @@ class OperationPersonnelController
     final auuid = data.elementAt('affiliation/uuid');
     if (auuid is! String) {
       return Response.badRequest(
-        body: "Field [affiliation/uuid] is required",
-      );
-    } else if (!await exists(affiliations, auuid as String)) {
-      return Response.badRequest(
-        body: "Affiliation $auuid not found",
+        body: 'Field [affiliation/uuid] is required',
       );
     }
+    if (!await exists(affiliations, auuid as String)) {
+      final affiliation = data.mapAt<String, dynamic>('affiliation');
+      if (affiliation['person'] is! Map) {
+        return Response.badRequest(
+          body: 'Affiliation $auuid not found',
+        );
+      }
+      final affiliate = await onboardController.create(
+        affiliation,
+      );
+      // Failed?
+      if (affiliate.statusCode >= 400) {
+        return affiliate;
+      }
+    }
+    // Mobilize personnel
     return super.create(uuid, data);
   }
 
@@ -200,18 +221,30 @@ class OperationPersonnelController
   //////////////////////////////////
 
   @override
+  Map<String, APIResponse> documentOperationResponses(APIDocumentContext context, Operation operation) {
+    final responses = super.documentOperationResponses(context, operation);
+    switch (operation.method) {
+      case 'POST':
+        responses.addAll({
+          '200': context.responses.getObject('200'),
+        });
+    }
+    return responses;
+  }
+
+  @override
   List<APIParameter> documentOperationParameters(APIDocumentContext context, Operation operation) {
     final parameters = super.documentOperationParameters(context, operation);
     switch (operation.method) {
-      case "GET":
+      case 'GET':
         parameters
           ..add(
-            APIParameter.query('filter')..description = "Match values with given string",
+            APIParameter.query('filter')..description = 'Match values with given string',
           )
           ..add(
             APIParameter.query('uuids')
-              ..description = "Only get aggregates in list of given comma-separated uuids. "
-                  "If filter is given, it is only applied on aggregates matching any uuids",
+              ..description = 'Only get aggregates in list of given comma-separated uuids. '
+                  'If filter is given, it is only applied on aggregates matching any uuids',
           )
           ..add(
             APIParameter.query('expand')

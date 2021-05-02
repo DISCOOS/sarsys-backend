@@ -4,13 +4,10 @@ import 'package:aqueduct/aqueduct.dart';
 // Event Source documentation
 //////////////////////////////////
 
-APISchemaObject documentID() => APISchemaObject.string()
-  ..description = 'An id unique in current collection';
+APISchemaObject documentID() => APISchemaObject.string()..description = 'An id unique in current collection';
 
 APISchemaObject documentUUID() => APISchemaObject.string()
-  ..format = 'uuid'
-  ..description =
-      'A [universally unique identifier](https://en.wikipedia.org/wiki/Universally_unique_identifier).';
+  ..description = 'A [universally unique identifier](https://en.wikipedia.org/wiki/Universally_unique_identifier).';
 
 APISchemaObject documentAggregateRef(
   APIDocumentContext context, {
@@ -104,8 +101,7 @@ APISchemaObject documentEntityPageResponse(
         ..description = 'Path to Entity Object List'
         ..isReadOnly = true,
       'entries': APISchemaObject.array(
-        ofSchema: schema ??
-            (type != null ? context.schema[type] : APISchemaObject.freeForm()),
+        ofSchema: schema ?? (type != null ? context.schema[type] : APISchemaObject.freeForm()),
       )
         ..description = 'Array of ${type ?? 'Entity Object'}s'
         ..isReadOnly = true,
@@ -140,8 +136,7 @@ APISchemaObject documentValuePageResponse(
         ..description = 'Path to Value Object List'
         ..isReadOnly = true,
       'entries': APISchemaObject.array(
-        ofSchema: schema ??
-            (type != null ? context.schema[type] : APISchemaObject.freeForm()),
+        ofSchema: schema ?? (type != null ? context.schema[type] : APISchemaObject.freeForm()),
       )
         ..description = 'Array of ${type ?? 'Value Object'}s'
         ..isReadOnly = true,
@@ -172,11 +167,9 @@ APISchemaObject documentAggregateResponse(
         ..format = 'date-time'
         ..isReadOnly = true,
       'number': APISchemaObject.integer()
-        ..description =
-            'Last event applied to aggregate (can be used as version)'
+        ..description = 'Last event applied to aggregate (can be used as version)'
         ..isReadOnly = true,
-      'data': (schema ??
-          (type != null ? context.schema[type] : APISchemaObject.freeForm()))
+      'data': (schema ?? (type != null ? context.schema[type] : APISchemaObject.freeForm()))
         ..description = '${type ?? 'Aggregate Root'} Data'
         ..isReadOnly = true,
     })
@@ -195,11 +188,9 @@ APISchemaObject documentEntityResponse(
         ..defaultValue = type
         ..isReadOnly = true,
       'number': APISchemaObject.integer()
-        ..description =
-            'Last event applied to aggregate (can be used as version)'
+        ..description = 'Last event applied to aggregate (can be used as version)'
         ..isReadOnly = true,
-      'data': schema ??
-          (type != null ? context.schema[type] : APISchemaObject.freeForm())
+      'data': schema ?? (type != null ? context.schema[type] : APISchemaObject.freeForm())
         ..description = '${type ?? 'Entity Object'}  Data'
         ..isReadOnly = true,
     })
@@ -218,11 +209,9 @@ APISchemaObject documentValueResponse(
         ..defaultValue = type
         ..isReadOnly = true,
       'number': APISchemaObject.integer()
-        ..description =
-            'Last event applied to aggregate (can be used as version)'
+        ..description = 'Last event applied to aggregate (can be used as version)'
         ..isReadOnly = true,
-      'data': schema ??
-          (type != null ? context.schema[type] : APISchemaObject.freeForm())
+      'data': schema ?? (type != null ? context.schema[type] : APISchemaObject.freeForm())
         ..description = '${type ?? 'Value Object'}  Data'
         ..isReadOnly = true,
     })
@@ -242,12 +231,10 @@ APISchemaObject documentAggregate(
         ..description = 'Globally unique aggregate id'
         ..isReadOnly = readOnly,
       'number': APISchemaObject.integer()
-        ..description =
-            'Number of last event applied to aggregate (can be used as version)'
+        ..description = 'Number of last event applied to aggregate (can be used as version)'
         ..isReadOnly = true,
       'position': APISchemaObject.integer()
-        ..description =
-            'Position in canonical stream of last event applied to aggregate'
+        ..description = 'Position in canonical stream of last event applied to aggregate'
         ..isReadOnly = true,
       'modifications': APISchemaObject.integer()
         ..description = 'Number of modifications since creation'
@@ -268,8 +255,7 @@ APISchemaObject documentAggregate(
         ..description = 'Events pending push to remote stream (optional)'
         ..isReadOnly = readOnly,
       'skipped': documentEventList(context)
-        ..description =
-            'Events skipped because of unreconciled errors (optional)'
+        ..description = 'Events skipped because of unreconciled errors (optional)'
         ..isReadOnly = readOnly,
       'taint': APISchemaObject.freeForm()
         ..description = ' Aggregate taint information'
@@ -414,20 +400,17 @@ APISchemaObject documentSnapshot(APIDocumentContext context) {
       ..description = 'Snapshot event number'
       ..isReadOnly = true,
     'position': APISchemaObject.integer()
-      ..description =
-          'Snapshot event position in projection if using instance streams'
+      ..description = 'Snapshot event position in projection if using instance streams'
       ..isReadOnly = true,
     'config': APISchemaObject.object({
       'keep': APISchemaObject.integer()
         ..description = 'Number of snapshots to keep until deleting oldest'
         ..isReadOnly = true,
       'threshold': APISchemaObject.integer()
-        ..description =
-            'Number of unsaved events before saving to next snapshot'
+        ..description = 'Number of unsaved events before saving to next snapshot'
         ..isReadOnly = true,
       'automatic': APISchemaObject.integer()
-        ..description =
-            'Control flag for automatic snapshots when threshold is reached'
+        ..description = 'Control flag for automatic snapshots when threshold is reached'
         ..isReadOnly = true,
     })
       ..description = 'Snapshot configuration'
@@ -494,8 +477,7 @@ APISchemaObject documentRepositorySubscriptions(APIDocumentContext context) {
           ..description = 'True if subscription is cancelled'
           ..isReadOnly = true,
         'isCompeting': APISchemaObject.boolean()
-          ..description =
-              'True if subscription is competing (pulling when false)'
+          ..description = 'True if subscription is competing (pulling when false)'
           ..isReadOnly = true,
       })
         ..description = 'Catchup subscription status'
@@ -556,12 +538,10 @@ APISchemaObject documentSnapshotMeta(APIDocumentContext context) {
         ..description = 'Number of snapshots to keep until deleting oldest'
         ..isReadOnly = true,
       'threshold': APISchemaObject.integer()
-        ..description =
-            'Number of unsaved events before saving to next snapshot'
+        ..description = 'Number of unsaved events before saving to next snapshot'
         ..isReadOnly = true,
       'automatic': APISchemaObject.integer()
-        ..description =
-            'Control flag for automatic snapshots when threshold is reached'
+        ..description = 'Control flag for automatic snapshots when threshold is reached'
         ..isReadOnly = true,
     })
       ..description = 'Snapshots configuration'
@@ -624,8 +604,7 @@ APISchemaObject documentEvent(
         ..description = 'True if event origin is remote'
         ..isReadOnly = readOnly,
       'position': APISchemaObject.integer()
-        ..description =
-            'Event position in canonical (projection or instance) stream'
+        ..description = 'Event position in canonical (projection or instance) stream'
         ..isReadOnly = readOnly,
       'timestamp': APISchemaObject.string()
         ..description = 'When event occurred'
@@ -653,8 +632,7 @@ APISchemaObject documentConflict(
     APISchemaObject.object({
       'type': APISchemaObject.string()
         ..description = 'Conflict type'
-        ..additionalPropertyPolicy =
-            APISchemaAdditionalPropertyPolicy.disallowed
+        ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed
         ..isReadOnly = true
         ..enumerated = [
           'merge',
@@ -662,8 +640,7 @@ APISchemaObject documentConflict(
           'deleted',
         ],
       'mine': APISchemaObject.map(ofType: APIType.object)
-        ..description =
-            'JsonPatch diffs between remote base and head of event stream'
+        ..description = 'JsonPatch diffs between remote base and head of event stream'
         ..isReadOnly = true,
       'yours': APISchemaObject.map(ofType: APIType.object)
         ..description = 'JsonPatch diffs between remote base and request body'
