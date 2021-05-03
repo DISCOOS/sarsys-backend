@@ -1,6 +1,5 @@
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
-import 'package:meta/meta.dart';
 import 'package:collection_x/collection_x.dart';
 
 import 'package:sarsys_app_server_test/sarsys_app_server_test.dart';
@@ -114,25 +113,20 @@ Future main() async {
   });
 
   test("POST /api/affiliations returns status code 409 when same user exists", () async {
-    const userid = 'user1';
-
-    final auuid = Uuid().v4();
+    const userId = 'user1';
     final puuid1 = Uuid().v4();
     final puuid2 = Uuid().v4();
     final orguuid = Uuid().v4();
-    final user1 = createPerson(puuid1, userId: userid);
-    final duplicate = createPerson(puuid2, userId: userid);
     await _prepare(harness, orguuid: orguuid);
-    final affiliation = createAffiliation(auuid, puuid: puuid1, orguuid: orguuid);
-    final affiliate = Map.from(affiliation);
-    affiliate['person'] = duplicate;
+    final existing = createAffiliation(Uuid().v4(), person: createPerson(puuid1, userId: userId));
+    final duplicate = createAffiliation(Uuid().v4(), person: createPerson(puuid2, userId: userId));
 
     // Act
-    expectResponse(await harness.agent.post("/api/persons", body: user1), 201);
+    expectResponse(await harness.agent.post("/api/affiliations", body: existing), 201);
 
     // Assert
     final response = expectResponse(
-      await harness.agent.post("/api/affiliations", body: affiliate),
+      await harness.agent.post("/api/affiliations", body: duplicate),
       409,
     );
 
@@ -144,22 +138,22 @@ Future main() async {
     );
     expect(
       conflict.mapAt<String, dynamic>('base'),
-      isNull,
+      existing.mapAt('person'),
     );
     expect(
       conflict.listAt<Map<String, dynamic>>('mine'),
-      [user1],
+      [existing],
     );
     expect(
       conflict.listAt<Map<String, dynamic>>('yours'),
-      [affiliate],
+      [duplicate],
     );
   });
 
   test("POST /api/affiliations returns status code 409 when unorganized affiliate exists", () async {
     // Arrange
     final puuid = Uuid().v4();
-    await _prepare(harness, puuid: puuid) as Map<String, dynamic>;
+    await _prepare(harness) as Map<String, dynamic>;
     final unorganized = createAffiliation(Uuid().v4(), puuid: puuid);
     final duplicate = createAffiliation(Uuid().v4(), puuid: puuid);
 
@@ -196,7 +190,7 @@ Future main() async {
     // Arrange
     final puuid = Uuid().v4();
     final ouuid = Uuid().v4();
-    await _prepare(harness, puuid: puuid);
+    await _prepare(harness);
     final organized = createAffiliation(Uuid().v4(), puuid: puuid, orguuid: ouuid);
     final duplicate = createAffiliation(Uuid().v4(), puuid: puuid, orguuid: ouuid);
 

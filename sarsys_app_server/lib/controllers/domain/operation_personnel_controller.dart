@@ -88,11 +88,11 @@ class OperationPersonnelController
     final personnel = entry.mapAt<String, dynamic>('data');
     final auuid = personnel.elementAt<String>('affiliation/uuid');
     if (auuid != null) {
-      final affiliation = affiliations.get(auuid, createNew: false);
+      final affiliation = affiliations.peek(auuid);
       if (affiliation != null) {
         final puuid = affiliation.elementAt<String>('person/uuid');
         if (puuid != null) {
-          final person = persons.get(puuid, createNew: false);
+          final person = persons.peek(puuid);
           if (person != null) {
             // Do not overwrite personnel.uuid
             personnel.addAll({'person': person.data});

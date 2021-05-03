@@ -66,10 +66,7 @@ class Range {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is Range &&
-          runtimeType == other.runtimeType &&
-          max == other.max &&
-          min == other.min;
+      other is Range && runtimeType == other.runtimeType && max == other.max && min == other.min;
 
   @override
   int get hashCode => max.hashCode ^ min.hashCode;
@@ -141,10 +138,7 @@ class Cardinality {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is Cardinality &&
-          runtimeType == other.runtimeType &&
-          left == other.left &&
-          right == other.right;
+      other is Cardinality && runtimeType == other.runtimeType && left == other.left && right == other.right;
 
   @override
   int get hashCode => left.hashCode ^ right.hashCode;
@@ -343,11 +337,11 @@ class AssociationRule extends AggregateRule {
     final uuid = source.toAggregateUuid(event);
     if (sourceField != source.uuidFieldName) {
       // Lookup value in source aggregate
-      final aggregate = source.get(uuid, createNew: false);
+      final aggregate = source.peek(uuid);
       var value = _toValue(event, aggregate, sourceField);
       if (value == null && target != source) {
         // Lookup target aggregate
-        final aggregate = target.get(uuid, createNew: false);
+        final aggregate = target.peek(uuid);
         value = _toValue(event, aggregate, targetField);
       }
       return value;
@@ -374,12 +368,11 @@ class AssociationRule extends AggregateRule {
     return event.previous.elementAt<String>(field);
   }
 
-  Iterable<String> find(Repository repo, String field, String match) =>
-      repo.aggregates
-          .where((aggregate) => !aggregate.isDeleted)
-          .where((aggregate) => contains(aggregate, field, match))
-          .map((aggregate) => aggregate.uuid)
-          .toList();
+  Iterable<String> find(Repository repo, String field, String match) => repo.aggregates
+      .where((aggregate) => !aggregate.isDeleted)
+      .where((aggregate) => contains(aggregate, field, match))
+      .map((aggregate) => aggregate.uuid)
+      .toList();
 
   bool contains(AggregateRoot aggregate, String field, String match) {
     final value = aggregate.data.elementAt(field);
@@ -431,8 +424,7 @@ class AssociationRule extends AggregateRule {
       case CardinalityType.m2o:
       case CardinalityType.m2m:
         // Do not delete until last source is deleted
-        return find(source, sourceField, reference).isEmpty &&
-            targets.isNotEmpty;
+        return find(source, sourceField, reference).isEmpty && targets.isNotEmpty;
       case CardinalityType.any:
       case CardinalityType.none:
       default:

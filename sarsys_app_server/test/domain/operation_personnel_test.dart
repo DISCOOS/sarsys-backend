@@ -162,21 +162,14 @@ Future main() async {
   });
 
   test("POST /api/operations/{uuid}/personnels returns status code 409 when same user exists", () async {
-    const userid = 'user1';
-
-    final auuid = Uuid().v4();
-    final puuid1 = Uuid().v4();
-    final puuid2 = Uuid().v4();
+    const userId = 'user1';
     final ouuid = await _prepare(harness);
-    final user1 = createPerson(puuid1, userId: userid);
-    final duplicate = createPerson(puuid2, userId: userid);
-    final affiliation = createAffiliation(auuid, puuid: puuid1);
-    final affiliate = Map<String, dynamic>.from(affiliation);
-    affiliate['person'] = duplicate;
-    final personnel = createPersonnel(puuid2, affiliate: affiliate);
+    final existing = createAffiliation(Uuid().v4(), person: createPerson(Uuid().v4(), userId: userId));
+    final duplicate = createAffiliation(Uuid().v4(), person: createPerson(Uuid().v4(), userId: userId));
+    final personnel = createPersonnel(Uuid().v4(), affiliate: duplicate);
 
     // Act
-    expectResponse(await harness.agent.post("/api/persons", body: user1), 201);
+    expectResponse(await harness.agent.post("/api/affiliations", body: existing), 201);
 
     // Assert
     final response = expectResponse(
@@ -192,15 +185,15 @@ Future main() async {
     );
     expect(
       conflict.mapAt<String, dynamic>('base'),
-      isNull,
+      existing.mapAt('person'),
     );
     expect(
       conflict.listAt<Map<String, dynamic>>('mine'),
-      [user1],
+      [existing],
     );
     expect(
       conflict.listAt<Map<String, dynamic>>('yours'),
-      [affiliate],
+      [duplicate],
     );
   });
 

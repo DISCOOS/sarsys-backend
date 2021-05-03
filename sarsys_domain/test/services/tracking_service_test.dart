@@ -442,7 +442,7 @@ void _assertStates(
   int trackCount = 1,
   int trackingCount = 1,
 }) {
-  final tracking = trackingRepo.get(tuuid, createNew: false);
+  final tracking = trackingRepo.peek(tuuid);
   final tracks = tracking?.asEntityArray('tracks');
   expect(trackingRepo.count(), equals(trackingCount));
   expect(service.managed.length, equals(trackingCount));

@@ -65,7 +65,7 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
     @Bind.path('uuid') String uuid, {
     @Bind.body() Map<String, dynamic> data,
   }) async {
-    final hasTracking = repository.get(uuid, createNew: false)?.data?.elementAt('tracking/uuid') != null;
+    final hasTracking = repository.peek(uuid)?.data?.elementAt('tracking/uuid') != null;
     final response = await super.delete(uuid, data: data);
     if (hasTracking) {
       return await withResponseWaitForRuleResults(response, expected: {

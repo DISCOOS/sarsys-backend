@@ -116,7 +116,7 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
 
   Map<String, dynamic> _mergePerson(String puuid, Map<String, dynamic> affiliation) {
     if (puuid != null) {
-      final person = persons.get(puuid, createNew: false);
+      final person = persons.peek(puuid);
       if (person != null) {
         return Map.from(affiliation)..addAll({'person': person.data});
       }
@@ -186,11 +186,17 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
           );
         }
 
+        final duplicates = await _findDuplicates(
+          affiliation,
+          puuid,
+        );
+
         return conflict(
           ConflictType.exists,
           'Person $puuid have duplicate userId',
           code: 'duplicate_user_id',
-          mine: [existing.data],
+          base: existing.data,
+          mine: duplicates,
           yours: [affiliation],
         );
       }
@@ -255,36 +261,51 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
   }
 
   Future<List<Map<String, dynamic>>> _findDuplicates(Map<String, dynamic> affiliation, String puuid) async {
-    final person = persons.get(puuid);
-    final userId = person.elementAt<String>('userId');
+    // Ensure we are updated with remote streams
     final auuid = affiliation.elementAt<String>('uuid');
+    await catchup(uuids: [auuid]);
+    await catchup(uuids: [puuid], repo: persons);
+
+    // Ensure person
+    final person = persons.peek(puuid);
+    final userId = person?.elementAt<String>('userId') ?? affiliation.elementAt('person/userId');
     final orguuid = affiliation.elementAt<String>('org/uuid');
     final divuuid = affiliation.elementAt<String>('div/uuid');
     final depuuid = affiliation.elementAt<String>('dep/uuid');
 
-    // Ensure we are updated with remote
-    await catchup(uuids: [auuid]);
-
     // Look for duplicate affiliation, checking for
     // 1. Volunteer affiliations without any organisations
     // 2. Identical affiliation with org, div and dep
-    return repository.aggregates.where((a) => !a.isDeleted).map((a) => a.data).where((a) {
-      // Different affiliation and same person?
-      if (a.elementAt<String>('uuid') != auuid && _isSamePerson(a.mapAt('person'), puuid, userId)) {
-        final testOrg = a.elementAt<String>('org/uuid');
-        final testDiv = a.elementAt<String>('div/uuid');
-        final testDep = a.elementAt<String>('dep/uuid');
+    return repository.aggregates
+        .where((a) => !a.isDeleted)
+        .map((a) => a.data)
+        .where((a) {
+          // Different affiliation and same person?
+          if (a.elementAt<String>('uuid') != auuid) {
+            final existing = persons.peek(a.elementAt('person/uuid'));
+            if (existing != null) {
+              if (_isSamePerson(existing.data, puuid, userId)) {
+                final testOrg = a.elementAt<String>('org/uuid');
+                final testDiv = a.elementAt<String>('div/uuid');
+                final testDep = a.elementAt<String>('dep/uuid');
 
-        // Is unorganized?
-        if (testOrg == null && testDiv == null && testDep == null) {
-          return true;
-        }
+                // Is unorganized?
+                if (testOrg == null && testDiv == null && testDep == null) {
+                  return true;
+                }
 
-        // Already affiliated?
-        return testOrg == orguuid && testDiv == divuuid && testDep == depuuid;
-      }
-      return false;
-    }).toList();
+                // Already affiliated?
+                return testOrg == orguuid && testDiv == divuuid && testDep == depuuid;
+              }
+            }
+          }
+          return false;
+        })
+        .map((a) => Map<String, dynamic>.from(a)
+          ..addAll({
+            'person': persons.peek(a.elementAt('person/uuid')).data,
+          }))
+        .toList();
   }
 
   bool _isSamePerson(Map<String, dynamic> person, String puuid, String userId) =>
@@ -311,7 +332,7 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
           mine: duplicates,
           yours: [data],
           // Current affiliation if exist
-          base: repository.get(data.elementAt<String>('uuid'), createNew: false).data,
+          base: repository.peek(data.elementAt<String>('uuid')).data,
         );
       }
     }

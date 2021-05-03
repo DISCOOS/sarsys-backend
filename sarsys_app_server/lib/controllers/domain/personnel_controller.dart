@@ -100,8 +100,8 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
     @Bind.path('uuid') String uuid, {
     @Bind.body() Map<String, dynamic> data,
   }) async {
-    final isAssigned = repository.get(uuid, createNew: false)?.data?.elementAt('unit/uuid') != null;
-    final hasTracking = repository.get(uuid, createNew: false)?.data?.elementAt('tracking/uuid') != null;
+    final isAssigned = repository.peek(uuid)?.data?.elementAt('unit/uuid') != null;
+    final hasTracking = repository.peek(uuid)?.data?.elementAt('tracking/uuid') != null;
     final response = await super.delete(uuid, data: data);
     return await withResponseWaitForRuleResults(response, expected: {
       PersonnelRemovedFromOperation: 1,
@@ -127,11 +127,11 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
     final personnel = entry.mapAt<String, dynamic>('data');
     final auuid = personnel.elementAt<String>('affiliation/uuid');
     if (auuid != null) {
-      final affiliation = affiliations.get(auuid, createNew: false);
+      final affiliation = affiliations.peek(auuid);
       if (affiliation != null) {
         final puuid = affiliation.elementAt<String>('person/uuid');
         if (puuid != null) {
-          final person = persons.get(puuid, createNew: false);
+          final person = persons.peek(puuid);
           if (person != null) {
             // Do not overwrite personnel.uuid
             personnel.addAll({

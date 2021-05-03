@@ -84,10 +84,7 @@ class AppConfigController extends AggregateController<AppConfigCommand, AppConfi
   }
 
   bool shouldWaitForDeviceDeleted(String uuid) {
-    final aggregate = repository.get(
-      uuid,
-      createNew: false,
-    );
+    final aggregate = repository.peek(uuid);
     final udid = aggregate?.data?.elementAt<String>('udid');
     final refs = repository.aggregates
         // Only check app-configs not deleted

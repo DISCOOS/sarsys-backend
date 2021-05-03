@@ -908,15 +908,9 @@ class EventStore {
   }) {
     final uuid = toAggregateUuid(stream);
     if (uuid != null) {
-      final head = repo
-          .get(
-            uuid,
-            // Do not fail! Error handling
-            // will skip events automatically
-            strict: false,
-            createNew: false,
-          )
-          ?.headEvent;
+      // Do not fail! Error handling
+      // will skip events automatically
+      final head = repo.peek(uuid)?.headEvent;
       if (head != null) {
         return head.number;
       }
@@ -2581,11 +2575,7 @@ class SourceEventErrorHandler {
   }) {
     final store = repo.store;
     final uuid = repo.toAggregateUuid(event);
-    final aggregate = repo.get(
-      uuid,
-      strict: false,
-      createNew: false,
-    );
+    final aggregate = repo.peek(uuid);
 
     final reason = context.error(
       message,

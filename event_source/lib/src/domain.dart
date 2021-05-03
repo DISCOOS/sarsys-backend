@@ -205,8 +205,7 @@ class RepositoryManager {
         );
       } else {
         completer.completeError(
-          ProjectionNotAvailableException(
-              Context.toObject('Failed to prepare projections $backlog', [
+          ProjectionNotAvailableException(Context.toObject('Failed to prepare projections $backlog', [
             'error: $error',
             'stackTrace: ${Context.toStackTraceString(_context.id, stackTrace)}',
           ])),
@@ -318,8 +317,7 @@ class RepositoryManager {
       );
       _timer?.cancel();
       _timer = null;
-      final processed =
-          counts.fold<int>(0, (processed, count) => processed + count);
+      final processed = counts.fold<int>(0, (processed, count) => processed + count);
       completer.complete(Future.value(
         processed,
       ));
@@ -500,8 +498,7 @@ class Transaction {
 
   /// Get [aggregate] of type [T] from [repo].
   /// Returns null if not exist
-  AggregateRoot get aggregate =>
-      repo.get(uuid, createNew: false, strict: false);
+  AggregateRoot get aggregate => repo.peek(uuid);
 
   /// Check if transaction allows modification of [aggregate]
   bool get isModifiable => !isStarted;
@@ -542,8 +539,7 @@ class Transaction {
   Iterable<DomainEvent> _changes = <DomainEvent>[];
 
   /// Changes that will result in a merge conflict
-  Iterable<DomainEvent> get conflicting =>
-      (aggregate?._remoteEvents ?? <DomainEvent>[]);
+  Iterable<DomainEvent> get conflicting => (aggregate?._remoteEvents ?? <DomainEvent>[]);
 
   /// Changes not pushed yet
   Iterable<DomainEvent> get remaining {
@@ -560,8 +556,7 @@ class Transaction {
 
   /// Get concurrent modifications
   Iterable<DomainEvent> get concurrent => (exists && isStarted
-          ? (aggregate?._localEvents?.where((e) => !_changes.contains(e)) ??
-              <DomainEvent>[])
+          ? (aggregate?._localEvents?.where((e) => !_changes.contains(e)) ?? <DomainEvent>[])
           : <DomainEvent>[])
       .toList();
 
@@ -809,21 +804,13 @@ class Transaction {
       'maxAttempts': _maxAttempts,
       'changes': {
         'count': _changes.length,
-        if (_changes.isNotEmpty)
-          'first': '${_changes.first.type}@${_changes.first.number}',
-        if (_changes.isNotEmpty)
-          'last': '${_changes.last.type}@${_changes.last.number}',
-        if (items)
-          'items': _changes
-              .map((e) => repo.store.toJsonEvent(e, patches: data))
-              .toList(),
+        if (_changes.isNotEmpty) 'first': '${_changes.first.type}@${_changes.first.number}',
+        if (_changes.isNotEmpty) 'last': '${_changes.last.type}@${_changes.last.number}',
+        if (items) 'items': _changes.map((e) => repo.store.toJsonEvent(e, patches: data)).toList(),
       },
       'conflicts': {
         'count': conflicting.length,
-        if (items)
-          'items': conflicting
-              .map((e) => repo.store.toJsonEvent(e, patches: data))
-              .toList(),
+        if (items) 'items': conflicting.map((e) => repo.store.toJsonEvent(e, patches: data)).toList(),
       },
       'status': {
         'isStarted': isStarted,
@@ -841,11 +828,8 @@ class Transaction {
         'trx.tag': '${toTagAsString()}',
         if (pressure != null) 'trx.pressure': '$pressure',
         'trx.changes': '${_changes.length}',
-        if (_changes.isNotEmpty)
-          'trx.changes.last': '${_changes.last.type}@${_changes.last.number}',
-        if (_changes.isNotEmpty)
-          'trx.changes.first':
-              '${_changes.first.type}@${_changes.first.number}',
+        if (_changes.isNotEmpty) 'trx.changes.last': '${_changes.last.type}@${_changes.last.number}',
+        if (_changes.isNotEmpty) 'trx.changes.first': '${_changes.first.type}@${_changes.first.number}',
         'trx.concurrent': '${concurrent.length}',
         'trx.conflicts': '${conflicting.length}',
         'trx.results': '${result?.length}',
@@ -873,10 +857,7 @@ class Transaction {
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Transaction &&
-          runtimeType == other.runtimeType &&
-          uuid == other.uuid;
+      identical(this, other) || other is Transaction && runtimeType == other.runtimeType && uuid == other.uuid;
 
   @override
   int get hashCode => uuid.hashCode;
@@ -994,8 +975,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
   void _awaitReady(Completer<bool> completer) async {
     if (_isReady == false || isReplaying) {
-      Future.delayed(
-          const Duration(milliseconds: 100), () => _awaitReady(completer));
+      Future.delayed(const Duration(milliseconds: 100), () => _awaitReady(completer));
     } else {
       completer.complete(true);
     }
@@ -1009,9 +989,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// regardless of [EventStore.last].
   ///
   EventNumber get number {
-    return _aggregates.values.where((a) => !a.isNew).isEmpty
-        ? EventNumber.none
-        : store.last();
+    return _aggregates.values.where((a) => !a.isNew).isEmpty ? EventNumber.none : store.last();
   }
 
   /// Get last event applied to repository,
@@ -1021,9 +999,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// null is returned regardless of [EventStore.lastEvent].
   ///
   Event get lastEvent {
-    return _aggregates.values.where((a) => !a.isNew).isEmpty
-        ? null
-        : store.lastEvent();
+    return _aggregates.values.where((a) => !a.isNew).isEmpty ? null : store.lastEvent();
   }
 
   /// Maximum backoff duration between retries
@@ -1042,8 +1018,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   final Map<String, T> _aggregates = {};
 
   /// Get number of aggregates
-  int count({bool deleted = false}) =>
-      _aggregates.values.where((test) => deleted || !test.isDeleted).length;
+  int count({bool deleted = false}) => _aggregates.values.where((test) => deleted || !test.isDeleted).length;
 
   /// Get aggregate uuid from event
   String toAggregateUuid(Event event) => event.data[uuidFieldName] as String;
@@ -1051,19 +1026,15 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Create aggregate root with given id. Should only called from within [Repository].
   @protected
   @visibleForOverriding
-  T create(Map<String, ProcessCallback> processors, String uuid,
-      Map<String, dynamic> data);
+  T create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data);
 
   /// Check given aggregate root exists.
   /// An aggregate exists IFF it repository contains it and is not deleted
-  bool exists(String uuid) =>
-      contains(uuid) && !get(uuid, strict: false).isDeleted;
+  bool exists(String uuid) => contains(uuid) && !get(uuid, strict: false).isDeleted;
 
   /// Check if given aggregate root exists (may need to be loaded from store)
   bool contains(String uuid) =>
-      _aggregates.containsKey(uuid) ||
-      store.contains(uuid) ||
-      hasSnapshot && snapshot.contains(uuid);
+      _aggregates.containsKey(uuid) || store.contains(uuid) || hasSnapshot && snapshot.contains(uuid);
 
   /// Used in [dispose] to close open subscriptions
   StreamSubscription _pushQueueSubscription;
@@ -1156,8 +1127,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   void _reorder(Iterable<AnalyzeResult> results) {
     if (isNotEmpty) {
       // Get correct uuid to stream mappings
-      final streams = results.fold<Map<String, String>>(<String, String>{},
-          (uuids, result) {
+      final streams = results.fold<Map<String, String>>(<String, String>{}, (uuids, result) {
         // Map unexpected uuid to analyzed stream
         uuids[result.streams.keys.first] = result.stream;
         return uuids;
@@ -1175,13 +1145,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       );
 
       // Reorder aggregates
-      final unknown =
-          _aggregates.keys.where((uuid) => !streams.containsKey(uuid)).toList();
+      final unknown = _aggregates.keys.where((uuid) => !streams.containsKey(uuid)).toList();
       if (unknown.isNotEmpty) {
         throw AggregateNotFound('Aggregates not found: $unknown');
       }
-      final next =
-          LinkedHashMap<String, T>(); // ignore: prefer_collection_literals
+      final next = LinkedHashMap<String, T>(); // ignore: prefer_collection_literals
       for (var uuid in ordered.keys) {
         next[uuid] = _aggregates[uuid];
       }
@@ -1253,8 +1221,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     }
   }
 
-  void _onQueueError(StreamRequest request, String message, Object error,
-      [StackTrace stackTrace]) {
+  void _onQueueError(StreamRequest request, String message, Object error, [StackTrace stackTrace]) {
     final trx = request.tag as Transaction;
 
     if (trx.isOpen) {
@@ -1288,8 +1255,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     }
   }
 
-  String _toPressureString() =>
-      'queue pressure: ${_pushQueue.length}, command pressure: ${_commands.length}';
+  String _toPressureString() => 'queue pressure: ${_pushQueue.length}, command pressure: ${_commands.length}';
 
   StreamRequest _checkSlowPush(StreamRequestCompleted result, int limit) {
     final request = result.request;
@@ -1418,8 +1384,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     return _snapshot;
   }
 
-  bool _shouldReset(String prev, String next) =>
-      next != null && (prev == null || prev != next);
+  bool _shouldReset(String prev, String next) => next != null && (prev == null || prev != next);
 
   /// Replay events into this [Repository].
   ///
@@ -1566,15 +1531,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         });
       } else {
         _snapshot = null;
-        _aggregates.values
-            .where((a) => uuids.isEmpty || uuids.contains(a.uuid))
-            .forEach(
+        _aggregates.values.where((a) => uuids.isEmpty || uuids.contains(a.uuid)).forEach(
               (a) => a._reset(this),
             );
       }
-      final base = _snapshot == null
-          ? 'origin'
-          : 'snapshot ${_snapshot.uuid}@${snapshot.number.value}';
+      final base = _snapshot == null ? 'origin' : 'snapshot ${_snapshot.uuid}@${snapshot.number.value}';
       context.info(
         uuids.isEmpty ? 'Reset to $base' : 'Reset aggregates $uuids to $base',
         category: 'Repository.reset',
@@ -1616,8 +1577,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
             });
           }
         });
-        final count =
-            events.values.fold<int>(0, (count, list) => count += list.length);
+        final count = events.values.fold<int>(0, (count, list) => count += list.length);
         context.info(
           uuids.isEmpty
               ? 'Purged $count events before snapshot '
@@ -1683,8 +1643,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     );
 
     // Replace data with given
-    final json = Map<String, dynamic>.from(
-        data ?? JsonPatch.apply(aggregate.data ?? {}, patches) as Map)
+    final json = Map<String, dynamic>.from(data ?? JsonPatch.apply(aggregate.data ?? {}, patches) as Map)
       ..addAll({
         // Overwrite any 'uuid' in given data or patch
         'uuid': uuid,
@@ -1702,9 +1661,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Check if event is applied to an aggregate
   bool isApplied(Event event) {
     final uuid = toAggregateUuid(event);
-    return _aggregates.containsKey(uuid)
-        ? _aggregates[uuid].isApplied(event)
-        : false;
+    return _aggregates.containsKey(uuid) ? _aggregates[uuid].isApplied(event) : false;
   }
 
   /// Get domain event from given [event]
@@ -1984,8 +1941,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           );
   }
 
-  Future<String> _onNextCommand(
-      S command, DateTime tic, Duration timeout) async {
+  Future<String> _onNextCommand(S command, DateTime tic, Duration timeout) async {
     final uuid = _assertExecute(
       command,
     );
@@ -2129,8 +2085,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   }
 
   /// Check if this [Repository] contains any aggregates with [AggregateRoot.isChanged]
-  bool get isChanged =>
-      _aggregates.values.any((aggregate) => aggregate.isChanged);
+  bool get isChanged => _aggregates.values.any((aggregate) => aggregate.isChanged);
 
   /// Check if [Repository] is processing changes
   bool get isProcessing => _pushQueue.isNotEmpty;
@@ -2256,8 +2211,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   var _pushQueue = StreamRequestQueue<Iterable<DomainEvent>>();
 
   /// Check if [push] or [execute] is possible
-  bool get isMaximumPushPressure =>
-      maxPushPressure != null && pressure >= maxPushPressure;
+  bool get isMaximumPushPressure => maxPushPressure != null && pressure >= maxPushPressure;
 
   /// Map of metrics
   final Map<String, DurationMetric> _metrics = {
@@ -2308,9 +2262,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   Transaction _assertPush(Context context, String uuid, int maxAttempts) {
     if (isMaximumPushPressure) {
       final aggregate = _aggregates[uuid];
-      final changes = (inTransaction(uuid)
-          ? getTransaction(uuid).changes
-          : aggregate?.getLocalEvents());
+      final changes = (inTransaction(uuid) ? getTransaction(uuid).changes : aggregate?.getLocalEvents());
       throw RepositoryMaxPressureExceeded(
         'Push of ${changes.length} changes in $aggregateType $uuid failed',
         uuid,
@@ -2469,8 +2421,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   }
 
   /// Attempts to reconcile conflicts between concurrent modifications
-  Future<StreamResult<Iterable<DomainEvent>>> _reconcile(
-      Transaction trx) async {
+  Future<StreamResult<Iterable<DomainEvent>>> _reconcile(Transaction trx) async {
     final aggregate = _assertTrx(trx);
     if (trx.context.isLoggable(ContextLevel.debug)) {
       trx.context.debug(
@@ -2527,10 +2478,9 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   }
 
   /// Rollback all changes
-  Iterable<Function> rollbackAll() =>
-      _aggregates.values.where((aggregate) => aggregate.isChanged).map(
-            (aggregate) => rollback,
-          );
+  Iterable<Function> rollbackAll() => _aggregates.values.where((aggregate) => aggregate.isChanged).map(
+        (aggregate) => rollback,
+      );
 
   /// Rollback all pending changes
   /// in [T] with given uuid. Any
@@ -2557,8 +2507,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
     // Do not assert when transaction must be completed
     final aggregate = complete ? _aggregates[uuid] : _assertExists(uuid);
-    final remaining =
-        trx?.remaining ?? aggregate?.getLocalEvents() ?? <DomainEvent>[];
+    final remaining = trx?.remaining ?? aggregate?.getLocalEvents() ?? <DomainEvent>[];
 
     // Reset aggregate last known head
     aggregate?._reset(this, toHead: exists);
@@ -2659,24 +2608,15 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         // Only include if search is recursive or root matches object
         if (all || root.contains('data')) 'data': item.data,
         if (all || root.contains('number')) 'number': item.number.value,
-        if (all || root.contains('position'))
-          'position': store.toPosition(item.baseEvent),
-        if (all || root.contains('createdBy'))
-          'createdBy': item.createdBy.toJson(),
-        if (all || root.contains('changedBy'))
-          'changedBy': item.changedBy.toJson(),
-        if ((all || root.contains('deletedBy')) && item.deletedBy != null)
-          'deletedBy': item.deletedBy.toJson(),
-        if (all || root.contains('applied'))
-          'applied': item.applied.map((e) => e.toJson()),
-        if (all || root.contains('changed'))
-          'changed': item.getLocalEvents().map((e) => e.toJson()),
-        if (all || root.contains('skipped'))
-          'skipped': item.skipped.map((e) => store.getEvent(e).toJson()),
-        if ((all || root.contains('taint')) && store.isTainted(item.uuid))
-          'taint': store.tainted[item.uuid],
-        if ((all || root.contains('cordon')) && store.isCordoned(item.uuid))
-          'cordon': store.cordoned[item.uuid],
+        if (all || root.contains('position')) 'position': store.toPosition(item.baseEvent),
+        if (all || root.contains('createdBy')) 'createdBy': item.createdBy.toJson(),
+        if (all || root.contains('changedBy')) 'changedBy': item.changedBy.toJson(),
+        if ((all || root.contains('deletedBy')) && item.deletedBy != null) 'deletedBy': item.deletedBy.toJson(),
+        if (all || root.contains('applied')) 'applied': item.applied.map((e) => e.toJson()),
+        if (all || root.contains('changed')) 'changed': item.getLocalEvents().map((e) => e.toJson()),
+        if (all || root.contains('skipped')) 'skipped': item.skipped.map((e) => store.getEvent(e).toJson()),
+        if ((all || root.contains('taint')) && store.isTainted(item.uuid)) 'taint': store.tainted[item.uuid],
+        if ((all || root.contains('cordon')) && store.isCordoned(item.uuid)) 'cordon': store.cordoned[item.uuid],
       });
       if (matches.isNotEmpty) {
         items.addAll(matches.map((e) => SearchMatch(
@@ -2688,6 +2628,17 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     }
     return items;
   }
+
+  /// Get aggregate with given [uuid].
+  ///
+  /// Return aggregate if exists, null otherwise.
+  ///
+  /// Equal to calling
+  ///
+  /// ```dart
+  /// repo.get(uuid, createNew: false, strict: false)
+  /// ```
+  T peek(String uuid) => get(uuid, createNew: false, strict: false);
 
   /// Get aggregate with given [uuid].
   ///
@@ -2744,9 +2695,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
             // If aggregate have no remote events,
             // always fail (never allow local creation
             // of aggregate that throws an JsonPatchError)
-            if (strict ||
-                !contains(uuid) ||
-                !SourceEventErrorHandler.isHandling(error)) {
+            if (strict || !contains(uuid) || !SourceEventErrorHandler.isHandling(error)) {
               rethrow;
             }
           }
@@ -2840,8 +2789,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
 
       case Action.delete:
         if (!array.contains(command.entityId)) {
-          throw EntityNotFound(
-              'Entity ${command.aggregateField} ${command.entityId} does not exists');
+          throw EntityNotFound('Entity ${command.aggregateField} ${command.entityId} does not exists');
         }
         index = array.indexOf(command.entityId);
         final entities = array.remove(command.entityId);
@@ -2883,8 +2831,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
         if (snapshot == null)
           'repository.snapshot.aggregate.number': 'null'
         else
-          'repository.snapshot.aggregate.number':
-              '${snapshot.aggregates[uuid]?.number}',
+          'repository.snapshot.aggregate.number': '${snapshot.aggregates[uuid]?.number}',
         'store.connection': '${store.connection.host}:${store.connection.port}',
         'store.events.count': '${store.length}',
         'store.number.instance': '${store.last(uuid: uuid)}',
@@ -2942,9 +2889,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
           'events': store.length,
           'aggregates': {
             'count': count(),
-            'changed': _aggregates.values
-                .where((aggregate) => aggregate.isChanged)
-                .length,
+            'changed': _aggregates.values.where((aggregate) => aggregate.isChanged).length,
             'tainted': {
               'count': store.tainted.length,
               if (items)
@@ -2985,17 +2930,14 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     return {
       'catchup': {
         if (_storeSubscriptionController != null)
-          'type': _storeSubscriptionController.isCompeting
-              ? 'compete'
-              : 'subscribe',
+          'type': _storeSubscriptionController.isCompeting ? 'compete' : 'subscribe',
         'mode': isAutomatic ? 'automatic' : 'manual',
         'exists': store.hasSubscription(this),
         if (_storeSubscriptionController != null)
           'last': {
             'type': '${_storeSubscriptionController.lastEvent?.type}',
             'number': '${_storeSubscriptionController.lastEvent?.number}',
-            'timestamp':
-                '${_storeSubscriptionController.lastEvent?.created?.toIso8601String()}',
+            'timestamp': '${_storeSubscriptionController.lastEvent?.created?.toIso8601String()}',
           },
         if (_storeSubscriptionController != null)
           'metrics': {
@@ -3010,8 +2952,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
       },
       'push': {
         'exists': _pushQueueSubscription != null,
-        if (_pushQueueSubscription != null)
-          'isPaused': _pushQueueSubscription.isPaused,
+        if (_pushQueueSubscription != null) 'isPaused': _pushQueueSubscription.isPaused,
       },
     };
   }
@@ -3114,8 +3055,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   int get behind {
     return isBehind
         // Calculate number of events behind
-        ? (baseEvent?.number ?? EventNumber.none).value -
-            (headEvent?.number?.value ?? 0)
+        ? (baseEvent?.number ?? EventNumber.none).value - (headEvent?.number?.value ?? 0)
         : 0;
   }
 
@@ -3278,12 +3218,10 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   T elementAt<T>(String path) => _data.elementAt(path) as T;
 
   /// Get list at given path
-  List<T> listAt<T>(String path, {List<T> defaultList}) =>
-      _data.listAt<T>(path) ?? defaultList;
+  List<T> listAt<T>(String path, {List<T> defaultList}) => _data.listAt<T>(path) ?? defaultList;
 
   /// Get Map at given path
-  Map<S, T> mapAt<S, T>(String path, {Map<S, T> defaultMap}) =>
-      _data.mapAt<S, T>(path) ?? defaultMap;
+  Map<S, T> mapAt<S, T>(String path, {Map<S, T> defaultMap}) => _data.mapAt<S, T>(path) ?? defaultMap;
 
   /// Calculate [data] state from [base] to given
   /// [event]. Note that this method will be
@@ -3298,8 +3236,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     }
     if (event.number == number) {
       return data;
-    } else if (event.number.isFirst ||
-        _snapshot.number.value == event.number.value) {
+    } else if (event.number.isFirst || _snapshot.number.value == event.number.value) {
       return base;
     }
     final events = _applied.values.toList();
@@ -3351,9 +3288,8 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// 3. [SnapshotModel.changedBy]
   /// 4. [changedBy] (new aggregate)
   ///
-  DomainEvent get lastEvent => _localEvents.isNotEmpty
-      ? _localEvents.last
-      : (_applied.isNotEmpty ? _applied.values.last : _changedBy);
+  DomainEvent get lastEvent =>
+      _localEvents.isNotEmpty ? _localEvents.last : (_applied.isNotEmpty ? _applied.values.last : _changedBy);
 
   /// Get current snapshot if taken
   AggregateRootModel get snapshot => _snapshot;
@@ -3363,8 +3299,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   Iterable<DomainEvent> get applied => List.unmodifiable(_applied.values);
 
   /// [Message.uuid]s of applied events
-  final LinkedHashMap<String, DomainEvent> _applied =
-      LinkedHashMap<String, DomainEvent>();
+  final LinkedHashMap<String, DomainEvent> _applied = LinkedHashMap<String, DomainEvent>();
 
   /// List of remote events not applied because of errors
   Iterable<String> get skipped => List.unmodifiable(_skipped);
@@ -3440,8 +3375,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   /// Get [yours] patches if [hasConflicts].
   List<Map<String, dynamic>> get yours {
     if (_yourIndex < _remoteEvents.length) {
-      final added =
-          _remoteEvents.skip(_yourIndex).where((e) => e.patches.isNotEmpty);
+      final added = _remoteEvents.skip(_yourIndex).where((e) => e.patches.isNotEmpty);
       if (added.isNotEmpty) {
         final yours = added.fold<List<Map<String, dynamic>>>(
           _yours.toList(),
@@ -3521,16 +3455,12 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     final offset = number - behind;
 
     // Get events from local to remote head
-    final first = (_applied.values.firstOrNull?.number?.value ??
-        snapshot?.number?.value ??
-        0);
+    final first = (_applied.values.firstOrNull?.number?.value ?? snapshot?.number?.value ?? 0);
     final remote = max(offset.value - first, 0);
     final events = repo.store.get(uuid).skip(remote);
 
     // Only catchup from current event number
-    events
-        ?.where((event) => event.remote && event.number > offset)
-        ?.forEach((event) {
+    events?.where((event) => event.remote && event.number > offset)?.forEach((event) {
       try {
         _apply(
           // Must use this method to ensure previous
@@ -3753,8 +3683,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
         );
       }
       // Not starting successively from head of changes?
-      if (_localEvents.take(changes.length).map((e) => e.uuid) ==
-          changes.map((e) => e.uuid)) {
+      if (_localEvents.take(changes.length).map((e) => e.uuid) == changes.map((e) => e.uuid)) {
         throw WriteFailed(
           'Failed to commit $changes to $runtimeType $uuid: did not match head of uncommitted changes $_localEvents',
         );
@@ -4018,8 +3947,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     bool skip = false,
     bool strict = true,
   }) {
-    assert(!isApplied(event),
-        'Event ${event.type}@${event.number} already applied');
+    assert(!isApplied(event), 'Event ${event.type}@${event.number} already applied');
 
     if (!skip) {
       if (strict) {
@@ -4079,9 +4007,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     // 2. Check if any of mine and yours patches collide
     final eq = const MapEquality().equals;
     final conflicts = concurrent.where(
-      (op1) => head
-          .where((op2) => op2['path'] == op1['path'] && !eq(op1, op2))
-          .isNotEmpty,
+      (op1) => head.where((op2) => op2['path'] == op1['path'] && !eq(op1, op2)).isNotEmpty,
     );
 
     if (hasConflicts || conflicts.isNotEmpty) {
@@ -4154,8 +4080,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     }
   }
 
-  Map<String, dynamic> _verifyData(
-      Map<String, dynamic> prev, Map<String, dynamic> next) {
+  Map<String, dynamic> _verifyData(Map<String, dynamic> prev, Map<String, dynamic> next) {
     // TODO: Implement data verification
     return next;
   }
@@ -4306,10 +4231,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is AggregateRoot &&
-          runtimeType == other.runtimeType &&
-          uuid == other.uuid;
+      identical(this, other) || other is AggregateRoot && runtimeType == other.runtimeType && uuid == other.uuid;
 
   @override
   int get hashCode => uuid.hashCode;
@@ -4355,8 +4277,7 @@ class EntityArray {
   bool get isNotEmpty => _asArray().isNotEmpty;
 
   /// Check if id exists
-  bool contains(String id) =>
-      id != null && _asArray().any((data) => _toId(data) == id);
+  bool contains(String id) => id != null && _asArray().any((data) => _toId(data) == id);
 
   /// Next EntityObject id.
   ///
@@ -4496,10 +4417,7 @@ class EntityObject {
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is EntityObject &&
-          runtimeType == other.runtimeType &&
-          id == other.id;
+      identical(this, other) || other is EntityObject && runtimeType == other.runtimeType && id == other.id;
 
   @override
   int get hashCode => id.hashCode;
@@ -4519,8 +4437,7 @@ abstract class MergeStrategy {
     return _reconcileWithRetry(trx, 1);
   }
 
-  Future<Iterable<DomainEvent>> _reconcileWithRetry(
-      Transaction trx, int attempt) async {
+  Future<Iterable<DomainEvent>> _reconcileWithRetry(Transaction trx, int attempt) async {
     _attempt = attempt;
     trx.context.debug(
       'Attempt to reconcile ${trx.repo.aggregateType} ${trx.uuid} (attempt $attempt)',

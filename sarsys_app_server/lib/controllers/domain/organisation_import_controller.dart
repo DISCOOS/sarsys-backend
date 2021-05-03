@@ -107,7 +107,7 @@ class OrganisationImportController
 
   List<Map<String, dynamic>> _validate(String uuid, Map<String, dynamic> data) {
     final tree = validate<Map<String, dynamic>>("${aggregateType}Tree", data);
-    final org = primary.get(uuid, createNew: false);
+    final org = primary.peek(uuid);
     final divs = List<Map<String, dynamic>>.from(tree.elementAt('divisions') ?? []);
 
     // Check for name conflicts with divisions in given organisation
@@ -125,11 +125,7 @@ class OrganisationImportController
           (conflicts, div) => conflicts
             ..addAll(_verifyUniqueNames<Department>(
               List<String>.from(
-                divisionController.repository
-                        .get(div.elementAt<String>('uuid'), createNew: false)
-                        ?.data
-                        ?.elementAt('departments') ??
-                    [],
+                divisionController.repository.peek(div.elementAt<String>('uuid'))?.data?.elementAt('departments') ?? [],
               ).where(departmentController.repository.contains).map(departmentController.repository.get),
               departmentController.repository,
               List<Map<String, dynamic>>.from(div.elementAt('departments') ?? []),
