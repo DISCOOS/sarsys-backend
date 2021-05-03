@@ -15,8 +15,10 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
           validation: validation,
           readOnly: const [
             'unit',
+            'tracking',
             'messages',
             'operation',
+            'affiliation',
             'transitions',
           ],
           tag: 'Personnels',
@@ -78,13 +80,18 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
     }
   }
 
+  final skipped = const ['affiliation'];
+
   @override
   @Operation('PATCH', 'uuid')
   Future<Response> update(
     @Bind.path('uuid') String uuid,
     @Bind.body() Map<String, dynamic> data,
   ) {
-    return super.update(uuid, data..remove('tracking'));
+    return super.update(
+      uuid,
+      data..removeWhere((key, _) => skipped.contains(key)),
+    );
   }
 
   @override
@@ -127,7 +134,12 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
           final person = persons.get(puuid, createNew: false);
           if (person != null) {
             // Do not overwrite personnel.uuid
-            personnel.addAll({'person': person.data});
+            personnel.addAll({
+              'affiliation': Map<String, dynamic>.from(affiliation.data)
+                ..addAll({
+                  'person': person.data,
+                })
+            });
           }
         }
       }

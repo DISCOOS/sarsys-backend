@@ -159,7 +159,7 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
 
         // Does person exists?
         if (await exists(puuid, repo: persons)) {
-          final events = await persons.execute(
+          await persons.execute(
             UpdatePersonInformation(person),
             context: request.toContext(logger),
           );
@@ -299,7 +299,25 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
   Future<Response> update(
     @Bind.path('uuid') String uuid,
     @Bind.body() Map<String, dynamic> data,
-  ) {
+  ) async {
+    final puuid = data.elementAt<String>('person/uuid');
+    if (puuid != null) {
+      final duplicates = await _findDuplicates(
+        data,
+        puuid,
+      );
+      if (duplicates.isNotEmpty) {
+        return conflict(
+          ConflictType.exists,
+          'Person $puuid have duplicate affiliations',
+          code: 'duplicate_affiliations',
+          mine: duplicates,
+          yours: [data],
+          // Reuse first duplicate as base
+          base: duplicates.first,
+        );
+      }
+    }
     return super.update(uuid, data);
   }
 
