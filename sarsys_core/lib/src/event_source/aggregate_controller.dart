@@ -51,12 +51,19 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
   Future<bool> exists(String uuid, {Repository repo}) async {
     final _repo = repo ?? repository;
     if (!_repo.exists(uuid)) {
-      await _repo.catchup(
-        master: true,
-        uuids: [uuid],
-      );
+      await catchup(uuids: [uuid]);
     }
     return _repo.exists(uuid);
+  }
+
+  /// Catch up to remote head of repository stream
+  Future<int> catchup({Repository repo, List<String> uuids}) {
+    final _repo = repo ?? repository;
+    return _repo.catchup(
+      master: true,
+      uuids: uuids,
+      context: request.toContext(logger),
+    );
   }
 
   //////////////////////////////////

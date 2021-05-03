@@ -15,7 +15,7 @@ Future main() async {
     final puuid = Uuid().v4();
     final orguuid = Uuid().v4();
     await _prepare(harness, puuid: puuid, orguuid: orguuid);
-    final body = _createData(auuid, puuid: puuid, orguuid: orguuid);
+    final body = createAffiliation(auuid, puuid: puuid, orguuid: orguuid);
     expectResponse(await harness.agent.post("/api/affiliations", body: body), 201, body: null);
   });
 
@@ -88,30 +88,32 @@ Future main() async {
     );
   });
 
-  test("POST /api/affiliations returns status code 200 when person is updated", () async {
+  test("POST /api/affiliations returns status code 201 when person is updated", () async {
     final auuid = Uuid().v4();
     final puuid = Uuid().v4();
     final orguuid = Uuid().v4();
     await _prepare(harness, orguuid: orguuid);
     final person = createPerson(puuid);
+    final updated = Map.from(person)..addAll({'fname': 'updated'});
     final affiliation = createAffiliation(auuid, puuid: puuid, orguuid: orguuid);
     final affiliate = Map.from(affiliation);
-    affiliate['person'] = Map.from(person)..addAll({'fname': 'updated'});
+    affiliate['person'] = updated;
 
     // Act
     expectResponse(await harness.agent.post("/api/persons", body: person), 201);
 
     // Assert
-    final response = expectResponse(
+    expectResponse(
       await harness.agent.post("/api/affiliations", body: affiliate),
-      200,
+      201,
       body: null,
     );
-    final actual = await response.body.decode();
-    expect(actual['data'], affiliate);
+    final response1 = expectResponse(await harness.agent.get("/api/persons/$puuid"), 200);
+    final actualPerson = await response1.body.decode();
+    expect(actualPerson['data'], updated);
   });
 
-  test("POST /api/affiliations returns status code 200 when same user exists", () async {
+  test("POST /api/affiliations returns status code 409 when same user exists", () async {
     const userid = 'user1';
 
     final auuid = Uuid().v4();
@@ -119,11 +121,11 @@ Future main() async {
     final puuid2 = Uuid().v4();
     final orguuid = Uuid().v4();
     final user1 = createPerson(puuid1, userId: userid);
-    final person2 = createPerson(puuid2, userId: userid);
+    final duplicate = createPerson(puuid2, userId: userid);
     await _prepare(harness, orguuid: orguuid);
     final affiliation = createAffiliation(auuid, puuid: puuid1, orguuid: orguuid);
     final affiliate = Map.from(affiliation);
-    affiliate['person'] = person2;
+    affiliate['person'] = duplicate;
 
     // Act
     expectResponse(await harness.agent.post("/api/persons", body: user1), 201);
@@ -131,53 +133,99 @@ Future main() async {
     // Assert
     final response = expectResponse(
       await harness.agent.post("/api/affiliations", body: affiliate),
-      200,
-      body: null,
+      409,
     );
 
     // Assert
-    final actualAffiliate = await response.body.decode();
+    final conflict = await response.body.decode() as Map<String, dynamic>;
     expect(
-      actualAffiliate['data'],
-      affiliate
-        ..addAll({
-          'person': user1,
-        }),
+      conflict.elementAt<String>('code'),
+      'duplicate_user_id',
+    );
+    expect(
+      conflict.mapAt<String, dynamic>('base'),
+      user1,
+    );
+    expect(
+      conflict.listAt<Map<String, dynamic>>('mine'),
+      [user1],
+    );
+    expect(
+      conflict.listAt<Map<String, dynamic>>('yours'),
+      [affiliate],
     );
   });
 
-  test("POST /api/affiliations returns status code 200 when affiliation of type 'volunteer' exists", () async {
-    const userid = 'user1';
-
-    final auuid = Uuid().v4();
-    final puuid1 = Uuid().v4();
-    final puuid2 = Uuid().v4();
-    final orguuid = Uuid().v4();
-    final user1 = createPerson(puuid1, userId: userid);
-    final person2 = createPerson(puuid2, userId: userid);
-    await _prepare(harness, orguuid: orguuid);
-    final affiliation = createAffiliation(auuid, puuid: puuid1, orguuid: orguuid);
-    final affiliate = Map.from(affiliation);
-    affiliate['person'] = person2;
+  test("POST /api/affiliations returns status code 409 when unorganized affiliate exists", () async {
+    // Arrange
+    final puuid = Uuid().v4();
+    await _prepare(harness, puuid: puuid) as Map<String, dynamic>;
+    final unorganized = createAffiliation(Uuid().v4(), puuid: puuid);
+    final duplicate = createAffiliation(Uuid().v4(), puuid: puuid);
 
     // Act
-    expectResponse(await harness.agent.post("/api/persons", body: user1), 201);
+    expectResponse(await harness.agent.post("/api/affiliations", body: unorganized), 201);
 
     // Assert
     final response = expectResponse(
-      await harness.agent.post("/api/affiliations", body: affiliate),
-      200,
-      body: null,
+      await harness.agent.post("/api/affiliations", body: duplicate),
+      409,
     );
 
     // Assert
-    final actualAffiliate = await response.body.decode();
+    final conflict = await response.body.decode() as Map<String, dynamic>;
     expect(
-      actualAffiliate['data'],
-      affiliate
-        ..addAll({
-          'person': user1,
-        }),
+      conflict.elementAt<String>('code'),
+      'duplicate_affiliations',
+    );
+    expect(
+      conflict.mapAt<String, dynamic>('base'),
+      unorganized,
+    );
+    expect(
+      conflict.listAt<Map<String, dynamic>>('mine'),
+      [unorganized],
+    );
+    expect(
+      conflict.listAt<Map<String, dynamic>>('yours'),
+      [duplicate],
+    );
+  });
+
+  test("POST /api/affiliations returns status code 409 when organized affiliate exists", () async {
+    // Arrange
+    final puuid = Uuid().v4();
+    final ouuid = Uuid().v4();
+    await _prepare(harness, puuid: puuid);
+    final organized = createAffiliation(Uuid().v4(), puuid: puuid, orguuid: ouuid);
+    final duplicate = createAffiliation(Uuid().v4(), puuid: puuid, orguuid: ouuid);
+
+    // Act
+    expectResponse(await harness.agent.post("/api/affiliations", body: organized), 201);
+
+    // Assert
+    final response = expectResponse(
+      await harness.agent.post("/api/affiliations", body: duplicate),
+      409,
+    );
+
+    // Assert
+    final conflict = await response.body.decode() as Map<String, dynamic>;
+    expect(
+      conflict.elementAt<String>('code'),
+      'duplicate_affiliations',
+    );
+    expect(
+      conflict.mapAt<String, dynamic>('base'),
+      organized,
+    );
+    expect(
+      conflict.listAt<Map<String, dynamic>>('mine'),
+      [organized],
+    );
+    expect(
+      conflict.listAt<Map<String, dynamic>>('yours'),
+      [duplicate],
     );
   });
 
@@ -214,7 +262,7 @@ Future main() async {
     final puuid = Uuid().v4();
     final orguuid = Uuid().v4();
     await _prepare(harness, puuid: puuid, orguuid: orguuid);
-    final body = _createData(auuid, puuid: puuid, orguuid: orguuid);
+    final body = createAffiliation(auuid, puuid: puuid, orguuid: orguuid);
     expectResponse(await harness.agent.post("/api/affiliations", body: body), 201, body: null);
     expectResponse(await harness.agent.execute("PATCH", "/api/affiliations/$auuid", body: body), 204, body: null);
     final response = expectResponse(await harness.agent.get("/api/affiliations/$auuid"), 200);
@@ -227,7 +275,7 @@ Future main() async {
     final puuid = Uuid().v4();
     final orguuid = Uuid().v4();
     await _prepare(harness, puuid: puuid, orguuid: orguuid);
-    final body = _createData(auuid, puuid: puuid, orguuid: orguuid);
+    final body = createAffiliation(auuid, puuid: puuid, orguuid: orguuid);
     expectResponse(await harness.agent.post("/api/affiliations", body: body), 201, body: null);
     expectResponse(await harness.agent.execute("PATCH", "/api/affiliations/$auuid", body: {}), 204, body: null);
     final response = expectResponse(await harness.agent.get("/api/affiliations/$auuid"), 200);
@@ -240,24 +288,30 @@ Future main() async {
     final puuid = Uuid().v4();
     final orguuid = Uuid().v4();
     await _prepare(harness, puuid: puuid, orguuid: orguuid);
-    final body = _createData(auuid, puuid: puuid, orguuid: orguuid);
+    final body = createAffiliation(auuid, puuid: puuid, orguuid: orguuid);
     expectResponse(await harness.agent.post("/api/affiliations", body: body), 201, body: null);
     expectResponse(await harness.agent.delete("/api/affiliations/$auuid"), 204);
   });
 
   test("DELETE person returns 204 after affiliations are deleted", () async {
-    final puuid = Uuid().v4();
+    final puuid1 = Uuid().v4();
+    final puuid2 = Uuid().v4();
+    final puuid3 = Uuid().v4();
+    final puuid4 = Uuid().v4();
     final orguuid = Uuid().v4();
-    await _prepare(harness, puuid: puuid, orguuid: orguuid);
-    final a1 = _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid);
-    final a2 = _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid);
-    final a3 = _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid);
-    final a4 = _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid);
+    await _prepare(harness, orguuid: orguuid);
+    final a1 = createAffiliation(Uuid().v4(), puuid: puuid1, orguuid: orguuid);
+    final a2 = createAffiliation(Uuid().v4(), puuid: puuid2, orguuid: orguuid);
+    final a3 = createAffiliation(Uuid().v4(), puuid: puuid3, orguuid: orguuid);
+    final a4 = createAffiliation(Uuid().v4(), puuid: puuid4, orguuid: orguuid);
     await harness.agent.post("/api/affiliations", body: a1);
     await harness.agent.post("/api/affiliations", body: a2);
     await harness.agent.post("/api/affiliations", body: a3);
     await harness.agent.post("/api/affiliations", body: a4);
-    expectResponse(await harness.agent.delete("/api/persons/$puuid"), 204);
+    expectResponse(await harness.agent.delete("/api/persons/$puuid1"), 204);
+    expectResponse(await harness.agent.delete("/api/persons/$puuid2"), 204);
+    expectResponse(await harness.agent.delete("/api/persons/$puuid3"), 204);
+    expectResponse(await harness.agent.delete("/api/persons/$puuid4"), 204);
     expectResponse(await harness.agent.get("/api/affiliations/${a1.elementAt('uuid')}"), 404);
     expectResponse(await harness.agent.get("/api/affiliations/${a2.elementAt('uuid')}"), 404);
     expectResponse(await harness.agent.get("/api/affiliations/${a3.elementAt('uuid')}"), 404);
@@ -265,14 +319,13 @@ Future main() async {
   });
 
   test("DELETE division returns 204 after affiliations are deleted", () async {
-    final puuid = Uuid().v4();
     final orguuid = Uuid().v4();
     final divuuid = Uuid().v4();
-    await _prepare(harness, puuid: puuid, orguuid: orguuid, divuuid: divuuid);
-    final a1 = _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid, divuuid: divuuid);
-    final a2 = _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid, divuuid: divuuid);
-    final a3 = _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid, divuuid: divuuid);
-    final a4 = _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid, divuuid: divuuid);
+    await _prepare(harness, orguuid: orguuid, divuuid: divuuid);
+    final a1 = createAffiliation(Uuid().v4(), puuid: Uuid().v4(), orguuid: orguuid, divuuid: divuuid);
+    final a2 = createAffiliation(Uuid().v4(), puuid: Uuid().v4(), orguuid: orguuid, divuuid: divuuid);
+    final a3 = createAffiliation(Uuid().v4(), puuid: Uuid().v4(), orguuid: orguuid, divuuid: divuuid);
+    final a4 = createAffiliation(Uuid().v4(), puuid: Uuid().v4(), orguuid: orguuid, divuuid: divuuid);
     await harness.agent.post("/api/affiliations", body: a1);
     await harness.agent.post("/api/affiliations", body: a2);
     await harness.agent.post("/api/affiliations", body: a3);
@@ -285,15 +338,14 @@ Future main() async {
   });
 
   test("DELETE department returns 204 after affiliations are deleted", () async {
-    final puuid = Uuid().v4();
     final orguuid = Uuid().v4();
     final divuuid = Uuid().v4();
     final depuuid = Uuid().v4();
-    await _prepare(harness, puuid: puuid, orguuid: orguuid, divuuid: divuuid, depuuid: depuuid);
-    final a1 = _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid, divuuid: divuuid, depuuid: depuuid);
-    final a2 = _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid, divuuid: divuuid, depuuid: depuuid);
-    final a3 = _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid, divuuid: divuuid, depuuid: depuuid);
-    final a4 = _createData(Uuid().v4(), puuid: puuid, orguuid: orguuid, divuuid: divuuid, depuuid: depuuid);
+    await _prepare(harness, orguuid: orguuid, divuuid: divuuid, depuuid: depuuid);
+    final a1 = createAffiliation(Uuid().v4(), puuid: Uuid().v4(), orguuid: orguuid, divuuid: divuuid, depuuid: depuuid);
+    final a2 = createAffiliation(Uuid().v4(), puuid: Uuid().v4(), orguuid: orguuid, divuuid: divuuid, depuuid: depuuid);
+    final a3 = createAffiliation(Uuid().v4(), puuid: Uuid().v4(), orguuid: orguuid, divuuid: divuuid, depuuid: depuuid);
+    final a4 = createAffiliation(Uuid().v4(), puuid: Uuid().v4(), orguuid: orguuid, divuuid: divuuid, depuuid: depuuid);
     await harness.agent.post("/api/affiliations", body: a1);
     await harness.agent.post("/api/affiliations", body: a2);
     await harness.agent.post("/api/affiliations", body: a3);
@@ -311,7 +363,7 @@ Future _testGet(SarSysAppHarness harness, {bool expand = false}) async {
   final puuid = Uuid().v4();
   final orguuid = Uuid().v4();
   await _prepare(harness, puuid: puuid, orguuid: orguuid);
-  final body = _createData(auuid, puuid: puuid, orguuid: orguuid);
+  final body = createAffiliation(auuid, puuid: puuid, orguuid: orguuid);
   expectResponse(await harness.agent.post("/api/affiliations", body: body), 201, body: null);
   final response = expectResponse(
     await harness.agent.get("/api/affiliations/$auuid${expand ? '?expand=person' : ''}"),
@@ -334,17 +386,40 @@ Future _testGetAll(
   bool filter = false,
   bool uuids = false,
 }) async {
-  final puuid = Uuid().v4();
   final orguuid = Uuid().v4();
-  await _prepare(harness, puuid: puuid, orguuid: orguuid);
+  await _prepare(harness, orguuid: orguuid);
   final auuid1 = Uuid().v4();
   final auuid2 = Uuid().v4();
   final auuid3 = Uuid().v4();
   final auuid4 = Uuid().v4();
-  await harness.agent.post("/api/affiliations", body: _createData(auuid1, puuid: puuid, orguuid: orguuid));
-  await harness.agent.post("/api/affiliations", body: _createData(auuid2, puuid: puuid, orguuid: orguuid));
-  await harness.agent.post("/api/affiliations", body: _createData(auuid3, puuid: puuid, orguuid: orguuid));
-  await harness.agent.post("/api/affiliations", body: _createData(auuid4, puuid: puuid, orguuid: orguuid));
+  expectResponse(
+    await harness.agent.post(
+      "/api/affiliations",
+      body: createAffiliation(auuid1, person: createPerson(Uuid().v4()), orguuid: orguuid),
+    ),
+    201,
+  );
+  expectResponse(
+    await harness.agent.post(
+      "/api/affiliations",
+      body: createAffiliation(auuid2, person: createPerson(Uuid().v4()), orguuid: orguuid),
+    ),
+    201,
+  );
+  expectResponse(
+    await harness.agent.post(
+      "/api/affiliations",
+      body: createAffiliation(auuid3, person: createPerson(Uuid().v4()), orguuid: orguuid),
+    ),
+    201,
+  );
+  expectResponse(
+    await harness.agent.post(
+      "/api/affiliations",
+      body: createAffiliation(auuid4, person: createPerson(Uuid().v4()), orguuid: orguuid),
+    ),
+    201,
+  );
   final query = <String>[
     if (filter) 'filter=fname',
     if (expand) 'expand=person',
@@ -362,7 +437,7 @@ Future _testGetAll(
   expect(actual.elementAt('entries/0/data/person/fname'), expand ? equals('fname') : isNull);
 }
 
-Future _prepare(
+Future<dynamic> _prepare(
   SarSysAppHarness harness, {
   String puuid,
   String orguuid,
@@ -388,24 +463,11 @@ Future _prepare(
     );
   }
   if (puuid != null) {
+    final person = createPerson(puuid ?? Uuid().v4());
     expectResponse(
-      await harness.agent.post("/api/persons", body: createPerson(puuid ?? Uuid().v4())),
+      await harness.agent.post("/api/persons", body: person),
       201,
     );
+    return person;
   }
 }
-
-Map<String, Object> _createData(
-  String uuid, {
-  @required String puuid,
-  @required String orguuid,
-  String divuuid,
-  String depuuid,
-}) =>
-    createAffiliation(
-      uuid,
-      puuid: puuid,
-      orguuid: orguuid,
-      divuuid: divuuid,
-      depuuid: depuuid,
-    );

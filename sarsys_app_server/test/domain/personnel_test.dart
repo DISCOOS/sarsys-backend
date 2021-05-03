@@ -20,38 +20,6 @@ Future main() async {
     );
   });
 
-  test("POST /api/operations/{uuid}/personnels/ returns status code 201 with empty body", () async {
-    final puuid = Uuid().v4();
-    final auuid = Uuid().v4();
-    final ouuid = await _prepare(harness, auuid);
-    final body = createPersonnel(puuid, auuid: auuid);
-    expectResponse(await harness.agent.post("/api/operations/$ouuid/personnels", body: body), 201, body: null);
-  });
-
-  test("POST /api/operations/{uuid}/personnels/ returns status code 201 with tracking enabled", () async {
-    final puuid = Uuid().v4();
-    final auuid = Uuid().v4();
-    final tuuid = Uuid().v4();
-    final ouuid = await _prepare(harness, auuid);
-    final body = createPersonnel(puuid, auuid: auuid, tuuid: tuuid);
-    expectResponse(await harness.agent.post("/api/operations/$ouuid/personnels", body: body), 201, body: null);
-  });
-
-  test("POST /api/operations/{uuid}/personnels/ returns status code 400 when 'incident/uuid' is given", () async {
-    final puuid = Uuid().v4();
-    final auuid = Uuid().v4();
-    final ouuid = await _prepare(harness, auuid);
-    final body = createPersonnel(puuid, auuid: auuid)
-      ..addAll({
-        'operation': {'uuid': 'string'}
-      });
-    expectResponse(
-      await harness.agent.post("/api/operations/$ouuid/personnels", body: body),
-      400,
-      body: 'Schema Personnel has 1 errors: [/operation: is read only]',
-    );
-  });
-
   test("GET /api/personnels/{uuid} returns status code 200", () async {
     await _testGet(harness, expand: false);
   });

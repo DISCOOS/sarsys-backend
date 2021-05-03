@@ -164,52 +164,35 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
             context: request.toContext(logger),
           );
 
-          final response = await _createIfUnique(
-            affiliation,
-            puuid,
-          );
-
-          // If events are empty, person was not updated
-          if (events.isEmpty || response.statusCode >= 400) {
-            return response;
-          }
-
-          return _ok(
-            affiliation.elementAt<String>('uuid'),
-            puuid,
-          );
-        }
-
-        // Look for existing user?
-        final existing = _findUser(
-          person.elementAt('userId'),
-        );
-
-        // Onboard person allowed?
-        if (existing == null) {
-          await persons.execute(
-            CreatePerson(person),
-            context: request.toContext(logger),
-          );
-
           return _createIfUnique(
             affiliation,
             puuid,
           );
         }
 
-        final response = await _createIfUnique(
-          affiliation,
-          // Replace person with existing
-          existing.elementAt<String>('uuid'),
+        // Look for existing user
+        final existing = _findUser(
+          person.elementAt('userId'),
         );
-        if (response.statusCode >= 400) {
-          return response;
+
+        if (existing == null) {
+          await persons.execute(
+            CreatePerson(person),
+            context: request.toContext(logger),
+          );
+          return _createIfUnique(
+            affiliation,
+            existing?.uuid ?? puuid,
+          );
         }
 
-        return _ok(
-          affiliation.elementAt<String>('uuid'),
-          existing.uuid,
+        return conflict(
+          ConflictType.exists,
+          'Person $puuid have duplicate userId',
+          code: 'duplicate_user_id',
+          mine: [existing.data],
+          yours: [affiliation],
+          base: existing.data,
         );
       }
       return Response.unauthorized();
@@ -241,17 +224,6 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
 
   bool isEditor() => AllowedScopes.isSuperUser(request.authorization);
 
-  Response _ok(String auuid, String puuid) {
-    final affiliation = repository.get(auuid);
-    return okAggregate(
-      affiliation,
-      data: Map.from(affiliation.data)
-        ..addAll({
-          'person': persons.get(puuid).data,
-        }),
-    );
-  }
-
   Person _findUser(userId) {
     return userId != null
         ? persons.aggregates.firstWhere(
@@ -261,14 +233,66 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
         : null;
   }
 
-  Future<Response> _createIfUnique(Map<String, dynamic> affiliation, String puuid) {
-    // TODO: Look for duplicates
+  Future<Response> _createIfUnique(Map<String, dynamic> affiliation, String puuid) async {
+    final duplicates = await _findDuplicates(
+      affiliation,
+      puuid,
+    );
 
-    return super.create(affiliation
-      ..addAll({
-        'person': {'uuid': puuid}
-      }));
+    if (duplicates.isEmpty) {
+      return super.create(affiliation
+        ..addAll({
+          'person': {'uuid': puuid}
+        }));
+    }
+
+    return conflict(
+      ConflictType.exists,
+      'Person $puuid have duplicate affiliations',
+      code: 'duplicate_affiliations',
+      mine: duplicates,
+      yours: [affiliation],
+      // Reuse first duplicate as base
+      base: duplicates.first,
+    );
   }
+
+  Future<List<Map<String, dynamic>>> _findDuplicates(Map<String, dynamic> affiliation, String puuid) async {
+    final person = persons.get(puuid);
+    final userId = person.elementAt<String>('userId');
+    final auuid = affiliation.elementAt<String>('uuid');
+    final orguuid = affiliation.elementAt<String>('org/uuid');
+    final divuuid = affiliation.elementAt<String>('div/uuid');
+    final depuuid = affiliation.elementAt<String>('dep/uuid');
+
+    // Ensure we are updated with remote
+    await catchup(uuids: [auuid]);
+
+    // Look for duplicate affiliation, checking for
+    // 1. Volunteer affiliations without any organisations
+    // 2. Identical affiliation with org, div and dep
+    return repository.aggregates.where((a) => !a.isDeleted).map((a) => a.data).where((a) {
+      // Different affiliation and same person?
+      if (a.elementAt<String>('uuid') != auuid && _isSamePerson(a.mapAt('person'), puuid, userId)) {
+        final testOrg = a.elementAt<String>('org/uuid');
+        final testDiv = a.elementAt<String>('div/uuid');
+        final testDep = a.elementAt<String>('dep/uuid');
+
+        // Is unorganized?
+        if (testOrg == null && testDiv == null && testDep == null) {
+          return true;
+        }
+
+        // Already affiliated?
+        return testOrg == orguuid && testDiv == divuuid && testDep == depuuid;
+      }
+      return false;
+    }).toList();
+  }
+
+  bool _isSamePerson(Map<String, dynamic> person, String puuid, String userId) =>
+      puuid != null && person.elementAt<String>('uuid') == puuid ||
+      userId != null && person.elementAt<String>('userId') == userId;
 
   @override
   @Operation('PATCH', 'uuid')
