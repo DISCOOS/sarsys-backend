@@ -192,7 +192,6 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
           code: 'duplicate_user_id',
           mine: [existing.data],
           yours: [affiliation],
-          base: existing.data,
         );
       }
       return Response.unauthorized();
@@ -252,8 +251,6 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
       code: 'duplicate_affiliations',
       mine: duplicates,
       yours: [affiliation],
-      // Reuse first duplicate as base
-      base: duplicates.first,
     );
   }
 
@@ -313,8 +310,8 @@ class AffiliationController extends AggregateController<AffiliationCommand, Affi
           code: 'duplicate_affiliations',
           mine: duplicates,
           yours: [data],
-          // Reuse first duplicate as base
-          base: duplicates.first,
+          // Current affiliation if exist
+          base: repository.get(data.elementAt<String>('uuid'), createNew: false).data,
         );
       }
     }

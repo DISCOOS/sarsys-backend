@@ -10,7 +10,7 @@ Future main() async {
     ..withEventStoreMock()
     ..install(restartForEachTest: true);
 
-  test("POST /api/affiliations/ returns 201 with empty body", () async {
+  test("POST /api/affiliations returns 201 with empty body", () async {
     final auuid = Uuid().v4();
     final puuid = Uuid().v4();
     final orguuid = Uuid().v4();
@@ -144,7 +144,7 @@ Future main() async {
     );
     expect(
       conflict.mapAt<String, dynamic>('base'),
-      user1,
+      isNull,
     );
     expect(
       conflict.listAt<Map<String, dynamic>>('mine'),
@@ -180,7 +180,7 @@ Future main() async {
     );
     expect(
       conflict.mapAt<String, dynamic>('base'),
-      unorganized,
+      isNull,
     );
     expect(
       conflict.listAt<Map<String, dynamic>>('mine'),
@@ -217,7 +217,7 @@ Future main() async {
     );
     expect(
       conflict.mapAt<String, dynamic>('base'),
-      organized,
+      isNull,
     );
     expect(
       conflict.listAt<Map<String, dynamic>>('mine'),

@@ -192,7 +192,7 @@ Future main() async {
     );
     expect(
       conflict.mapAt<String, dynamic>('base'),
-      user1,
+      isNull,
     );
     expect(
       conflict.listAt<Map<String, dynamic>>('mine'),
@@ -229,7 +229,7 @@ Future main() async {
     );
     expect(
       conflict.mapAt<String, dynamic>('base'),
-      unorganized,
+      isNull,
     );
     expect(
       conflict.listAt<Map<String, dynamic>>('mine'),
@@ -266,7 +266,7 @@ Future main() async {
     );
     expect(
       conflict.mapAt<String, dynamic>('base'),
-      organized,
+      isNull,
     );
     expect(
       conflict.listAt<Map<String, dynamic>>('mine'),
