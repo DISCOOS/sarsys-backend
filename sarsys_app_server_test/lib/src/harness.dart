@@ -260,14 +260,10 @@ Future expectAggregateReference(
   final response = expectResponse(await harness.agents[port].get('$uri/$childUuid'), 200);
   final actual = await response.body.decode();
   expect(
-    actual['data'],
-    equals(child
-      ..addAll({
-        '$parentField': {
-          'uuid': parentUuid,
-        }
-      })),
-  );
+      Map.from(actual).elementAt('data/$parentField'),
+      equals({
+        'uuid': parentUuid,
+      }));
 }
 
 Map<String, String> createAuthn(String value) => {'Authorization': value};

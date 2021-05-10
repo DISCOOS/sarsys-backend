@@ -50,7 +50,10 @@ Future main() async {
       actual['data'],
       equals(body
         ..addAll({
-          'operation': {'uuid': ouuid}
+          'operation': {'uuid': ouuid},
+          // Default collections
+          'results': [],
+          'parts': [],
         })),
     );
   });
@@ -81,7 +84,10 @@ Future main() async {
       actual['data'],
       equals(body
         ..addAll({
-          'operation': {'uuid': ouuid}
+          'operation': {'uuid': ouuid},
+          // Default collections
+          'results': [],
+          'parts': [],
         })),
     );
   });
@@ -98,7 +104,10 @@ Future main() async {
       actual['data'],
       equals(body
         ..addAll({
-          'operation': {'uuid': ouuid}
+          'operation': {'uuid': ouuid},
+          // Default collections
+          'results': [],
+          'parts': [],
         })),
     );
   });

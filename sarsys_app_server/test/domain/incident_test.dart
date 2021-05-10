@@ -20,7 +20,13 @@ Future main() async {
     expectResponse(await harness.agent.post("/api/incidents", body: body), 201, body: null);
     final response = expectResponse(await harness.agent.get("/api/incidents/$uuid"), 200);
     final actual = await response.body.decode();
-    expect(actual['data'], equals(body));
+    expect(
+        actual['data'],
+        equals(body
+          ..addAll({
+            // Default collections
+            'operations': [],
+          })));
   });
 
   test("PATCH /api/incidents/{uuid} is idempotent", () async {
@@ -30,7 +36,13 @@ Future main() async {
     expectResponse(await harness.agent.execute("PATCH", "/api/incidents/$uuid", body: body), 204, body: null);
     final response = expectResponse(await harness.agent.get("/api/incidents/$uuid"), 200);
     final actual = await response.body.decode();
-    expect(actual['data'], equals(body));
+    expect(
+        actual['data'],
+        equals(body
+          ..addAll({
+            // Default collections
+            'operations': [],
+          })));
   });
 
   test("PATCH /api/incidents/{uuid} does not remove value objects", () async {
@@ -40,7 +52,13 @@ Future main() async {
     expectResponse(await harness.agent.execute("PATCH", "/api/incidents/$uuid", body: {}), 204, body: null);
     final response = expectResponse(await harness.agent.get("/api/incidents/$uuid"), 200);
     final actual = await response.body.decode();
-    expect(actual['data'], equals(body));
+    expect(
+        actual['data'],
+        equals(body
+          ..addAll({
+            // Default collections
+            'operations': [],
+          })));
   });
 
   test("PATCH /api/incidents/{uuid} on value object lists supports add, remove and replace", () async {

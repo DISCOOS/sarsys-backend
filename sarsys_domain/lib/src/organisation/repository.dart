@@ -55,6 +55,13 @@ class OrganisationRepository extends Repository<OrganisationCommand, Organisatio
   Organisation create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Organisation(
         uuid,
         processors,
-        data: data,
+        data: ensure(data),
       );
+
+  static Map<String, dynamic> ensure(Map<String, dynamic> data) {
+    const objects = <Map<String, dynamic>>[];
+    return Map.from(data)
+      ..update('divisions', (prev) => prev ?? objects, ifAbsent: () => objects)
+      ..update('departments', (prev) => prev ?? objects, ifAbsent: () => objects);
+  }
 }

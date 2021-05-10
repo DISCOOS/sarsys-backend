@@ -57,7 +57,9 @@ Future main() async {
       actual['data'],
       equals(body
         ..addAll({
-          'organisation': {'uuid': orguuid}
+          'organisation': {'uuid': orguuid},
+          // Default collections
+          'departments': [],
         })),
     );
   });
@@ -88,7 +90,9 @@ Future main() async {
       actual['data'],
       equals(body
         ..addAll({
-          'organisation': {'uuid': orguuid}
+          'organisation': {'uuid': orguuid},
+          // Default collections
+          'departments': [],
         })),
     );
   });
@@ -105,7 +109,9 @@ Future main() async {
       actual['data'],
       equals(body
         ..addAll({
-          'organisation': {'uuid': orguuid}
+          'organisation': {'uuid': orguuid},
+          // Default collections
+          'departments': [],
         })),
     );
   });

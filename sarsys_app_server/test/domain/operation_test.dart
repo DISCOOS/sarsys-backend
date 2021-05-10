@@ -50,7 +50,12 @@ Future main() async {
       actual['data'],
       equals(body
         ..addAll({
-          'incident': {'uuid': iuuid}
+          'incident': {'uuid': iuuid},
+          // Default collections
+          'personnels': [],
+          'talkgroups': [],
+          'missions': [],
+          'units': [],
         })),
     );
   });
@@ -81,7 +86,12 @@ Future main() async {
       actual['data'],
       equals(body
         ..addAll({
-          'incident': {'uuid': iuuid}
+          'incident': {'uuid': iuuid},
+          // Default collections
+          'personnels': [],
+          'talkgroups': [],
+          'missions': [],
+          'units': [],
         })),
     );
   });
@@ -98,7 +108,12 @@ Future main() async {
       actual['data'],
       equals(body
         ..addAll({
-          'incident': {'uuid': iuuid}
+          'incident': {'uuid': iuuid},
+          // Default collections
+          'personnels': [],
+          'talkgroups': [],
+          'missions': [],
+          'units': [],
         })),
     );
   });

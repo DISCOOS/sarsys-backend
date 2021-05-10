@@ -43,6 +43,13 @@ class MissionRepository extends Repository<MissionCommand, Mission> {
   Mission create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Mission(
         uuid,
         processors,
-        data: data,
+        data: ensure(data),
       );
+
+  static Map<String, dynamic> ensure(Map<String, dynamic> data) {
+    const objects = <Map<String, dynamic>>[];
+    return Map.from(data)
+      ..update('parts', (prev) => prev ?? objects, ifAbsent: () => objects)
+      ..update('results', (prev) => prev ?? objects, ifAbsent: () => objects);
+  }
 }

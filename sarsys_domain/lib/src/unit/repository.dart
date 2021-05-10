@@ -67,6 +67,11 @@ class UnitRepository extends Repository<UnitCommand, Unit> {
   Unit create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Unit(
         uuid,
         processors,
-        data: data,
+        data: ensure(data),
       );
+
+  static Map<String, dynamic> ensure(Map<String, dynamic> data) {
+    const objects = <Map<String, dynamic>>[];
+    return Map.from(data)..update('personnels', (prev) => prev ?? objects, ifAbsent: () => objects);
+  }
 }

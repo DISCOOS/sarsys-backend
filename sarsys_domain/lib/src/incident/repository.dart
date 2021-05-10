@@ -69,6 +69,11 @@ class IncidentRepository extends Repository<IncidentCommand, Incident> implement
   Incident create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Incident(
         uuid,
         processors,
-        data: data,
+        data: ensure(data),
       );
+
+  static Map<String, dynamic> ensure(Map<String, dynamic> data) {
+    const objects = <Map<String, dynamic>>[];
+    return Map.from(data)..update('operations', (prev) => prev ?? objects, ifAbsent: () => objects);
+  }
 }

@@ -42,7 +42,14 @@ Future main() async {
       200,
     );
     final actual = await response.body.decode();
-    expect(actual['data'], equals(body));
+    expect(
+        actual['data'],
+        equals(body
+          ..addAll({
+            // Default collections
+            'tracks': [],
+            'sources': [],
+          })));
   });
 
   test("PATCH /api/trackings/{uuid} add sources to empty list and returns status code 200", () async {
@@ -89,7 +96,13 @@ Future main() async {
       200,
     );
     final actual = await response.body.decode();
-    expect(actual['data'], equals(body));
+    expect(
+        actual['data'],
+        equals(body
+          ..addAll({
+            // Default collections
+            'tracks': [],
+          })));
   });
 
   test("PATCH /api/trackings/{uuid} replace sources and returns status code 200", () async {
@@ -135,7 +148,13 @@ Future main() async {
       200,
     );
     final actual = await response.body.decode();
-    expect(actual['data'], equals(body));
+    expect(
+        actual['data'],
+        equals(body
+          ..addAll({
+            // Default collections
+            'tracks': [],
+          })));
   });
 
   test("PATCH /api/trackings/{uuid} remove, add and returns status code 200", () async {
@@ -182,7 +201,13 @@ Future main() async {
       200,
     );
     final actual = await response.body.decode();
-    expect(actual['data'], equals(body));
+    expect(
+        actual['data'],
+        equals(body
+          ..addAll({
+            // Default collections
+            'tracks': [],
+          })));
   });
 
   test("PATCH /api/trackings/{uuid} with same source ids should return code 200", () async {
@@ -229,7 +254,13 @@ Future main() async {
       200,
     );
     final actual = await response.body.decode();
-    expect(actual['data'], equals(body));
+    expect(
+        actual['data'],
+        equals(body
+          ..addAll({
+            // Default collections
+            'tracks': [],
+          })));
   });
 
   test("DELETE /api/trackings/{uuid} returns status code 204", () async {

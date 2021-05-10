@@ -64,7 +64,12 @@ Future main() async {
     final actual = await response.body.decode();
     expect(
       actual['data'],
-      equals(incident..addAll({'subjects': []})),
+      equals(incident
+        ..addAll({
+          // Default collections
+          'subjects': [],
+          'operations': [],
+        })),
     );
   });
 }

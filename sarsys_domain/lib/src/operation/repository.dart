@@ -109,6 +109,15 @@ class OperationRepository extends Repository<OperationCommand, Operation> {
   Operation create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Operation(
         uuid,
         processors,
-        data: data,
+        data: ensure(data),
       );
+
+  static Map<String, dynamic> ensure(Map<String, dynamic> data) {
+    const objects = <Map<String, dynamic>>[];
+    return Map.from(data)
+      ..update('units', (prev) => prev ?? objects, ifAbsent: () => objects)
+      ..update('missions', (prev) => prev ?? objects, ifAbsent: () => objects)
+      ..update('talkgroups', (prev) => prev ?? objects, ifAbsent: () => objects)
+      ..update('personnels', (prev) => prev ?? objects, ifAbsent: () => objects);
+  }
 }

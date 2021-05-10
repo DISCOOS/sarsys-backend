@@ -16,7 +16,6 @@ class TrackingCreated extends DomainEvent {
           // Ensure status is set
           created: message.created, type: '$TrackingCreated',
         );
-  // Map<String, dynamic> get position => changed.elementAt('position');
 }
 
 class TrackingStatusChanged extends DomainEvent {
@@ -28,8 +27,6 @@ class TrackingStatusChanged extends DomainEvent {
           created: message.created,
           type: '$TrackingStatusChanged',
         );
-
-  // String get status => changed['status'] as String;
 }
 
 class TrackingInformationUpdated extends DomainEvent {
@@ -41,7 +38,6 @@ class TrackingInformationUpdated extends DomainEvent {
           created: message.created,
           type: '$TrackingInformationUpdated',
         );
-  // Map<String, dynamic> get position => changed['position'];
 }
 
 class TrackingDeleted extends DomainEvent {

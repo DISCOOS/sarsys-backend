@@ -20,7 +20,14 @@ Future main() async {
     expectResponse(await harness.agent.post("/api/organisations", body: body), 201, body: null);
     final response = expectResponse(await harness.agent.get("/api/organisations/$uuid"), 200);
     final actual = await response.body.decode();
-    expect(actual['data'], equals(body));
+    expect(
+        actual['data'],
+        equals(body
+          ..addAll({
+            // Default collections
+            'divisions': [],
+            'departments': [],
+          })));
   });
 
   test("PATCH /api/organisations/{uuid} is idempotent", () async {
@@ -30,7 +37,14 @@ Future main() async {
     expectResponse(await harness.agent.execute("PATCH", "/api/organisations/$uuid", body: body), 204, body: null);
     final response = expectResponse(await harness.agent.get("/api/organisations/$uuid"), 200);
     final actual = await response.body.decode();
-    expect(actual['data'], equals(body));
+    expect(
+        actual['data'],
+        equals(body
+          ..addAll({
+            // Default collections
+            'divisions': [],
+            'departments': [],
+          })));
   });
 
   test("PATCH /api/organisations/{uuid} does not remove value objects", () async {
@@ -40,7 +54,14 @@ Future main() async {
     expectResponse(await harness.agent.execute("PATCH", "/api/organisations/$uuid", body: {}), 204, body: null);
     final response = expectResponse(await harness.agent.get("/api/organisations/$uuid"), 200);
     final actual = await response.body.decode();
-    expect(actual['data'], equals(body));
+    expect(
+        actual['data'],
+        equals(body
+          ..addAll({
+            // Default collections
+            'divisions': [],
+            'departments': [],
+          })));
   });
 
   test("DELETE /api/organisations/{uuid} returns status code 204", () async {
