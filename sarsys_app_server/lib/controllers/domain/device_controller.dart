@@ -139,7 +139,7 @@ class DeviceController extends AggregateController<DeviceCommand, Device> {
   APISchemaObject documentTransition() => APISchemaObject.object({
         "status": documentStatus(),
         "timestamp": APISchemaObject.string()
-          ..description = "When transition occured"
+          ..description = "When transition occurred"
           ..format = 'date-time',
       })
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;

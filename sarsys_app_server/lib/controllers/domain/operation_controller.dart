@@ -133,7 +133,7 @@ class OperationController extends AggregateController<OperationCommand, sar.Oper
         "status": documentStatus(),
         "resolution": documentOperationResolution(),
         "timestamp": APISchemaObject.string()
-          ..description = "When transition occured"
+          ..description = "When transition occurred"
           ..format = 'date-time',
       })
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;

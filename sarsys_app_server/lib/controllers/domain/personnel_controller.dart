@@ -15,7 +15,6 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
           validation: validation,
           readOnly: const [
             'unit',
-            'tracking',
             'messages',
             'operation',
             'affiliation',

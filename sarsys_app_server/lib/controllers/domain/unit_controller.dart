@@ -13,8 +13,8 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
           repository,
           validation: validation,
           readOnly: const [
-            'operation',
             'messages',
+            'operation',
             'transitions',
           ],
           tag: 'Units',
@@ -136,7 +136,7 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
   APISchemaObject documentTransition() => APISchemaObject.object({
         "status": documentStatus(),
         "timestamp": APISchemaObject.string()
-          ..description = "When transition occured"
+          ..description = "When transition occurred"
           ..format = 'date-time',
       })
         ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed;
