@@ -118,6 +118,81 @@ Future main() async {
     );
   });
 
+  test("PATCH /api/units/{uuid} created tracking if not exists", () async {
+    final uuid = Uuid().v4();
+    final tuuid = Uuid().v4();
+    final ouuid = await _prepare(harness);
+    final existing = createUnit(uuid);
+    expectResponse(await harness.agent.post("/api/operations/$ouuid/units", body: existing), 201, body: null);
+    final response1 = expectResponse(
+      await harness.agent.execute(
+        "PATCH",
+        "/api/units/$uuid",
+        body: {
+          'tracking': {'uuid': tuuid}
+        },
+      ),
+      200,
+    );
+    final personnel = await response1.body.decode();
+    expect(
+      personnel['data'],
+      equals(existing
+        ..addAll({
+          'personnels': [],
+          'tracking': {'uuid': tuuid},
+          'operation': {'uuid': ouuid},
+        })),
+    );
+    final response2 = expectResponse(await harness.agent.get("/api/trackings/$tuuid"), 200);
+    final tracking = await response2.body.decode();
+    expect(
+      tracking['data'],
+      equals({
+        'uuid': tuuid,
+        'tracks': [],
+        'sources': [
+          {'uuid': uuid, 'type': 'trackable'}
+        ]
+      }),
+    );
+  });
+
+  test("PATCH /api/units/{uuid} not allowed if tracking already exist", () async {
+    final uuid = Uuid().v4();
+    final tuuid1 = Uuid().v4();
+    final tuuid2 = Uuid().v4();
+    final ouuid = await _prepare(harness);
+    final existing = createUnit(uuid, tuuid: tuuid1);
+    final updated = Map.from(existing)
+      ..addAll({
+        'tracking': {'uuid': tuuid2},
+        'operation': {'uuid': ouuid},
+      });
+    expectResponse(await harness.agent.post("/api/operations/$ouuid/units", body: existing), 201, body: null);
+    final response = expectResponse(
+      await harness.agent.execute("PATCH", "/api/units/$uuid", body: updated),
+      409,
+    );
+    final actual = Map.from(await response.body.decode());
+    expect(
+      actual,
+      equals({
+        'mine': null,
+        'yours': null,
+        'base': Map.from(existing)
+          ..addAll({
+            'personnels': [],
+            'tracking': {'uuid': tuuid1},
+            'operation': {'uuid': ouuid},
+          }),
+        'type': 'exists',
+        'code': 'duplicate_tracking_uuid',
+        'error': 'Unit $uuid is already tracked by $tuuid1',
+      }),
+    );
+  });
+
   test("DELETE /api/units/{uuid} returns 204", () async {
     final ouuid = await _prepare(harness);
     final uuid = Uuid().v4();

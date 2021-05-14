@@ -2375,7 +2375,7 @@
           },
           "tracking": {
             "additionalProperties": false,
-            "description": "Unique id of tracking object created for this personnel. Only writable on creation.",
+            "description": "Unique id of tracking object created for this personnel.",
             "properties": {
               "type": {
                 "default": "Tracking",
@@ -2385,11 +2385,11 @@
               },
               "uuid": {
                 "description": "Tracking UUID",
-                "readOnly": true,
+                "readOnly": false,
                 "type": "string"
               }
             },
-            "readOnly": true,
+            "readOnly": false,
             "required": [
               "uuid"
             ],
@@ -3022,13 +3022,24 @@
           },
           "operation": {
             "additionalProperties": false,
-            "description": "Operation which this unit belongs to",
+            "description": "Operation which this unit is mobilized for",
             "properties": {
+              "type": {
+                "default": "Operation",
+                "description": "Operation Type",
+                "readOnly": true,
+                "type": "string"
+              },
               "uuid": {
-                "$ref": "#/components/schemas/UUID"
+                "description": "Operation UUID",
+                "readOnly": true,
+                "type": "string"
               }
             },
             "readOnly": true,
+            "required": [
+              "uuid"
+            ],
             "type": "object"
           },
           "personnels": {
@@ -3054,12 +3065,25 @@
             "type": "string"
           },
           "tracking": {
-            "description": "Unique id of tracking object created for this unit. Only writable on creation.",
+            "additionalProperties": false,
+            "description": "Unique id of tracking object created for this personnel.",
             "properties": {
+              "type": {
+                "default": "Tracking",
+                "description": "Tracking Type",
+                "readOnly": true,
+                "type": "string"
+              },
               "uuid": {
-                "$ref": "#/components/schemas/UUID"
+                "description": "Tracking UUID",
+                "readOnly": false,
+                "type": "string"
               }
             },
+            "readOnly": false,
+            "required": [
+              "uuid"
+            ],
             "type": "object"
           },
           "transitions": {

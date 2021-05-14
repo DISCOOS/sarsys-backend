@@ -120,7 +120,7 @@ class OperationPersonnelController
       final affiliation = data.mapAt<String, dynamic>('affiliation');
       if (affiliation['person'] is! Map) {
         return Response.badRequest(
-          body: 'Affiliation $auuid not found',
+          body: 'Field [affiliation/person] not found',
         );
       }
       final affiliate = await affiliates.create(
@@ -131,6 +131,7 @@ class OperationPersonnelController
         return affiliate;
       }
     }
+
     // Mobilize personnel
     return super.create(uuid, data);
   }
@@ -138,17 +139,12 @@ class OperationPersonnelController
   @override
   @visibleForOverriding
   Future<Iterable<DomainEvent>> doCreate(String fuuid, Map<String, dynamic> data) async {
-    final isAssigned = data?.elementAt('unit/uuid') != null;
-    final hasTracking = data?.elementAt('tracking/uuid') != null;
+    final hasTracking = data?.elementAt<String>('tracking/uuid') != null;
     final events = await super.doCreate(fuuid, data);
-    if (hasTracking || isAssigned) {
-      await PolicyUtils.waitForRuleResults(
+    if (hasTracking) {
+      await PolicyUtils.waitForRuleResult<TrackingCreated>(
         foreign,
         fail: true,
-        expected: {
-          TrackingCreated: hasTracking ? 1 : 0,
-          PersonnelAddedToOperation: isAssigned ? 1 : 0,
-        },
         timeout: const Duration(milliseconds: 1000),
       );
     }

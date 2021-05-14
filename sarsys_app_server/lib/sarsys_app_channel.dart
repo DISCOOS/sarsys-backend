@@ -258,6 +258,7 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
           '/api/personnels[/:uuid]',
           () => PersonnelController(
                 manager.get<PersonRepository>(),
+                manager.get<TrackingRepository>(),
                 manager.get<AffiliationRepository>(),
                 manager.get<PersonnelRepository>(),
                 requestValidator,
@@ -271,8 +272,9 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
       ..secure(
           '/api/units[/:uuid]',
           () => UnitController(
-                manager.get<UnitRepository>(),
+                manager.get<TrackingRepository>(),
                 manager.get<PersonnelRepository>(),
+                manager.get<UnitRepository>(),
                 requestValidator,
               ))
       ..secure(

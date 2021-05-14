@@ -6,10 +6,12 @@ import 'package:sarsys_app_server/sarsys_app_server.dart';
 /// [/api/incidents/{uuid}/units](http://localhost/api/client.html#/Unit) requests
 class UnitController extends AggregateController<UnitCommand, Unit> {
   UnitController(
-    UnitRepository repository,
+    this.trackings,
     this.personnels,
+    UnitRepository repository,
     JsonValidation validation,
-  ) : super(
+  )   : _trackingController = TrackingController(trackings, validation),
+        super(
           repository,
           validation: validation,
           readOnly: const [
@@ -20,7 +22,9 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
           tag: 'Units',
         );
 
+  final TrackingRepository trackings;
   final PersonnelRepository personnels;
+  final TrackingController _trackingController;
 
   @override
   @Operation.get()
@@ -53,10 +57,43 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
     );
     final notFound = _personnels.where((puuid) => !personnels.exists(puuid));
     if (notFound.isNotEmpty) {
-      return Response.notFound(body: "Personnels not found: ${notFound.join(', ')}");
+      return Response.notFound(
+        body: "Personnels not found: ${notFound.join(', ')}",
+      );
     }
-    final response = await super.update(uuid, data);
-    return response;
+    final tuuid = data.elementAt<String>('tracking/uuid');
+    if (tuuid != null) {
+      final unit = repository.peek(uuid);
+      if (unit == null) {
+        return Response.notFound(
+          body: '$aggregateType $uuid not found',
+        );
+      }
+      // Ensure only one tracking object per personnel
+      final existing = unit.elementAt<String>('tracking/uuid');
+      if (existing != null && tuuid != existing) {
+        return conflict(
+          ConflictType.exists,
+          '$aggregateType $uuid is already tracked by $existing',
+          base: unit.data,
+          code: 'duplicate_tracking_uuid',
+        );
+      }
+      // Create tracking if not exists
+      if (!await exists(tuuid, repo: trackings)) {
+        _trackingController.request = request;
+        final result = await _trackingController.create({
+          'uuid': tuuid,
+          'sources': [
+            {'uuid': uuid, 'type': 'trackable'},
+          ],
+        });
+        if (result.statusCode >= 400) {
+          return result;
+        }
+      }
+    }
+    return super.update(uuid, data);
   }
 
   @override
@@ -97,23 +134,23 @@ class UnitController extends AggregateController<UnitCommand, Unit> {
   APISchemaObject documentAggregateRoot(APIDocumentContext context) => APISchemaObject.object(
         {
           "uuid": context.schema['UUID']..description = "Unique unit id",
-          "operation": APISchemaObject.object({
-            "uuid": context.schema['UUID'],
-          })
-            ..isReadOnly = true
-            ..description = "Operation which this unit belongs to"
-            ..additionalPropertyPolicy = APISchemaAdditionalPropertyPolicy.disallowed,
           "type": documentType(),
           "number": APISchemaObject.integer()..description = "Unit number",
           "affiliation": context.schema["Affiliation"],
           "phone": APISchemaObject.string()..description = "Unit phone number",
           "callsign": APISchemaObject.string()..description = "Unit callsign",
           "status": documentStatus(),
-          "tracking": APISchemaObject.object({
-            "uuid": context.schema['UUID'],
-          })
-            ..description = "Unique id of tracking object "
-                "created for this unit. Only writable on creation.",
+          "tracking": documentAggregateRef(
+            context,
+            readOnly: false,
+            defaultType: 'Tracking',
+            description: 'Unique id of tracking object created for this unit.',
+          ),
+          'operation': documentAggregateRef(
+            context,
+            defaultType: 'Operation',
+            description: 'Operation which this unit is mobilized for',
+          ),
           "transitions": APISchemaObject.array(ofSchema: documentTransition())
             ..isReadOnly = true
             ..description = "State transitions (read only)",

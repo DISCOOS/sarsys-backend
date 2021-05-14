@@ -7,10 +7,12 @@ import 'package:sarsys_app_server/sarsys_app_server.dart';
 class PersonnelController extends AggregateController<PersonnelCommand, Personnel> {
   PersonnelController(
     this.persons,
+    this.trackings,
     this.affiliations,
     PersonnelRepository repository,
     JsonValidation validation,
-  ) : super(
+  )   : _trackingController = TrackingController(trackings, validation),
+        super(
           repository,
           validation: validation,
           readOnly: const [
@@ -24,7 +26,9 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
         );
 
   final PersonRepository persons;
+  final TrackingRepository trackings;
   final AffiliationRepository affiliations;
+  final TrackingController _trackingController;
 
   @override
   @Operation.get()
@@ -86,7 +90,40 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
   Future<Response> update(
     @Bind.path('uuid') String uuid,
     @Bind.body() Map<String, dynamic> data,
-  ) {
+  ) async {
+    final tuuid = data.elementAt<String>('tracking/uuid');
+    if (tuuid != null) {
+      final personnel = repository.peek(uuid);
+      if (personnel == null) {
+        return Response.notFound(
+          body: '$aggregateType $uuid not found',
+        );
+      }
+      // Ensure only one tracking object per personnel
+      final existing = personnel.elementAt<String>('tracking/uuid');
+      if (existing != null && tuuid != existing) {
+        return conflict(
+          ConflictType.exists,
+          '$aggregateType $uuid is already tracked by $existing',
+          base: personnel.data,
+          code: 'duplicate_tracking_uuid',
+        );
+      }
+      // Create tracking if not exists
+      if (!await exists(tuuid, repo: trackings)) {
+        _trackingController.request = request;
+        final result = await _trackingController.create({
+          'uuid': tuuid,
+          'sources': [
+            {'uuid': uuid, 'type': 'trackable'},
+          ],
+        });
+        if (result.statusCode >= 400) {
+          return result;
+        }
+      }
+    }
+
     return super.update(
       uuid,
       data..removeWhere((key, _) => skipped.contains(key)),
@@ -174,25 +211,25 @@ class PersonnelController extends AggregateController<PersonnelCommand, Personne
               documentAggregateRef(
                 context,
                 readOnly: false,
-                description: "Affiliation reference for PII lookup",
                 defaultType: 'Affiliation',
+                description: "Affiliation reference for PII lookup",
               ),
             ],
           'operation': documentAggregateRef(
             context,
-            description: 'Operation which this personnel is allocated to',
             defaultType: 'Operation',
+            description: 'Operation which this personnel is allocated to',
           ),
           'unit': documentAggregateRef(
             context,
-            description: 'Unit which this personnel is assigned to',
             defaultType: 'Unit',
+            description: 'Unit which this personnel is assigned to',
           ),
           'tracking': documentAggregateRef(
             context,
-            description: 'Unique id of tracking object created '
-                'for this personnel. Only writable on creation.',
+            readOnly: false,
             defaultType: 'Tracking',
+            description: 'Unique id of tracking object created for this personnel.',
           ),
           'transitions': APISchemaObject.array(ofSchema: documentTransition())
             ..isReadOnly = true

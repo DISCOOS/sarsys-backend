@@ -1,3 +1,5 @@
+import 'dart:ffi';
+
 import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:uuid/uuid.dart';
 import 'package:test/test.dart';
@@ -75,6 +77,81 @@ Future main() async {
         ..addAll({
           'operation': {'uuid': ouuid}
         })),
+    );
+  });
+
+  test("PATCH /api/personnels/{uuid} created tracking if not exists", () async {
+    final puuid = Uuid().v4();
+    final auuid = Uuid().v4();
+    final tuuid = Uuid().v4();
+    final ouuid = await _prepare(harness, auuid);
+    final existing = createPersonnel(puuid, auuid: auuid);
+    expectResponse(await harness.agent.post("/api/operations/$ouuid/personnels", body: existing), 201, body: null);
+    final response1 = expectResponse(
+      await harness.agent.execute(
+        "PATCH",
+        "/api/personnels/$puuid",
+        body: {
+          'tracking': {'uuid': tuuid}
+        },
+      ),
+      200,
+    );
+    final personnel = await response1.body.decode();
+    expect(
+      personnel['data'],
+      equals(existing
+        ..addAll({
+          'tracking': {'uuid': tuuid},
+          'operation': {'uuid': ouuid},
+        })),
+    );
+    final response2 = expectResponse(await harness.agent.get("/api/trackings/$tuuid"), 200);
+    final tracking = await response2.body.decode();
+    expect(
+      tracking['data'],
+      equals({
+        'uuid': tuuid,
+        'tracks': [],
+        'sources': [
+          {'uuid': puuid, 'type': 'trackable'}
+        ]
+      }),
+    );
+  });
+
+  test("PATCH /api/personnels/{uuid} not allowed if tracking already exist", () async {
+    final puuid = Uuid().v4();
+    final auuid = Uuid().v4();
+    final tuuid1 = Uuid().v4();
+    final tuuid2 = Uuid().v4();
+    final ouuid = await _prepare(harness, auuid);
+    final existing = createPersonnel(puuid, auuid: auuid, tuuid: tuuid1);
+    final updated = Map.from(existing)
+      ..addAll({
+        'tracking': {'uuid': tuuid2},
+        'operation': {'uuid': ouuid},
+      });
+    expectResponse(await harness.agent.post("/api/operations/$ouuid/personnels", body: existing), 201, body: null);
+    final response = expectResponse(
+      await harness.agent.execute("PATCH", "/api/personnels/$puuid", body: updated),
+      409,
+    );
+    final actual = Map.from(await response.body.decode());
+    expect(
+      actual,
+      equals({
+        'mine': null,
+        'yours': null,
+        'base': Map.from(existing)
+          ..addAll({
+            'tracking': {'uuid': tuuid1},
+            'operation': {'uuid': ouuid},
+          }),
+        'type': 'exists',
+        'code': 'duplicate_tracking_uuid',
+        'error': 'Personnel $puuid is already tracked by $tuuid1',
+      }),
     );
   });
 

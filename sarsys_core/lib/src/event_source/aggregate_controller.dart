@@ -167,7 +167,9 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     }
   }
 
-  S onCreate(Map<String, dynamic> data) => throw UnimplementedError('Create not implemented');
+  S onCreate(Map<String, dynamic> data) => throw UnimplementedError(
+        'Create not implemented',
+      );
 
   /// Add @Operation('PATCH', 'uuid') to activate
   Future<Response> update(
@@ -177,7 +179,9 @@ abstract class AggregateController<S extends Command, T extends AggregateRoot> e
     Transaction trx;
     try {
       if (!await exists(uuid)) {
-        return Response.notFound(body: '$aggregateType $uuid not found');
+        return Response.notFound(
+          body: '$aggregateType $uuid not found',
+        );
       }
       data[repository.uuidFieldName] = uuid;
       final events = <Event>[];
