@@ -92,8 +92,8 @@ class AccessTokenValidator extends AuthValidator {
         accessToken,
         keyStore,
       );
-    } on Exception {
-      logger.info('Invalid token: $accessToken');
+    } on Exception catch (e) {
+      logger.info('Invalid token: $accessToken >> error: $e');
       throw AuthServerException(AuthRequestError.invalidToken, null);
     }
 

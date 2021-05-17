@@ -775,6 +775,9 @@ class WebSocketController extends Controller {
   final AccessTokenValidator validator;
 
   @override
+  final Logger logger = Logger('WebSocketController');
+
+  @override
   FutureOr<RequestOrResponse> handle(Request request) async {
     if (!manager.isReady) {
       return serviceUnavailable(body: "Status Not ready");
@@ -786,11 +789,10 @@ class WebSocketController extends Controller {
       logger.warning("Header 'x-app-id' not set, using $appId");
     }
     final heartbeat = (request.raw.headers.value('x-with-heartbeat') ?? 'false').toLowerCase() == "true";
-    final token = validator != null
-        ? await validator.parseToken(
-            request.raw.headers.value('Authorization'),
-          )
-        : null;
+    final token = await getToken(appId, request);
+    if (token == null && validator?.config?.enabled == true) {
+      return Response.unauthorized();
+    }
     channel.listen(
       appId,
       socket,
@@ -800,5 +802,16 @@ class WebSocketController extends Controller {
     );
     logger.info("Established message channel for app $appId with heartbeat=$heartbeat");
     return null /* Required by Aqueduct, see https://aqueduct.io/docs/snippets/http/ */;
+  }
+
+  Future<OAuth2Token> getToken(String appId, Request request) async {
+    final parts = request.raw.headers.value('Authorization')?.split(' ');
+    final token = parts?.last;
+    try {
+      return validator != null ? await validator.parseToken(token) : null;
+    } on Exception catch (e) {
+      logger.warning("Failed to parse token $token for app $appId >> error $e");
+    }
+    return null;
   }
 }

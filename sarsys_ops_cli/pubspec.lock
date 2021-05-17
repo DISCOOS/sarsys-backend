@@ -407,6 +407,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "0.3.14"
+  latlong2:
+    dependency: transitive
+    description:
+      name: latlong2
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.8.0"
   lists:
     dependency: transitive
     description:
