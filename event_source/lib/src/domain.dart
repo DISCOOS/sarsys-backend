@@ -915,8 +915,11 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     this.uuidFieldName = 'uuid',
     int maxBackoffTimeSeconds = 10,
   })  : _processors = Map.unmodifiable(processors.map(
-          (type, process) => MapEntry('$type', process),
+          (type, process) => MapEntry(type, process),
         )),
+        _types = processors.map(
+          (type, _) => MapEntry('$type', type),
+        ),
         maxBackoffTime = Duration(seconds: maxBackoffTimeSeconds) {
     _context = Context(Logger(
       'Repository[${typeOf<T>()}][${store.canonicalStream}][${store.connection.port}]',
@@ -1005,9 +1008,13 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Maximum backoff duration between retries
   final Duration maxBackoffTime;
 
-  /// [Message] type name to [DomainEvent] processors
-  Map<String, ProcessCallback> get processors => Map.unmodifiable(_processors);
-  final Map<String, ProcessCallback> _processors;
+  /// Get [Event] types produced by this repository
+  List<Type> get types => List.unmodifiable(_types.values);
+  final Map<String, Type> _types;
+
+  /// Get [Event] type name to [DomainEvent] processors
+  Map<Type, ProcessCallback> get processors => Map.unmodifiable(_processors);
+  final Map<Type, ProcessCallback> _processors;
 
   /// Map of aggregate roots
   Iterable<T> get aggregates => List.unmodifiable(_aggregates.values);
@@ -1026,7 +1033,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
   /// Create aggregate root with given id. Should only called from within [Repository].
   @protected
   @visibleForOverriding
-  T create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data);
+  T create(Map<Type, ProcessCallback> processors, String uuid, Map<String, dynamic> data);
 
   /// Check given aggregate root exists.
   /// An aggregate exists IFF it repository contains it and is not deleted
@@ -1677,7 +1684,7 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     bool withPrevious,
   }) {
     assert(event != null, 'event can not be null');
-    final process = _processors['${event.type}'];
+    final process = _processors[_types[event.type]];
     if (process != null) {
       final uuid = toAggregateUuid(event);
 
@@ -3072,12 +3079,13 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   @mustCallSuper
   AggregateRoot(
     this.uuid,
-    Map<String, ProcessCallback> processors,
+    Map<Type, ProcessCallback> processors,
     Map<String, dynamic> data, {
     this.uuidFieldName = 'uuid',
     this.entityIdFieldName = 'id',
     DateTime created,
-  }) : _processors = Map.from(processors) {
+  })  : _processors = Map.from(processors),
+        _types = processors.map((type, _) => MapEntry('$type', type)) {
     _create(data, created);
   }
 
@@ -3138,7 +3146,10 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
   EventNumber get nextNumber => EventNumber(modifications);
 
   /// [Message] to [DomainEvent] processors
-  final Map<String, ProcessCallback> _processors;
+  final Map<Type, ProcessCallback> _processors;
+
+  /// Map from type name to actual type
+  final Map<String, Type> _types;
 
   /// Get last event [applied] to this aggregate.
   DomainEvent get baseEvent {
@@ -3820,7 +3831,7 @@ abstract class AggregateRoot<C extends DomainEvent, D extends DomainEvent> {
     @required EventNumber number,
     @required Map<String, dynamic> data,
   }) {
-    final process = _processors['$emits'];
+    final process = _processors[_types[emits]];
     if (process != null) {
       return process(
         Message(

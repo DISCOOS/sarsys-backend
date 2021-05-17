@@ -17,9 +17,16 @@ class MessageBus implements MessageNotifier, CommandSender, EventPublisher {
   /// Replay counter incremented by [ReplayStarted] and decremented by [ReplayEnded]
   final Map<Type, int> _replaying = {};
 
-  /// Register message handler
+  /// Register message handler with generic type
   void register<T extends Message>(MessageHandler handler) => _routes.update(
         typeOf<T>(),
+        (handlers) => handlers..add(handler),
+        ifAbsent: () => [handler],
+      );
+
+  /// Register message handler with [type]
+  void registerType(Type type, MessageHandler handler) => _routes.update(
+        type,
         (handlers) => handlers..add(handler),
         ifAbsent: () => [handler],
       );

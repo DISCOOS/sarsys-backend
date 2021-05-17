@@ -28,7 +28,7 @@ class SubjectRepository extends Repository<SubjectCommand, Subject> {
   }
 
   @override
-  Subject create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Subject(
+  Subject create(Map<Type, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Subject(
         uuid,
         processors,
         data: data,

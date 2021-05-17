@@ -44,7 +44,7 @@ class PersonnelRepository extends Repository<PersonnelCommand, Personnel> {
   }
 
   @override
-  Personnel create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Personnel(
+  Personnel create(Map<Type, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Personnel(
         uuid,
         processors,
         data: data,

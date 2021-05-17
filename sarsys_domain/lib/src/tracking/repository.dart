@@ -10,6 +10,7 @@ class TrackingRepository extends Repository<TrackingCommand, Tracking> {
           TrackingCreated: (event) => TrackingCreated(event),
           TrackingStatusChanged: (event) => TrackingStatusChanged(event),
           TrackingInformationUpdated: (event) => TrackingInformationUpdated(event),
+          TrackingPositionChanged: (event) => TrackingPositionChanged(event),
           TrackingDeleted: (event) => TrackingDeleted(event),
           TrackingSourceAdded: (event) => TrackingSourceAdded(event),
           TrackingSourceChanged: (event) => TrackingSourceChanged(event),
@@ -17,7 +18,6 @@ class TrackingRepository extends Repository<TrackingCommand, Tracking> {
           TrackingTrackAdded: (event) => TrackingTrackAdded(event),
           TrackingTrackChanged: (event) => TrackingTrackChanged(event),
           TrackingTrackRemoved: (event) => TrackingTrackRemoved(event),
-          TrackingPositionChanged: (event) => TrackingPositionChanged(event),
         });
 
   AssociationRule newCreateRule(Repository repo) => AssociationRule(
@@ -57,7 +57,7 @@ class TrackingRepository extends Repository<TrackingCommand, Tracking> {
       );
 
   @override
-  Tracking create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Tracking(
+  Tracking create(Map<Type, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Tracking(
         uuid,
         processors,
         data: ensure(data),

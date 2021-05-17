@@ -106,7 +106,7 @@ class OperationRepository extends Repository<OperationCommand, Operation> {
       );
 
   @override
-  Operation create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Operation(
+  Operation create(Map<Type, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Operation(
         uuid,
         processors,
         data: ensure(data),

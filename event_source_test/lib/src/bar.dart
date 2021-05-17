@@ -5,7 +5,7 @@ import 'foo.dart';
 class Bar extends AggregateRoot<BarCreated, BarDeleted> {
   Bar(
     String uuid,
-    Map<String, ProcessCallback> processors, {
+    Map<Type, ProcessCallback> processors, {
     Map<String, dynamic> data = const {},
   }) : super(uuid, processors, data);
 }
@@ -22,7 +22,7 @@ class BarRepository extends Repository<BarCommand, Bar> {
   final FooRepository foos;
 
   @override
-  Bar create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Bar(
+  Bar create(Map<Type, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Bar(
         uuid,
         processors,
         data: data,

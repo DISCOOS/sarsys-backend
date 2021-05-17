@@ -764,20 +764,28 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
   }
 
   void _buildMessageChannel() {
-    messages.register<AppConfigCreated>(manager.bus);
-    messages.register<AppConfigUpdated>(manager.bus);
-    messages.register<IncidentRegistered>(manager.bus);
-    messages.register<IncidentInformationUpdated>(manager.bus);
-    messages.register<IncidentRespondedTo>(manager.bus);
-    messages.register<IncidentCancelled>(manager.bus);
-    messages.register<IncidentResolved>(manager.bus);
-    messages.register<DeviceCreated>(manager.bus);
-    messages.register<DevicePositionChanged>(manager.bus);
-    messages.register<DeviceInformationUpdated>(manager.bus);
-    messages.register<TrackingTrackChanged>(manager.bus);
+    messages.registerFrom(manager.get<OrganisationRepository>(), manager.bus);
+    messages.registerFrom(manager.get<DivisionRepository>(), manager.bus);
+    messages.registerFrom(manager.get<DepartmentRepository>(), manager.bus);
+    messages.registerFrom(manager.get<AffiliationRepository>(), manager.bus);
+
+    messages.registerFrom(manager.get<AppConfigRepository>(), manager.bus);
+
+    messages.registerFrom(manager.get<IncidentRepository>(), manager.bus);
+    messages.registerFrom(manager.get<SubjectRepository>(), manager.bus);
+    messages.registerFrom(manager.get<OperationRepository>(), manager.bus);
+    messages.registerFrom(manager.get<PersonnelRepository>(), manager.bus);
+    messages.registerFrom(manager.get<UnitRepository>(), manager.bus);
+    messages.registerFrom(manager.get<MissionRepository>(), manager.bus);
+
+    messages.registerFrom(manager.get<DeviceRepository>(), manager.bus);
+
+    messages.register<TrackingCreated>(manager.bus);
+    messages.register<TrackingDeleted>(manager.bus);
+    messages.register<TrackingStatusChanged>(manager.bus);
     messages.register<TrackingPositionChanged>(manager.bus);
     messages.register<TrackingInformationUpdated>(manager.bus);
-    messages.register<IncidentResolved>(manager.bus);
+
     // TODO: MessageChannel - Add Operation events
     // TODO: MessageChannel - Add Unit events
     messages.build(manager);

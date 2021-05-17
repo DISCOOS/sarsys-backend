@@ -61,7 +61,7 @@ class DivisionRepository extends Repository<DivisionCommand, Division> {
       );
 
   @override
-  Division create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Division(
+  Division create(Map<Type, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Division(
         uuid,
         processors,
         data: ensure(data),

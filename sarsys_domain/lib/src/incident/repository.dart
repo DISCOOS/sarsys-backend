@@ -66,7 +66,7 @@ class IncidentRepository extends Repository<IncidentCommand, Incident> implement
       );
 
   @override
-  Incident create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Incident(
+  Incident create(Map<Type, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Incident(
         uuid,
         processors,
         data: ensure(data),

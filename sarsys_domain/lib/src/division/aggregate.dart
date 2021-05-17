@@ -5,7 +5,7 @@ import 'events.dart';
 class Division extends AggregateRoot<DivisionRegistered, DivisionDeleted> {
   Division(
     String uuid,
-    Map<String, ProcessCallback> processors, {
+    Map<Type, ProcessCallback> processors, {
     Map<String, dynamic> data = const {},
   }) : super(uuid, processors, data);
 }

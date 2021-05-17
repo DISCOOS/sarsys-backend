@@ -52,7 +52,7 @@ class MessageChannel extends MessageHandler<Event> {
   final _states = <String, WebSocketState>{};
 
   /// Handled message types
-  final _types = <Type>{};
+  final _eventTypes = <String>{};
 
   /// Event handler invoked on with messages from clients
   final WebSocketMessageHandler _handler;
@@ -85,8 +85,16 @@ class MessageChannel extends MessageHandler<Event> {
 
   /// Register message type [T] as managed
   void register<T extends Message>(MessageBus bus) {
-    _types.add(typeOf<T>());
+    _eventTypes.add('${typeOf<T>()}');
     bus.register<T>(this);
+  }
+
+  /// Register all [Event] types produced by repository as managed
+  void registerFrom(Repository repo, MessageBus bus) {
+    for (var type in repo.types) {
+      _eventTypes.add('$type');
+      bus.registerType(type, this);
+    }
   }
 
   /// Listen to stream of messages from [socket] connected to client with [appId].
@@ -220,7 +228,7 @@ class MessageChannel extends MessageHandler<Event> {
   @override
   void handle(Object source, Message message) {
     // Only process remote events
-    if (message.remote && _types.contains(message.runtimeType)) {
+    if (message.remote && _eventTypes.contains(message.runtimeType.toString())) {
       Map<String, WebSocketState>.from(_states).forEach(
         (appId, state) {
           final type = _findSubscriptionType(source, message, state);
@@ -229,6 +237,9 @@ class MessageChannel extends MessageHandler<Event> {
             final eventType = message.type.toLowerCase();
             final event = type.events.firstWhere((e) => e.name.toLowerCase() == eventType, orElse: () => null);
 
+            // Only handle if
+            // 1) event is found or
+            // 2) if no events are defined
             if (event != null || type.events.isEmpty) {
               // Create response and apply to state
               handled['type'] = type.name;
@@ -238,7 +249,8 @@ class MessageChannel extends MessageHandler<Event> {
               final repo = _manager?.getFromTypeName(type.name);
               data['changed'] = repo?.peek(data['uuid'] as String)?.data;
 
-              final process = istTypeMatch(type, uuid, data['changed'] as Map<String, dynamic>);
+              // Check if data matches filters
+              final process = istFilterMatch(type, uuid, data['changed'] as Map<String, dynamic>);
 
               if (process) {
                 if (!(type.statePatches == true || event?.statePatches == true)) {
@@ -261,7 +273,7 @@ class MessageChannel extends MessageHandler<Event> {
                   _send(
                     appId,
                     state: state,
-                    data: _toEntries(
+                    data: _toChanges(
                       appId,
                       overdue,
                     ),
@@ -275,7 +287,7 @@ class MessageChannel extends MessageHandler<Event> {
     }
   }
 
-  bool istTypeMatch(SubscriptionTypeModel type, String uuid, Map<String, dynamic> data) {
+  bool istFilterMatch(SubscriptionTypeModel type, String uuid, Map<String, dynamic> data) {
     if (data != null && type.filters.isNotEmpty) {
       switch (type.match) {
         case FilterMatch.any:
@@ -312,7 +324,7 @@ class MessageChannel extends MessageHandler<Event> {
           _send(
             appId,
             state: state,
-            data: _toEntries(
+            data: _toChanges(
               appId,
               overdue,
             ),
@@ -328,7 +340,7 @@ class MessageChannel extends MessageHandler<Event> {
     }
   }
 
-  Map<String, dynamic> _toEntries(String appId, List<Map<String, dynamic>> overdue) => {
+  Map<String, dynamic> _toChanges(String appId, List<Map<String, dynamic>> overdue) => {
         'type': 'Changes',
         'entries': overdue,
         'uuid': Uuid().v4(),
@@ -427,11 +439,10 @@ class MessageChannel extends MessageHandler<Event> {
   WebSocketMessage _onSubscribe(String appId, WebSocketState state, WebSocketSubscribeMessage message) {
     try {
       final config = message.config;
-      final events = _types.map((type) => type.toString()).toList();
       final eventsNotFound = <SubscriptionEventModel>[];
       config.types.fold<List<SubscriptionEventModel>>(
         eventsNotFound,
-        (previous, type) => previous..addAll(type.events.where((e) => !events.contains(e.name))),
+        (previous, type) => previous..addAll(type.events.where((e) => !_eventTypes.contains(e.name))),
       );
 
       if (eventsNotFound.isNotEmpty) {

@@ -17,7 +17,7 @@ class DeviceRepository extends Repository<DeviceCommand, Device> {
         });
 
   @override
-  Device create(Map<String, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Device(
+  Device create(Map<Type, ProcessCallback> processors, String uuid, Map<String, dynamic> data) => Device(
         uuid,
         processors,
         data: data,
