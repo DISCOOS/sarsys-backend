@@ -91,7 +91,7 @@ class DeviceController extends AggregateController<DeviceCommand, Device> {
           ..defaultValue = true,
         "position": documentPosition(context)
           ..description = "Current position"
-          // Use PUT /api/device/{duuid}/position
+          // Use PUT /api/devices/{duuid}/position
           ..isReadOnly = true,
         "allocatedTo": documentAggregateRef(
           context,

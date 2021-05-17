@@ -235,7 +235,9 @@ class SecureRouter extends Router {
   final JsonWebKeyStore keyStore;
   static final Map<RequestOrResponse, RequestContext> _contexts = {};
 
-  static Map<String, RequestContext> getContexts() => Map.unmodifiable(_contexts);
+  static Map<RequestOrResponse, RequestContext> getContexts() => Map.unmodifiable(
+        _contexts,
+      );
   static RequestContext getContext(RequestOrResponse lookup) => _contexts[lookup];
   static bool hasContext(RequestOrResponse lookup) => _contexts.containsKey(lookup);
 
@@ -275,17 +277,28 @@ class SecureRouter extends Router {
     }
   }
 
-  void secure(String pattern, Controller Function() creator) {
-    super.route(pattern).linkFunction(onRequest).link(authorizer).link(creator);
+  void secure(String pattern, Controller Function() creator, {bool withContext = true}) {
+    if (withContext) {
+      super.route(pattern).linkFunction(onRequest).link(authorizer).link(creator);
+    } else {
+      super.route(pattern).link(authorizer).link(creator);
+    }
+  }
+
+  AccessTokenValidator validator() {
+    if (config.enabled) {
+      return AccessTokenValidator(
+        keyStore,
+        config,
+      );
+    }
+    return null;
   }
 
   Controller authorizer() {
     if (config.enabled) {
       return Authorizer.bearer(
-        AccessTokenValidator(
-          keyStore,
-          config,
-        ),
+        validator(),
         scopes: config.required,
       );
     }

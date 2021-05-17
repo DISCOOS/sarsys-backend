@@ -17,12 +17,12 @@ else
 endif
 
 .PHONY: \
-	check commit test serve document snapshot localhost \
+	check commit models test serve document snapshot localhost \
 	build push publish install delete restart rollback status eventstore \
     docker_is_up download-snapshots
 
 .SILENT: \
-	check commit test serve document snapshot localhost \
+	check commit models test serve document snapshot localhost \
 	build push publish install delete restart rollback status eventstore \
 	docker_is_up download-snapshots
 
@@ -31,6 +31,11 @@ check:
 
 commit:
 	if [[ `git status --porcelain` ]]; then git commit -am "Generated OpenAPI document"; fi
+
+models:
+	echo "Generating models..."; \
+	pub run build_runner build --delete-conflicting-outputs; \
+	echo "[✓] Generating models complete."
 
 test:
 	echo "Testing..."

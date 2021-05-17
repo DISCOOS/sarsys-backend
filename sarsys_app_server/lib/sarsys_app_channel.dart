@@ -15,7 +15,7 @@ import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
 import 'package:sarsys_core/sarsys_core.dart';
 import 'controllers/domain/controllers.dart';
 import 'controllers/domain/schemas.dart';
-import 'controllers/messaging.dart';
+import 'controllers/messaging/messaging.dart';
 import 'controllers/tenant/app_config.dart';
 import 'controllers/tenant/controllers.dart';
 import 'sarsys_app_server.dart';
@@ -27,7 +27,7 @@ const int isolateStartupTimeout = 30;
 class SarSysAppServerChannel extends SarSysServerChannelBase {
   /// Channel responsible for distributing messages to client applications
   final MessageChannel messages = MessageChannel(
-    handler: WebSocketMessageProcessor(),
+    handler: WebSocketMessageHandler(),
   );
 
   /// Loaded in [prepare]
@@ -115,7 +115,9 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
           () => WebSocketController(
                 manager,
                 messages,
-              ))
+                router.validator(),
+              ),
+          withContext: false)
       ..secure(
           '/api/app-configs[/:uuid]',
           () => AppConfigController(
@@ -763,6 +765,7 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
     messages.register<IncidentRespondedTo>(manager.bus);
     messages.register<IncidentCancelled>(manager.bus);
     messages.register<IncidentResolved>(manager.bus);
+    messages.register<DeviceCreated>(manager.bus);
     messages.register<DevicePositionChanged>(manager.bus);
     messages.register<DeviceInformationUpdated>(manager.bus);
     messages.register<TrackingTrackChanged>(manager.bus);
@@ -771,7 +774,7 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
     messages.register<IncidentResolved>(manager.bus);
     // TODO: MessageChannel - Add Operation events
     // TODO: MessageChannel - Add Unit events
-    messages.build();
+    messages.build(manager);
   }
 
   FutureOr<void> _buildGrpcServer() async {

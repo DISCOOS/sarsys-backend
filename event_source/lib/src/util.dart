@@ -39,23 +39,16 @@ Map<K, V> sortMapValues<K, V>(Map<K, V> map, {int Function(V a, V b) compare}) {
 class JsonUtils {
   static const ops = ['add', 'remove', 'replace', 'move'];
 
-  Iterable<T> added<T>(List<Map<String, dynamic>> patches, Pattern path) =>
-      _select<T>(patches, 'add', path);
-  Iterable<T> moved<T>(List<Map<String, dynamic>> patches, Pattern path) =>
-      _select<T>(patches, 'move', path);
-  Iterable<T> removed<T>(List<Map<String, dynamic>> patches, Pattern path) =>
-      _select<T>(patches, 'remove', path);
-  Iterable<T> replaced<T>(List<Map<String, dynamic>> patches, Pattern path) =>
-      _select<T>(patches, 'replace', path);
+  Iterable<T> added<T>(List<Map<String, dynamic>> patches, Pattern path) => _select<T>(patches, 'add', path);
+  Iterable<T> moved<T>(List<Map<String, dynamic>> patches, Pattern path) => _select<T>(patches, 'move', path);
+  Iterable<T> removed<T>(List<Map<String, dynamic>> patches, Pattern path) => _select<T>(patches, 'remove', path);
+  Iterable<T> replaced<T>(List<Map<String, dynamic>> patches, Pattern path) => _select<T>(patches, 'replace', path);
 
-  Iterable<T> _select<T>(
-          List<Map<String, dynamic>> patches, String op, Pattern path) =>
-      patches
-          .where((patch) => patch['op'] == op)
-          .where((patch) =>
-              patch['path'] == (patch['path'] as String).startsWith(path))
-          .map((patch) => patch['value'])
-          .cast<T>();
+  Iterable<T> _select<T>(List<Map<String, dynamic>> patches, String op, Pattern path) => patches
+      .where((patch) => patch['op'] == op)
+      .where((patch) => patch['path'] == (patch['path'] as String).startsWith(path))
+      .map((patch) => patch['value'])
+      .cast<T>();
 
   /// Calculate key-stable patches enforcing
   /// a 'append-only' rule for keys and
@@ -101,22 +94,13 @@ class JsonUtils {
     return patches.reversed.toList();
   }
 
-  static Map<String, dynamic> apply(
-          Map<String, dynamic> data, List<Map<String, dynamic>> patches) =>
-      data == null
-          ? <String, dynamic>{}
-          : JsonPatch.apply(
-              data,
-              patches,
-              strict: false,
-            ) as Map<String, dynamic>;
-
-  static RegExpMatch matchQuery(String query) => RegExp(
-        // If number, g5 and g6 should be null
-        // If string, only g6 should be null
-        // If  regex, only g5 should be null
-        r"(\$?.{1,2}.*)\[\?\(\@\.(\w*)\s*([><]?|==|!=|<=|>=|=~)\s*([-.\d]*|\'(.*)\'|([^!=<>~].*))\)\]",
-      ).firstMatch(query);
+  static Map<String, dynamic> apply(Map<String, dynamic> data, List<Map<String, dynamic>> patches) => data == null
+      ? <String, dynamic>{}
+      : JsonPatch.apply(
+          data,
+          patches,
+          strict: false,
+        ) as Map<String, dynamic>;
 
   static String toQueryRoot(String query, [RegExpMatch match]) {
     match ??= RegExp(r'(\$?.{1,2}.*)\[\?.*\]').firstMatch(query);
@@ -126,33 +110,60 @@ class JsonUtils {
     return match.group(1);
   }
 
-  static String toNamedQuery(String query, RegExpMatch match) {
-    if (match == null) {
-      return query;
-    }
-    return '${match.group(1)}[?${toNamedFilter(match.group(3))}]';
-  }
+  // If number - use g4 | g5, g6 and g7 should be null
+  // If string - use g5 | g6 and g7 should be null
+  // If regexp - use g6 | g5 and g7 should be null
+  // If script - use g7 | g5 and g6 should be null (g8 = name, g9 = value)
+  static const _regex = r'(\$?.{1,2}.*)'
+      r'\[\?\(\s*\@\.(\w*)\s*([><]?|==|!=|<=|>=|=~)'
+      r"\s*([-.\d]*|\'(.*)\'|(\/[^!=<>~'].*)|((\w+)\s*(.*)))\s*\)\s*\]";
 
-  static Map<String, dynamic> toNamedArgs(String query, RegExpMatch match) {
+  static RegExpMatch matchQuery(String query) => RegExp(_regex).firstMatch(query);
+
+  static Map<String, dynamic> toNamedArgs(
+    RegExpMatch match, [
+    dynamic Function(String name, String value) map,
+  ]) {
     final args = <String, dynamic>{};
     if (match != null) {
       final g5 = match.group(5);
       final g6 = match.group(6);
+      final g7 = match.group(7);
+      // If script, use it as operand
+      final name = g5 == null && g6 == null && g7 != null ? match.group(8) : match.group(3);
       // Number comparison
-      args[toNamedFilter(match.group(3))] = {
+      args[toNamedFilter(name)] = {
         'name': match.group(2),
-        if (g5 == null && g6 == null)
+        if (g5 == null && g6 == null && g7 == null)
           // Number
           'value': num.parse(match.group(4))
-        else if (g6 == null)
+        else if (g5 != null && g6 == null && g7 == null)
           // String
           'value': match.group(5)
+        else if (g5 == null && g6 != null && g7 == null)
+          // Regex
+          'value': match.group(6)
         else
           // Regex
-          'value': match.group(6),
+          'value': map == null
+              ? match.group(9)
+              : map(
+                  name,
+                  match.group(9),
+                ),
       };
     }
     return args;
+  }
+
+  static String toNamedQuery(String query, RegExpMatch match) {
+    if (match == null) {
+      return query;
+    }
+    // If script, use it as operand
+    final isScript = match.group(5) == null && match.group(6) == null && match.group(7) != null;
+    final op = isScript ? match.group(8) : match.group(3);
+    return '${match.group(1)}[?${toNamedFilter(op)}]';
   }
 
   static Map<String, Predicate> toNamedFilters(Map<String, dynamic> args) => {
@@ -175,36 +186,28 @@ class JsonUtils {
                 e,
                 args,
                 'le',
-                (v1, v2) => v1 is num && v2 is num
-                    ? v1 <= v2
-                    : '$v1'.compareTo('$v2') <= 0,
+                (v1, v2) => v1 is num && v2 is num ? v1 <= v2 : '$v1'.compareTo('$v2') <= 0,
               ),
         if (args.hasPath('ge'))
           'ge': (e) => _eval(
                 e,
                 args,
                 'ge',
-                (v1, v2) => v1 is num && v2 is num
-                    ? v1 >= v2
-                    : '$v1'.compareTo('$v2') >= 0,
+                (v1, v2) => v1 is num && v2 is num ? v1 >= v2 : '$v1'.compareTo('$v2') >= 0,
               ),
         if (args.hasPath('lt'))
           'lt': (e) => _eval(
                 e,
                 args,
                 'lt',
-                (v1, v2) => v1 is num && v2 is num
-                    ? v1 < v2
-                    : '$v1'.compareTo('$v2') < 0,
+                (v1, v2) => v1 is num && v2 is num ? v1 < v2 : '$v1'.compareTo('$v2') < 0,
               ),
         if (args.hasPath('gt'))
           'gt': (e) => _eval(
                 e,
                 args,
                 'gt',
-                (v1, v2) => v1 is num && v2 is num
-                    ? v1 > v2
-                    : '$v1'.compareTo('$v2') > 0,
+                (v1, v2) => v1 is num && v2 is num ? v1 > v2 : '$v1'.compareTo('$v2') > 0,
               ),
         if (args.hasPath('rx'))
           'rx': (e) => _eval(

@@ -97,6 +97,18 @@ Future main() async {
       ),
       200,
     );
+    // Repeated does not change
+    expectResponse(
+      await harness.agent.execute(
+        "PATCH",
+        "/api/personnels/$puuid",
+        body: {
+          'tracking': {'uuid': tuuid}
+        },
+      ),
+      204,
+    );
+
     final personnel = await response1.body.decode();
     expect(
       personnel['data'],

@@ -373,7 +373,7 @@ class AggregateGrpcService extends AggregateGrpcServiceBase {
       return repo
           .search(
             JsonUtils.toNamedQuery(query, match),
-            args: JsonUtils.toNamedArgs(query, match),
+            args: JsonUtils.toNamedArgs(match),
             expand: expand,
           )
           .toPage(limit: limit, offset: offset)

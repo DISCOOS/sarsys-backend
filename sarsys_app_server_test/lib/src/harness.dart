@@ -1,20 +1,21 @@
+import 'dart:io';
 import 'package:aqueduct_test/aqueduct_test.dart';
 import 'package:event_source/event_source.dart';
 import 'package:event_source_test/event_source_test.dart';
 import 'package:jaguar_jwt/jaguar_jwt.dart';
-import 'package:sarsys_app_server/controllers/tenant/app_config.dart';
-import 'package:sarsys_app_server/sarsys_app_server.dart';
-import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
-import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
 import 'package:test/test.dart';
-import 'package:meta/meta.dart';
 import 'package:hive/hive.dart';
-
 import 'package:collection_x/collection_x.dart';
 export 'package:event_source/event_source.dart';
 export 'package:aqueduct_test/aqueduct_test.dart';
 export 'package:test/test.dart';
 export 'package:aqueduct/aqueduct.dart';
+import 'package:web_socket_channel/io.dart';
+
+import 'package:sarsys_app_server/controllers/tenant/app_config.dart';
+import 'package:sarsys_app_server/sarsys_app_server.dart';
+import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
+import 'package:sarsys_domain/sarsys_domain.dart' as sar show Operation;
 
 /// A testing harness for sarsys_app_server.
 ///
@@ -96,6 +97,18 @@ class SarSysAppHarness extends TestHarness<SarSysAppServerChannel> {
     assert(!_ports.contains(port), 'Instance with port $port exists');
     _ports.add(port);
     return this;
+  }
+
+  IOWebSocketChannel getWebSocketChannel(String appId, {String accessToken}) {
+    final uri = Uri.parse(agent.baseURL);
+    return IOWebSocketChannel.connect(
+      'ws://${uri.host}:${uri.port}/api/messages/connect',
+      headers: {
+        'x-app-id': '$appId',
+        if (accessToken != null) 'Authorization': 'Bearer $accessToken',
+      },
+      pingInterval: const Duration(seconds: 60),
+    );
   }
 
   @override
@@ -583,13 +596,17 @@ Map<String, Object> createPosition({
       }
     };
 
-Map<String, dynamic> createDevice(String uuid) => {
+Map<String, dynamic> createDevice(
+  String uuid, {
+  String alias,
+}) =>
+    {
       'uuid': uuid,
-      'alias': 'string',
       'trackable': true,
       'number': 'string',
       'network': 'string',
       'networkId': 'string',
+      'alias': alias ?? 'string',
     };
 
 Map<String, dynamic> createMessage(String id) => {

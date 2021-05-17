@@ -28,6 +28,7 @@ dependencies:
   stack_trace: ^1.9.6
   validators: ^2.0.0+1
   sentry: ^4.0.6
+  latlong2: ^0.8.0
   collection_x:
     path: ../collection_x
   event_source:

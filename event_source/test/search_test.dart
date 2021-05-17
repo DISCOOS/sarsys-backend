@@ -30,7 +30,7 @@ void main() {
       // Act
       final match = JsonUtils.matchQuery(query);
       final named = JsonUtils.toNamedQuery(query, match);
-      final args = JsonUtils.toNamedArgs(query, match);
+      final args = JsonUtils.toNamedArgs(match);
       final name = JsonUtils.toNamedFilter(op.key);
 
       // Assert
@@ -40,7 +40,7 @@ void main() {
         reason: "should parse '$query'",
       );
 
-      expect(match.groupCount, 6);
+      expect(match.groupCount, 9);
       expect(match.group(0), query);
       expect(match.group(1), path);
       expect(match.group(2), 'price');
@@ -94,7 +94,7 @@ void main() {
       // Act
       final match = JsonUtils.matchQuery(query);
       final named = JsonUtils.toNamedQuery(query, match);
-      final args = JsonUtils.toNamedArgs(query, match);
+      final args = JsonUtils.toNamedArgs(match);
       final name = JsonUtils.toNamedFilter(op);
 
       // Assert
@@ -103,7 +103,7 @@ void main() {
         isNotNull,
         reason: "should parse '$query'",
       );
-      expect(match.groupCount, 6);
+      expect(match.groupCount, 9);
       expect(match.group(0), query);
       expect(match.group(1), path);
       expect(match.group(2), 'price');
@@ -171,7 +171,7 @@ void _testSearchNumber<T extends num>(T value) {
     // Act
     final match = JsonUtils.matchQuery(query);
     final named = JsonUtils.toNamedQuery(query, match);
-    final args = JsonUtils.toNamedArgs(query, match);
+    final args = JsonUtils.toNamedArgs(match);
     final name = JsonUtils.toNamedFilter(op.key);
 
     // Assert
@@ -181,7 +181,7 @@ void _testSearchNumber<T extends num>(T value) {
       reason: "should parse '$query'",
     );
 
-    expect(match.groupCount, 6);
+    expect(match.groupCount, 9);
     expect(match.group(0), query);
     expect(match.group(1), path);
     expect(match.group(2), 'price');
