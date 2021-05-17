@@ -13,9 +13,10 @@ class JsonQuery {
     @required this.dataRoot,
     @required this.jsonPath,
     @required this.queryArgs,
-    @required this.namedQuery,
     @required this.queryMatch,
-    @required this.queryFilter,
+    @required this.namedQuery,
+    @required this.customFilter,
+    @required this.defaultFilter,
   });
 
   factory JsonQuery.from(pattern) {
@@ -24,17 +25,22 @@ class JsonQuery {
       final queryMatch = JsonUtils.matchQuery(pattern);
       final namedQuery = JsonUtils.toNamedQuery(pattern, queryMatch);
       final queryArgs = JsonUtils.toNamedArgs(queryMatch, QueryUtils.toCustomArgs);
-      final queryFilter = JsonUtils.toNamedFilters(queryArgs)..addAll(QueryUtils.toCustomFilter(queryArgs));
+      final customFilter = QueryUtils.toCustomFilter(queryArgs);
+      final defaultFilter = JsonUtils.toNamedFilters(queryArgs);
       return JsonQuery._(
         pattern: pattern,
         jsonPath: JsonPath(
           namedQuery,
-          filter: queryFilter,
+          filter: {
+            ...defaultFilter,
+            ...customFilter,
+          },
         ),
         queryArgs: queryArgs,
         namedQuery: namedQuery,
         queryMatch: queryMatch,
-        queryFilter: queryFilter,
+        customFilter: customFilter,
+        defaultFilter: defaultFilter,
         dataRoot: JsonUtils.toQueryRoot(pattern),
       );
     });
@@ -46,7 +52,8 @@ class JsonQuery {
   final JsonPath jsonPath;
   final RegExpMatch queryMatch;
   final Map<String, dynamic> queryArgs;
-  final Map<String, Predicate> queryFilter;
+  final Map<String, Predicate> customFilter;
+  final Map<String, Predicate> defaultFilter;
 
   bool get queryAll => dataRoot.contains('..');
 
@@ -88,11 +95,6 @@ class QueryUtils {
           filter.addAll({
             'within': (data) => isWithin(args['within'] as Map<String, dynamic>, data),
           });
-          break;
-        default:
-          filter.addAll(
-            JsonUtils.toNamedFilters(args),
-          );
           break;
       }
     }

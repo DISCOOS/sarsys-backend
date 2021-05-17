@@ -3,7 +3,7 @@ import 'package:sarsys_domain/sarsys_domain.dart' hide Operation;
 import 'package:sarsys_app_server/sarsys_app_server.dart';
 
 /// A ResourceController that handles
-/// [/api/incidents/{uuid}/Devices](http://localhost/api/client.html#/Device) requests
+/// [/api/devices](http://localhost/api/client.html#/Device) requests
 class DeviceController extends AggregateController<DeviceCommand, Device> {
   DeviceController(DeviceRepository repository, JsonValidation validation)
       : super(repository,
@@ -16,6 +16,7 @@ class DeviceController extends AggregateController<DeviceCommand, Device> {
             tag: "Devices");
 
   @override
+  @Scope(['roles:admin'])
   @Operation.get()
   Future<Response> getAll({
     @Bind.query('offset') int offset = 0,
@@ -36,6 +37,7 @@ class DeviceController extends AggregateController<DeviceCommand, Device> {
   }
 
   @override
+  @Scope(['roles:admin'])
   @Operation.post()
   Future<Response> create(@Bind.body() Map<String, dynamic> data) {
     return super.create(data);

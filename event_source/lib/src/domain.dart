@@ -2586,47 +2586,108 @@ abstract class Repository<S extends Command, T extends AggregateRoot>
     return trx;
   }
 
-  /// Search for [Aggregate] with data matching given query.
-  ///
-  /// Given [query] is a [JsonPath] string that supports
-  ///
-  /// Returns list of matches on format
-  ///
+  /// Search for [Aggregate]s with data matching given [JsonPath] formatted [query].
   ///
   Iterable<SearchMatch> search(
     String query, {
     bool expand = false,
+    bool deleted = false,
+    bool distinct = true,
     Map<String, dynamic> args = const {},
+    Map<String, Predicate> filter = const {},
   }) {
     final items = <SearchMatch>[];
     final root = JsonUtils.toQueryRoot(query);
     final all = root.contains('..');
-    final filter = JsonUtils.toNamedFilters(args);
-    final path = JsonPath(query, filter: filter);
+    final path = _toJsonPath(query, args, filter);
     for (var item in _aggregates.values) {
-      final matches = path.read({
-        // Only include if search is recursive or root matches object
-        if (all || root.contains('data')) 'data': item.data,
-        if (all || root.contains('number')) 'number': item.number.value,
-        if (all || root.contains('position')) 'position': store.toPosition(item.baseEvent),
-        if (all || root.contains('createdBy')) 'createdBy': item.createdBy.toJson(),
-        if (all || root.contains('changedBy')) 'changedBy': item.changedBy.toJson(),
-        if ((all || root.contains('deletedBy')) && item.deletedBy != null) 'deletedBy': item.deletedBy.toJson(),
-        if (all || root.contains('applied')) 'applied': item.applied.map((e) => e.toJson()),
-        if (all || root.contains('changed')) 'changed': item.getLocalEvents().map((e) => e.toJson()),
-        if (all || root.contains('skipped')) 'skipped': item.skipped.map((e) => store.getEvent(e).toJson()),
-        if ((all || root.contains('taint')) && store.isTainted(item.uuid)) 'taint': store.tainted[item.uuid],
-        if ((all || root.contains('cordon')) && store.isCordoned(item.uuid)) 'cordon': store.cordoned[item.uuid],
-      });
+      final matches = path.read(_toJsonPathData(all, root, item));
       if (matches.isNotEmpty) {
-        items.addAll(matches.map((e) => SearchMatch(
-              uuid: item.uuid,
-              path: e.path,
-              value: expand ? e.value : null,
-            )));
+        items.addAll(
+          matches.take(distinct ? 1 : items.length).map(
+                (e) => SearchMatch(
+                  uuid: item.uuid,
+                  path: e.path,
+                  value: expand ? e.value : null,
+                ),
+              ),
+        );
       }
     }
     return items;
+  }
+
+  /// Search for [Aggregate]s with data matching given [JsonPath] formatted [queries].
+  ///
+  Iterable<SearchMatch> searchAll(
+    Iterable<String> queries, {
+    bool any = true,
+    bool expand = false,
+    bool deleted = false,
+    bool distinct = true,
+    Map<String, dynamic> args = const {},
+    Map<String, Predicate> filter = const {},
+  }) {
+    final items = <SearchMatch>[];
+    final roots = <String, String>{};
+    final paths = <String, JsonPath>{};
+    for (var query in queries) {
+      roots[query] = JsonUtils.toQueryRoot(query);
+      paths[query] = _toJsonPath(query, args, filter);
+    }
+    for (var item in _aggregates.values) {
+      final matches = <JsonPathMatch>[];
+      final matched = any
+          ? paths.entries.any((query) {
+              final root = roots[query.key];
+              final all = roots[query.key].contains('..');
+              final partial = query.value.read(_toJsonPathData(all, root, item));
+              matches.addAll(partial);
+              return partial.isNotEmpty;
+            })
+          : paths.entries.every((query) {
+              final root = roots[query.key];
+              final all = roots[query.key].contains('..');
+              final partial = query.value.read(_toJsonPathData(all, root, item));
+              matches.addAll(partial);
+              return partial.isNotEmpty;
+            });
+      if (matched) {
+        items.addAll(
+          matches.take(distinct ? 1 : items.length).map(
+                (e) => SearchMatch(
+                  uuid: item.uuid,
+                  path: e.path,
+                  value: expand ? e.value : null,
+                ),
+              ),
+        );
+      }
+    }
+    return items;
+  }
+
+  JsonPath _toJsonPath(String query, Map<String, dynamic> args, Map<String, Predicate> filter) {
+    final match = JsonUtils.matchQuery(query);
+    final filters = JsonUtils.toNamedFilters(JsonUtils.toNamedArgs(match)..addAll(args))..addAll(filter);
+    return JsonPath(JsonUtils.toNamedQuery(query, match), filter: filters);
+  }
+
+  Map<String, Object> _toJsonPathData(bool all, String root, T item) {
+    return {
+      // Only include if search is recursive or root matches object
+      if (all || root.contains('data')) 'data': item.data,
+      if (all || root.contains('number')) 'number': item.number.value,
+      if (all || root.contains('position')) 'position': store.toPosition(item.baseEvent),
+      if (all || root.contains('createdBy')) 'createdBy': item.createdBy.toJson(),
+      if (all || root.contains('changedBy')) 'changedBy': item.changedBy.toJson(),
+      if ((all || root.contains('deletedBy')) && item.deletedBy != null) 'deletedBy': item.deletedBy.toJson(),
+      if (all || root.contains('applied')) 'applied': item.applied.map((e) => e.toJson()),
+      if (all || root.contains('changed')) 'changed': item.getLocalEvents().map((e) => e.toJson()),
+      if (all || root.contains('skipped')) 'skipped': item.skipped.map((e) => store.getEvent(e).toJson()),
+      if ((all || root.contains('taint')) && store.isTainted(item.uuid)) 'taint': store.tainted[item.uuid],
+      if ((all || root.contains('cordon')) && store.isCordoned(item.uuid)) 'cordon': store.cordoned[item.uuid],
+    };
   }
 
   /// Get aggregate with given [uuid].

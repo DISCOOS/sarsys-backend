@@ -369,11 +369,9 @@ class AggregateGrpcService extends AggregateGrpcServiceBase {
     final repo = manager.getFromTypeName(type);
     await repo.catchup(master: true);
     if (query?.isNotEmpty == true) {
-      final match = JsonUtils.matchQuery(query);
       return repo
           .search(
-            JsonUtils.toNamedQuery(query, match),
-            args: JsonUtils.toNamedArgs(match),
+            query,
             expand: expand,
           )
           .toPage(limit: limit, offset: offset)

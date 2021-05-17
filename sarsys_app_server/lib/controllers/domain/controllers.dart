@@ -4,6 +4,7 @@ export 'department_controller.dart';
 export 'device_controller.dart';
 export 'device_position_batch_controller.dart';
 export 'device_position_controller.dart';
+export 'device_search_controller.dart';
 export 'division_controller.dart';
 export 'division_department_controller.dart';
 export 'incident_controller.dart';

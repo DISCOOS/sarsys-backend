@@ -369,6 +369,12 @@ class SarSysAppServerChannel extends SarSysServerChannelBase {
                 requestValidator,
               ))
       ..secure(
+          '/api/devices/search',
+          () => DeviceSearchController(
+                manager.get<DeviceRepository>(),
+                requestValidator,
+              ))
+      ..secure(
           '/api/devices/:uuid/position',
           () => DevicePositionController(
                 manager.get<DeviceRepository>(),

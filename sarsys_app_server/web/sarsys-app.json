@@ -4339,6 +4339,168 @@
         ]
       }
     },
+    "/api/devices/search": {
+      "get": {
+        "description": "Search for devices",
+        "operationId": "search",
+        "parameters": [
+          {
+            "description": "Start with device index equal to offset. Default is 0.",
+            "in": "query",
+            "name": "offset"
+          },
+          {
+            "description": "Maximum number of device to fetch. Default is 20.",
+            "in": "query",
+            "name": "limit"
+          },
+          {
+            "description": "Include deleted devices in search",
+            "in": "query",
+            "name": "deleted"
+          },
+          {
+            "description": "Match any pattern if multiple is given. Legal values are 'any' (OR-ed) and 'all' (AND-ed)",
+            "in": "query",
+            "name": "match"
+          },
+          {
+            "description": "Search pattern in json path format",
+            "in": "query",
+            "name": "pattern",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "explode": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Entities Response",
+                  "properties": {
+                    "entries": {
+                      "description": "Array of Devices",
+                      "items": {
+                        "description": "Device Response",
+                        "properties": {
+                          "changed": {
+                            "description": "When Aggregate was created",
+                            "format": "date-time",
+                            "readOnly": true,
+                            "type": "string"
+                          },
+                          "created": {
+                            "description": "When Aggregate was created",
+                            "format": "date-time",
+                            "readOnly": true,
+                            "type": "string"
+                          },
+                          "data": {
+                            "$ref": "#/components/schemas/Device"
+                          },
+                          "deleted": {
+                            "description": "When Aggregate was created",
+                            "format": "date-time",
+                            "readOnly": true,
+                            "type": "string"
+                          },
+                          "number": {
+                            "description": "Last event applied to aggregate (can be used as version)",
+                            "readOnly": true,
+                            "type": "integer"
+                          },
+                          "type": {
+                            "default": "Device",
+                            "description": "Device Type",
+                            "readOnly": true,
+                            "type": "string"
+                          }
+                        },
+                        "readOnly": true,
+                        "type": "object"
+                      },
+                      "readOnly": true,
+                      "type": "array"
+                    },
+                    "limit": {
+                      "description": "Aggregate Page size",
+                      "readOnly": true,
+                      "type": "integer"
+                    },
+                    "next": {
+                      "description": "Next Aggregate Page offset",
+                      "readOnly": true,
+                      "type": "integer"
+                    },
+                    "offset": {
+                      "description": "Aggregate Page offset",
+                      "readOnly": true,
+                      "type": "integer"
+                    },
+                    "total": {
+                      "description": "Number of aggregates",
+                      "readOnly": true,
+                      "type": "integer"
+                    }
+                  },
+                  "readOnly": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response."
+          },
+          "401": {
+            "$ref": "#/components/responses/401"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          }
+        },
+        "summary": "Search for devices",
+        "tags": [
+          "Devices"
+        ]
+      },
+      "parameters": [],
+      "options": {
+        "description": "Get search options",
+        "operationId": "options",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/204"
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "401": {
+            "$ref": "#/components/responses/401"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          }
+        },
+        "summary": "Get search options",
+        "tags": [
+          "Devices"
+        ]
+      }
+    },
     "/api/devices/{uuid}": {
       "delete": {
         "description": "Delete device. ",
