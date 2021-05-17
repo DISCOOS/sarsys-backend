@@ -13,8 +13,8 @@ SubscriptionModel _$SubscriptionModelFromJson(Map json) {
         : (json['types'] as List)
             .map((json) => SubscriptionTypeModel.fromJson(Map<String, dynamic>.from(json as Map)))
             .toList(),
-    maxCount: json['maxCount'] == null ? null : json['maxCount'] as int,
-    minPeriod: json['minPeriod'] == null ? null : Duration(seconds: json['minPeriod'] as int),
+    maxCount: json['maxCount'] as int,
+    minPeriod: json['minPeriod'] == null ? null : Duration(microseconds: json['minPeriod'] as int),
   );
 }
 
