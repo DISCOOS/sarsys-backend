@@ -1,6 +1,6 @@
 extension MapX on Map {
   /// Check if map contains data at given path
-  bool hasPath(String ref) => elementAt(ref) != null;
+  bool hasPath(String ref, {String delimiter = '/'}) => elementAt(ref, delimiter: delimiter) != null;
 
   /// Get element with given reference on format '/name1/name2/name3'
   /// equivalent to map['name1']['name2']['name3'].
@@ -15,7 +15,7 @@ extension MapX on Map {
         }
       }
       final element = (parent ?? {});
-      final index = int.tryParse(name);
+      final index = int.tryParse(name.startsWith('[') ? name.substring(1, name.length - 2) : name);
       return element is Map
           ? element[name]
           : element is List && element.isNotEmpty && index != null && index >= 0 && index < element.length
@@ -50,20 +50,24 @@ extension MapX on Map {
   }
 
   /// Get [List] of type [T] at given path
-  List<T> listAt<T>(String path, {List<T> defaultList}) {
-    final list = elementAt(path);
+  List<T> listAt<T>(String path, {String delimiter = '/', List<T> defaultList}) {
+    final list = elementAt(path, delimiter: delimiter);
     return list == null ? defaultList : List<T>.from(list as List);
   }
 
   /// Get [Map] with keys of type [S] and values of type [T] at given path
-  Map<S, T> mapAt<S, T>(String path, {Map<S, T> defaultMap}) {
-    final map = elementAt(path);
+  Map<S, T> mapAt<S, T>(String path, {String delimiter = '/', Map<S, T> defaultMap}) {
+    final map = elementAt(path, delimiter: delimiter);
     return map == null ? defaultMap : Map<S, T>.from(map as Map);
   }
 
   /// Joint elements at given paths as string
-  String jointAt<T>(List<String> paths, {String separator = '', T defaultValue}) => paths
-      .map((path) => elementAt(path, defaultValue: defaultValue)?.toString())
+  String jointAt<T>(List<String> paths, {String delimiter = '/', String separator = '', T defaultValue}) => paths
+      .map((path) => elementAt(
+            path,
+            delimiter: delimiter,
+            defaultValue: defaultValue,
+          )?.toString())
       .where((e) => e != null)
       .join(separator);
 }
