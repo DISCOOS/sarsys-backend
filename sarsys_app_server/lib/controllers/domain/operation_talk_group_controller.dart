@@ -52,13 +52,16 @@ class TalkGroupController extends EntityController<sar.OperationCommand, sar.Ope
   }
 
   @override
-  sar.OperationCommand onCreate(String uuid, String type, Map<String, dynamic> data) => sar.AddTalkGroup(uuid, data);
+  sar.OperationCommand onCreate(String uuid, String type, Map<String, dynamic> data) =>
+      sar.AddTalkGroupToOperation(uuid, data);
 
   @override
-  sar.OperationCommand onUpdate(String uuid, String type, Map<String, dynamic> data) => sar.UpdateTalkGroup(uuid, data);
+  sar.OperationCommand onUpdate(String uuid, String type, Map<String, dynamic> data) =>
+      sar.UpdateOperationTalkGroup(uuid, data);
 
   @override
-  sar.OperationCommand onDelete(String uuid, String type, Map<String, dynamic> data) => sar.RemoveTalkGroup(uuid, data);
+  sar.OperationCommand onDelete(String uuid, String type, Map<String, dynamic> data) =>
+      sar.RemoveTalkGroupFromOperation(uuid, data);
 
   //////////////////////////////////
   // Documentation

@@ -132,22 +132,22 @@ class ObjectiveCommand<T extends DomainEvent> extends OperationCommand<T> implem
   String get entityIdFieldName => 'id';
 }
 
-class AddObjective extends ObjectiveCommand<ObjectiveAdded> {
-  AddObjective(
+class AddOperationObjective extends ObjectiveCommand<OperationObjectiveAdded> {
+  AddOperationObjective(
     String uuid,
     Map<String, dynamic> data,
   ) : super(Action.create, uuid, data);
 }
 
-class UpdateObjective extends ObjectiveCommand<ObjectiveUpdated> {
-  UpdateObjective(
+class UpdateOperationObjective extends ObjectiveCommand<OperationObjectiveUpdated> {
+  UpdateOperationObjective(
     String uuid,
     Map<String, dynamic> data,
   ) : super(Action.update, uuid, data);
 }
 
-class RemoveObjective extends ObjectiveCommand<ObjectiveRemoved> {
-  RemoveObjective(
+class RemoveOperationObjective extends ObjectiveCommand<OperationObjectiveRemoved> {
+  RemoveOperationObjective(
     String uuid,
     Map<String, dynamic> data,
   ) : super(Action.delete, uuid, data);
@@ -174,22 +174,22 @@ class TalkGroupCommand<T extends DomainEvent> extends OperationCommand<T> implem
   String get entityIdFieldName => 'id';
 }
 
-class AddTalkGroup extends TalkGroupCommand<TalkGroupAdded> {
-  AddTalkGroup(
+class AddTalkGroupToOperation extends TalkGroupCommand<OperationTalkGroupAdded> {
+  AddTalkGroupToOperation(
     String uuid,
     Map<String, dynamic> data,
   ) : super(Action.create, uuid, data);
 }
 
-class UpdateTalkGroup extends TalkGroupCommand<TalkGroupUpdated> {
-  UpdateTalkGroup(
+class UpdateOperationTalkGroup extends TalkGroupCommand<OperationTalkGroupUpdated> {
+  UpdateOperationTalkGroup(
     String uuid,
     Map<String, dynamic> data,
   ) : super(Action.update, uuid, data);
 }
 
-class RemoveTalkGroup extends TalkGroupCommand<TalkGroupRemoved> {
-  RemoveTalkGroup(
+class RemoveTalkGroupFromOperation extends TalkGroupCommand<OperationTalkGroupRemoved> {
+  RemoveTalkGroupFromOperation(
     String uuid,
     Map<String, dynamic> data,
   ) : super(Action.delete, uuid, data);

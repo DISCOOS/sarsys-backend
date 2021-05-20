@@ -52,13 +52,13 @@ class ClueController extends EntityController<IncidentCommand, Incident> {
   }
 
   @override
-  IncidentCommand onCreate(String uuid, String type, Map<String, dynamic> data) => AddClue(uuid, data);
+  IncidentCommand onCreate(String uuid, String type, Map<String, dynamic> data) => AddIncidentClue(uuid, data);
 
   @override
-  IncidentCommand onUpdate(String uuid, String type, Map<String, dynamic> data) => UpdateClue(uuid, data);
+  IncidentCommand onUpdate(String uuid, String type, Map<String, dynamic> data) => UpdateIncidentClue(uuid, data);
 
   @override
-  IncidentCommand onDelete(String uuid, String type, Map<String, dynamic> data) => RemoveClue(uuid, data);
+  IncidentCommand onDelete(String uuid, String type, Map<String, dynamic> data) => RemoveIncidentClue(uuid, data);
 
   //////////////////////////////////
   // Documentation

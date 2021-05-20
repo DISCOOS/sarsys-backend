@@ -17,9 +17,9 @@ class IncidentRepository extends Repository<IncidentCommand, Incident> implement
           IncidentRespondedTo: (event) => IncidentRespondedTo(event),
           IncidentResolved: (event) => IncidentResolved(event),
           IncidentDeleted: (event) => IncidentDeleted(event),
-          ClueAdded: (event) => ClueAdded(event),
-          ClueUpdated: (event) => ClueUpdated(event),
-          ClueRemoved: (event) => ClueRemoved(event),
+          IncidentClueAdded: (event) => IncidentClueAdded(event),
+          IncidentClueUpdated: (event) => IncidentClueUpdated(event),
+          IncidentClueRemoved: (event) => IncidentClueRemoved(event),
           IncidentMessageAdded: (event) => IncidentMessageAdded(event),
           IncidentMessageUpdated: (event) => IncidentMessageUpdated(event),
           IncidentMessageRemoved: (event) => IncidentMessageRemoved(event)

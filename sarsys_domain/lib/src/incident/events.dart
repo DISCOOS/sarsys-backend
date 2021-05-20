@@ -118,36 +118,36 @@ class IncidentDeleted extends DomainEvent {
 // Clue Domain Events
 //////////////////////////////////
 
-class ClueAdded extends DomainEvent {
-  ClueAdded(Message message)
+class IncidentClueAdded extends DomainEvent {
+  IncidentClueAdded(Message message)
       : super(
           uuid: message.uuid,
           local: message.local,
           data: message.data,
           created: message.created,
-          type: '$ClueAdded',
+          type: '$IncidentClueAdded',
         );
 }
 
-class ClueUpdated extends DomainEvent {
-  ClueUpdated(Message message)
+class IncidentClueUpdated extends DomainEvent {
+  IncidentClueUpdated(Message message)
       : super(
           uuid: message.uuid,
           local: message.local,
           data: message.data,
           created: message.created,
-          type: '$ClueUpdated',
+          type: '$IncidentClueUpdated',
         );
 }
 
-class ClueRemoved extends DomainEvent {
-  ClueRemoved(Message message)
+class IncidentClueRemoved extends DomainEvent {
+  IncidentClueRemoved(Message message)
       : super(
           uuid: message.uuid,
           local: message.local,
           data: message.data,
           created: message.created,
-          type: '$ClueRemoved',
+          type: '$IncidentClueRemoved',
         );
 }
 

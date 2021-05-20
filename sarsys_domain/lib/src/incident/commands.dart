@@ -98,22 +98,22 @@ class ClueCommand<T extends DomainEvent> extends IncidentCommand<T> implements E
   String get entityIdFieldName => 'id';
 }
 
-class AddClue extends ClueCommand<ClueAdded> {
-  AddClue(
+class AddIncidentClue extends ClueCommand<IncidentClueAdded> {
+  AddIncidentClue(
     String uuid,
     Map<String, dynamic> data,
   ) : super(Action.create, uuid, data);
 }
 
-class UpdateClue extends ClueCommand<ClueUpdated> {
-  UpdateClue(
+class UpdateIncidentClue extends ClueCommand<IncidentClueUpdated> {
+  UpdateIncidentClue(
     String uuid,
     Map<String, dynamic> data,
   ) : super(Action.update, uuid, data);
 }
 
-class RemoveClue extends ClueCommand<ClueRemoved> {
-  RemoveClue(
+class RemoveIncidentClue extends ClueCommand<IncidentClueRemoved> {
+  RemoveIncidentClue(
     String uuid,
     Map<String, dynamic> data,
   ) : super(Action.delete, uuid, data);

@@ -1,5 +1,6 @@
 import 'dart:collection';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:sentry/sentry.dart';
 import 'package:aqueduct/aqueduct.dart';
@@ -65,7 +66,7 @@ class RemoteLogger {
       final breadcrumbs = context?.causes
               ?.map((e) => Breadcrumb(
                     level: toLevel(e),
-                    message: e.message,
+                    message: _limit(e.message),
                     category: e.category,
                     timestamp: e.timestamp,
                     data: LinkedHashMap.from({'context.id': e.id})..addAll(e.data),
@@ -76,7 +77,7 @@ class RemoteLogger {
         (b1, b2) => b1.timestamp.compareTo(b2.timestamp),
       );
       final event = SentryEvent(
-        message: Message(record.message),
+        message: Message(_limit(record.message)),
         exception: toSentryException(record),
         logger: record.loggerName,
         tags: {
@@ -102,6 +103,13 @@ class RemoteLogger {
       }
     }
   }
+
+  static const int maxMessageLength = 200;
+
+  String _limit(String message) => message.substring(
+        0,
+        max(maxMessageLength, message.length),
+      );
 
   SentryException toSentryException(LogRecord record) {
     if (record.error == null) {

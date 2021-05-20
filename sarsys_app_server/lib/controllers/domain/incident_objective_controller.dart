@@ -52,13 +52,16 @@ class ObjectiveController extends EntityController<sar.OperationCommand, sar.Ope
   }
 
   @override
-  sar.OperationCommand onCreate(String uuid, String type, Map<String, dynamic> data) => sar.AddObjective(uuid, data);
+  sar.OperationCommand onCreate(String uuid, String type, Map<String, dynamic> data) =>
+      sar.AddOperationObjective(uuid, data);
 
   @override
-  sar.OperationCommand onUpdate(String uuid, String type, Map<String, dynamic> data) => sar.UpdateObjective(uuid, data);
+  sar.OperationCommand onUpdate(String uuid, String type, Map<String, dynamic> data) =>
+      sar.UpdateOperationObjective(uuid, data);
 
   @override
-  sar.OperationCommand onDelete(String uuid, String type, Map<String, dynamic> data) => sar.RemoveObjective(uuid, data);
+  sar.OperationCommand onDelete(String uuid, String type, Map<String, dynamic> data) =>
+      sar.RemoveOperationObjective(uuid, data);
 
   //////////////////////////////////
   // Documentation

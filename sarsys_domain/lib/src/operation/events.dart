@@ -152,36 +152,36 @@ class UnitRemovedFromOperation extends DomainEvent {
 // Objective Domain Events
 //////////////////////////////////////
 
-class ObjectiveAdded extends DomainEvent {
-  ObjectiveAdded(Message message)
+class OperationObjectiveAdded extends DomainEvent {
+  OperationObjectiveAdded(Message message)
       : super(
           uuid: message.uuid,
           local: message.local,
           data: message.data,
           created: message.created,
-          type: '$ObjectiveAdded',
+          type: '$OperationObjectiveAdded',
         );
 }
 
-class ObjectiveUpdated extends DomainEvent {
-  ObjectiveUpdated(Message message)
+class OperationObjectiveUpdated extends DomainEvent {
+  OperationObjectiveUpdated(Message message)
       : super(
           uuid: message.uuid,
           local: message.local,
           data: message.data,
           created: message.created,
-          type: '$ObjectiveUpdated',
+          type: '$OperationObjectiveUpdated',
         );
 }
 
-class ObjectiveRemoved extends DomainEvent {
-  ObjectiveRemoved(Message message)
+class OperationObjectiveRemoved extends DomainEvent {
+  OperationObjectiveRemoved(Message message)
       : super(
           uuid: message.uuid,
           local: message.local,
           data: message.data,
           created: message.created,
-          type: '$ObjectiveRemoved',
+          type: '$OperationObjectiveRemoved',
         );
 }
 
@@ -189,36 +189,36 @@ class ObjectiveRemoved extends DomainEvent {
 // TalkGroup Domain Events
 //////////////////////////////////////
 
-class TalkGroupAdded extends DomainEvent {
-  TalkGroupAdded(Message message)
+class OperationTalkGroupAdded extends DomainEvent {
+  OperationTalkGroupAdded(Message message)
       : super(
           uuid: message.uuid,
           local: message.local,
           data: message.data,
           created: message.created,
-          type: '$TalkGroupAdded',
+          type: '$OperationTalkGroupAdded',
         );
 }
 
-class TalkGroupUpdated extends DomainEvent {
-  TalkGroupUpdated(Message message)
+class OperationTalkGroupUpdated extends DomainEvent {
+  OperationTalkGroupUpdated(Message message)
       : super(
           uuid: message.uuid,
           local: message.local,
           data: message.data,
           created: message.created,
-          type: '$TalkGroupUpdated',
+          type: '$OperationTalkGroupUpdated',
         );
 }
 
-class TalkGroupRemoved extends DomainEvent {
-  TalkGroupRemoved(Message message)
+class OperationTalkGroupRemoved extends DomainEvent {
+  OperationTalkGroupRemoved(Message message)
       : super(
           uuid: message.uuid,
           local: message.local,
           data: message.data,
           created: message.created,
-          type: '$TalkGroupRemoved',
+          type: '$OperationTalkGroupRemoved',
         );
 }
 
