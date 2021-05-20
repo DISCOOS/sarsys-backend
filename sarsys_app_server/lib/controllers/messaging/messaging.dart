@@ -348,6 +348,10 @@ class MessageChannel extends MessageHandler<Event> {
         'number': EventNumber.none.value,
         'pending': _states[appId].messages.length,
         'created': DateTime.now().toIso8601String(),
+        'server': {
+          'pod': Platform.environment['X-Pod-Name'],
+          'node': Platform.environment['X-Node-Name'],
+        },
       };
 
   void _send(
