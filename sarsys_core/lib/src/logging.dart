@@ -108,7 +108,7 @@ class RemoteLogger {
 
   String _limit(String message) => message.substring(
         0,
-        max(maxMessageLength, message.length),
+        min(maxMessageLength, message.length),
       );
 
   SentryException toSentryException(LogRecord record) {
