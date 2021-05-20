@@ -229,9 +229,7 @@ class Context {
     ContextEvent event;
     final logLevel = toLogLevel(level);
     if (logger.isLoggable(logLevel)) {
-      data = data is Map<String, String>
-          ? LinkedHashMap.from(data)
-          : <String, String>{};
+      data = data is Map<String, String> ? LinkedHashMap.from(data) : <String, String>{};
       event = ContextEvent(
         level: level,
         message: message,
@@ -241,8 +239,7 @@ class Context {
           ..addAll({
             'context.length': '$length',
             if (previous != null) 'context.previous': '$previous',
-            if (previous != null)
-              'context.previous.length': '${previous.length}',
+            if (previous != null) 'context.previous.length': '${previous.length}',
             if (error != null) 'error': '$error',
             if (stackTrace != null)
               'stackTrace': formatStackTrace(
@@ -294,8 +291,7 @@ class Context {
     return _causes.last?.message;
   }
 
-  static String toStackTraceString(String prefix, StackTrace stackTrace,
-      {bool terse = true}) {
+  static String toStackTraceString(String prefix, StackTrace stackTrace, {bool terse = true}) {
     var trace = stackTrace is Trace ? stackTrace : Trace.from(stackTrace);
     if (terse) {
       trace = trace.terse;
@@ -358,10 +354,8 @@ class Context {
     }
   }
 
-  static String toMethod(String name, [List<String> args = const []]) =>
-      '$name(${args.join(',  ')})';
-  static String toObject(String name, [List<String> args = const []]) =>
-      '$name: {${args.join(', ')}}';
+  static String toMethod(String name, [List<String> args = const []]) => '$name(${args.join(',  ')})';
+  static String toObject(String name, [List<String> args = const []]) => '$name: {${args.join(', ')}}';
 
   static Level toLogLevel(ContextLevel level) {
     switch (level) {
@@ -418,12 +412,12 @@ class ContextEvent {
   Map<String, String> get data => Map.unmodifiable(_data);
 
   ContextEvent newInstance() => ContextEvent(
+        id: id,
         data: data,
         level: level,
         message: message,
         category: category,
         timestamp: timestamp,
-        id: id,
         instances: instances + 1,
       );
 
@@ -434,12 +428,12 @@ class ContextEvent {
 
   Map<String, dynamic> toJson() => {
         'id': id,
-        'data': data,
-        'message': message,
         'category': category,
         'instances': instances,
+        'data': toJsonSafe(data),
         'level': enumName(level),
         'timestamp': timestamp.toIso8601String(),
+        'message': message.substring(0, min(400, message.length)),
       };
 
   @override
@@ -456,10 +450,5 @@ class ContextEvent {
 
   @override
   int get hashCode =>
-      message.hashCode ^
-      category.hashCode ^
-      id.hashCode ^
-      level.hashCode ^
-      timestamp.hashCode ^
-      data.hashCode;
+      message.hashCode ^ category.hashCode ^ id.hashCode ^ level.hashCode ^ timestamp.hashCode ^ data.hashCode;
 }
