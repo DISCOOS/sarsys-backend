@@ -119,9 +119,9 @@ class EventStore {
   ///
   String get canonicalStream => useInstanceStreams
       ? '\$ce-${toCanonical([
-          prefix,
-          aggregate,
-        ])}'
+              prefix,
+              aggregate,
+            ])}'
       : toCanonical([
           prefix,
           aggregate,
@@ -2367,14 +2367,6 @@ class SourceEventErrorHandler {
   }) =>
       SourceEventErrorHandler(context ?? repo.context);
 
-  factory SourceEventErrorHandler.fromHandler(
-    SourceEventHandler handler,
-  ) =>
-      SourceEventErrorHandler(
-        handler.context,
-        onFatal: handler._onFatal,
-      );
-
   final Context context;
   final void Function(SourceEvent) _onFatal;
 
@@ -2558,11 +2550,29 @@ class SourceEventErrorHandler {
       repo: repo,
       skip: skip,
       fatal: false,
-      cause: error,
       aggregate: aggregate,
       stackTrace: Trace.from(stackTrace),
+      cause: _limitJsonError(error.toString()),
       error: 'Failed to apply ${event.type}@${event.number} on ${repo.aggregateType} ${aggregate.uuid}',
     );
+  }
+
+  String _limitJsonError(String message) {
+    try {
+      if (message.startsWith('Argument ')) {
+        final parts = message.split(' does not contain value at ');
+        final buffer = StringBuffer(
+          parts[0].substring(0, min(200, parts[0].length)),
+        );
+        buffer.write(' does not contain value at ');
+        buffer.write(parts[1]);
+        message = buffer.toString();
+      }
+    } catch (e) {
+      // Regress to best effort
+      message = message.substring(0, min(message.length, 400));
+    }
+    return message;
   }
 
   void handleFatal(
