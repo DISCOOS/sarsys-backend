@@ -821,7 +821,8 @@ dynamic toJsonSafe(
     for (var item in value) {
       if (!skipNull || item != null) {
         list.add(
-          item?.toJsonSafe(
+          toJsonSafe(
+            item,
             level: level + 1,
             skipNull: skipNull,
             rootField: rootField,
@@ -835,7 +836,8 @@ dynamic toJsonSafe(
     for (var entry in value.entries) {
       if (!skipNull || entry.value != null) {
         map['${entry.key}'](
-          entry.value?.toJsonSafe(
+          toJsonSafe(
+            entry.value,
             level: level + 1,
             skipNull: skipNull,
             rootField: rootField,
