@@ -17,7 +17,7 @@ class SubscriptionModel extends Equatable {
   /// Factory constructor for creating a new `SubscriptionModel`  instance
   factory SubscriptionModel.fromJson(Map<String, dynamic> json) => _$SubscriptionModelFromJson(json);
 
-  static const int defaultCount = 100;
+  static const int defaultCount = 10;
   static const Duration defaultPeriod = Duration(seconds: 1);
   static const SubscriptionModel defaultModel = SubscriptionModel();
 
