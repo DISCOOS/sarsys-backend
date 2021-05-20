@@ -835,13 +835,11 @@ dynamic toJsonSafe(
     final map = <String, dynamic>{};
     for (var entry in value.entries) {
       if (!skipNull || entry.value != null) {
-        map['${entry.key}'](
-          toJsonSafe(
-            entry.value,
-            level: level + 1,
-            skipNull: skipNull,
-            rootField: rootField,
-          ),
+        map['${entry.key}'] = toJsonSafe(
+          entry.value,
+          level: level + 1,
+          skipNull: skipNull,
+          rootField: rootField,
         );
       }
     }
