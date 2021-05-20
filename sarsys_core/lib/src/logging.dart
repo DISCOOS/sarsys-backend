@@ -116,7 +116,7 @@ class RemoteLogger {
       return null;
     }
     return SentryException(
-      value: record.error.toString(),
+      value: _limit(record.error.toString()),
       type: record.error.runtimeType.toString(),
       stackTrace: SentryStackTrace(
         frames: _sentryStackTraceFactory.getStackFrames(
