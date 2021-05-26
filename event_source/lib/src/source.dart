@@ -434,6 +434,13 @@ class EventStore {
       if (uuids.isNotEmpty && useInstanceStreams) {
         for (var uuid in uuids) {
           if (_isDisposed) break;
+
+          // Limit cpu usage
+          final limit = Throttler.check();
+          if (limit == true) {
+            await limit;
+          }
+
           final tic = DateTime.now();
           final offset = repo.hasSnapshot
               // Start from next event in
@@ -463,6 +470,12 @@ class EventStore {
 
       if (!_isDisposed && uuids.isEmpty) {
         final tic = DateTime.now();
+
+        // Limit cpu use
+        final limit = Throttler.check();
+        if (limit == true) {
+          await limit;
+        }
 
         final offset = repo.hasSnapshot
             ? repo.snapshot.isPartial
@@ -947,6 +960,14 @@ class EventStore {
 
       // Catchup to given streams
       for (var stream in streams) {
+        if (_isDisposed) break;
+
+        // Limit cpu use
+        final limit = Throttler.check();
+        if (limit == true) {
+          await limit;
+        }
+
         final previous = last(stream: stream);
         final offset = _toStreamOffset(repo, stream: stream);
         final events = await _catchup(
@@ -957,7 +978,6 @@ class EventStore {
           master: master,
           context: context,
         );
-        if (_isDisposed) break;
         final next = last(stream: stream);
         if (events > 0) {
           context.info(
@@ -2350,7 +2370,10 @@ class SourceEventHandler {
         repo.get(uuid, strict: false);
         return;
       }
-      rethrow;
+      if (_onFatal == null) {
+        rethrow;
+      }
+      _onFatal(event);
     }
   }
 }

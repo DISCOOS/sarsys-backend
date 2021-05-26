@@ -120,8 +120,8 @@ class EventSourceHarness {
     _logger = Logger('$runtimeType');
     if (debug) {
       _debug = debug;
-      Logger.root.level = level;
     }
+    Logger.root.level = level;
     return this;
   }
 

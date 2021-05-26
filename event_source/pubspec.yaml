@@ -20,6 +20,8 @@ dependencies:
   hive: ^1.4.1+1
   stack_trace: ^1.9.6
   random_string: ^2.1.0
+  system_resources: ^1.4.2
+
   collection_x:
     path: ../collection_x
 

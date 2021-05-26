@@ -87,7 +87,7 @@ push:
 publish: check build commit push
 	echo "Applying SARSys Tracking server..."
 	kubectl apply -f ../k8s/ns.yaml; \
-	kubectl apply -f ../k8s/tracking/rbac.yaml; \
+	kubectl apply -f ../k8s/rbac.yaml; \
 	kubectl apply -f ../k8s/tracking/config.yaml; \
 	if cat ../k8s/tracking/server.yaml | kubectl diff -f - > /dev/null 2>&1; then \
 	    echo "StatefulSet unchanged, restart using rollout (k8s version 1.15 or higher)"; \

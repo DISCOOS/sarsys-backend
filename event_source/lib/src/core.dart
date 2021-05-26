@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:collection_x/collection_x.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 import 'package:uuid/uuid.dart';
+import 'package:logging/logging.dart';
+import 'package:system_resources/system_resources.dart';
 
 import 'domain.dart';
 
@@ -861,4 +864,51 @@ class SearchMatch {
   final String uuid;
   final String path;
   final dynamic value;
+}
+
+class Throttler {
+  static const int MEGABYTE = 1024 * 1024;
+  static const Duration defaultWait = Duration(milliseconds: 100);
+
+  static Logger logger = Logger('$Throttler');
+
+  static final bool isSupported = Platform.isLinux || Platform.isMacOS;
+
+  static int get usage => isSupported ? (SystemResources.cpuLoadAvg() * 100).toInt() : 0;
+
+  static FutureOr<bool> check<T>({int limit = 95, Duration waitFor = defaultWait}) {
+    if (!_check(limit, waitFor)) {
+      return Future.delayed(waitFor, () => true);
+    }
+    return false;
+  }
+
+  static FutureOr<T> throttle<T>(
+    FutureOr<T> Function() computation, {
+    int limit = 95,
+    Duration waitFor = defaultWait,
+  }) {
+    if (!_check(limit, waitFor)) {
+      return Future.delayed(
+        waitFor,
+        computation,
+      );
+    }
+    return computation();
+  }
+
+  static bool _check(int limit, Duration waitFor) {
+    final actual = usage;
+    final isExceeded = actual > limit;
+    if (isExceeded) {
+      _log(actual, limit, waitFor);
+    }
+    return isExceeded;
+  }
+
+  static void _log(int usage, int limit, Duration waitFor) {
+    logger.warning(
+      'CPU usage $usage exceeded $limit >> wait for ${waitFor.inMilliseconds}ms',
+    );
+  }
 }

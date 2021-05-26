@@ -556,6 +556,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.1.0"
+  system_resources:
+    dependency: "direct main"
+    description:
+      name: system_resources
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "1.4.2"
   term_glyph:
     dependency: transitive
     description:

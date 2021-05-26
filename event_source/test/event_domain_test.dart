@@ -24,7 +24,6 @@ Future main() async {
     ..withPrefix()
     ..withLogger(
       debug: false,
-      level: Level.INFO,
     )
     ..withSnapshot()
     ..withRepository<Foo>(
@@ -967,8 +966,10 @@ Future main() async {
           'property': ++i,
         }));
       } on Exception catch (e, s) {
-        completer.completeError(e, s);
         timer.cancel();
+        if (!completer.isCompleted) {
+          completer.completeError(e, s);
+        }
       }
     });
     await expectLater(

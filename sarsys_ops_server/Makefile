@@ -76,7 +76,7 @@ push:
 publish: check build commit push
 	echo "Applying SARSys Ops server..."
 	kubectl apply -f ../k8s/ns.yaml; \
-	kubectl apply -f ../k8s/ops/rbac.yaml; \
+	kubectl apply -f ../k8s/rbac.yaml; \
 	kubectl apply -f ../k8s/ops/config.yaml; \
 	if cat ../k8s/ops/server.yaml | kubectl diff -f - > /dev/null 2>&1; then \
 	    echo "StatefulSet unchanged, restart using rollout (k8s version 1.15 or higher)"; \
