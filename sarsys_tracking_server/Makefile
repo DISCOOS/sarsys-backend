@@ -55,8 +55,8 @@ models:
 	echo "[✓] Generating models complete."
 
 snapshot:
-	echo "Build dart JIT snapshot of bin/main.dart (faster boot and less memory usage) ..."
-	dart --no-sound-null-safety --snapshot=bin/main.snapshot --snapshot-kind=app-jit bin/main.dart \
+	echo "Build dart portable snapshot of bin/main.dart (faster boot and less memory usage) ..."
+	dart --no-sound-null-safety --snapshot=bin/main.snapshot --snapshot-kind=kernel bin/main.dart \
 		--healthPort 8082 --grpcPort 8083 --config config.src.yaml --training=true
 	echo "[✓] Building dart snapshot bin/main.snapshot finished"
 
