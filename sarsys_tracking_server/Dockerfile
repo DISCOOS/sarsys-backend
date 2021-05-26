@@ -27,4 +27,4 @@ VOLUME /var/lib/sarsys
 
 HEALTHCHECK --timeout=4s CMD curl -sf http://localhost:8082/api/healthz/alive || exit 1
 
-ENTRYPOINT ["dart", "main.snapshot", "--healthPort", "8082", "--grpcPort", "8083", "--config", "config.yaml", "--observe"]
+ENTRYPOINT ["dart", "run", "--observe", "main.snapshot", "--healthPort", "8082", "--grpcPort", "8083", "--config", "config.yaml"]
