@@ -217,7 +217,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
   }
 
   Future _load(bool init) async {
-    _box = await await Hive.openLazyBox<String>('$runtimeType');
+    _box = await Hive.openLazyBox<String>('$runtimeType');
     if (init) {
       await _box.clear();
     } else {
@@ -919,7 +919,7 @@ class TrackingService extends MessageHandler<DomainEvent> {
       }
     } catch (error, stackTrace) {
       _context.error(
-        'push changes in Tracking $tuuid with: $error',
+        'Failed to add sources to Tracking $tuuid with: $error',
         category: 'TrackingService._addSources',
         error: error,
         data: {

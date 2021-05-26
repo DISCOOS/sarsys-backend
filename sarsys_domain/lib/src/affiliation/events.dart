@@ -26,28 +26,6 @@ class AffiliationInformationUpdated extends DomainEvent {
         );
 }
 
-class DivisionAddedToAffiliation extends DomainEvent {
-  DivisionAddedToAffiliation(Message message)
-      : super(
-          uuid: message.uuid,
-          local: message.local,
-          data: message.data,
-          created: message.created,
-          type: '$DivisionAddedToAffiliation',
-        );
-}
-
-class DivisionRemovedFromAffiliation extends DomainEvent {
-  DivisionRemovedFromAffiliation(Message message)
-      : super(
-          uuid: message.uuid,
-          local: message.local,
-          data: message.data,
-          created: message.created,
-          type: '$DivisionRemovedFromAffiliation',
-        );
-}
-
 class AffiliationDeleted extends DomainEvent {
   AffiliationDeleted(Message message)
       : super(
